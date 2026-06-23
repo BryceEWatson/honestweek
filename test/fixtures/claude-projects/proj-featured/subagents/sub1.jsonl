@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2024-06-12T09:30:00Z","cwd":"/work/featured-repo","sessionId":"99999999-aaaa-bbbb-cccc-dddddddddddd","message":{"role":"user","content":"Subagent task: this transcript must be EXCLUDED from enumeration."}}
+{"type":"assistant","timestamp":"2024-06-12T09:30:05Z","cwd":"/work/featured-repo","sessionId":"99999999-aaaa-bbbb-cccc-dddddddddddd","message":{"role":"assistant","content":[{"type":"text","text":"Subagent working."}]}}

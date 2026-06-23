@@ -1,0 +1,2 @@
+{"type":"assistant","timestamp":"2024-06-12T13:00:00Z","cwd":"/work/featured-repo","sessionId":"dddddddd-1111-2222-3333-444444444444","entrypoint":"agent","message":{"role":"assistant","content":[{"type":"tool_use","id":"a1","name":"Bash","input":{"command":"ls"}}]}}
+{"type":"user","timestamp":"2024-06-12T13:00:01Z","cwd":"/work/featured-repo","sessionId":"dddddddd-1111-2222-3333-444444444444","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"a1","content":"file listing","is_error":false}]}}
