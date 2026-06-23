@@ -119,15 +119,46 @@ test('every string field is redacted; configured term + generic secrets scrubbed
   assert.ok(blob.includes('22 tests'), 'plain count spared');
 });
 
-test('candidateCommits: { sha, date, subject } with subject redacted; sha preserved; non-private only', async () => {
+test('candidateCommits: { sha, date, empty subject }; sha preserved; NO body-derived subject', async () => {
   const { byId } = await run();
   const a = byId.aaaaaaaa;
   assert.equal(a.candidateCommits.length, 1);
   const c = a.candidateCommits[0];
   assert.equal(c.sha, 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2');
   assert.equal(c.date, '2024-06-12');
-  assert.ok(!c.subject.includes('Falcon'), 'subject redacted');
-  assert.match(c.subject, /redacted:term/);
+  // The adapter NOMINATES the sha only — it never emits a subject mined from the
+  // tool-result body (which could carry arbitrary diff/PII/basename prose). The
+  // real subject is re-derived later from the user's own git.
+  assert.equal(c.subject, '');
+});
+
+test('REGRESSION (leak-hunt): reducePath bounds the extension and strips trailers/dotfiles', () => {
+  const cwd = '/work/r';
+  assert.equal(reducePath('/work/r/config/.env.client-acme-prod', cwd), 'config/*', 'dotfile post-dot name never exposed');
+  assert.equal(reducePath('/work/r/data/leak.csv arg2 arg3', cwd), 'data/*.csv', 'trailing args stripped');
+  assert.equal(reducePath('/work/r/data/board-deck.pdf#page=3-confidential', cwd), 'data/*.pdf', 'fragment stripped');
+  assert.equal(reducePath('/work/r/src/leak-basename.ts:42:10', cwd), 'src/*.ts', ':line:col stripped');
+  assert.equal(reducePath('/work/r/data/leak.csv?token=abc123', cwd), 'data/*.csv', 'query string stripped');
+});
+
+test('REGRESSION (leak-hunt): a non-hex session id is hashed, never echoing a configured term', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'hw-id-'));
+  try {
+    const dir = join(root, 'p');
+    mkdirSync(dir);
+    const sid = 'Falcon99SECRET-credentials';
+    writeFileSync(
+      join(dir, `${sid}.jsonl`),
+      JSON.stringify({ type: 'user', timestamp: '2024-06-12T09:00:00Z', cwd: '/work/featured-repo', sessionId: sid, message: { content: 'Do some featured work.' } }) + '\n'
+    );
+    const cfg = config();
+    const entries = await adaptSessions({ config: cfg, weekStart: WEEK_START, weekEnd: WEEK_END, redactor: createRedactor(cfg), projectsRoot: root });
+    assert.equal(entries.length, 1);
+    assert.ok(!entries[0].id.includes('Falcon'), 'configured codename must not leak through the id');
+    assert.match(entries[0].id, /^session-[0-9a-f]{8}$/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('a session whose cwd matches NO configured repo is private: empty candidateCommits, no git read', async () => {
