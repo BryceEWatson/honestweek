@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2024-06-12T14:00:00Z","cwd":"/work/featured-repo","sessionId":"eeeeeeee-1111-2222-3333-444444444444","message":{"role":"user","content":"<command-message>honestweek is running</command-message>\n<command-name>/honestweek</command-name>"}}
+{"type":"assistant","timestamp":"2024-06-12T14:00:02Z","cwd":"/work/featured-repo","sessionId":"eeeeeeee-1111-2222-3333-444444444444","message":{"role":"assistant","content":[{"type":"text","text":"Running."}]}}

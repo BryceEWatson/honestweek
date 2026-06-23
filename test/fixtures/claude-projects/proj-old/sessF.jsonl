@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2024-05-01T09:00:00Z","cwd":"/work/featured-repo","sessionId":"ffffffff-1111-2222-3333-444444444444","message":{"role":"user","content":"Some old work from outside the reporting window."}}
+{"type":"assistant","timestamp":"2024-05-01T09:00:05Z","cwd":"/work/featured-repo","sessionId":"ffffffff-1111-2222-3333-444444444444","message":{"role":"assistant","content":[{"type":"text","text":"Working on it."}]}}
