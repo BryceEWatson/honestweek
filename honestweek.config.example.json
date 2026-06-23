@@ -1,0 +1,35 @@
+{
+  "identity": {
+    "authorEmails": ["you@example.com"]
+  },
+  "week": {
+    "startsOn": "monday",
+    "timezone": "UTC"
+  },
+  "repos": [
+    {
+      "path": "/path/to/your/repo",
+      "label": "your-project",
+      "role": "featured"
+    },
+    {
+      "path": "~/code/a-repo-you-contribute-to",
+      "label": "a-shared-repo",
+      "role": "reference"
+    },
+    {
+      "path": "~/code/a-client-repo",
+      "label": "a-private-project",
+      "role": "display"
+    }
+  ],
+  "redaction": {
+    "codenames": [],
+    "names": [],
+    "terms": []
+  },
+  "output": {
+    "mode": "digest",
+    "file": "honestweek.digest.md"
+  }
+}
