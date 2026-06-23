@@ -195,6 +195,40 @@ test('clean-room: module source contains no obvious personal data and an empty c
   assert.equal(red.redact('a perfectly ordinary sentence with 3 items'), 'a perfectly ordinary sentence with 3 items');
 });
 
+// --- adversarial regressions (found by the redactor red-team) ---------------
+
+test('REGRESSION: multi-word terms redact across any whitespace separator', () => {
+  const red = r({ redaction: { names: ['Jane Doe'], terms: ['acme corp'] } });
+  for (const sep of [' ', '  ', '\t', '\n', ' ']) {
+    const out = red.redact(`report by Jane${sep}Doe today`);
+    assert.match(out, /\[redacted:term\]/, `separator ${JSON.stringify(sep)} should still match`);
+    assert.doesNotMatch(out, /Doe/, `surname must not leak for separator ${JSON.stringify(sep)}`);
+  }
+  assert.match(red.redact('signed acme  corp deal'), /\[redacted:term\]/);
+  // whole-token boundary still holds: "Janet Doe" is not "Jane Doe"
+  assert.match(red.redact('Janet Doe was here'), /Janet Doe/);
+});
+
+test('REGRESSION: large percentages and decimals are spared (not mangled as account)', () => {
+  const red = r();
+  assert.equal(red.redact('coverage 123456789%'), 'coverage 123456789%');
+  assert.equal(red.redact('ratio 123456789.5 done'), 'ratio 123456789.5 done');
+  assert.equal(red.redact('frac 0.123456789'), 'frac 0.123456789');
+  assert.equal(red.count, 0);
+  // a bare large integer is still treated as an account number (over-redaction OK)
+  assert.match(red.redact('acct 123456789'), /\[redacted:account\]/);
+});
+
+test('REGRESSION: a space-containing home username does not leak the surname', () => {
+  const red = r();
+  const posix = red.redact('saved to /home/bryce watson/notes/file.txt now');
+  assert.doesNotMatch(posix, /watson/, 'surname must be redacted');
+  const win = red.redact('opened C:\\Users\\Bryce Watson\\report.docx today');
+  assert.doesNotMatch(win, /Watson/, 'surname must be redacted on Windows');
+  // a bare "/home/user" followed by prose must NOT swallow the trailing words
+  assert.match(red.redact('I work in /home/bob mostly'), /mostly/);
+});
+
 test('SECRET_PATTERNS is exported and frozen for transparency', () => {
   assert.ok(Array.isArray(SECRET_PATTERNS));
   assert.ok(Object.isFrozen(SECRET_PATTERNS));
