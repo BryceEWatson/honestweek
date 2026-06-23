@@ -1,0 +1,21 @@
+# honestweek sidecars (intermediate working artifacts — never published)
+honestweek.draft.json
+honestweek.items.json
+
+# The user's own config MAY contain private repo paths and redaction terms,
+# so it is ignored by default. To track it in git (e.g. a personal dotfiles
+# repo where that is acceptable), delete the line below or add a negation:
+#   !honestweek.config.json
+honestweek.config.json
+
+# NOTE: honestweek.config.example.json is the tracked, shareable template —
+# it is intentionally NOT ignored.
+
+# Dependencies (there should be none at runtime, but never commit these)
+node_modules/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
