@@ -94,7 +94,7 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    ```bash
    node bin/honestweek.mjs build
    ```
-5. **emit** → on success, `build` renders the final **local** output in the configured `output.mode` (`post` / `changelog` / `digest`) to `output.file`. The `digest` carries a git-derived **Activity** summary (commits and active days for `featured`/`reference` repos — `display` repos are never git-read, so they get no metrics, and an unreadable repo gets no fabricated `0`). You review it and publish it yourself.
+5. **emit** → on success, `build` renders the final **local** output in the configured `output.mode` (`post` / `changelog` / `digest` / `report`) to `output.file`. The `digest` carries a git-derived **Activity** summary (commits and active days for `featured`/`reference` repos — `display` repos are never git-read, so they get no metrics, and an unreadable repo gets no fabricated `0`). You review it and publish it yourself.
 
 ## Sample output
 
@@ -146,7 +146,7 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
     { "path": "~/code/a-client-repo", "label": "a-private-project", "role": "display" }
   ],
   "redaction": { "codenames": [], "names": [], "terms": [] },  // optional; default-empty private term-lists, scrubbed case-insensitively
-  "output": { "mode": "digest", "file": "honestweek.digest.md" }  // optional; mode ∈ post|changelog|digest, default digest
+  "output": { "mode": "digest", "file": "honestweek.digest.md" }  // optional; mode ∈ post|changelog|digest|report, default digest
 }
 ```
 
@@ -159,7 +159,7 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `repos[].label` | The short name items reference and outputs display. |
 | `repos[].role` | One of the three trust levels below. |
 | `redaction.codenames` / `names` / `terms` | Private tokens scrubbed from all output. Default empty (clean-room). |
-| `output.mode` | `post` (build-in-public update), `changelog` (in-repo `CHANGELOG.md` section), or `digest` (the private, local-only weekly file — the default and trust anchor). |
+| `output.mode` | `post` (build-in-public update), `changelog` (in-repo `CHANGELOG.md` section), `digest` (the private, local-only weekly file — the default and trust anchor), or `report` (grouped by project, each headed by its git-derived metrics — the structured weekly-work-log shape, still a local file you publish yourself). |
 | `output.file` | Where the output is written. Defaults per mode when unset. |
 
 **Repo roles:**

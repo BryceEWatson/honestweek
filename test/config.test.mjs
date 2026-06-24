@@ -216,7 +216,7 @@ test('isEmailShaped accept/reject cases', () => {
 
 test('exported enums are exactly the documented sets', () => {
   assert.deepEqual(ROLES, ['featured', 'reference', 'display']);
-  assert.deepEqual(OUTPUT_MODES, ['post', 'changelog', 'digest']);
+  assert.deepEqual(OUTPUT_MODES, ['post', 'changelog', 'digest', 'report']);
 });
 
 test('resolveRepoPath helper handles ~, relative, absolute', () => {
