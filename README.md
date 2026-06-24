@@ -161,6 +161,7 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `redaction.codenames` / `names` / `terms` | Private tokens scrubbed from all output. Default empty (clean-room). |
 | `output.mode` | `post` (build-in-public update), `changelog` (in-repo `CHANGELOG.md` section), `digest` (the private, local-only weekly file — the default and trust anchor), or `report` (grouped by project, each headed by its git-derived metrics — the structured weekly-work-log shape, still a local file you publish yourself). |
 | `output.file` | Where the output is written. Defaults per mode when unset. |
+| `output.archive` / `output.archiveDir` | Opt-in local weekly archive. With `archive: true`, `build` also snapshots each week to `<archiveDir>/<weekStart>.json` and maintains `<archiveDir>/index.json` (the "/log" series; default dir `honestweek.archive`). Local files only — never pushed. |
 
 **Repo roles:**
 
@@ -176,6 +177,7 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `honestweek.items.json` | The distilled, human-reviewable items. **Yours to keep or ignore** (gitignored by default; safe to delete). |
 | `output.file` (e.g. `honestweek.digest.md`) | The final rendered output. **Yours to keep or ignore.** |
 | `honestweek.config.json` | Your config. Gitignored by default (it can hold private repo paths/terms); un-ignore it if you want it tracked. |
+| `honestweek.archive/` (opt-in) | The local weekly snapshots + `index.json` (the "/log" series). Only written when `output.archive` is true. **Yours to keep, ignore, or commit.** |
 
 ## What it does NOT do / privacy model
 
