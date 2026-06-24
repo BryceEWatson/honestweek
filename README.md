@@ -17,29 +17,41 @@ Your commits show what shipped. Your sessions show what you *figured out* — th
 
 ## Install
 
-honestweek works two ways. Either needs zero `npm install`.
+honestweek runs locally with zero `npm install`. Pick whichever path you prefer.
 
-**As a Claude Code skill** — clone into your skills directory so `/honestweek` is available inside Claude Code:
+**As a Claude Code plugin (recommended)** — add this repo as a plugin marketplace, then install:
+
+```
+/plugin marketplace add BryceEWatson/honestweek
+/plugin install honestweek@honestweek
+```
+
+You get `/honestweek` inside Claude Code, with versioned updates via `/plugin marketplace update`.
+
+**As a plain skill** — clone into your personal skills directory:
 
 ```bash
 git clone https://github.com/BryceEWatson/honestweek ~/.claude/skills/honestweek
 ```
 
-**As a CLI directly** — run the subcommands without installing as a skill:
+Either way, when you run `/honestweek` the skill invokes its bundled CLI by a **skill-anchored absolute path** (`${CLAUDE_SKILL_DIR}/bin/honestweek.mjs`), so the commands work from *your own* project directory.
+
+**As a standalone CLI** — run the subcommands directly from a clone of the repo:
 
 ```bash
-# from a clone of the repo
+# run these from the repo root
 node bin/honestweek.mjs --help
-
-# or, once published, via npx
-npx honestweek --help
 ```
+
+> Note: `npx honestweek` is planned but **not yet published to npm** — don't run it yet.
 
 The CLI surface is exactly three subcommands: `init`, `discover`, `build`.
 
 ## The flow
 
 End-to-end happy path, in order. Each step names the artifact it produces.
+
+> Installed as the skill/plugin? Just run `/honestweek` — Claude drives these steps for you and resolves the CLI path automatically. The raw `node bin/honestweek.mjs …` commands below are for running the CLI directly **from a clone of the repo** (cwd = the repo root).
 
 1. **`init`** → writes `honestweek.config.json` (scaffolded from `honestweek.config.example.json`) for you to fill in and commit. Two confirmations gate the write; accepting the defaults yields a valid config.
    ```bash

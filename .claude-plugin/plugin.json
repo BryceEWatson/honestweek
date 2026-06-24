@@ -1,0 +1,9 @@
+{
+  "name": "honestweek",
+  "description": "Honest, git-verified, private-by-default weekly work summaries from your AI coding sessions.",
+  "version": "0.1.0",
+  "author": { "name": "Bryce Watson" },
+  "homepage": "https://github.com/BryceEWatson/honestweek",
+  "license": "MIT",
+  "keywords": ["weekly-summary", "git", "claude-code", "privacy", "changelog", "skill"]
+}
