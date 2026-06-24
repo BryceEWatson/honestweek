@@ -4,6 +4,9 @@
     "name": "Bryce Watson",
     "url": "https://github.com/BryceEWatson"
   },
+  "metadata": {
+    "description": "honestweek — honest, git-verified, private-by-default weekly work summaries from your AI coding sessions."
+  },
   "plugins": [
     {
       "name": "honestweek",
