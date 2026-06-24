@@ -292,6 +292,28 @@ test('runPreview rejects a bad --port (both spellings) before serving', async ()
   }
 });
 
+test('runPreview reports a clear error when the requested --port is already in use', async () => {
+  const dir = tmp();
+  let blocker;
+  try {
+    const file = join(dir, 'out.md');
+    writeFileSync(file, '# Hi\n');
+    blocker = await startServer({ port: 0, html: '<x>' }); // claim a free port
+    const io = fakeIo();
+    const code = await runPreview({
+      cwd: dir,
+      argv: ['--file', file, '--port', String(blocker.port), '--no-open'],
+      io,
+      block: false,
+    });
+    assert.equal(code, 1);
+    assert.match(io.errBuf, /already in use/);
+  } finally {
+    if (blocker) await blocker.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('runPreview serves the rendered file on loopback and honors --no-open', async () => {
   const dir = tmp();
   let handle;
