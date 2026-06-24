@@ -16,7 +16,7 @@ Your commits show what shipped. Your sessions show what you *figured out*: the d
 - **Node ≥ 18**
 - The system **`git` CLI** on your `PATH`
 - **Zero runtime dependencies**: Node built-ins plus `git` only
-- Runs **entirely locally**. No telemetry, no network egress.
+- Runs **entirely locally**. No telemetry, no network egress. The optional `preview` server binds to loopback (`127.0.0.1`) only.
 
 ## Install
 
@@ -68,7 +68,7 @@ node bin/honestweek.mjs --help
 
 Once it's published to npm (**not yet**; see [Releasing](#releasing-maintainers)), `npx honestweek` and `npm i -g honestweek` will work too.
 
-The CLI surface is five subcommands: `init`, `discover`, `validate`, `build`, and `harvest`. The `harvest` command (`node bin/honestweek.mjs harvest`) proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review).
+The CLI surface is six subcommands: `init`, `discover`, `validate`, `build`, `harvest`, and `preview`. The `harvest` command (`node bin/honestweek.mjs harvest`) proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review). The `preview` command (`node bin/honestweek.mjs preview`) renders the built output as HTML and serves it on a local-only (`127.0.0.1`) server for you to read in your browser.
 
 ## The flow
 
@@ -95,6 +95,10 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    node bin/honestweek.mjs build
    ```
 5. **emit** → on success, `build` renders the final **local** output in the configured `output.mode` (`post` / `changelog` / `digest` / `report`) to `output.file`. The `digest` carries a git-derived **Activity** summary (commits and active days for `featured`/`reference` repos; `display` repos are never git-read, so they get no metrics, and an unreadable repo gets no fabricated `0`). You review it and publish it yourself.
+6. **`preview`** (optional) → renders the built `output.file` as HTML and serves it on a local-only `127.0.0.1` server, then opens your browser. It is a viewer: it reads the file `build` wrote, publishes nothing, and needs no internet. Press Ctrl+C to stop.
+   ```bash
+   node bin/honestweek.mjs preview              # add --no-open to just print the URL, or --port <n>
+   ```
 
 ## Sample output
 
@@ -185,7 +189,7 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 - **Only your own allowlisted repos are read.** Nothing outside your `repos` list is ever touched.
 - **`display`-role repos are summarized generically and NEVER git-read.** There is no code path that runs `git` against a `display` repo.
 - **Output stays local until you publish it.** honestweek writes local files only.
-- **No telemetry, no network egress.** Nothing is sent anywhere.
+- **No telemetry, no network egress.** The optional `preview` server is loopback-only (`127.0.0.1`): it serves your already-built output to your own browser, and nothing leaves your machine.
 - **Nothing is auto-published.** honestweek produces a draft; *you* are the publisher.
 
 ### The launch invariant

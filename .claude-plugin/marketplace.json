@@ -11,7 +11,7 @@
     {
       "name": "honestweek",
       "source": "./",
-      "description": "Honest, git-verified, private-by-default weekly work summaries from your AI coding sessions. Adds the /honestweek skill plus the init/discover/validate/build/harvest CLI."
+      "description": "Honest, git-verified, private-by-default weekly work summaries from your AI coding sessions. Adds the /honestweek skill plus the init/discover/validate/build/harvest/preview CLI."
     }
   ]
 }

@@ -7,7 +7,7 @@
 // module that another issue has not built yet — `--help` works from a fresh
 // clone with zero modules present.
 
-const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest'];
+const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview'];
 
 const USAGE = `honestweek: honest, git-verified weekly summaries from your AI coding sessions.
 
@@ -23,6 +23,9 @@ Commands:
   build       Verify every git-checkable claim, then emit the configured output.
   harvest     Propose redaction-denylist candidates from the draft to a
               gitignored sidecar (count only to stdout). Tighten privacy.
+  preview     Render the built Markdown output as HTML and serve it on a
+              local-only (127.0.0.1) server, then open your browser. Add
+              --port <n> or --no-open. A local viewer; publishes nothing.
 
 Options:
   -h, --help  Show this help.
