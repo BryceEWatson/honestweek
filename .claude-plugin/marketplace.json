@@ -5,13 +5,13 @@
     "url": "https://github.com/BryceEWatson"
   },
   "metadata": {
-    "description": "honestweek — honest, git-verified, private-by-default weekly work summaries from your AI coding sessions."
+    "description": "honestweek: honest, git-verified, private-by-default weekly work summaries from your AI coding sessions."
   },
   "plugins": [
     {
       "name": "honestweek",
       "source": "./",
-      "description": "Honest, git-verified, private-by-default weekly work summaries from your AI coding sessions. Adds the /honestweek skill plus the init/discover/build CLI."
+      "description": "Honest, git-verified, private-by-default weekly work summaries from your AI coding sessions. Adds the /honestweek skill plus the init/discover/validate/build/harvest CLI."
     }
   ]
 }

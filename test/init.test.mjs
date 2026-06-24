@@ -94,7 +94,7 @@ test('--yes writes a schema-valid config, the example, and the gitignore entry',
     assert.deepEqual(cfg.identity.authorEmails, [ME]);
     assert.equal(cfg.week.startsOn, 'monday');
     assert.ok(cfg.week.timezone.length > 0);
-    assert.equal(cfg.output.mode, 'post');
+    assert.equal(cfg.output.mode, 'digest');
     assert.equal(cfg.repos.find((r) => r.label === 'myproj').role, 'featured');
 
     // example written, clean-room (empty term-lists, placeholder paths)
@@ -194,7 +194,7 @@ test('buildConfig with no inferred email yields empty authorEmails (and stays cl
   const cfg = buildConfig({ authorEmail: null, repos: [{ path: '/p', label: 'p', role: 'featured' }], timezone: 'UTC' });
   assert.deepEqual(cfg.identity.authorEmails, []);
   assert.deepEqual(cfg.redaction, { codenames: [], names: [], terms: [] });
-  assert.equal(cfg.output.mode, 'post');
+  assert.equal(cfg.output.mode, 'digest');
 });
 
 test('no-email case: inferAuthorEmail returns null and runInit warns (config authorEmails empty)', async () => {
