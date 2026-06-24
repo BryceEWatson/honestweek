@@ -105,7 +105,7 @@ test('the sample output snippets show a status badge and a receipt on every rend
 
 test('DOCS-CONSISTENCY: documented subcommands match the dispatcher, with no phantom commands', () => {
   const subs = actualSubcommands();
-  assert.deepEqual(subs.sort(), ['build', 'discover', 'init']);
+  assert.deepEqual(subs.sort(), ['build', 'discover', 'init', 'validate']);
   for (const s of subs) assert.ok(README.includes(`honestweek.mjs ${s}`) || README.includes(`honestweek ${s}`), `README documents the ${s} command`);
   // there is no distil/verify/emit SUBCOMMAND — the docs must not invent one
   for (const phantom of ['distil', 'verify', 'emit']) {
