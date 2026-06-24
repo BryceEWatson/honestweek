@@ -68,8 +68,12 @@ test('states the three safety invariants including never-auto-publish', () => {
   assert.match(SKILL, /the USER is the publisher|user is the publisher/i);
 });
 
-test('the review step performs no network/publish action', () => {
-  assert.match(SKILL, /review[\s\S]*?no network or publish action|performs no network/i);
+test('the review step performs no publish action and sends nothing off the machine', () => {
+  // Wording is deliberately "no publish action and sends nothing off the machine"
+  // rather than a blanket "no network action": the optional preview binds a
+  // loopback (127.0.0.1) socket, which is local and must not be caught by an
+  // over-broad no-network claim.
+  assert.match(SKILL, /review[\s\S]*?(no publish action and sends nothing off the machine|no network or publish action)/i);
 });
 
 test('mentions the exit-2 abort behavior', () => {

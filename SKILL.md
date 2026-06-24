@@ -31,7 +31,7 @@ Drive the pipeline in this exact order. Each stage names its input and its outpu
    **First gate the distilled items**: run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" validate` (it exits 2 if any item lacks a valid badge or a receipt, names a `display`-role repo or cites a commit against one, or leaks a configured redaction term into the prose; add `--no-dashes` for the voice rule). Fix every flagged item in `honestweek.items.json` before building. Then run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" build`. It re-derives and **verifies every git-checkable claim** from the cited commits and renders the configured output (`output.mode` = `post` / `changelog` / `digest` / `report`). **`build` aborts with exit code `2` on any unresolved or non-authored cited commit**; it writes nothing rather than emit a half-true summary.
 
 5. **`review`** *(input: the build output; output: the user's decision)*
-   Present the build output and a short summary of what was emitted to the user for review. **The user reviews and publishes it themselves. This step performs no network or publish action.**
+   Present the build output and a short summary of what was emitted to the user for review. Optionally run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" preview` to open the built output as HTML on a local-only `127.0.0.1` server in the user's browser (a viewer over the file `build` wrote; add `--no-open` to just print the URL, `--port <n>` to choose a port). **The user reviews and publishes it themselves. This step performs no publish action and sends nothing off the machine.**
 
 ## Distillation contract (the rules you MUST obey when writing `honestweek.items.json`)
 
@@ -65,6 +65,7 @@ Each item in `honestweek.items.json` carries:
 - **Private by default.** Only the user's own allowlisted repos are read. The redaction layer has **already** run before distillation: you must not re-introduce anything the digest omitted, and `isPrivate` / `display` sessions stay at a single generic line with no commit, repo, or file paths.
 - **Verify or abort.** Every git-checkable claim is re-derived at `build`; an unresolved or non-authored commit **aborts the build (exit 2)**, writing nothing. There is no half-true output.
 - **Human gate: honestweek never auto-publishes.** `review` shows the build output and the emitted-items summary; **the USER is the publisher.** Nothing is posted in the user's voice automatically.
+- **Local-only preview.** The optional `preview` server binds to loopback (`127.0.0.1`) only, renders the built output in memory as a self-contained page (no external resources), and publishes nothing. It is a viewer, not a producer: it never re-runs `build`, calls git, or writes a file.
 
 ## Clean-room
 
