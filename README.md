@@ -68,7 +68,7 @@ node bin/honestweek.mjs --help
 
 Once it's published to npm (**not yet** — see [Releasing](#releasing-maintainers)), `npx honestweek` and `npm i -g honestweek` will work too.
 
-The CLI surface is exactly three subcommands: `init`, `discover`, `build`.
+The CLI surface is four subcommands: `init`, `discover`, `validate`, and `build`.
 
 ## The flow
 
@@ -85,6 +85,11 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    node bin/honestweek.mjs discover          # or: discover --week 2024-W23
    ```
 3. **`/honestweek`** (the skill) → **distils** the draft into the human-reviewable `honestweek.items.json`, with a status badge **and** a receipt on every item. This is the one model-judgment step; see [`SKILL.md`](SKILL.md) for the distillation contract.
+   > Optional but recommended — gate the distilled items before building:
+   > ```bash
+   > node bin/honestweek.mjs validate          # add --no-dashes for the voice rule
+   > ```
+   > `validate` exits `2` if any item lacks a valid badge or a receipt, **names a `display`-role repo or cites a commit against one**, or lets a configured redaction term survive into the prose. It catches an authoring leak at the source instead of relying on build-time scrubbing.
 4. **`build`** → re-derives and **git-verifies every cited commit**. It **aborts with exit code `2`** if any cited commit is unresolved or its `authorEmail` is not in `identity.authorEmails` — writing nothing rather than emit a half-true summary.
    ```bash
    node bin/honestweek.mjs build
