@@ -68,7 +68,7 @@ node bin/honestweek.mjs --help
 
 Once it's published to npm (**not yet** — see [Releasing](#releasing-maintainers)), `npx honestweek` and `npm i -g honestweek` will work too.
 
-The CLI surface is four subcommands: `init`, `discover`, `validate`, and `build`.
+The CLI surface is five subcommands: `init`, `discover`, `validate`, `build`, and `harvest` — where `node bin/honestweek.mjs harvest` proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review).
 
 ## The flow
 

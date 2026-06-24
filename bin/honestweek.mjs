@@ -7,7 +7,7 @@
 // module that another issue has not built yet — `--help` works from a fresh
 // clone with zero modules present.
 
-const SUBCOMMANDS = ['init', 'discover', 'build', 'validate'];
+const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest'];
 
 const USAGE = `honestweek — honest, git-verified weekly summaries from your AI coding sessions.
 
@@ -21,6 +21,8 @@ Commands:
               leak, no private term in prose (run before build). Add --no-dashes
               for the optional voice rule.
   build       Verify every git-checkable claim, then emit the configured output.
+  harvest     Propose redaction-denylist candidates from the draft to a
+              gitignored sidecar (count only to stdout). Tighten privacy.
 
 Options:
   -h, --help  Show this help.
