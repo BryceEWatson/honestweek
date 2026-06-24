@@ -86,7 +86,7 @@ test('build writes a snapshot + index when output.archive is enabled', async () 
     writeFileSync(join(dir, 'honestweek.config.json'), JSON.stringify({
       identity: { authorEmails: ['me@example.com'] },
       repos: [{ label: 'self', path: '.', role: 'featured' }],
-      output: { mode: 'report', archive: true },
+      output: { mode: 'report', file: join(dir, 'out.report.md'), archive: true },
     }));
     writeFileSync(join(dir, 'honestweek.items.json'), JSON.stringify({
       week: { start: '2024-06-10', end: '2024-06-16' },
