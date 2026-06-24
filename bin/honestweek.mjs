@@ -9,7 +9,7 @@
 
 const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest'];
 
-const USAGE = `honestweek — honest, git-verified weekly summaries from your AI coding sessions.
+const USAGE = `honestweek: honest, git-verified weekly summaries from your AI coding sessions.
 
 Usage:
   honestweek <command> [options]
