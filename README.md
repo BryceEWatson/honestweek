@@ -80,7 +80,7 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    ```bash
    node bin/honestweek.mjs init
    ```
-2. **`discover`** → scans the **last completed week's** sessions from your allowlisted repos and writes the gitignored, **redacted** `honestweek.draft.json`. Deterministic — no model call.
+2. **`discover`** → scans the **last completed week's** sessions **and session-end handoffs** (`.claude/handoffs/*.md`, for `featured`/`reference` repos — `display` repos are never read) from your allowlisted repos and writes the gitignored, **redacted** `honestweek.draft.json`. Handoffs contribute their tagged claims, reversals, and cited commits as additional, bounded material. Deterministic — no model call.
    ```bash
    node bin/honestweek.mjs discover          # or: discover --week 2024-W23
    ```

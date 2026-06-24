@@ -22,7 +22,7 @@ Drive the pipeline in this exact order. Each stage names its input and its outpu
    Run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" init`. It scaffolds `honestweek.config.json` from `honestweek.config.example.json` **only when the config is absent — it never overwrites an existing config**. The user fills in `identity.authorEmails`, the repo allowlist + roles, and `output.mode`, then commits it themselves.
 
 2. **`discover`** — *(input: your allowlisted repos' session transcripts; output: `honestweek.draft.json`)*
-   Run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" discover`. It reads the last completed week's interactive sessions from your allowlisted repos and writes the gitignored, fully **redacted** weekly digest `honestweek.draft.json`. This is a deterministic step — no model call.
+   Run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" discover`. It reads the last completed week's interactive sessions **and the session-end handoffs** (`.claude/handoffs/*.md` for `featured`/`reference` repos — `display` repos are never read) from your allowlisted repos and writes the gitignored, fully **redacted** weekly digest `honestweek.draft.json` (a `sessions[]` array plus a `handoffs[]` array of tagged claims, reversals, and cited SHAs). This is a deterministic step — no model call. Distil from these fields; never lift them verbatim.
 
 3. **DISTIL** — *(input: `honestweek.draft.json`; output: `honestweek.items.json`)*
    **This is the single model-judgment step, performed by you (the model) under the contract below — NOT a Node subcommand.** Read `honestweek.draft.json` and write `honestweek.items.json`: a human-reviewable set of narrative items, each carrying a `status` badge and a `receipt`. The user reviews and edits this file.
