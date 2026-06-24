@@ -221,10 +221,10 @@ test('REGRESSION: large percentages and decimals are spared (not mangled as acco
 
 test('REGRESSION: a space-containing home username does not leak the surname', () => {
   const red = r();
-  const posix = red.redact('saved to /home/bryce watson/notes/file.txt now');
-  assert.doesNotMatch(posix, /watson/, 'surname must be redacted');
-  const win = red.redact('opened C:\\Users\\Bryce Watson\\report.docx today');
-  assert.doesNotMatch(win, /Watson/, 'surname must be redacted on Windows');
+  const posix = red.redact('saved to /home/alex jordan/notes/file.txt now');
+  assert.doesNotMatch(posix, /jordan/, 'surname must be redacted');
+  const win = red.redact('opened C:\\Users\\Alex Jordan\\report.docx today');
+  assert.doesNotMatch(win, /Jordan/, 'surname must be redacted on Windows');
   // a bare "/home/user" followed by prose must NOT swallow the trailing words
   assert.match(red.redact('I work in /home/bob mostly'), /mostly/);
 });
