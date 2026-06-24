@@ -89,7 +89,7 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    ```bash
    node bin/honestweek.mjs build
    ```
-5. **emit** → on success, `build` renders the final **local** output in the configured `output.mode` (`post` / `changelog` / `digest`) to `output.file`. You review it and publish it yourself.
+5. **emit** → on success, `build` renders the final **local** output in the configured `output.mode` (`post` / `changelog` / `digest`) to `output.file`. The `digest` carries a git-derived **Activity** summary (commits and active days for `featured`/`reference` repos — `display` repos are never git-read, so they get no metrics, and an unreadable repo gets no fabricated `0`). You review it and publish it yourself.
 
 ## Sample output
 
