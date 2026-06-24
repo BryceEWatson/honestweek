@@ -1,6 +1,7 @@
 ---
 name: honestweek
 description: Turn a completed week of your AI coding sessions into an honest, git-verified, private-by-default work summary. Run /honestweek to scaffold config, discover the week's sessions into a redacted digest, distil it into reviewable items (each with a status badge + receipt), build it with verify-or-abort, and review the draft before you publish it yourself. honestweek never auto-publishes.
+disable-model-invocation: true
 ---
 
 # honestweek
@@ -15,17 +16,19 @@ See the v0.1 epic and the repo Issues for cross-cutting decisions (config schema
 
 Drive the pipeline in this exact order. Each stage names its input and its output artifact.
 
+**Running the bundled CLI.** honestweek ships a Node CLI bundled with this skill. Run the commands below from the **user's project directory** (so the config and sidecars land there), but invoke the script by its **skill-anchored absolute path** — `${CLAUDE_SKILL_DIR}` resolves to this skill's own install directory, so the path works regardless of the current working directory (personal, project, or plugin install). If `${CLAUDE_SKILL_DIR}` is ever not substituted in your environment, fall back to the absolute path of the directory containing this `SKILL.md`.
+
 1. **`init`** — *(input: none; output: `honestweek.config.json`)*
-   Run `node bin/honestweek.mjs init`. It scaffolds `honestweek.config.json` from `honestweek.config.example.json` **only when the config is absent — it never overwrites an existing config**. The user fills in `identity.authorEmails`, the repo allowlist + roles, and `output.mode`, then commits it themselves.
+   Run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" init`. It scaffolds `honestweek.config.json` from `honestweek.config.example.json` **only when the config is absent — it never overwrites an existing config**. The user fills in `identity.authorEmails`, the repo allowlist + roles, and `output.mode`, then commits it themselves.
 
 2. **`discover`** — *(input: your allowlisted repos' session transcripts; output: `honestweek.draft.json`)*
-   Run `node bin/honestweek.mjs discover`. It reads the last completed week's interactive sessions from your allowlisted repos and writes the gitignored, fully **redacted** weekly digest `honestweek.draft.json`. This is a deterministic step — no model call.
+   Run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" discover`. It reads the last completed week's interactive sessions from your allowlisted repos and writes the gitignored, fully **redacted** weekly digest `honestweek.draft.json`. This is a deterministic step — no model call.
 
 3. **DISTIL** — *(input: `honestweek.draft.json`; output: `honestweek.items.json`)*
    **This is the single model-judgment step, performed by you (the model) under the contract below — NOT a Node subcommand.** Read `honestweek.draft.json` and write `honestweek.items.json`: a human-reviewable set of narrative items, each carrying a `status` badge and a `receipt`. The user reviews and edits this file.
 
 4. **`build`** — *(input: `honestweek.items.json`; output: `output.file`)*
-   Run `node bin/honestweek.mjs build`. It re-derives and **verifies every git-checkable claim** from the cited commits and renders the configured output (`output.mode` = `post` / `changelog` / `digest`). **`build` aborts with exit code `2` on any unresolved or non-authored cited commit** — it writes nothing rather than emit a half-true summary.
+   Run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" build`. It re-derives and **verifies every git-checkable claim** from the cited commits and renders the configured output (`output.mode` = `post` / `changelog` / `digest`). **`build` aborts with exit code `2` on any unresolved or non-authored cited commit** — it writes nothing rather than emit a half-true summary.
 
 5. **`review`** — *(input: the build output; output: the user's decision)*
    Present the build output and a short summary of what was emitted to the user for review. **The user reviews and publishes it themselves. This step performs no network or publish action.**
