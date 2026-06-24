@@ -1,6 +1,7 @@
 ---
 name: honestweek
 description: Turn a completed week of your AI coding sessions into an honest, git-verified, private-by-default work summary. Run /honestweek to scaffold config, discover the week's sessions into a redacted digest, distil it into reviewable items (each with a status badge + receipt), build it with verify-or-abort, and review the draft before you publish it yourself. honestweek never auto-publishes.
+disable-model-invocation: true
 ---
 
 # honestweek

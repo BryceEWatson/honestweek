@@ -46,17 +46,27 @@ test('SKILL.md invokes the bundled CLI by a skill-anchored absolute path, not a 
   assert.match(SKILL, /CLAUDE_SKILL_DIR/, 'documents the skill-dir substitution');
 });
 
-test('README documents the plugin-marketplace install route', () => {
-  assert.match(README, /\/plugin marketplace add BryceEWatson\/honestweek/);
-  assert.match(README, /\/plugin install honestweek@honestweek/);
+test('SKILL.md is manual-invoke only (disable-model-invocation)', () => {
+  const fm = SKILL.match(/^---\n([\s\S]*?)\n---/)[1];
+  assert.match(fm, /^disable-model-invocation:\s*true\s*$/m);
 });
 
-test('README does not advertise npx as if it were installable yet', () => {
-  // npx may be mentioned, but only flagged as not-yet-published
+test('README documents the plugin-marketplace install route (in-app and terminal)', () => {
+  assert.match(README, /\/plugin marketplace add BryceEWatson\/honestweek/);
+  assert.match(README, /\/plugin install honestweek@honestweek/);
+  assert.match(README, /claude plugin marketplace add BryceEWatson\/honestweek/);
+});
+
+test('README documents the no-publish npx-from-GitHub install', () => {
+  assert.match(README, /npx github:BryceEWatson\/honestweek/);
+});
+
+test('README does not advertise a bare "npx honestweek" as if it works today', () => {
+  // npx honestweek may be mentioned, but only flagged as future / not-yet-published
   const idx = README.indexOf('npx honestweek');
   if (idx !== -1) {
-    const around = README.slice(Math.max(0, idx - 120), idx + 120);
-    assert.match(around, /not yet published|planned/i, 'npx must be marked not-yet-published');
+    const around = README.slice(Math.max(0, idx - 140), idx + 80);
+    assert.match(around, /not yet|once .*publish|planned/i, 'npx honestweek must be marked future / not-yet-published');
   }
 });
 

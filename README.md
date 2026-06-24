@@ -19,16 +19,27 @@ Your commits show what shipped. Your sessions show what you *figured out* — th
 
 honestweek runs locally with zero `npm install`. Pick whichever path you prefer.
 
-**As a Claude Code plugin (recommended)** — add this repo as a plugin marketplace, then install:
+### As a Claude Code plugin (recommended)
+
+Add this repo as a plugin marketplace, then install — from inside Claude Code:
 
 ```
 /plugin marketplace add BryceEWatson/honestweek
 /plugin install honestweek@honestweek
 ```
 
+…or from your terminal:
+
+```bash
+claude plugin marketplace add BryceEWatson/honestweek
+claude plugin install honestweek@honestweek
+```
+
 You get `/honestweek` inside Claude Code, with versioned updates via `/plugin marketplace update`.
 
-**As a plain skill** — clone into your personal skills directory:
+### As a plain skill
+
+Clone into your personal skills directory:
 
 ```bash
 git clone https://github.com/BryceEWatson/honestweek ~/.claude/skills/honestweek
@@ -36,14 +47,23 @@ git clone https://github.com/BryceEWatson/honestweek ~/.claude/skills/honestweek
 
 Either way, when you run `/honestweek` the skill invokes its bundled CLI by a **skill-anchored absolute path** (`${CLAUDE_SKILL_DIR}/bin/honestweek.mjs`), so the commands work from *your own* project directory.
 
-**As a standalone CLI** — run the subcommands directly from a clone of the repo:
+### As a standalone CLI
+
+Run it straight from GitHub — no install, no clone (zero dependencies, so it's quick):
+
+```bash
+npx github:BryceEWatson/honestweek --help
+npx github:BryceEWatson/honestweek init
+```
+
+Or from a clone of the repo:
 
 ```bash
 # run these from the repo root
 node bin/honestweek.mjs --help
 ```
 
-> Note: `npx honestweek` is planned but **not yet published to npm** — don't run it yet.
+Once it's published to npm (**not yet** — see [Releasing](#releasing-maintainers)), `npx honestweek` and `npm i -g honestweek` will work too.
 
 The CLI surface is exactly three subcommands: `init`, `discover`, `build`.
 
@@ -163,6 +183,17 @@ honestweek's two non-negotiable promises:
 
 1. **A receipt on every line.** Every emitted item points to its source — a commit SHA or a session turn. An item that reaches the renderer without a receipt is a build error, not a receipt-less line.
 2. **It never asserts a motive the log does not contain.** honestweek defaults to **under-claiming**: verified/measured work reads as `shipped`; anything weaker reads as `designed, not proven`. It never narrates intent the transcript doesn't support.
+
+## Releasing (maintainers)
+
+honestweek is publish-ready but not yet on npm. To cut a release so `npx honestweek` / `npm i -g honestweek` work:
+
+1. Bump the version in `package.json` (and `.claude-plugin/plugin.json` to match), commit, and tag: `git tag v0.1.0 && git push --tags`.
+2. **Automated:** add an `NPM_TOKEN` repository secret (an npm automation token), then publish a GitHub Release for the tag — the [`release` workflow](.github/workflows/release.yml) runs the tests and `npm publish --provenance --access public`.
+   **Manual alternative:** `npm publish --access public` from a clean checkout after `npm login`.
+3. The `files` allowlist in `package.json` controls what ships to npm (`bin/`, `lib/`, `SKILL.md`, the example config, the plugin manifests). Tests and fixtures are excluded.
+
+Publishing to npm and cutting a GitHub Release are the only steps that go public — everything else in this repo is local.
 
 ## License
 

@@ -1,0 +1,29 @@
+name: Release
+
+# Publishes to npm when you publish a GitHub Release. Requires an NPM_TOKEN
+# repository secret (an npm automation token). Until then, this workflow is
+# dormant and nothing is published.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write # enables npm provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Verify the suite is green before publishing
+        run: node --test
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
