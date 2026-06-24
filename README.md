@@ -1,5 +1,8 @@
 # honestweek
 
+[![CI](https://github.com/BryceEWatson/honestweek/actions/workflows/ci.yml/badge.svg)](https://github.com/BryceEWatson/honestweek/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Turn a completed week of your AI coding **sessions** into an honest, git-verified, private-by-default work summary — including the figured-out-but-not-yet-shipped work your commits can't show.
 
 honestweek is a locally-run, Claude-Code-native tool, shipped as a skill that orchestrates small zero-dependency Node scripts. It reads your AI coding session transcripts, distils a completed week into an honest shareable summary, **re-derives every git-checkable claim against your real commits — or aborts**, and produces a draft *you* review and publish yourself. It never auto-publishes.
