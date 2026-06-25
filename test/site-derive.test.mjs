@@ -11,7 +11,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { deriveChart, deriveProvenance, augmentSiteModel } from '../lib/site/derive.mjs';
+import { deriveChart, deriveProvenance, deriveProjectStats, augmentSiteModel } from '../lib/site/derive.mjs';
 
 const ME = 'me@example.com';
 let counter = 0;
@@ -93,6 +93,40 @@ test('deriveChart contributes nothing for an unreadable repo (never a fake zero-
 test('deriveProvenance counts items + verified commits (redactions filled later)', () => {
   const p = deriveProvenance({ items: [{ id: '1' }, { id: '2' }], verified: [{ sha: 'a' }] });
   assert.deepEqual(p, { itemsTotal: 2, itemsVerified: 2, commitsVerified: 1, redactions: 0 });
+});
+
+test('deriveChart charts FEATURED repos only (reference repos are verify-only, not charted)', () => {
+  const featured = initRepo();
+  const reference = initRepo();
+  try {
+    commit(featured, '2024-06-12T10:00:00Z');
+    commit(reference, '2024-06-12T11:00:00Z'); // reference role -> NOT charted
+    const config = {
+      identity: { authorEmails: [ME] },
+      repos: [
+        { label: 'feat', path: featured, resolvedPath: featured, role: 'featured' },
+        { label: 'ref', path: reference, resolvedPath: reference, role: 'reference' },
+      ],
+    };
+    const chart = deriveChart({ config, weekStartKey: WEEK.start, weekEndKey: WEEK.end, todayKey: '2024-06-19' });
+    assert.equal(chart.repoTotals.feat, 1);
+    assert.equal('ref' in chart.repoTotals, false, 'a reference repo is not charted');
+  } finally {
+    rmSync(featured, { recursive: true, force: true });
+    rmSync(reference, { recursive: true, force: true });
+  }
+});
+
+test('deriveProjectStats tallies IN-WEEK items only, grouped by project', () => {
+  const chart = { days: [{ date: '2024-06-12', byRepo: { r: 2 } }, { date: '2024-06-13', byRepo: { r: 1 } }] };
+  const richItems = [
+    { project: 'P', repo: 'r', status: 'shipped', date: '2024-06-12' },
+    { project: 'P', repo: 'r', status: 'shipped', date: '2024-06-13' },
+    { project: 'P', repo: 'r', status: 'in progress', date: '2024-06-13' },
+    { project: 'P', repo: 'r', status: 'shipped', date: '2024-06-01' }, // out of week -> not counted
+  ];
+  const stats = deriveProjectStats(richItems, chart, WEEK.start, WEEK.end);
+  assert.deepEqual(stats.P, { entries: 3, statusCounts: { shipped: 2, 'in progress': 1 }, daysActive: 2 });
 });
 
 test('augmentSiteModel attaches chart/sessions/provenance and places day items by date', () => {

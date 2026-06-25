@@ -112,6 +112,38 @@ test('deriveSessions: an mtime older than the week is pre-filtered out (never re
   }
 });
 
+test('a subdir-cwd session attributes to "other", not the parent repo (exact attribution)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'hw-sessions-sub-'));
+  try {
+    const d = join(root, 'proj');
+    mkdirSync(d);
+    // cwd is a SUBDIRECTORY of the configured repo — the project is ambiguous, so
+    // the hero attributes it to "other" rather than over-crediting alpha.
+    session(d, 'sub', { cwd: '/work/alpha/packages/x', ts: '2024-06-12T09:00:00Z', content: 'Work in a subdir.' });
+    session(d, 'root', { cwd: '/work/alpha', ts: '2024-06-12T10:00:00Z', content: 'Work at the repo root.' });
+    const s = deriveSessions({ config: config(), weekStart: WEEK_START, weekEnd: WEEK_END, now: NOW, projectsRoot: root });
+    assert.equal(s.total, 2);
+    assert.deepEqual(s.days.find((x) => x.date === '2024-06-12').byProject, { alpha: 1, other: 1 });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a session whose encoded project-dir is an ephemeral temp location is excluded', () => {
+  const root = mkdtempSync(join(tmpdir(), 'hw-sessions-eph-'));
+  try {
+    // The encoded project-dir name embeds a temp cwd (capability/tooling probe).
+    const d = join(root, 'C--Users-Dev-AppData-Local-Temp-probe123');
+    mkdirSync(d);
+    session(d, 'probe', { cwd: 'C:/Users/Dev/AppData/Local/Temp/probe123', ts: '2024-06-12T09:00:00Z', content: 'A real-looking prompt in a probe session.' });
+    const s = deriveSessions({ config: config(), weekStart: WEEK_START, weekEnd: WEEK_END, now: NOW, projectsRoot: root });
+    assert.equal(s.filesScanned, 0, 'an ephemeral temp-dir session is never scanned');
+    assert.equal(s.total, 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('deriveSessions on an absent projects root yields a clean empty hero', () => {
   const s = deriveSessions({ config: config(), weekStart: WEEK_START, weekEnd: WEEK_END, now: NOW, projectsRoot: join(tmpdir(), 'hw-no-such-root-zzz') });
   assert.equal(s.total, 0);
