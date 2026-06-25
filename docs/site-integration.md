@@ -183,16 +183,54 @@ commit date (an item that cites no resolved commit has no day).
   omits keys the live JSON has). Value-free: it never echoes a scalar value, so
   inspecting an artifact cannot leak its contents.
 
+## Two adapter styles
+
+- **Static** (`honestweek.site.json`): the closed-grammar field map above. `renderSite`
+  resolves it + runs the FULL fact-fence (numeric leaves + prose). Best for simple
+  artifacts whose shape is a direct field mapping.
+- **Transform** (`honestweek.site.mjs`): for artifacts that need GROUPING / gating /
+  sorting / joins the static grammar can't express. The target commits a pure
+  `transform(model, ctx)` + an `artifact` path export. honestweek runs it over the
+  verified bundle and `renderSiteViaTransform` re-walks every NUMBER of the output
+  against the verified set (and fails CLOSED on a Date/BigInt/boxed leaf that would
+  serialize to digits). The guarantee is NARROWER than the static grammar's: STRINGS
+  are NOT prose-scanned — in transform mode they are trusted, redacted, human-curated
+  content (the author's own claims). A transform that derives a number not in the
+  bundle (e.g. its own redaction count under `output.redact:false`) declares it via
+  `return { artifact, verifiedExtra:[n] }`.
+
+**Honesty caveats (documented, not bugs):**
+- The numeric fence is set-MEMBERSHIP: every output number must be SOME verified
+  derived value. Calendar years (in `repos[].archive`) and window constants
+  (`windowDays`/`monthsBack`) are legitimately in the output and thus in the set, so
+  a fabricated count equal to one of them would pass — implausible for a weekly
+  metric, but the fence is a coarse "no number that isn't a derived fact" net, not a
+  per-field type-checker.
+- `deriveChart`/`deriveArchive` mirror the integrated tool's git query EXACTLY
+  (`--since/--until` window, which git prunes by COMMITTER date, while buckets use
+  AUTHOR date). For byte-parity this reproduces the tool's behavior, including its
+  edge: a rebased commit whose committer-date falls outside the window is undercounted
+  identically to the tool. honestweek's generic `commitsInWindow` (author-date JS
+  filter) has no such edge and is used everywhere else.
+- Site mode writes to the TARGET's artifact, so honestweek's own `/log` archive
+  (`output.archive`) is skipped in site mode (the target keeps its own archive).
+
 ## Wiring
 
 - New output mode `site` in `config.mjs` (`OUTPUT_MODES`), requiring
-  `output.adapter` (path to the committed `honestweek.site.json`, resolved like a
-  repo path). `site` has NO entry in `DEFAULT_OUTPUT_FILES`: its write path is the
-  adapter's own `artifact` field (relative to the target root = build `cwd`), not a
-  fixed default. `build` assembles → `augmentSiteModel` → redacts (filling
-  `provenance.redactions`), then `emit/index.mjs` dispatches `site` to `emitSite`,
-  which loads the adapter, calls `renderSite` (validate + resolve + fact-fence),
-  and writes the JSON artifact.
+  `output.adapter` (path to the committed adapter — `.json` static or `.mjs`
+  transform, resolved like a repo path). `site` has NO entry in
+  `DEFAULT_OUTPUT_FILES`: its write path is the adapter's own `artifact` (relative to
+  the target root = build `cwd`). `build` assembles → `augmentSiteModel` → redacts
+  (unless `output.redact:false`) → `emit/index.mjs`'s async `emitSite` dispatches by
+  adapter extension (static `renderSite` vs transform `renderSiteViaTransform`) and
+  writes the JSON artifact. `emit()` itself THROWS for site mode (it is async, via
+  `emitSite`).
+- `output.redact` (default true): honestweek scrubs every byte. A `site` target with
+  its OWN redactor (applied inside the transform, for placeholder parity) sets it
+  false to receive the raw bundle — **only permitted with a transform adapter** (a
+  static `.json` adapter does not scrub strings, so `redact:false` there is rejected
+  at config load). verify-or-abort + the numeric fence run regardless of `redact`.
 - A fact-fence/resolve throw carries `.factFence === true`; `build` maps it to
   **exit 2** (verify-or-abort, nothing written), distinct from a config error (exit 1).
 - No network, no publish: the artifact is a local write, exactly like every other

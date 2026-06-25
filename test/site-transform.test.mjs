@@ -60,3 +60,29 @@ test('curated STRINGS with numbers pass (trusted human content, not honestweekâ€
 test('factFenceNumbers rejects a non-finite leaf', () => {
   assert.throws(() => factFenceNumbers({ x: Infinity }, new Set([1])), FactFenceError);
 });
+
+test('factFenceNumbers FAILS CLOSED on a Date/BigInt/boxed leaf (would dodge walkNumbers)', () => {
+  assert.throws(() => factFenceNumbers({ when: new Date('2024-06-10T00:00:00Z') }, new Set([1])), FactFenceError);
+  assert.throws(() => factFenceNumbers({ big: 9007199254740993n }, new Set([1])), FactFenceError);
+  assert.throws(() => factFenceNumbers({ boxed: new Number(777) }, new Set([1])), FactFenceError);
+  // undefined is fine â€” JSON.stringify omits it.
+  assert.doesNotThrow(() => factFenceNumbers({ a: undefined, b: 'ok', c: null }, new Set([1])));
+});
+
+test('a transform aborts if it INVENTS a number as a string is NOT scanned (curated trust), but a real numeric leaf is', () => {
+  // strings (curated) pass even with numerals; a numeric leaf must be verified.
+  assert.doesNotThrow(() => renderSiteViaTransform((m) => ({ blurb: 'shipped 9999 things' }), bundle()));
+  assert.throws(() => renderSiteViaTransform((m) => ({ n: 9999 }), bundle()), FactFenceError);
+});
+
+test('a transform may declare a derived number via { artifact, verifiedExtra }', () => {
+  // 4242 is not in the bundle; declaring it lets the fence trace it (a committed
+  // transform vouching for a count it computed, e.g. its own redaction count).
+  const artifact = renderSiteViaTransform(
+    (m) => ({ artifact: { redactions: 4242 }, verifiedExtra: [4242] }),
+    bundle()
+  );
+  assert.equal(artifact.redactions, 4242);
+  // ...but an UNDECLARED out-of-bundle number still aborts.
+  assert.throws(() => renderSiteViaTransform((m) => ({ artifact: { x: 4242 }, verifiedExtra: [] }), bundle()), FactFenceError);
+});

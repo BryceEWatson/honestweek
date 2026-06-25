@@ -214,6 +214,22 @@ test('isEmailShaped accept/reject cases', () => {
   }
 });
 
+test('site mode: output.redact defaults true; false requires a transform (.mjs) adapter', () => {
+  const base = () => ({ ...minimalValid(), output: { mode: 'site', adapter: 'honestweek.site.json' } });
+  // default true
+  assert.equal(normalizeConfig(base()).output.redact, true);
+  // redact:false with a STATIC .json adapter -> rejected (would leak)
+  assert.throws(
+    () => normalizeConfig({ ...base(), output: { mode: 'site', adapter: 'a.json', redact: false } }),
+    /redact.*false.*requires a transform adapter/
+  );
+  // redact:false with a TRANSFORM .mjs adapter -> accepted
+  const ok = normalizeConfig({ ...minimalValid(), output: { mode: 'site', adapter: 'honestweek.site.mjs', redact: false } });
+  assert.equal(ok.output.redact, false);
+  // non-boolean redact -> rejected
+  assert.throws(() => normalizeConfig({ ...base(), output: { mode: 'site', adapter: 'a.mjs', redact: 'no' } }), /must be a boolean/);
+});
+
 test('exported enums are exactly the documented sets', () => {
   assert.deepEqual(ROLES, ['featured', 'reference', 'display']);
   assert.deepEqual(OUTPUT_MODES, ['post', 'changelog', 'digest', 'report', 'site']);
