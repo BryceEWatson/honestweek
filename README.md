@@ -150,7 +150,7 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
     { "path": "~/code/a-client-repo", "label": "a-private-project", "role": "display" }
   ],
   "redaction": { "codenames": [], "names": [], "terms": [] },  // optional; default-empty private term-lists, scrubbed case-insensitively
-  "output": { "mode": "digest", "file": "honestweek.digest.md" }  // optional; mode ∈ post|changelog|digest|report, default digest
+  "output": { "mode": "digest", "file": "honestweek.digest.md" }  // optional; mode ∈ post|changelog|digest|report|site, default digest
 }
 ```
 
@@ -163,8 +163,10 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `repos[].label` | The short name items reference and outputs display. |
 | `repos[].role` | One of the three trust levels below. |
 | `redaction.codenames` / `names` / `terms` | Private tokens scrubbed from all output. Default empty (clean-room). |
-| `output.mode` | `post` (build-in-public update), `changelog` (in-repo `CHANGELOG.md` section), `digest` (the private, local-only weekly file; the default and trust anchor), or `report` (grouped by project, each headed by its git-derived metrics; the structured weekly-work-log shape, still a local file you publish yourself). |
-| `output.file` | Where the output is written. Defaults per mode when unset. |
+| `output.mode` | `post` (build-in-public update), `changelog` (in-repo `CHANGELOG.md` section), `digest` (the private, local-only weekly file; the default and trust anchor), `report` (grouped by project, each headed by its git-derived metrics; the structured weekly-work-log shape, still a local file you publish yourself), or `site` (integrate the verified report into a target website's data artifact via a committed adapter — advanced; see [docs/site-integration.md](docs/site-integration.md)). |
+| `output.file` | Where the output is written. Defaults per mode when unset. (Not used by `site`, whose write path comes from the adapter.) |
+| `output.adapter` | **Required for `site` mode only**: path to the committed adapter (resolved like a repo path) — a `.json` *static* field-map, or a `.mjs` *transform* (`transform(model, ctx)`) for artifacts needing grouping/sorting/joins. It maps the verified model onto the site's data artifact; the artifact's own write path lives in the adapter. |
+| `output.redact` | Default `true` (honestweek scrubs every byte). For `site` mode only, `false` delegates string redaction to the committed transform (so a target with its own redactor gets exact placeholder parity) — permitted **only with a transform adapter**; verify-or-abort and the numeric fact-fence always run. See [docs/site-integration.md](docs/site-integration.md). |
 | `output.archive` / `output.archiveDir` | Opt-in local weekly archive. With `archive: true`, `build` also snapshots each week to `<archiveDir>/<weekStart>.json` and maintains `<archiveDir>/index.json` (the "/log" series; default dir `honestweek.archive`). Local files only, never pushed. |
 
 **Repo roles:**
