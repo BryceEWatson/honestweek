@@ -44,10 +44,14 @@ test('deriveChart buckets own commits per day; display repos are never git-read'
   const featured = initRepo();
   const display = initRepo();
   try {
+    // Commit in chronological order (real histories are): git log --since/--until
+    // prunes traversal at the first commit older than --since, so an out-of-window
+    // commit must be the OLDEST, not committed last. This mirrors the live tool's
+    // exact git flags (and its same assumption).
+    commit(featured, '2024-06-01T09:00:00Z'); // out of window -> ignored
     commit(featured, '2024-06-12T10:00:00Z');
     commit(featured, '2024-06-12T15:00:00Z');
     commit(featured, '2024-06-13T09:00:00Z');
-    commit(featured, '2024-06-01T09:00:00Z'); // out of window -> ignored
     commit(display, '2024-06-12T11:00:00Z'); // display role -> must NOT be read
 
     const config = {
