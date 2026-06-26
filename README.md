@@ -94,8 +94,8 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    ```bash
    node bin/honestweek.mjs build
    ```
-5. **emit** → on success, `build` renders the final **local** output in the configured `output.mode` (`post` / `changelog` / `digest` / `report`) to `output.file`. The `digest` carries a git-derived **Activity** summary (commits and active days for `featured`/`reference` repos; `display` repos are never git-read, so they get no metrics, and an unreadable repo gets no fabricated `0`). You review it and publish it yourself.
-6. **`preview`** (optional) → renders the built `output.file` as HTML and serves it on a local-only `127.0.0.1` server, then opens your browser. It is a viewer: it reads the file `build` wrote, publishes nothing, and needs no internet. Press Ctrl+C to stop.
+5. **emit** → on success, `build` renders the final **local** output in the configured `output.mode` (`post` / `changelog` / `digest` / `report` / `page`) to `output.file`. The `digest` carries a git-derived **Activity** summary (commits and active days for `featured`/`reference` repos; `display` repos are never git-read, so they get no metrics, and an unreadable repo gets no fabricated `0`). `page` renders a self-contained, interactive HTML **standalone site** (see below). You review it and publish it yourself.
+6. **`preview`** (optional) → serves the built `output.file` on a local-only `127.0.0.1` server, then opens your browser. A Markdown output is converted to a locked-down HTML page; the `page` output is already HTML and is served verbatim (with its inline interactivity). It is a viewer: it reads the file `build` wrote, publishes nothing, and needs no internet. Press Ctrl+C to stop.
    ```bash
    node bin/honestweek.mjs preview              # add --no-open to just print the URL, or --port <n>
    ```
@@ -136,6 +136,74 @@ Rendered to the default `digest` output. Every line carries a status badge and a
 - **designed, not proven** — Retry queue for failed webhook deliveries — designed, not yet wired in. _(your-project)_  (`a1b2c3d4`)
 ```
 
+## Standalone site (`page` mode)
+
+Set `"output": { "mode": "page" }` and `build` writes one self-contained, interactive
+HTML file (`honestweek.report.html` by default) — a polished **standalone site** with a
+git-derived commits/day chart, collapsible per-project cards with metrics, status-badged
+items, and an expandable git receipt on each. No target project, no framework, no build
+step, and **zero external resources** (inline CSS + JS, system fonts), so it opens
+anywhere and `preview` can serve it under a no-egress CSP:
+
+```bash
+node bin/honestweek.mjs build     # writes honestweek.report.html
+node bin/honestweek.mjs preview   # serves it on 127.0.0.1 + opens your browser
+```
+
+Same honesty engine as every other mode: every cited commit is verify-or-abort'd, every
+number on the page is re-derived from git, and curated prose is HTML-escaped. (To instead
+generate INTO an existing website's data file — the integrated path — use `site` mode with
+a committed `output.adapter`; see `docs/site-integration.md`.)
+
+### A goals page too (opt-in, multi-page)
+
+Drop a `honestweek.objectives.json` registry beside your config and `page` mode becomes
+**multi-page**: it emits a second self-contained page, `goals.html`, next to `report.html`
+and cross-links the two. The goals page groups your verified work **by goal** instead of by
+project — goal cards with a kind chip, a what / why / how, a per-week activity strip, status
+counts, and an expandable list of the entries behind each goal. With **no** registry, `page`
+mode stays single-page exactly as above (the goals page is purely additive).
+
+The registry is the publish gate: only goals listed in it appear, and a work item that maps
+to no goal is omitted. It's validated fail-closed before anything is written (an invalid or
+leaky registry aborts the whole build, writing neither page).
+
+```jsonc
+// honestweek.objectives.json  (opt-in; absent -> single-page)
+{
+  "schemaVersion": 1,
+  "groups": ["open source", "this site"],          // area sections, in this order
+  "groupDescriptions": {                            // optional per-area what/why intro
+    "open source": { "teaser": "Tooling, in the open.", "what": "...", "why": "..." }
+  },
+  "objectives": {
+    "ship-the-tool": {                              // any anchor-safe id
+      "publicLabel": "Ship the tool as an open engine",
+      "publicGroup": "open source",                 // must be one of groups
+      "kind": "continuous",                          // optional: "continuous" | "finite"
+      "what": "...", "why": "...", "how": "...",     // optional card body
+      "howType": "sessions"                          // optional: "sessions" | "mined" | "planned"
+    }
+  },
+  "projectToObjective": { "your-project": "ship-the-tool" },  // repo label -> goal id
+  "page": { "title": "My goals", "lede": "..." }    // optional page copy overrides
+}
+```
+
+A work item resolves to a goal by its own `objectiveId` (if set and in the registry), else by
+`projectToObjective[<its repo label>]`. Cross-week goal activity aggregates the current week
+plus any weeks in your local `output.archive` (so a first run shows one week, richer as weeks
+accrue). An optional `honestweek.goal-changelog.json` adds a "what changed" band for
+structural goal-set changes (a goal added / split / retired / relabeled / merged).
+
+`preview` serves **both** pages (so the cross-links resolve), still loopback-only under the
+same no-external-egress CSP:
+
+```bash
+node bin/honestweek.mjs build     # writes report.html + goals.html (when the registry is present)
+node bin/honestweek.mjs preview   # serves both at 127.0.0.1 (/ and /goals.html)
+```
+
 ## Config reference
 
 You commit your own `honestweek.config.json`. It mirrors `honestweek.config.example.json`:
@@ -150,7 +218,7 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
     { "path": "~/code/a-client-repo", "label": "a-private-project", "role": "display" }
   ],
   "redaction": { "codenames": [], "names": [], "terms": [] },  // optional; default-empty private term-lists, scrubbed case-insensitively
-  "output": { "mode": "digest", "file": "honestweek.digest.md" }  // optional; mode ∈ post|changelog|digest|report|site, default digest
+  "output": { "mode": "digest", "file": "honestweek.digest.md" }  // optional; mode ∈ post|changelog|digest|report|page|site, default digest
 }
 ```
 
@@ -185,6 +253,8 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `output.file` (e.g. `honestweek.digest.md`) | The final rendered output. **Yours to keep or ignore.** |
 | `honestweek.config.json` | Your config. Gitignored by default (it can hold private repo paths/terms); un-ignore it if you want it tracked. |
 | `honestweek.archive/` (opt-in) | The local weekly snapshots + `index.json` (the "/log" series). Only written when `output.archive` is true. **Yours to keep, ignore, or commit.** |
+| `honestweek.objectives.json` (opt-in) | The goal registry that turns `page` mode multi-page (emits `goals.html`). Absent → single-page. The publish gate for goals; commit it if you want the goals page. |
+| `honestweek.goal-changelog.json` (opt-in) | Optional append-only log of structural goal-set changes, rendered as the goals page's "what changed" band. |
 
 ## What it does NOT do / privacy model
 
