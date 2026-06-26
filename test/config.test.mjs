@@ -232,7 +232,7 @@ test('site mode: output.redact defaults true; false requires a transform (.mjs) 
 
 test('exported enums are exactly the documented sets', () => {
   assert.deepEqual(ROLES, ['featured', 'reference', 'display']);
-  assert.deepEqual(OUTPUT_MODES, ['post', 'changelog', 'digest', 'report', 'site']);
+  assert.deepEqual(OUTPUT_MODES, ['post', 'changelog', 'digest', 'report', 'page', 'site']);
 });
 
 test('resolveRepoPath helper handles ~, relative, absolute', () => {

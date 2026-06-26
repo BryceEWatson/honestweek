@@ -372,3 +372,45 @@ test('preview.mjs default-exports a run() that delegates to runPreview', async (
   const mod = await import('../lib/preview.mjs');
   assert.equal(typeof mod.default, 'function');
 });
+
+test('runPreview serves a `page` (.html) output VERBATIM under a script-permitting, no-egress CSP', async () => {
+  const dir = tmp();
+  let handle;
+  try {
+    const file = join(dir, 'honestweek.report.html');
+    const doc = '<!DOCTYPE html><title>t</title><div class="wl-panel">hi</div><script>window.__ok=1;</script>';
+    writeFileSync(file, doc);
+    const io = fakeIo();
+    const code = await runPreview({ cwd: dir, argv: ['--file', file, '--no-open'], io, block: false, onServe: (h) => (handle = h) });
+    assert.equal(code, 0);
+    const res = await httpGet(handle.url);
+    assert.equal(res.status, 200);
+    assert.equal(res.body, doc, 'the standalone HTML is served byte-for-byte (no markdown conversion)');
+    const csp = res.headers['content-security-policy'];
+    assert.match(csp, /default-src 'none'/, 'still zero external egress');
+    assert.match(csp, /script-src 'unsafe-inline'/, 'inline interactivity is allowed for the page output');
+    assert.ok(!/https?:\/\//.test(csp), 'no external source is whitelisted in the CSP');
+  } finally {
+    if (handle) await handle.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runPreview keeps the locked-down (no-script) CSP for a Markdown output', async () => {
+  const dir = tmp();
+  let handle;
+  try {
+    const file = join(dir, 'out.md');
+    writeFileSync(file, '# Hi\n\n- **shipped** — x  (`a1b2c3d`)\n');
+    const io = fakeIo();
+    const code = await runPreview({ cwd: dir, argv: ['--file', file, '--no-open'], io, block: false, onServe: (h) => (handle = h) });
+    assert.equal(code, 0);
+    const res = await httpGet(handle.url);
+    const csp = res.headers['content-security-policy'];
+    assert.match(csp, /default-src 'none'/);
+    assert.ok(!/script-src/.test(csp), 'a Markdown preview never permits inline script');
+  } finally {
+    if (handle) await handle.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

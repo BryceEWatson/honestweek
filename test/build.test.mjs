@@ -192,3 +192,61 @@ test('assembleReportModel groups by repo, featured before reference, badges + re
   assert.equal(model.items[0].status, 'designed, not proven'); // assumed -> under-claim
   assert.equal(model.items[0].receipt.sessionId, 'sess-c');
 });
+
+test('page mode: build writes a self-contained interactive HTML report with git-verified receipts', async () => {
+  const repoDir = initRepo();
+  const sha = commit(repoDir, { message: 'add the feature' });
+  const work = mkdtempSync(join(tmpdir(), 'hw-build-work-'));
+  const outFile = join(work, 'honestweek.report.html');
+  writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify({
+    identity: { authorEmails: [ME] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: repoDir, label: 'r', role: 'featured' }],
+    redaction: { codenames: ['Falcon'], names: [], terms: [] },
+    output: { mode: 'page', file: outFile },
+  }));
+  writeFileSync(join(work, 'honestweek.items.json'), JSON.stringify({
+    week: { start: '2024-06-10', end: '2024-06-16' },
+    content: { headline: 'My week.' },
+    items: [{ id: 'i1', repo: 'r', status: 'shipped', title: 'Added the feature for Falcon', summary: 'A real, verified change.', primaryCommit: sha }],
+  }));
+  const io = makeIo();
+  try {
+    const code = await runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io });
+    assert.equal(code, 0);
+    assert.ok(existsSync(outFile));
+    const html = readFileSync(outFile, 'utf8');
+    assert.match(html, /^<!DOCTYPE html>/);
+    assert.ok(html.includes('wl-panel') && html.includes('wl-chart'), 'the console panel + chart render');
+    assert.ok(html.includes(sha.slice(0, 7)), 'the git-derived short sha is the receipt');
+    assert.ok(html.includes('is-shipped'), 'status badge rendered');
+    assert.ok(html.includes('<script>'), 'interactive (inline script)');
+    assert.ok(!html.includes('Falcon'), 'redaction still runs on page mode');
+    assert.ok(!/src\s*=\s*["']https?:/i.test(html) && !/<link\b/i.test(html), 'zero external resources');
+  } finally {
+    cleanup(repoDir, work);
+  }
+});
+
+test('page mode: an empty week writes the honest no-sessions report, not a crash', async () => {
+  const repoDir = initRepo(); // no commits in the window
+  const work = mkdtempSync(join(tmpdir(), 'hw-build-work-'));
+  const outFile = join(work, 'honestweek.report.html');
+  writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify({
+    identity: { authorEmails: [ME] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: repoDir, label: 'r', role: 'featured' }],
+    redaction: { codenames: [], names: [], terms: [] },
+    output: { mode: 'page', file: outFile },
+  }));
+  writeFileSync(join(work, 'honestweek.items.json'), JSON.stringify({ week: { start: '2024-06-10', end: '2024-06-16' }, items: [] }));
+  const io = makeIo();
+  try {
+    const code = await runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io });
+    assert.equal(code, 0);
+    const html = readFileSync(outFile, 'utf8');
+    assert.ok(html.includes('No interactive coding sessions were found'), 'honest empty-state, not a fake panel of zeros');
+  } finally {
+    cleanup(repoDir, work);
+  }
+});
