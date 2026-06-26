@@ -94,8 +94,8 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    ```bash
    node bin/honestweek.mjs build
    ```
-5. **emit** → on success, `build` renders the final **local** output in the configured `output.mode` (`post` / `changelog` / `digest` / `report`) to `output.file`. The `digest` carries a git-derived **Activity** summary (commits and active days for `featured`/`reference` repos; `display` repos are never git-read, so they get no metrics, and an unreadable repo gets no fabricated `0`). You review it and publish it yourself.
-6. **`preview`** (optional) → renders the built `output.file` as HTML and serves it on a local-only `127.0.0.1` server, then opens your browser. It is a viewer: it reads the file `build` wrote, publishes nothing, and needs no internet. Press Ctrl+C to stop.
+5. **emit** → on success, `build` renders the final **local** output in the configured `output.mode` (`post` / `changelog` / `digest` / `report` / `page`) to `output.file`. The `digest` carries a git-derived **Activity** summary (commits and active days for `featured`/`reference` repos; `display` repos are never git-read, so they get no metrics, and an unreadable repo gets no fabricated `0`). `page` renders a self-contained, interactive HTML **standalone site** (see below). You review it and publish it yourself.
+6. **`preview`** (optional) → serves the built `output.file` on a local-only `127.0.0.1` server, then opens your browser. A Markdown output is converted to a locked-down HTML page; the `page` output is already HTML and is served verbatim (with its inline interactivity). It is a viewer: it reads the file `build` wrote, publishes nothing, and needs no internet. Press Ctrl+C to stop.
    ```bash
    node bin/honestweek.mjs preview              # add --no-open to just print the URL, or --port <n>
    ```
@@ -136,6 +136,25 @@ Rendered to the default `digest` output. Every line carries a status badge and a
 - **designed, not proven** — Retry queue for failed webhook deliveries — designed, not yet wired in. _(your-project)_  (`a1b2c3d4`)
 ```
 
+## Standalone site (`page` mode)
+
+Set `"output": { "mode": "page" }` and `build` writes one self-contained, interactive
+HTML file (`honestweek.report.html` by default) — a polished **standalone site** with a
+git-derived commits/day chart, collapsible per-project cards with metrics, status-badged
+items, and an expandable git receipt on each. No target project, no framework, no build
+step, and **zero external resources** (inline CSS + JS, system fonts), so it opens
+anywhere and `preview` can serve it under a no-egress CSP:
+
+```bash
+node bin/honestweek.mjs build     # writes honestweek.report.html
+node bin/honestweek.mjs preview   # serves it on 127.0.0.1 + opens your browser
+```
+
+Same honesty engine as every other mode: every cited commit is verify-or-abort'd, every
+number on the page is re-derived from git, and curated prose is HTML-escaped. (To instead
+generate INTO an existing website's data file — the integrated path — use `site` mode with
+a committed `output.adapter`; see `docs/site-integration.md`.)
+
 ## Config reference
 
 You commit your own `honestweek.config.json`. It mirrors `honestweek.config.example.json`:
@@ -150,7 +169,7 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
     { "path": "~/code/a-client-repo", "label": "a-private-project", "role": "display" }
   ],
   "redaction": { "codenames": [], "names": [], "terms": [] },  // optional; default-empty private term-lists, scrubbed case-insensitively
-  "output": { "mode": "digest", "file": "honestweek.digest.md" }  // optional; mode ∈ post|changelog|digest|report|site, default digest
+  "output": { "mode": "digest", "file": "honestweek.digest.md" }  // optional; mode ∈ post|changelog|digest|report|page|site, default digest
 }
 ```
 
