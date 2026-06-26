@@ -144,12 +144,31 @@ test('validateObjectives: a label carrying a configured private term fails (reda
   assert.ok(errors.some((e) => /configured private term/.test(e)));
 });
 
+test('validateObjectives: page.* and groupDescriptions.* are ALSO gated for private terms (rendered curated strings)', () => {
+  const redactor = { redact: (s) => s.replace(/SECRET/g, '[redacted:term]') };
+  const leakPage = { groups: ['ops'], objectives: { 'g-1': { publicLabel: 'ok', publicGroup: 'ops' } }, projectToObjective: {}, page: { lede: 'A SECRET lede' } };
+  assert.ok(validateObjectives({ registry: leakPage, redactor }).errors.some((e) => /page\.lede.*private term/.test(e)));
+  const leakGd = { groups: ['ops'], objectives: { 'g-1': { publicLabel: 'ok', publicGroup: 'ops' } }, projectToObjective: {}, groupDescriptions: { ops: { teaser: 'SECRET teaser' } } };
+  assert.ok(validateObjectives({ registry: leakGd, redactor }).errors.some((e) => /groupDescriptions\["ops"\]\.teaser.*private term/.test(e)));
+});
+
 test('validateChangelog: dangling live ref + retired-parent-still-present fail closed', () => {
   const reg = { groups: ['ops'], objectives: { 'g-1': { publicLabel: 'live', publicGroup: 'ops' } }, projectToObjective: {} };
   const dangling = { changes: [{ id: 'c1', week: '2024-06-10', type: 'add', note: 'n', from: [], to: [{ id: 'ghost' }], published: [] }] };
   assert.ok(validateChangelog({ changelog: dangling, registry: reg }).errors.some((e) => /does not resolve to a live/.test(e)));
   const stillPresent = { changes: [{ id: 'c2', week: '2024-06-10', type: 'retire', note: 'n', from: [{ id: 'g-1', label: 'live' }], to: [], published: [] }] };
   assert.ok(validateChangelog({ changelog: stillPresent, registry: reg }).errors.some((e) => /must be absent/.test(e)));
+});
+
+test('validateChangelog: a from[].label is gated for EVERY change type (incl. add), and arity is enforced', () => {
+  const reg = { groups: ['ops'], objectives: { 'a': { publicLabel: 'A', publicGroup: 'ops' }, 'b': { publicLabel: 'B', publicGroup: 'ops' } }, projectToObjective: {} };
+  const redactor = { redact: (s) => s.replace(/SECRET/g, '[redacted:term]') };
+  // an "add" carrying a leaky from-label must still be caught (the band renders it)
+  const leakyAdd = { changes: [{ id: 'c1', week: '2024-06-10', type: 'add', note: 'n', from: [{ id: 'a', label: 'SECRET old' }], to: [{ id: 'a' }], published: [] }] };
+  assert.ok(validateChangelog({ changelog: leakyAdd, registry: reg, redactor }).errors.some((e) => /from\[\].label.*private term/.test(e)));
+  // a split needs >=2 children
+  const thinSplit = { changes: [{ id: 'c2', week: '2024-06-10', type: 'split', note: 'n', from: [{ id: 'gone', label: 'Gone' }], to: [{ id: 'a' }], published: [] }] };
+  assert.ok(validateChangelog({ changelog: thinSplit, registry: reg }).errors.some((e) => /split needs/.test(e)));
 });
 
 // --- cross-week snapshot shaping --------------------------------------------
@@ -349,6 +368,35 @@ test('page mode WITHOUT a registry stays single-page (no goals.html, no cross-li
     assert.ok(existsSync(reportFile));
     assert.ok(!existsSync(join(work, 'goals.html')));
     assert.ok(!readFileSync(reportFile, 'utf8').includes('href="goals.html"'));
+  } finally {
+    cleanup(repoDir, work);
+  }
+});
+
+test('a registry alongside a NON-page mode is ignored (no goals page, no abort) — the mode gate', async () => {
+  const repoDir = initRepo();
+  const sha = commit(repoDir, { message: 'digest change' });
+  const work = mkdtempSync(join(tmpdir(), 'hw-goals-digest-'));
+  const outFile = join(work, 'out.md');
+  writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify({
+    identity: { authorEmails: [ME] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: repoDir, label: 'r', role: 'featured' }],
+    output: { mode: 'digest', file: outFile },
+  }));
+  writeFileSync(join(work, 'honestweek.items.json'), JSON.stringify({
+    week: { start: '2024-06-10', end: '2024-06-16' },
+    items: [{ id: 'i1', repo: 'r', status: 'shipped', primaryCommit: sha, text: 'A change.' }],
+  }));
+  // even an INVALID registry must be ignored in non-page mode (the gate is on mode)
+  writeFileSync(join(work, 'honestweek.objectives.json'), JSON.stringify({ groups: ['x'], objectives: { g: { publicLabel: 'y', publicGroup: 'WRONG' } } }));
+  const io = makeIo();
+  try {
+    const code = await runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io });
+    assert.equal(code, 0);
+    assert.equal(io.exitCode, null);
+    assert.ok(existsSync(outFile));
+    assert.ok(!existsSync(join(work, 'goals.html')));
   } finally {
     cleanup(repoDir, work);
   }
