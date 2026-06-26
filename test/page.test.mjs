@@ -100,8 +100,8 @@ test('the output has NO external resources (zero-egress promise)', () => {
   assert.ok(!/@import\s+url\(\s*["']?https?:/i.test(html));
 });
 
-test('esc neutralizes the five markup-significant characters', () => {
-  assert.equal(esc('<a href="x">&y</a>'), '&lt;a href=&quot;x&quot;&gt;&amp;y&lt;/a&gt;');
+test('esc neutralizes all five markup-significant characters (incl. both quotes)', () => {
+  assert.equal(esc(`<a href="x" id='y'>&z</a>`), '&lt;a href=&quot;x&quot; id=&#39;y&#39;&gt;&amp;z&lt;/a&gt;');
 });
 
 test('an empty week renders the honest "no sessions" line, not a fake panel of zeros', () => {
