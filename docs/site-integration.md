@@ -194,9 +194,10 @@ commit date (an item that cites no resolved commit has no day).
   verified bundle and `renderSiteViaTransform` re-walks every NUMBER of the output
   against the verified set (and fails CLOSED on a Date/BigInt/boxed leaf that would
   serialize to digits). The guarantee is NARROWER than the static grammar's: STRINGS
-  are NOT prose-scanned — in transform mode they are trusted, redacted, human-curated
-  content (the author's own claims). A transform that derives a number not in the
-  bundle (e.g. its own redaction count under `output.redact:false`) declares it via
+  are NOT prose-scanned — in transform mode they are trusted, redacted, curated
+  content the target owns and reviews (honestweek verifies the numbers, not the
+  words). A transform that derives a number not in the bundle (e.g. its own redaction
+  count under `output.redact:false`) declares it via
   `return { artifact, verifiedExtra:[n] }`.
 
 **Honesty caveats (documented, not bugs):**
