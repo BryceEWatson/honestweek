@@ -90,42 +90,71 @@ test('legitimate prose with innocuous trigger words is NOT flagged (regexes are 
   assert.deepEqual(checkVoice(model), [], 'innocuous "sealed"/"honest"/"generic"/"surfaced" must pass');
 });
 
-test('a withholding paraphrase NOT among the seed strings is still caught', () => {
-  // "remain ... sealed" is a paraphrase of "keeping the specifics sealed" — not a
-  // literal seed string, but the contextual regex generalizes to it.
-  const v = checkVoice({ items: [{ id: 'p1', summary: 'Design notes remain sealed until launch.' }] });
-  assert.equal(v.length >= 1, true);
-  assert.equal(v[0].rule, 'withholding:sealed');
+test('contextual paraphrases (non-seed wording) are caught across multiple rules', () => {
+  // Each uses wording absent from the 7 seed fixtures but within a regex's intent —
+  // proving the contextual regexes generalize, not just match the literal seeds.
+  const cases = [
+    ['Design notes remain sealed until launch.', 'withholding:sealed'],   // "remain" vs the seed's "keeping"
+    ['The roadmap stays under wraps.', 'withholding:under-wraps'],         // paraphrase variant
+    ['Held private for the client.', 'withholding:kept-generic'],          // "held ... private" vs "kept generic"
+  ];
+  for (const [text, rule] of cases) {
+    const v = checkVoice({ items: [{ id: 'p', summary: text }] });
+    assert.ok(v.some((x) => x.rule === rule), `expected ${rule} for: ${text}`);
+  }
 });
 
-test('evidence snippets/receipts are NEVER scanned — only authored prose is', () => {
-  // The exact same withholding phrase lives in real evidence shapes. None is scanned:
-  // item evidence is outside the prose-field allowlist; content/projects evidence
-  // subtrees are skipped by key.
-  const evidenceModel = {
-    items: [
-      {
-        id: 'e1',
-        summary: 'Shipped the verifier.', // clean authored prose
-        snippet: 'the pre-registration was kept sealed until the deadline',
-        receipt: { ref: 'kept the specifics sealed in the vault' },
-        commits: ['keeping the specifics sealed'],
-        candidateCommits: [{ sha: 'a1b2c3d', note: 'kept generic here' }],
-      },
-    ],
+test('item evidence is never scanned — the prose-field ALLOWLIST, independent of EVIDENCE_KEYS', () => {
+  // A denylisted phrase in NON-allowed item fields (note + real evidence shapes)
+  // passes because only title/summary/text are read. (Mutation: removing the
+  // allowlist and walking all item fields would flip this to several violations.)
+  const m = {
+    items: [{
+      id: 'e1',
+      summary: 'Shipped the verifier.',
+      note: 'keeping the specifics sealed',
+      receipt: { ref: 'kept the specifics sealed in the vault' },
+      commits: ['keeping the specifics sealed'],
+      candidateCommits: [{ sha: 'a1b2c3d', note: 'kept generic here' }],
+    }],
+  };
+  assert.deepEqual(checkVoice(m), [], 'phrases outside title/summary/text are never read');
+  // The SAME phrase in an item summary DOES fail.
+  assert.ok(checkVoice({ items: [{ id: 'e2', summary: 'we kept the specifics sealed' }] })
+    .some((x) => x.path === 'e2.summary' && x.rule === 'withholding:sealed'));
+});
+
+test('content/projects EVIDENCE_KEYS subtrees are skipped, while mission prose IS scanned', () => {
+  // Mutation-distinguishing: removing the EVIDENCE_KEYS skip makes the snippet +
+  // commits scan, so this asserts the skip itself (not the allowlist).
+  const m = {
     projects: {
       alpha: {
-        mission: 'Build verified tooling.', // clean authored prose
+        mission: 'Build verified tooling.',
         receipt: { snippet: 'this belongs in an honest log' },
         commits: ['not public-facing'],
       },
     },
   };
-  assert.deepEqual(checkVoice(evidenceModel), [], 'no denylisted word inside evidence is flagged');
+  assert.deepEqual(checkVoice(m), [], 'a banned word inside an evidence subtree is not scanned');
+  assert.ok(checkVoice({ projects: { alpha: { mission: 'belongs in an honest log' } } })
+    .some((x) => x.rule === 'meta:honest-log'), 'mission prose itself IS scanned');
+});
 
-  // The SAME phrase in an item summary DOES fail.
-  const v = checkVoice({ items: [{ id: 'e2', summary: 'we kept the specifics sealed' }] });
-  assert.equal(v.some((x) => x.path === 'e2.summary' && x.rule === 'withholding:sealed'), true);
+test('an evidence subtree nested INSIDE an item prose field is still skipped (walkProse honors EVIDENCE_KEYS)', () => {
+  // summary is an object carrying a verified snippet — the snippet must not be scanned.
+  assert.deepEqual(checkVoice({ items: [{ id: 'e3', summary: { snippet: 'the bid was kept sealed' } }] }), []);
+});
+
+test('an ARRAY- or OBJECT-valued prose field is still linted — it renders, so it must not bypass', () => {
+  // Regression: page.mjs esc()s String(value); an array title/summary still renders
+  // its joined text, so a denylisted phrase inside one cannot slip past the lint.
+  assert.ok(checkVoice({ items: [{ id: 'a1', summary: ['keeping the specifics sealed'] }] })
+    .some((x) => x.rule === 'withholding:sealed'), 'array-valued summary is caught');
+  assert.ok(checkVoice({ items: [{ id: 'a2', text: ['fine', 'definitely not public-facing'] }] })
+    .some((x) => x.rule === 'withholding:not-public-facing'), 'array element is caught');
+  assert.ok(checkVoice({ items: [{ id: 'a3', summary: { lead: 'belongs in an honest log' } }] })
+    .some((x) => x.rule === 'meta:honest-log'), 'object-valued prose field is walked');
 });
 
 test('allowPhrases is a surgical off-ramp — it suppresses only the covered match', () => {
