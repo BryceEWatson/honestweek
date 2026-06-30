@@ -78,6 +78,7 @@ test('deriveSessions counts interactive sessions/day, dedupes resumes, windows, 
     assert.equal(s.automatedExcluded, 3, 's4/s5/s6 are automated/agent/system');
     assert.equal(s.duplicatesSkipped, 1, 's7 resumes s1');
     assert.equal(s.filesScanned, 8);
+    assert.equal(s.filesFound, 8, 'all 8 logs enumerated under the root');
     assert.equal(s.undetermined, 0);
 
     assert.equal(s.days.length, 7);
@@ -138,6 +139,7 @@ test('a session whose encoded project-dir is an ephemeral temp location is exclu
     session(d, 'probe', { cwd: 'C:/Users/Dev/AppData/Local/Temp/probe123', ts: '2024-06-12T09:00:00Z', content: 'A real-looking prompt in a probe session.' });
     const s = deriveSessions({ config: config(), weekStart: WEEK_START, weekEnd: WEEK_END, now: NOW, projectsRoot: root });
     assert.equal(s.filesScanned, 0, 'an ephemeral temp-dir session is never scanned');
+    assert.equal(s.filesFound, 1, 'filesFound counts the enumerated log (pre-ephemeral-filter), so an all-ephemeral root does NOT trip the no-logs warning');
     assert.equal(s.total, 0);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -148,6 +150,7 @@ test('deriveSessions on an absent projects root yields a clean empty hero', () =
   const s = deriveSessions({ config: config(), weekStart: WEEK_START, weekEnd: WEEK_END, now: NOW, projectsRoot: join(tmpdir(), 'hw-no-such-root-zzz') });
   assert.equal(s.total, 0);
   assert.equal(s.max, 0);
+  assert.equal(s.filesFound, 0, 'an absent root yields zero logs found — the build-warning trigger');
   assert.equal(s.days.length, 7);
   assert.equal(s.provenance, 'session-derived');
 });
