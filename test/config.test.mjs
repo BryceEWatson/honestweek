@@ -242,3 +242,31 @@ test('resolveRepoPath helper handles ~, relative, absolute', () => {
   assert.equal(resolveRepoPath(abs, '/d'), abs);
   assert.equal(resolveRepoPath('rel', resolve('/d')), resolve('/d', 'rel'));
 });
+
+// --- voice (opt-in authored-prose honesty lint) ---
+
+test('voice defaults: absent -> denyMeta false, empty deny/allow lists', () => {
+  const c = normalizeConfig(minimalValid());
+  assert.deepEqual(c.voice, { denyMeta: false, denyPhrases: [], allowPhrases: [] });
+});
+
+test('voice normalizes denyMeta + denyPhrases + allowPhrases', () => {
+  const c = normalizeConfig({
+    ...minimalValid(),
+    voice: { denyMeta: true, denyPhrases: ['secret sauce'], allowPhrases: ['sealed-bid auction'] },
+  });
+  assert.deepEqual(c.voice, { denyMeta: true, denyPhrases: ['secret sauce'], allowPhrases: ['sealed-bid auction'] });
+});
+
+test('voice rejects a non-object voice block', () => {
+  assert.throws(() => normalizeConfig({ ...minimalValid(), voice: 'on' }), /"voice" must be an object/);
+});
+
+test('voice rejects a non-boolean denyMeta', () => {
+  assert.throws(() => normalizeConfig({ ...minimalValid(), voice: { denyMeta: 'yes' } }), /"voice\.denyMeta" must be a boolean/);
+});
+
+test('voice rejects non-array / non-string deny/allow phrases (fail-loud, names the field)', () => {
+  assert.throws(() => normalizeConfig({ ...minimalValid(), voice: { denyPhrases: 'nope' } }), /"voice\.denyPhrases" must be an array/);
+  assert.throws(() => normalizeConfig({ ...minimalValid(), voice: { allowPhrases: [42] } }), /"voice\.allowPhrases\[0\]" must be a string/);
+});
