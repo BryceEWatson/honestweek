@@ -31,5 +31,8 @@
   "output": {
     "mode": "digest",
     "file": "honestweek.digest.md"
+  },
+  "voice": {
+    "denyMeta": false
   }
 }
