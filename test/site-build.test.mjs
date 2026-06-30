@@ -136,12 +136,38 @@ test('site mode writes a deterministic, fact-fenced artifact from the verified m
     assert.equal(out.itemsTotal, 1);
     assert.equal(out.commitsVerified, 1);
     assert.equal(out.sessions, 0, 'empty synthetic sessions root -> hero of 0');
+    assert.match(io.errBuf, /no Claude session logs found/, 'empty session root -> the no-logs diagnostic fires on stderr (build still succeeds)');
     assert.equal(out.chartMax, 1);
     assert.equal(out.days.length, 7);
     const day12 = out.days.find((d) => d.date === '2024-06-12');
     assert.deepEqual(day12, { date: '2024-06-12', total: 1, byRepo: { r: 1 } });
     assert.ok(out.days.filter((d) => d.date !== '2024-06-12').every((d) => d.total === 0));
     assert.equal(out.headline, 'a steady week');
+  } finally {
+    cleanup(repoDir, work, cfgDir);
+  }
+});
+
+test('site mode is SILENT (no no-logs warning) when the session root has logs', async () => {
+  // The no-false-alarm failure path: a populated root must NOT trip the diagnostic. Seed one interactive,
+  // in-window session whose cwd is the configured repo 'r' (so it buckets under 'r', not 'other'); the
+  // parent dir name 'proj' is non-ephemeral so the file is actually enumerated + scanned.
+  const { repoDir, work, cfgDir, artifact } = setup();
+  const sdir = join(cfgDir, 'projects', 'proj');
+  mkdirSync(sdir, { recursive: true });
+  writeFileSync(
+    join(sdir, 's1.jsonl'),
+    JSON.stringify({ type: 'user', timestamp: '2024-06-12T09:00:00Z', cwd: repoDir, sessionId: 's1', message: { role: 'user', content: 'Help me ship the thing today.' } }) + '\n'
+  );
+  const io = makeIo();
+  try {
+    await withSessionsRoot(cfgDir, async () => {
+      const code = await runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io });
+      assert.equal(code, 0);
+    });
+    const out = JSON.parse(readFileSync(artifact, 'utf8'));
+    assert.ok(out.sessions > 0, 'the seeded session is counted (root recognized)');
+    assert.doesNotMatch(io.errBuf, /no Claude session logs found/, 'with logs present, the no-logs warning does NOT fire');
   } finally {
     cleanup(repoDir, work, cfgDir);
   }
