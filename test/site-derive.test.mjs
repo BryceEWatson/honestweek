@@ -186,8 +186,11 @@ test('deriveProjectStats keeps the commit-day count when session-days are fewer 
 });
 
 test('deriveProjectStats never credits the catch-all "other" session pool to a named project', () => {
-  // A repo-less named bucket ('Loose'): its only sessions live under the catch-all 'other' (every
-  // unconfigured-cwd session). That pool must NOT be attributed to 'Loose' -> daysActive stays 0.
+  // Two ways a bucket could wrongly absorb the global 'other' pool (every unconfigured-cwd session):
+  //   (1) a repo-less bucket  -> resolves via the `label == null` branch;
+  //   (2) a project whose config repo-label is literally 'other' -> resolves via the `label === 'other'`
+  //       guard (without that clause this would absorb the whole 'other' pool; removing it fails (2)).
+  // Both must read daysActive 0 — the 'other' sessions belong to no single named project.
   const chart = { days: [{ date: '2024-06-12', byRepo: {} }] };
   const sessions = {
     days: [
@@ -195,9 +198,13 @@ test('deriveProjectStats never credits the catch-all "other" session pool to a n
       { date: '2024-06-13', byProject: { other: 3 } },
     ],
   };
-  const richItems = [{ project: 'Loose', repo: null, status: 'shipped', date: '2024-06-12' }];
+  const richItems = [
+    { project: 'Loose', repo: null, status: 'shipped', date: '2024-06-12' }, // _repo null  -> null branch
+    { project: 'Named Other', repo: 'other', status: 'shipped', date: '2024-06-12' }, // _repo 'other' -> guard
+  ];
   const stats = deriveProjectStats(richItems, chart, WEEK.start, WEEK.end, sessions);
-  assert.equal(stats.Loose.daysActive, 0, "the 'other' pool is never attributed to a named project");
+  assert.equal(stats.Loose.daysActive, 0, "a repo-less bucket never inherits the 'other' pool");
+  assert.equal(stats['Named Other'].daysActive, 0, "a project labelled 'other' never inherits the catch-all 'other' pool");
 });
 
 test('augmentSiteModel attaches chart/sessions/provenance and places day items by date', () => {
