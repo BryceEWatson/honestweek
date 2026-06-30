@@ -141,20 +141,18 @@ test('content/projects EVIDENCE_KEYS subtrees are skipped, while mission prose I
     .some((x) => x.rule === 'meta:honest-log'), 'mission prose itself IS scanned');
 });
 
-test('an evidence subtree nested INSIDE an item prose field is still skipped (walkProse honors EVIDENCE_KEYS)', () => {
-  // summary is an object carrying a verified snippet — the snippet must not be scanned.
-  assert.deepEqual(checkVoice({ items: [{ id: 'e3', summary: { snippet: 'the bid was kept sealed' } }] }), []);
-});
-
-test('an ARRAY- or OBJECT-valued prose field is still linted — it renders, so it must not bypass', () => {
-  // Regression: page.mjs esc()s String(value); an array title/summary still renders
-  // its joined text, so a denylisted phrase inside one cannot slip past the lint.
+test('a prose field is scanned AS IT RENDERS: array-valued is linted, object-valued is not', () => {
+  // Regression for the array bypass: page.mjs renders esc(String(value)); an
+  // array renders comma-joined, so a phrase inside it — or split across its
+  // elements — is caught (per-element recursion would miss the split case).
   assert.ok(checkVoice({ items: [{ id: 'a1', summary: ['keeping the specifics sealed'] }] })
     .some((x) => x.rule === 'withholding:sealed'), 'array-valued summary is caught');
-  assert.ok(checkVoice({ items: [{ id: 'a2', text: ['fine', 'definitely not public-facing'] }] })
-    .some((x) => x.rule === 'withholding:not-public-facing'), 'array element is caught');
-  assert.ok(checkVoice({ items: [{ id: 'a3', summary: { lead: 'belongs in an honest log' } }] })
-    .some((x) => x.rule === 'meta:honest-log'), 'object-valued prose field is walked');
+  assert.ok(checkVoice({ items: [{ id: 'a2', text: ['kept the', 'specifics sealed'] }] })
+    .some((x) => x.rule === 'withholding:sealed'), 'a phrase split across array elements (renders "kept the,specifics sealed") is caught');
+  // An object renders as "[object Object]" — its nested text never appears, so
+  // scanning its internals would false-abort over prose that is never emitted.
+  assert.deepEqual(checkVoice({ items: [{ id: 'a3', summary: { lead: 'belongs in an honest log' } }] }), [],
+    'object-valued prose field renders "[object Object]" and is not spuriously scanned');
 });
 
 test('allowPhrases is a surgical off-ramp — it suppresses only the covered match', () => {
