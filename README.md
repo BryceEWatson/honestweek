@@ -151,9 +151,13 @@ node bin/honestweek.mjs preview   # serves it on 127.0.0.1 + opens your browser
 ```
 
 Same honesty engine as every other mode: every cited commit is verify-or-abort'd, every
-number on the page is re-derived from git, and curated prose is HTML-escaped. (To instead
-generate INTO an existing website's data file — the integrated path — use `site` mode with
-a committed `output.adapter`; see `docs/site-integration.md`.)
+number on the page is a deterministic honestweek derivation (git for commits + the chart),
+and curated prose is HTML-escaped. A per-project card's **active-days** is
+`max(commit-active days, session-active days)`, so a display-role / session-only project
+shows the days it genuinely had interactive sessions (counted from your local session logs,
+never authored) instead of a blank. (To instead generate INTO an existing website's data
+file — the integrated path — use `site` mode with a committed `output.adapter`; see
+`docs/site-integration.md`.)
 
 ### A goals page too (opt-in, multi-page)
 

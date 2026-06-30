@@ -129,6 +129,77 @@ test('deriveProjectStats tallies IN-WEEK items only, grouped by project', () => 
   assert.deepEqual(stats.P, { entries: 3, statusCounts: { shipped: 2, 'in progress': 1 }, daysActive: 2 });
 });
 
+test('deriveProjectStats counts session-active days for a session-only (display) project', () => {
+  // A display-role / session-only project: never charted (no byRepo entry), but it had interactive
+  // sessions on 2 distinct days -> daysActive must be 2, not 0 (the issue #43 contradiction).
+  const chart = { days: [{ date: '2024-06-12', byRepo: {} }, { date: '2024-06-13', byRepo: {} }] };
+  const sessions = {
+    days: [
+      { date: '2024-06-11', byProject: {} },
+      { date: '2024-06-12', byProject: { disp: 1 } },
+      { date: '2024-06-13', byProject: { disp: 2 } },
+    ],
+  };
+  const richItems = [
+    { project: 'Client X', repo: 'disp', status: 'shipped', date: '2024-06-12' },
+    { project: 'Client X', repo: 'disp', status: 'in progress', date: '2024-06-13' },
+  ];
+  const stats = deriveProjectStats(richItems, chart, WEEK.start, WEEK.end, sessions);
+  // Resolved by the bucket's _repo (the display config-label 'disp'), not the bucket key 'Client X'.
+  assert.equal(stats['Client X'].daysActive, 2, 'session-only project counts its 2 session-active days, not 0');
+  assert.ok(stats['Client X'].daysActive > 0, 'no project shows activity with daysActive === 0 for an active week');
+});
+
+test('deriveProjectStats uses max(commit-days, session-days) for a git-backed project', () => {
+  // Git-backed 'r': commits on 2 days, sessions on 3 days -> daysActive = max(2, 3) = 3.
+  const chart = {
+    days: [
+      { date: '2024-06-11', byRepo: {} },
+      { date: '2024-06-12', byRepo: { r: 2 } },
+      { date: '2024-06-13', byRepo: { r: 1 } },
+    ],
+  };
+  const sessions = {
+    days: [
+      { date: '2024-06-11', byProject: { r: 1 } },
+      { date: '2024-06-12', byProject: { r: 1 } },
+      { date: '2024-06-13', byProject: { r: 2 } },
+    ],
+  };
+  const richItems = [{ project: 'P', repo: 'r', status: 'shipped', date: '2024-06-12' }];
+  const stats = deriveProjectStats(richItems, chart, WEEK.start, WEEK.end, sessions);
+  assert.equal(stats.P.daysActive, 3, 'max(2 commit-days, 3 session-days) = 3');
+});
+
+test('deriveProjectStats keeps the commit-day count when session-days are fewer (no regression)', () => {
+  // 2 commit-days, 1 session-day -> max(2, 1) = 2: the commit-day count is never regressed.
+  const chart = {
+    days: [
+      { date: '2024-06-11', byRepo: { r: 1 } },
+      { date: '2024-06-12', byRepo: { r: 1 } },
+    ],
+  };
+  const sessions = { days: [{ date: '2024-06-12', byProject: { r: 1 } }] };
+  const richItems = [{ project: 'P', repo: 'r', status: 'shipped', date: '2024-06-12' }];
+  const stats = deriveProjectStats(richItems, chart, WEEK.start, WEEK.end, sessions);
+  assert.equal(stats.P.daysActive, 2, 'commit-day count (2) retained; max(2, 1) = 2');
+});
+
+test('deriveProjectStats never credits the catch-all "other" session pool to a named project', () => {
+  // A repo-less named bucket ('Loose'): its only sessions live under the catch-all 'other' (every
+  // unconfigured-cwd session). That pool must NOT be attributed to 'Loose' -> daysActive stays 0.
+  const chart = { days: [{ date: '2024-06-12', byRepo: {} }] };
+  const sessions = {
+    days: [
+      { date: '2024-06-12', byProject: { other: 5 } },
+      { date: '2024-06-13', byProject: { other: 3 } },
+    ],
+  };
+  const richItems = [{ project: 'Loose', repo: null, status: 'shipped', date: '2024-06-12' }];
+  const stats = deriveProjectStats(richItems, chart, WEEK.start, WEEK.end, sessions);
+  assert.equal(stats.Loose.daysActive, 0, "the 'other' pool is never attributed to a named project");
+});
+
 test('augmentSiteModel attaches chart/sessions/provenance and places day items by date', () => {
   const featured = initRepo();
   const emptySessions = mkdtempSync(join(tmpdir(), 'hw-derive-sess-'));

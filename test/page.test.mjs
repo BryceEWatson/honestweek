@@ -64,6 +64,70 @@ test('buildPageModel groups by repo and uses the git-derived receipt + date', ()
   assert.equal(wip.receipt, null);
 });
 
+test('page render shows session-active days for a display/session-only project (active N/7)', () => {
+  const cfg = {
+    identity: { authorEmails: ['dev@example.com'] },
+    repos: [
+      { path: '/x', label: 'proj', role: 'featured' },
+      { path: '/c', label: 'client', role: 'display' },
+    ],
+    output: { mode: 'page', file: 'honestweek.report.html' },
+  };
+  const chart7 = {
+    metric: 'commits',
+    windowDays: 7,
+    max: 3,
+    days: [
+      { date: '2024-06-10', weekday: 'mon', isWeekend: false, isToday: false, total: 3, byRepo: { proj: 3 } },
+      { date: '2024-06-12', weekday: 'wed', isWeekend: false, isToday: false, total: 0, byRepo: {} },
+    ],
+  };
+  // 'client' (display) had sessions on 2 distinct days; 'proj' (featured) had 1 session day.
+  const sessions = {
+    days: [
+      { date: '2024-06-10', byProject: { client: 1 } },
+      { date: '2024-06-11', byProject: { client: 2 } },
+      { date: '2024-06-12', byProject: { proj: 1 } },
+    ],
+  };
+  const m = buildPageModel({
+    items: [
+      { id: 'a', status: 'shipped', repo: 'proj', primaryCommit: 'aaaaaaa', title: 'Did the thing', summary: 'A verified change.' },
+      { id: 'b', status: 'in progress', repo: 'client', summary: 'Session-only client work, never git-read.' },
+    ],
+    config: cfg,
+    verifiedIndex,
+    week,
+    chart: chart7,
+    metricsByLabel: new Map([['proj', { commits: 3, activeDays: 1 }]]), // display 'client' is never git-read -> no metric
+    sessions,
+  });
+  // Display 'client': no git metric, 2 session-days -> activeDays 2 (was null/blank before the fix).
+  const client = m.groups.find((g) => g.label === 'client');
+  assert.equal(client.metrics.activeDays, 2, 'display/session-only project gets its 2 session-active days');
+  // Featured 'proj': git activeDays 1, session-days 1 -> max(1, 1) = 1.
+  const proj = m.groups.find((g) => g.label === 'proj');
+  assert.equal(proj.metrics.activeDays, 1, 'featured project keeps max(commit-days, session-days)');
+  // The RENDERED HTML must EMIT the line — page.mjs gates it on `if (met.activeDays)` truthiness, so a
+  // model-field assertion alone would not prove the render path emits it (criterion 5, page-render leg).
+  const html = render(m, cfg);
+  assert.match(html, /active 2\/7 days/, 'the rendered report shows "active 2/7 days" for the session-only project');
+});
+
+test('page render: without a sessions bundle, active-days is the git-only count (unchanged)', () => {
+  const m = buildPageModel({
+    items: [{ id: 'a', status: 'shipped', repo: 'proj', primaryCommit: 'aaaaaaa', title: 'T', summary: 'S' }],
+    config,
+    verifiedIndex,
+    week,
+    chart,
+    metricsByLabel: new Map([['proj', { commits: 3, activeDays: 3 }]]),
+    // no `sessions` arg
+  });
+  const proj = m.groups.find((g) => g.label === 'proj');
+  assert.equal(proj.metrics.activeDays, 3, 'git activeDays preserved when no sessions bundle is passed');
+});
+
 test('render produces a self-contained HTML document with the panel, chart, badges, and receipt', () => {
   const html = render(model(), config);
   assert.match(html, /^<!DOCTYPE html>/);

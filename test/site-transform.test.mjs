@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { factFenceNumbers, renderSiteViaTransform } from '../lib/site/transform.mjs';
 import { FactFenceError } from '../lib/site/fact-fence.mjs';
 import { seedVerifiedNumbers } from '../lib/site/values.mjs';
+import { deriveProjectStats } from '../lib/site/derive.mjs';
 
 /** A toy verified bundle: chart/sessions/provenance/projectStats/meta + curated content. */
 function bundle() {
@@ -73,6 +74,45 @@ test('a transform aborts if it INVENTS a number as a string is NOT scanned (cura
   // strings (curated) pass even with numerals; a numeric leaf must be verified.
   assert.doesNotThrow(() => renderSiteViaTransform((m) => ({ blurb: 'shipped 9999 things' }), bundle()));
   assert.throws(() => renderSiteViaTransform((m) => ({ n: 9999 }), bundle()), FactFenceError);
+});
+
+test('a consuming transform surfaces the session-aware daysActive without inventing a number (issue #43, criterion 5 adapter leg)', () => {
+  // Derive projectStats the way augmentSiteModel does — deriveProjectStats WITH a sessions bundle —
+  // for a display/session-only project (no commits). The engine credits its session-active days...
+  const chart = { days: [{ date: '2024-06-10', byRepo: {} }, { date: '2024-06-11', byRepo: {} }] };
+  const sessions = {
+    total: 2,
+    projectTotals: { client: 2 },
+    days: [
+      { date: '2024-06-10', byProject: { client: 1 } },
+      { date: '2024-06-11', byProject: { client: 1 } },
+    ],
+  };
+  const richItems = [{ project: 'client', repo: 'client', status: 'shipped', date: '2024-06-10' }];
+  const projectStats = deriveProjectStats(richItems, chart, '2024-06-10', '2024-06-16', sessions);
+  assert.equal(projectStats.client.daysActive, 2, 'engine derives the non-zero session-active day count');
+
+  const b = {
+    meta: { windowDays: 7, weekStart: '2024-06-10' },
+    provenance: { itemsTotal: 1, commitsVerified: 0, redactions: 0 },
+    chart,
+    sessions,
+    projectStats,
+    content: { headline: 'shipped' },
+  };
+  // ...and a consuming adapter that reads projectStats[...].daysActive surfaces the CORRECTED value,
+  // and it survives the numeric fact-fence (daysActive is a verified number under the trusted
+  // projectStats root) — i.e. the adapter sees a fence-valid, session-aware count, not 0.
+  const artifact = renderSiteViaTransform(
+    (m) => ({
+      headline: m.content.headline,
+      groups: [{ name: 'client', activeDays: m.projectStats.client.daysActive, sessions: m.sessions.projectTotals.client }],
+    }),
+    b
+  );
+  assert.equal(artifact.groups[0].activeDays, 2, 'the consuming adapter surfaces the corrected daysActive');
+  // No issue-#43 contradiction: sessions > 0 alongside daysActive > 0 for the active week.
+  assert.ok(artifact.groups[0].sessions > 0 && artifact.groups[0].activeDays > 0);
 });
 
 test('a transform may declare a derived number via { artifact, verifiedExtra }', () => {
