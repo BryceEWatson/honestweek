@@ -129,9 +129,10 @@ test('deriveProjectStats tallies IN-WEEK items only, grouped by project', () => 
   assert.deepEqual(stats.P, { entries: 3, statusCounts: { shipped: 2, 'in progress': 1 }, daysActive: 2 });
 });
 
-test('deriveProjectStats counts session-active days for a session-only (display) project', () => {
-  // A display-role / session-only project: never charted (no byRepo entry), but it had interactive
-  // sessions on 2 distinct days -> daysActive must be 2, not 0 (the issue #43 contradiction).
+test('deriveProjectStats counts session-active days for a project that carries a config repo-label', () => {
+  // A project whose items carry a config repo-label ('disp'): never charted (no byRepo entry), but it
+  // had interactive sessions on 2 distinct days -> daysActive must be 2, not 0. Resolved via _repo; the
+  // genuine REPO-LESS display case (repo:null) is the next test (issue #47).
   const chart = { days: [{ date: '2024-06-12', byRepo: {} }, { date: '2024-06-13', byRepo: {} }] };
   const sessions = {
     days: [
@@ -145,9 +146,44 @@ test('deriveProjectStats counts session-active days for a session-only (display)
     { project: 'Client X', repo: 'disp', status: 'in progress', date: '2024-06-13' },
   ];
   const stats = deriveProjectStats(richItems, chart, WEEK.start, WEEK.end, sessions);
-  // Resolved by the bucket's _repo (the display config-label 'disp'), not the bucket key 'Client X'.
-  assert.equal(stats['Client X'].daysActive, 2, 'session-only project counts its 2 session-active days, not 0');
+  // Resolved by the bucket's _repo (the config-label 'disp'), not the stats key 'Client X'.
+  assert.equal(stats['Client X'].daysActive, 2, 'project counts its 2 session-active days, not 0');
   assert.ok(stats['Client X'].daysActive > 0, 'no project shows activity with daysActive === 0 for an active week');
+});
+
+test('deriveProjectStats counts session-active days for a REPO-LESS (repo:null) display project — issue #47', () => {
+  // The genuine display-role / session-only case the brycewatson.com consumer hit: the project carries
+  // NO repo (repo:null), so #45's sessionDays(_repo=null) returned 0 -> "N sessions / 0 active days". The
+  // fix falls back to the STATS KEY (the project name 'Akaya') — the same key the session bundle buckets
+  // under (byProject) and that the consumer joins sessionsThisWeek by. Sessions on EXACTLY 2 distinct
+  // in-week days under 'Akaya' (plus a 3rd in-week day with none) -> daysActive is that distinct-day
+  // count (2), a deterministic value, not one inherited from another fixture.
+  const chart = {
+    days: [
+      { date: '2024-06-12', byRepo: {} },
+      { date: '2024-06-13', byRepo: {} },
+      { date: '2024-06-14', byRepo: {} },
+    ],
+  };
+  const sessions = {
+    projectTotals: { Akaya: 3 },
+    days: [
+      { date: '2024-06-12', byProject: { Akaya: 1 } },
+      { date: '2024-06-13', byProject: { Akaya: 2 } },
+      { date: '2024-06-14', byProject: {} }, // an in-week day with no Akaya session -> not a session-day
+    ],
+  };
+  const richItems = [
+    { project: 'Akaya', repo: null, status: 'shipped', date: '2024-06-12' },
+    { project: 'Akaya', repo: null, status: 'in progress', date: '2024-06-13' },
+  ];
+  const stats = deriveProjectStats(richItems, chart, WEEK.start, WEEK.end, sessions);
+  assert.equal(stats.Akaya.daysActive, 2, 'repo-less project counts its 2 distinct session-active days, not 0');
+  // The issue #47 contradiction is gone: sessionsThisWeek (projectTotals[name]) > 0 alongside daysActive > 0.
+  assert.ok(
+    sessions.projectTotals.Akaya > 0 && stats.Akaya.daysActive > 0,
+    'no "N sessions / 0 active days" for the repo-less project'
+  );
 });
 
 test('deriveProjectStats uses max(commit-days, session-days) for a git-backed project', () => {
@@ -186,9 +222,11 @@ test('deriveProjectStats keeps the commit-day count when session-days are fewer 
 });
 
 test('deriveProjectStats never credits the catch-all "other" session pool to a named project', () => {
-  // Two ways a bucket could wrongly absorb the global 'other' pool (every unconfigured-cwd session):
-  //   (1) a repo-less bucket  -> resolves via the `label == null` branch;
-  //   (2) a project whose config repo-label is literally 'other' -> resolves via the `label === 'other'`
+  // Two ways a project could wrongly absorb the global 'other' pool (every unconfigured-cwd session):
+  //   (1) a repo-less project (repo:null) -> falls back to its NAME ('Loose'); since no session buckets
+  //       under 'Loose' (they're under 'other'), sessionDays('Loose') is 0 -> no false credit (a
+  //       genuinely session-active repo-less project IS credited — see the issue #47 test above);
+  //   (2) a project whose config repo-label is literally 'other' -> blocked by the `label === 'other'`
   //       guard (without that clause this would absorb the whole 'other' pool; removing it fails (2)).
   // Both must read daysActive 0 — the 'other' sessions belong to no single named project.
   const chart = { days: [{ date: '2024-06-12', byRepo: {} }] };
@@ -199,11 +237,11 @@ test('deriveProjectStats never credits the catch-all "other" session pool to a n
     ],
   };
   const richItems = [
-    { project: 'Loose', repo: null, status: 'shipped', date: '2024-06-12' }, // _repo null  -> null branch
-    { project: 'Named Other', repo: 'other', status: 'shipped', date: '2024-06-12' }, // _repo 'other' -> guard
+    { project: 'Loose', repo: null, status: 'shipped', date: '2024-06-12' }, // _repo null -> name 'Loose' (no byProject['Loose']) -> 0
+    { project: 'Named Other', repo: 'other', status: 'shipped', date: '2024-06-12' }, // _repo 'other' -> 'other' guard -> 0
   ];
   const stats = deriveProjectStats(richItems, chart, WEEK.start, WEEK.end, sessions);
-  assert.equal(stats.Loose.daysActive, 0, "a repo-less bucket never inherits the 'other' pool");
+  assert.equal(stats.Loose.daysActive, 0, "a repo-less project whose name is not a session bucket never inherits the 'other' pool");
   assert.equal(stats['Named Other'].daysActive, 0, "a project labelled 'other' never inherits the catch-all 'other' pool");
 });
 
