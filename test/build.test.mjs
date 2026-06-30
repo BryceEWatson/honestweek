@@ -49,7 +49,7 @@ function makeIo() {
   return io;
 }
 
-function setup({ repos, items, output } = {}) {
+function setup({ repos, items, output, voice } = {}) {
   const repoDir = initRepo();
   const work = mkdtempSync(join(tmpdir(), 'hw-build-work-'));
   const outFile = join(work, 'out.md');
@@ -59,6 +59,7 @@ function setup({ repos, items, output } = {}) {
     repos: repos ?? [{ path: repoDir, label: 'r', role: 'featured' }],
     redaction: { codenames: ['Falcon'], names: [], terms: [] },
     output: output ?? { mode: 'digest', file: outFile },
+    ...(voice !== undefined ? { voice } : {}),
   };
   writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify(config));
   if (items !== undefined) writeFileSync(join(work, 'honestweek.items.json'), JSON.stringify(items));
@@ -246,6 +247,99 @@ test('page mode: an empty week writes the honest no-sessions report, not a crash
     assert.equal(code, 0);
     const html = readFileSync(outFile, 'utf8');
     assert.ok(html.includes('No interactive coding sessions were found'), 'honest empty-state, not a fake panel of zeros');
+  } finally {
+    cleanup(repoDir, work);
+  }
+});
+
+// --- voice-fence (opt-in authored-prose honesty lint) ---
+
+test('voice-fence (opt-in): an offending ITEM summary aborts exit 2 and writes nothing', async () => {
+  const repoDir = initRepo();
+  const sha = commit(repoDir, { message: 'real work' });
+  const { work, outFile } = setup({
+    repos: [{ path: repoDir, label: 'r', role: 'featured' }],
+    items: {
+      week: { start: '2024-06-10', end: '2024-06-16' },
+      items: [{ id: 'i1', repo: 'r', summary: 'Built the core; keeping the specifics sealed for now.', primaryCommit: sha }],
+    },
+    voice: { denyMeta: true },
+  });
+  const io = makeIo();
+  try {
+    await assert.rejects(() => runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io }));
+    assert.equal(io.exitCode, 2, 'voice violation aborts with exit 2');
+    assert.ok(/voice:/.test(io.errBuf) && /i1/.test(io.errBuf) && /withholding:sealed/.test(io.errBuf), 'names the item + the rule');
+    assert.equal(existsSync(outFile), false, 'no output written on a voice abort');
+  } finally {
+    cleanup(repoDir, work);
+  }
+});
+
+test('voice-fence (opt-in): an offending PROJECT mission aborts exit 2 (not just items)', async () => {
+  const repoDir = initRepo();
+  const sha = commit(repoDir, { message: 'real work' });
+  const { work, outFile } = setup({
+    repos: [{ path: repoDir, label: 'r', role: 'featured' }],
+    items: {
+      week: { start: '2024-06-10', end: '2024-06-16' },
+      items: [{ id: 'i1', repo: 'r', summary: 'Shipped the verifier.', primaryCommit: sha }],
+      projects: { alpha: { mission: 'This belongs in an honest log.' } },
+    },
+    voice: { denyMeta: true },
+  });
+  const io = makeIo();
+  try {
+    await assert.rejects(() => runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io }));
+    assert.equal(io.exitCode, 2);
+    assert.ok(/projects\.alpha\.mission/.test(io.errBuf) && /meta:honest-log/.test(io.errBuf), 'names the project mission + rule');
+    assert.equal(existsSync(outFile), false);
+  } finally {
+    cleanup(repoDir, work);
+  }
+});
+
+test('voice-fence: the SAME offending prose builds normally when voice is OFF (default)', async () => {
+  const repoDir = initRepo();
+  const sha = commit(repoDir, { message: 'real work' });
+  const { work, outFile } = setup({
+    repos: [{ path: repoDir, label: 'r', role: 'featured' }],
+    items: {
+      week: { start: '2024-06-10', end: '2024-06-16' },
+      items: [{ id: 'i1', repo: 'r', summary: 'Built the core; keeping the specifics sealed for now.', primaryCommit: sha }],
+    },
+    // no `voice` block -> lint never runs (today's behavior, unchanged)
+  });
+  const io = makeIo();
+  try {
+    const code = await runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io });
+    assert.equal(code, 0, 'off-by-default: the same prose is not gated');
+    assert.equal(io.exitCode, null);
+    assert.ok(existsSync(outFile));
+  } finally {
+    cleanup(repoDir, work);
+  }
+});
+
+test('voice-fence (opt-in): clean prose builds normally, and a snippet word does not abort', async () => {
+  const repoDir = initRepo();
+  const sha = commit(repoDir, { message: 'real work' });
+  const { work, outFile } = setup({
+    repos: [{ path: repoDir, label: 'r', role: 'featured' }],
+    items: {
+      week: { start: '2024-06-10', end: '2024-06-16' },
+      // clean authored summary; a banned word lives only in an item's evidence (never scanned)
+      items: [{ id: 'i1', repo: 'r', summary: 'Built the core authentication flow.', snippet: 'the pre-registration was kept sealed', primaryCommit: sha }],
+      projects: { alpha: { mission: 'Make verification cheap to run on every build.' } },
+    },
+    voice: { denyMeta: true },
+  });
+  const io = makeIo();
+  try {
+    const code = await runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io });
+    assert.equal(code, 0, 'clean prose passes; evidence "sealed" is never scanned');
+    assert.equal(io.exitCode, null);
+    assert.ok(existsSync(outFile));
   } finally {
     cleanup(repoDir, work);
   }
