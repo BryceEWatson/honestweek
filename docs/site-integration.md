@@ -162,7 +162,10 @@ from the shared `week-grid.mjs`, so a chart day and a session day never disagree
   exact-timestamp dedup have known two-sided error (a classifier false-positive or
   a fresh-timestamp resume overcounts; a timestamp collision or a dropped
   unreadable head undercounts); the gap is surfaced, not hidden, via the emitted
-  `filesScanned`/`automatedExcluded`/`undetermined`/`duplicatesSkipped` diagnostics.
+  `filesFound`/`filesScanned`/`automatedExcluded`/`undetermined`/`duplicatesSkipped`
+  diagnostics (`filesFound` is the raw pre-filter count of logs under the resolved
+  root — 0 means none were found, e.g. building off the local machine, which the
+  build surfaces as a loud warning; distinct from the post-filter `filesScanned`).
   It is `verifiedNumbers`-eligible because it is reproducible from the inputs, not
   because it is an exact measure. Clean-room: project labels come from
   `config.repos` (cwd-match), never a hardcoded allowlist.
