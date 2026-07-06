@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { factFenceNumbers, renderSiteViaTransform } from '../lib/site/transform.mjs';
 import { FactFenceError } from '../lib/site/fact-fence.mjs';
 import { seedVerifiedNumbers } from '../lib/site/values.mjs';
-import { deriveProjectStats } from '../lib/site/derive.mjs';
+import { deriveProjectStats, reconcileGeneralizedSessionTotals } from '../lib/site/derive.mjs';
 
 /** A toy verified bundle: chart/sessions/provenance/projectStats/meta + curated content. */
 function bundle() {
@@ -113,6 +113,52 @@ test('a consuming transform surfaces the session-aware daysActive without invent
   assert.equal(artifact.groups[0].activeDays, 2, 'the consuming adapter surfaces the corrected daysActive');
   // No issue-#43 contradiction: sessions > 0 alongside daysActive > 0 for the active week.
   assert.ok(artifact.groups[0].sessions > 0 && artifact.groups[0].activeDays > 0);
+});
+
+test('a consuming transform surfaces the cross-cwd reconciled sessionsThisWeek + daysActive, fence-safe (Akaya-shaped)', () => {
+  // End to end: derive the way augmentSiteModel does (deriveProjectStats + reconcileGeneralizedSessionTotals)
+  // for a repo-less group whose curated entries out-run its cwd sessions, then feed the bundle to a consuming
+  // adapter that joins EXACTLY like the brycewatson.com transform does — daysActive from projectStats,
+  // sessionsThisWeek from sessions.projectTotals[name]. Both must read 2 (the 2 entry-days), not the cwd-only
+  // 1, and survive the numeric fact-fence (each is a verified number under a trusted derived root).
+  const week = { start: '2026-06-29', end: '2026-07-05' };
+  const chart = { days: [{ date: '2026-07-01', byRepo: {} }, { date: '2026-07-02', byRepo: {} }] };
+  const sessions = {
+    total: 4,
+    projectTotals: { Akaya: 1, Command: 3 },
+    days: [
+      { date: '2026-07-01', byProject: { Akaya: 1 } },
+      { date: '2026-07-02', byProject: { Command: 1 } }, // the Jul 2 Akaya work ran under Command's cwd
+    ],
+  };
+  const richItems = [
+    { project: 'Akaya', repo: null, status: 'in progress', date: '2026-07-01' },
+    { project: 'Akaya', repo: null, status: 'in progress', date: '2026-07-02' },
+  ];
+  const projectStats = deriveProjectStats(richItems, chart, week.start, week.end, sessions);
+  reconcileGeneralizedSessionTotals(sessions, richItems, {}, week.start, week.end);
+  assert.equal(projectStats.Akaya.daysActive, 2);
+  assert.equal(sessions.projectTotals.Akaya, 2);
+
+  const b = {
+    meta: { windowDays: 7, weekStart: '2026-06-29' },
+    provenance: { itemsTotal: 2, commitsVerified: 0, redactions: 0 },
+    chart,
+    sessions,
+    projectStats,
+    content: { headline: 'shipped' },
+  };
+  const artifact = renderSiteViaTransform(
+    (m) => ({
+      headline: m.content.headline,
+      groups: [{ name: 'Akaya', activeDays: m.projectStats.Akaya.daysActive, sessionsThisWeek: m.sessions.projectTotals.Akaya }],
+    }),
+    b
+  );
+  assert.equal(artifact.groups[0].activeDays, 2, 'the consuming adapter surfaces the reconciled daysActive (2, not cwd 1)');
+  assert.equal(artifact.groups[0].sessionsThisWeek, 2, 'the consuming adapter surfaces the reconciled sessionsThisWeek (2, not cwd 1)');
+  // No contradiction: the header can never render fewer sessions/days than the 2 rows dated on 2 days.
+  assert.ok(artifact.groups[0].sessionsThisWeek >= 2 && artifact.groups[0].activeDays >= 2);
 });
 
 test('a transform may declare a derived number via { artifact, verifiedExtra }', () => {

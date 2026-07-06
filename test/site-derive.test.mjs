@@ -11,7 +11,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { deriveChart, deriveProvenance, deriveProjectStats, augmentSiteModel } from '../lib/site/derive.mjs';
+import { deriveChart, deriveProvenance, deriveProjectStats, reconcileGeneralizedSessionTotals, augmentSiteModel } from '../lib/site/derive.mjs';
 
 const ME = 'me@example.com';
 let counter = 0;
@@ -184,6 +184,79 @@ test('deriveProjectStats counts session-active days for a REPO-LESS (repo:null) 
     sessions.projectTotals.Akaya > 0 && stats.Akaya.daysActive > 0,
     'no "N sessions / 0 active days" for the repo-less project'
   );
+});
+
+test('cross-cwd generalized group: daysActive + session total floor at entry-days, not the cwd-only count (Akaya-shaped)', () => {
+  // The live brycewatson.com Akaya defect. A repo-less generalized project had:
+  //   - a session in its OWN cwd on Jul 1 -> the cwd bundle buckets 1 session under 'Akaya' on 1 day;
+  //   - a Jul 2 session run from ANOTHER project's cwd ('Command'), curated here BY CONTENT.
+  // So its curated entries span 2 days (Jul 1 + Jul 2) while the cwd bundle sees 1 session / 1 day, and
+  // the header rendered "1 session · active 1/7 days" above 2 rows dated on 2 days. The fix floors BOTH
+  // the active-day count AND the generalized session total at the distinct entry-day count.
+  const WK = { start: '2026-06-29', end: '2026-07-05' };
+  const chart = {
+    days: [
+      { date: '2026-07-01', byRepo: {} },
+      { date: '2026-07-02', byRepo: {} },
+    ],
+  };
+  const sessions = {
+    projectTotals: { Akaya: 1, Command: 3 },
+    days: [
+      { date: '2026-07-01', byProject: { Akaya: 1 } }, // Akaya's own-cwd session
+      { date: '2026-07-02', byProject: { Command: 1 } }, // the cross-cwd session -> bucketed under Command, NOT Akaya
+    ],
+  };
+  const richItems = [
+    { project: 'Akaya', repo: null, status: 'in progress', date: '2026-07-01' },
+    { project: 'Akaya', repo: null, status: 'in progress', date: '2026-07-02' }, // the cross-cwd work, curated to Akaya
+    { project: 'Command', repo: 'Command', status: 'shipped', date: '2026-07-02' },
+  ];
+  const stats = deriveProjectStats(richItems, chart, WK.start, WK.end, sessions);
+  // daysActive: Akaya's cwd sessions cover 1 day, but its entries span 2 -> floored to 2 (the bug: it was 1).
+  assert.equal(stats.Akaya.daysActive, 2, 'daysActive floors at the 2 distinct entry-days, not the 1 cwd session-day');
+
+  // reconcile lifts the GENERALIZED group's cwd session total to its entry-day floor; a consumer joins
+  // sessionsThisWeek from projectTotals[name], so this is what kills the "1 session above 2 rows" teaser.
+  reconcileGeneralizedSessionTotals(sessions, richItems, {}, WK.start, WK.end);
+  assert.equal(sessions.projectTotals.Akaya, 2, 'the generalized group session total is lifted 1 -> 2 to match its 2 entry-days');
+  // The git-backed 'Command' project keeps its pure cwd count (never reconciled) so the mis-wiring gate stays honest.
+  assert.equal(sessions.projectTotals.Command, 3, 'a git-backed project keeps its cwd session partition (not reconciled)');
+  // The contradiction is gone: neither number can undercount the 2 rows across 2 days.
+  assert.ok(
+    stats.Akaya.daysActive >= 2 && sessions.projectTotals.Akaya >= 2,
+    'header can never render fewer sessions/days than the 2 rows shown beneath it'
+  );
+});
+
+test('reconcileGeneralizedSessionTotals never fabricates a tally, never touches first-class or the "other" pool', () => {
+  // Adversarial cases the reconciliation must NOT touch:
+  //   - a generalized group with NO cwd session (projectTotals absent) stays ABSENT, not created at N
+  //     (a pure dated/private thread shows its rows, no session teaser);
+  //   - a DISPLAY-role group IS reconciled (its cwd bundle can under-count the same way);
+  //   - a FEATURED (git-backed, first-class) group is left as its pure cwd partition;
+  //   - the catch-all 'other' pool is never lifted onto a named project.
+  const WK = { start: '2026-06-29', end: '2026-07-05' };
+  const config = { repos: [{ label: 'disp', role: 'display' }, { label: 'feat', role: 'featured' }] };
+  const sessions = { projectTotals: { disp: 1, feat: 2, other: 9 } }; // 'Pure' has NO entry here
+  const richItems = [
+    { project: 'Pure', repo: null, status: 'in progress', date: '2026-07-01' }, // repo-less, no cwd session -> stays absent
+    { project: 'Pure', repo: null, status: 'in progress', date: '2026-07-02' },
+    { project: 'Disp', repo: 'disp', status: 'shipped', date: '2026-07-01' }, // display-role, 2 entry-days
+    { project: 'Disp', repo: 'disp', status: 'shipped', date: '2026-07-02' },
+    { project: 'Feat', repo: 'feat', status: 'shipped', date: '2026-07-01' }, // featured, 3 entry-days
+    { project: 'Feat', repo: 'feat', status: 'shipped', date: '2026-07-02' },
+    { project: 'Feat', repo: 'feat', status: 'shipped', date: '2026-07-03' },
+    // A repo-less project whose NAME collides with the featured label 'feat' must NOT bump feat's cwd bucket.
+    { project: 'feat', repo: null, status: 'in progress', date: '2026-07-01' },
+    { project: 'feat', repo: null, status: 'in progress', date: '2026-07-02' },
+    { project: 'feat', repo: null, status: 'in progress', date: '2026-07-03' },
+  ];
+  reconcileGeneralizedSessionTotals(sessions, richItems, config, WK.start, WK.end);
+  assert.equal('Pure' in sessions.projectTotals, false, 'a generalized group with no cwd session is never given a fabricated tally');
+  assert.equal(sessions.projectTotals.disp, 2, 'a display-role group is lifted 1 -> 2 to match its 2 entry-days');
+  assert.equal(sessions.projectTotals.feat, 2, 'a git-backed cwd bucket is never bumped — not by its own group, nor a name-colliding repo-less one');
+  assert.equal(sessions.projectTotals.other, 9, "the catch-all 'other' pool is never reconciled onto a named project");
 });
 
 test('deriveProjectStats uses max(commit-days, session-days) for a git-backed project', () => {
