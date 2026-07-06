@@ -201,6 +201,8 @@ test('cross-cwd generalized group: daysActive + session total floor at entry-day
     ],
   };
   const sessions = {
+    total: 4,
+    interactiveTotal: 4, // == sum(projectTotals) BEFORE reconciliation (a strict partition)
     projectTotals: { Akaya: 1, Command: 3 },
     days: [
       { date: '2026-07-01', byProject: { Akaya: 1 } }, // Akaya's own-cwd session
@@ -222,6 +224,13 @@ test('cross-cwd generalized group: daysActive + session total floor at entry-day
   assert.equal(sessions.projectTotals.Akaya, 2, 'the generalized group session total is lifted 1 -> 2 to match its 2 entry-days');
   // The git-backed 'Command' project keeps its pure cwd count (never reconciled) so the mis-wiring gate stays honest.
   assert.equal(sessions.projectTotals.Command, 3, 'a git-backed project keeps its cwd session partition (not reconciled)');
+  // PARTITION CONTRACT (deliberate, documented): the lift does NOT touch the deduplicated total (a cross-cwd
+  // session is one real session — inflating `total` would be dishonest), so afterwards sum(projectTotals) can
+  // EXCEED total. Pin both halves so the relaxation is a conscious choice, not silent drift.
+  assert.equal(sessions.total, 4, 'reconcile never inflates the deduplicated session total');
+  assert.equal(sessions.interactiveTotal, 4, 'reconcile never inflates interactiveTotal');
+  const sumTotals = Object.values(sessions.projectTotals).reduce((a, b) => a + b, 0);
+  assert.equal(sumTotals, 5, 'sum(projectTotals) is now 5 > total 4 — projectTotals is no longer a strict partition (by design)');
   // The contradiction is gone: neither number can undercount the 2 rows across 2 days.
   assert.ok(
     stats.Akaya.daysActive >= 2 && sessions.projectTotals.Akaya >= 2,
@@ -237,8 +246,8 @@ test('reconcileGeneralizedSessionTotals never fabricates a tally, never touches 
   //   - a FEATURED (git-backed, first-class) group is left as its pure cwd partition;
   //   - the catch-all 'other' pool is never lifted onto a named project.
   const WK = { start: '2026-06-29', end: '2026-07-05' };
-  const config = { repos: [{ label: 'disp', role: 'display' }, { label: 'feat', role: 'featured' }] };
-  const sessions = { projectTotals: { disp: 1, feat: 2, other: 9 } }; // 'Pure' has NO entry here
+  const config = { repos: [{ label: 'disp', role: 'display' }, { label: 'feat', role: 'featured' }, { label: 'ref', role: 'reference' }] };
+  const sessions = { projectTotals: { disp: 1, feat: 2, ref: 2, other: 9 } }; // 'Pure' has NO entry here
   const richItems = [
     { project: 'Pure', repo: null, status: 'in progress', date: '2026-07-01' }, // repo-less, no cwd session -> stays absent
     { project: 'Pure', repo: null, status: 'in progress', date: '2026-07-02' },
@@ -251,11 +260,17 @@ test('reconcileGeneralizedSessionTotals never fabricates a tally, never touches 
     { project: 'feat', repo: null, status: 'in progress', date: '2026-07-01' },
     { project: 'feat', repo: null, status: 'in progress', date: '2026-07-02' },
     { project: 'feat', repo: null, status: 'in progress', date: '2026-07-03' },
+    // A repo-less project whose NAME collides with the REFERENCE label 'ref' must NOT bump ref's cwd bucket
+    // either — gitBackedLabels covers reference, not just featured.
+    { project: 'ref', repo: null, status: 'in progress', date: '2026-07-01' },
+    { project: 'ref', repo: null, status: 'in progress', date: '2026-07-02' },
+    { project: 'ref', repo: null, status: 'in progress', date: '2026-07-03' },
   ];
   reconcileGeneralizedSessionTotals(sessions, richItems, config, WK.start, WK.end);
   assert.equal('Pure' in sessions.projectTotals, false, 'a generalized group with no cwd session is never given a fabricated tally');
   assert.equal(sessions.projectTotals.disp, 2, 'a display-role group is lifted 1 -> 2 to match its 2 entry-days');
-  assert.equal(sessions.projectTotals.feat, 2, 'a git-backed cwd bucket is never bumped — not by its own group, nor a name-colliding repo-less one');
+  assert.equal(sessions.projectTotals.feat, 2, 'a featured cwd bucket is never bumped — not by its own group, nor a name-colliding repo-less one');
+  assert.equal(sessions.projectTotals.ref, 2, 'a reference cwd bucket is never bumped either (gitBackedLabels covers reference)');
   assert.equal(sessions.projectTotals.other, 9, "the catch-all 'other' pool is never reconciled onto a named project");
 });
 

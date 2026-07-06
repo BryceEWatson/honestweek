@@ -186,13 +186,22 @@ from the shared `week-grid.mjs`, so a chart day and a session day never disagree
   week" teaser from). For a GENERALIZED group (no config repo, or a `display`-role repo)
   that is already a counted session-source, it lifts the total to at least the group's
   distinct entry-day count, so the teaser can never undercount the rows beneath it. Entry
-  **days** (not entry count) is the floor — a session runs on one calendar day, so
-  distinct entry-days is the honest lower bound on the sessions behind them. FEATURED /
-  reference (git-backed, first-class) projects are left as their pure cwd partition (so a
-  consumer's mis-wiring gate keeps its teeth), and the catch-all `'other'` pool is never
-  reconciled onto a named project. Runs inside `augmentSiteModel`, mutating
-  `sessions.projectTotals` before the bundle is emitted, so the reconciled value is seeded
-  into `verifiedNumbers` like any other derived count.
+  **days** (not entry count) is the floor. What the lifted value MEANS: a generalized group
+  has no config repo, so no commits — every curated entry is session-derived, so each
+  entry-day is a day the project had a session (possibly one bucketed under another project's
+  cwd); and a session runs on one calendar day, so N distinct session-days imply >= N
+  sessions. The lifted figure is therefore a LOWER BOUND on the group's distinct session-days,
+  NOT a raw session-log tally — render UI copy accordingly. FEATURED / reference (git-backed,
+  first-class) projects are left as their pure cwd partition (so a consumer's mis-wiring gate
+  keeps its teeth), and the catch-all `'other'` pool is never reconciled onto a named project.
+  Runs inside `augmentSiteModel`, mutating `sessions.projectTotals` before the bundle is
+  emitted. **Partition caveat:** before reconciliation `projectTotals` is a strict partition
+  of `interactiveTotal`; the lift does NOT touch `interactiveTotal` (a cross-cwd session is one
+  real session — inflating the deduplicated total would be dishonest), so afterward
+  `sum(projectTotals)` can EXCEED `total`, and a consumer must not render the two as if they
+  summed. Seeding into `verifiedNumbers` makes the lifted value fact-fence-ELIGIBLE (a
+  no-fabricated-number provenance check) — it does NOT assert the partition still holds; that
+  relaxation is a documented, test-pinned choice, not something the fence verifies.
 
 `augmentSiteModel` also reconnects the feed: each chart/session day carries that
 day's items `{ id, title, status, project }`, placed by the item's git-derived
