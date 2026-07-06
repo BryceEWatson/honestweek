@@ -114,6 +114,52 @@ test('page render shows session-active days for a display/session-only project (
   assert.match(html, /active 2\/7 days/, 'the rendered report shows "active 2/7 days" for the session-only project');
 });
 
+test('page render: activeDays floors at the group entry-days (cross-cwd reconciliation)', () => {
+  // A group whose git metric covers only 1 active day, but whose curated items span 2 distinct days
+  // (e.g. a session run from another project's cwd, curated here) -> activeDays floors at 2, so the
+  // render can never show "active 1/7 days" above 2 dated rows (matches the site engine's floor).
+  const m = buildPageModel({
+    items: [
+      { id: 'a', status: 'shipped', repo: 'proj', primaryCommit: 'aaaaaaa', title: 'Committed day', summary: 'A verified change.' },
+      { id: 'b', status: 'in progress', repo: 'proj', date: '2024-06-13', title: 'Cross-cwd day', summary: 'Curated here, ran elsewhere.' },
+    ],
+    config,
+    verifiedIndex,
+    week,
+    chart,
+    metricsByLabel: new Map([['proj', { commits: 3, activeDays: 1 }]]), // git sees only 1 active day
+    // no sessions bundle -> sDays 0; the floor comes purely from the 2 distinct item dates
+  });
+  const proj = m.groups.find((g) => g.label === 'proj');
+  assert.equal(proj.metrics.activeDays, 2, 'activeDays floors at the 2 entry-days (06-12 + 06-13), not the git-only 1');
+  const html = render(m, config);
+  assert.match(html, /active 2\/7 days/, 'the rendered report shows "active 2/7 days", never "1/7" above 2 dated rows');
+});
+
+test('page render: a readable-but-quiet repo (0 commits, 0 sessions) does NOT floor at entry-days — page/site parity', () => {
+  // Cross-mode parity guard: a readable repo with ZERO in-week commits still yields a NON-null metric
+  // ({commits:0, activeDays:0}) — repoMetricsInWindow returns null only for an UNREADABLE repo. With 0
+  // sessions, the site engine's deriveProjectStats gate (activeSignal > 0) does NOT floor -> daysActive 0.
+  // Page mode must match: gating on `git != null` instead of activeSignal would floor here (git non-null)
+  // and render "active 2/7 days" while site renders 0. This pins the two paths to agree.
+  const m = buildPageModel({
+    items: [
+      { id: 'a', status: 'in progress', repo: 'proj', date: '2024-06-12', title: 'Dated, no commit', summary: 'S1.' },
+      { id: 'b', status: 'in progress', repo: 'proj', date: '2024-06-13', title: 'Dated, no commit', summary: 'S2.' },
+    ],
+    config,
+    verifiedIndex,
+    week,
+    chart,
+    metricsByLabel: new Map([['proj', { commits: 0, activeDays: 0 }]]), // readable but quiet: real 0, non-null
+    // no sessions bundle -> sDays 0; activeSignal = max(0, 0) = 0 -> floor must NOT apply
+  });
+  const proj = m.groups.find((g) => g.label === 'proj');
+  assert.equal(proj.metrics.activeDays, 0, 'no commit/session signal -> entry-days floor is NOT applied (matches deriveProjectStats)');
+  const html = render(m, config);
+  assert.doesNotMatch(html, /active \d+\/7 days/, 'a quiet repo with only dated items claims no active-days (the line is omitted)');
+});
+
 test('page render: without a sessions bundle, active-days is the git-only count (unchanged)', () => {
   const m = buildPageModel({
     items: [{ id: 'a', status: 'shipped', repo: 'proj', primaryCommit: 'aaaaaaa', title: 'T', summary: 'S' }],
