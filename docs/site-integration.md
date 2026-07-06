@@ -169,6 +169,39 @@ from the shared `week-grid.mjs`, so a chart day and a session day never disagree
   It is `verifiedNumbers`-eligible because it is reproducible from the inputs, not
   because it is an exact measure. Clean-room: project labels come from
   `config.repos` (cwd-match), never a hardcoded allowlist.
+- `deriveProjectStats` — per-project `{ entries, statusCounts, daysActive }` over the
+  in-week items. `daysActive` is `max(commit-active days, session-active days,
+  ENTRY-active days)`. The entry-active floor is the **cross-cwd reconciliation**: the
+  session bundle attributes each session by the cwd it ran in, but a session run from
+  ANOTHER project's cwd yet curated here BY CONTENT never lands in this project's cwd
+  bucket — so the cwd-only count can be smaller than the distinct days this group's own
+  curated entries span (the live symptom: a header reading "active 1 day" above 2 rows
+  dated on 2 days). Flooring `daysActive` at the distinct in-week entry-day count closes
+  that gap. It applies ONLY to a project ALREADY shown as a commit/session source (its
+  commit- or session-day count is > 0); a pure dated/private thread with no activity
+  signal of its own keeps `daysActive` 0 (surfaced by its dated item alone, never a
+  fabricated tally). The floor is a deterministic distinct-day count, so it stays fence-safe.
+- `reconcileGeneralizedSessionTotals` — the session-count twin of that floor, applied to
+  `sessions.projectTotals` (the per-project cwd count a consumer joins its "N sessions this
+  week" teaser from). For a GENERALIZED group (no config repo, or a `display`-role repo)
+  that is already a counted session-source, it lifts the total to at least the group's
+  distinct entry-day count, so the teaser can never undercount the rows beneath it. Entry
+  **days** (not entry count) is the floor. What the lifted value MEANS: a generalized group
+  has no config repo, so no commits — every curated entry is session-derived, so each
+  entry-day is a day the project had a session (possibly one bucketed under another project's
+  cwd); and a session runs on one calendar day, so N distinct session-days imply >= N
+  sessions. The lifted figure is therefore a LOWER BOUND on the group's distinct session-days,
+  NOT a raw session-log tally — render UI copy accordingly. FEATURED / reference (git-backed,
+  first-class) projects are left as their pure cwd partition (so a consumer's mis-wiring gate
+  keeps its teeth), and the catch-all `'other'` pool is never reconciled onto a named project.
+  Runs inside `augmentSiteModel`, mutating `sessions.projectTotals` before the bundle is
+  emitted. **Partition caveat:** before reconciliation `projectTotals` is a strict partition
+  of `interactiveTotal`; the lift does NOT touch `interactiveTotal` (a cross-cwd session is one
+  real session — inflating the deduplicated total would be dishonest), so afterward
+  `sum(projectTotals)` can EXCEED `total`, and a consumer must not render the two as if they
+  summed. Seeding into `verifiedNumbers` makes the lifted value fact-fence-ELIGIBLE (a
+  no-fabricated-number provenance check) — it does NOT assert the partition still holds; that
+  relaxation is a documented, test-pinned choice, not something the fence verifies.
 
 `augmentSiteModel` also reconnects the feed: each chart/session day carries that
 day's items `{ id, title, status, project }`, placed by the item's git-derived
