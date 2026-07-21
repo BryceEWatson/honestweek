@@ -113,18 +113,25 @@ test('deriveSessions: an mtime older than the week is pre-filtered out (never re
   }
 });
 
-test('a subdir-cwd session attributes to "other", not the parent repo (exact attribution)', () => {
+test('a worktree- or subdir-cwd session credits its parent repo (prefix attribution)', () => {
   const root = mkdtempSync(join(tmpdir(), 'hw-sessions-sub-'));
   try {
     const d = join(root, 'proj');
     mkdirSync(d);
-    // cwd is a SUBDIRECTORY of the configured repo — the project is ambiguous, so
-    // the hero attributes it to "other" rather than over-crediting alpha.
-    session(d, 'sub', { cwd: '/work/alpha/packages/x', ts: '2024-06-12T09:00:00Z', content: 'Work in a subdir.' });
+    // A git worktree and a subdirectory of a configured repo both sit UNDER its root,
+    // so they credit that repo (not "other") — the SAME prefix rule the digest adapter
+    // uses, so the hero and the feed can't disagree on a session's project. This is how
+    // real multi-session work runs: a worktree per task, launched from <repo>/.claude/worktrees/.
+    session(d, 'wt', { cwd: '/work/alpha/.claude/worktrees/task-1', ts: '2024-06-12T09:00:00Z', content: 'Work in a worktree.' });
+    session(d, 'sub', { cwd: '/work/alpha/packages/x', ts: '2024-06-12T09:30:00Z', content: 'Work in a subdir.' });
     session(d, 'root', { cwd: '/work/alpha', ts: '2024-06-12T10:00:00Z', content: 'Work at the repo root.' });
+    // A SEPARATE sibling repo that only shares a name prefix is not under /work/alpha/, so
+    // it stays "other" — never over-credited to alpha (matchRepo's trailing-'/' boundary).
+    session(d, 'sib', { cwd: '/work/alpha-parity', ts: '2024-06-12T11:00:00Z', content: 'Work in a sibling repo.' });
     const s = deriveSessions({ config: config(), weekStart: WEEK_START, weekEnd: WEEK_END, now: NOW, projectsRoot: root });
-    assert.equal(s.total, 2);
-    assert.deepEqual(s.days.find((x) => x.date === '2024-06-12').byProject, { alpha: 1, other: 1 });
+    assert.equal(s.total, 4);
+    assert.deepEqual(s.days.find((x) => x.date === '2024-06-12').byProject, { alpha: 3, other: 1 });
+    assert.deepEqual(s.projectTotals, { alpha: 3, other: 1 });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
