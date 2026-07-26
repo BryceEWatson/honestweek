@@ -239,7 +239,7 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `identity.authorEmails` | The emails a commit must be authored by to count as yours. `build` aborts on any cited commit not authored by one of these. |
 | `week.startsOn` | `"monday"` (the only supported value in v0.1). |
 | `week.timezone` | IANA timezone used to compute the week boundary; defaults to your host zone. |
-| `repos[].path` | A repo path. `~`/`~/` expands to your home dir; relative paths resolve against the config file. |
+| `repos[].path` | A repo path. `~`/`~/` expands to your home dir; relative paths resolve against the config file. Sessions are attributed to this repo from **any working tree of the same git repository** — the path itself, sub-directories, and every `git worktree`, including ones checked out at a sibling path rather than inside it. Git reads (commits, handoffs, metrics) always use this path alone, so a worktree's branch or detached `HEAD` never becomes the basis for your commit counts. A separate *clone* has its own git database and is never attributed here. |
 | `repos[].label` | The short name items reference and outputs display. |
 | `repos[].role` | One of the three trust levels below. |
 | `redaction.codenames` / `names` / `terms` | Private tokens scrubbed from all output. Default empty (clean-room). |
