@@ -1,5 +1,10 @@
 # Prompt-lanes implementation control plan
 
+> Historical review gate. Owner direction after checkpoint `da6812c` supersedes this document's
+> stop-at-open-product-choices posture. The current product setpoint, explicit default choices, and
+> vertical release gates are authoritative in `product-roadmap.md`. The contract findings and safety
+> constraints below remain evidence, not a reason to reopen an indefinite experiment program.
+
 ## Objective and setpoint
 
 The implementation is successful only when a completed week can produce a small, truthful,

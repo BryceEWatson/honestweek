@@ -37,6 +37,7 @@ function checkManifest(manifest) {
   }
   const artifacts = new Set((manifest.artifacts ?? []).map((x) => x.path));
   for (const required of [
+    'product-roadmap.md', 'slice-1-end-to-end-prompts.md',
     'decisions.md', 'implementation-control-plan.md', 'phase-assignment.md', 'phase-1.md',
     'phase-2.md', 'phase-3.md', 'phase-4.md',
     'producer-consumer-ledger.json', 'invariant-diff-tests.json', 'audit-closure.json',

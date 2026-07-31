@@ -6,8 +6,11 @@
     { "path": "revision-inputs-round3.json", "sha256": "5e23c9c8e7ceb224a319547ba667b3c8cefe28066f1f7c576aec653fd85a9095" }
   ],
   "artifacts": [
+    { "path": "product-roadmap.md", "sha256": "35b27ec609e4b283733d6ca4f3594ed1de9ac4ef689bef65bdc5fc26875f827a" },
+    { "path": "slice-1-end-to-end-prompts.md", "sha256": "16e596ef13a45d15c38a7093bb912e47d3d3f6ec9613699aaa2851e225981d3d" },
+    { "path": "implementation-brief.md", "sha256": "162b5c4ac6faf58fa00ac37a41abda71837930f9016e6ad9da4627c47094f235" },
     { "path": "decisions.md", "sha256": "e0dcb4903e6fb171ebf5ea4649a8dacead8e4eccf6e6520302603c3f9d5fc53d" },
-    { "path": "implementation-control-plan.md", "sha256": "f86c83bf166cd9eb74d03f62df5ae7756e9c5255079b2268c8f8b5330ecc6a3b" },
+    { "path": "implementation-control-plan.md", "sha256": "a11a4429403206b8098628126024ed8d13c1ffbe35c28b09382ce5eac04531fa" },
     { "path": "phase-assignment.md", "sha256": "72c66ed71bdbf80c4da0f3ad46aa4f7dae30b44489456f33902e9cf333a5ca41" },
     { "path": "phase-1.md", "sha256": "156134c1a16e70ec620607d4de00e17e5eacab3432d20fe837a3acde16b6daac" },
     { "path": "phase-2.md", "sha256": "5de6ae7aef76f4e420c90d403bab272b1ef6631b5fa77056889538ebf59c9d3c" },
