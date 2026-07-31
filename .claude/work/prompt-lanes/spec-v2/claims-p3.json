@@ -1,0 +1,110 @@
+[
+  {
+    "why": "R2, A9, and D43: the free-floating reversal branch is the path that must remain draft-only",
+    "file": "lib/handoffs.mjs",
+    "line": 88,
+    "contains": "REVERSAL_LINE_RE.test(line)"
+  },
+  {
+    "why": "R8: the current report model is assembled before output-mode dispatch",
+    "file": "lib/build.mjs",
+    "line": 285,
+    "contains": "assembleReportModel"
+  },
+  {
+    "why": "R5 and D45: build creates the normalized week whose start is the exact dispositionAsOf value",
+    "file": "lib/build.mjs",
+    "line": 253,
+    "contains": "const week = normalizeWeek"
+  },
+  {
+    "why": "R8 and A30: site augmentation currently receives the base report model",
+    "file": "lib/build.mjs",
+    "line": 355,
+    "contains": "augmentSiteModel(model"
+  },
+  {
+    "why": "R8: page mode builds its page model before redaction",
+    "file": "lib/build.mjs",
+    "line": 385,
+    "contains": "const pageModel = buildPageModel"
+  },
+  {
+    "why": "R8: page mode deep-redacts the page model before emit",
+    "file": "lib/build.mjs",
+    "line": 386,
+    "contains": "redactor.deepRedact(pageModel)"
+  },
+  {
+    "why": "R8: markdown modes deep-redact the assembled report model before emit",
+    "file": "lib/build.mjs",
+    "line": 405,
+    "contains": "redactor.deepRedact(model)"
+  },
+  {
+    "why": "R9 and A26: badge is the work-only status renderer that forward rows must bypass",
+    "file": "lib/emit/_shared.mjs",
+    "line": 28,
+    "contains": "export function badge"
+  },
+  {
+    "why": "R9 and A26: allItems is the work-only collector that forward rows must bypass",
+    "file": "lib/emit/_shared.mjs",
+    "line": 89,
+    "contains": "export function allItems"
+  },
+  {
+    "why": "R9 and A27: the current page work badge span is the site Phase 2 parameterizes",
+    "file": "lib/emit/page.mjs",
+    "line": 352,
+    "contains": "const badge = BADGE_CLASS"
+  },
+  {
+    "why": "R10: emit currently returns a work-only item count",
+    "file": "lib/emit/index.mjs",
+    "line": 122,
+    "contains": "const itemCount"
+  },
+  {
+    "why": "R10 and R14: archive countItems currently counts only work items",
+    "file": "lib/archive.mjs",
+    "line": 17,
+    "contains": "function countItems"
+  },
+  {
+    "why": "R14 and A23: the archive snapshot serializes its supplied model wholesale",
+    "file": "lib/archive.mjs",
+    "line": 51,
+    "contains": "report: model"
+  },
+  {
+    "why": "R14: the current archive index entry is fixed-shape and is the D29 edit point",
+    "file": "lib/archive.mjs",
+    "line": 56,
+    "contains": "weeks.push"
+  },
+  {
+    "why": "R12: validate currently extracts the work array at the forward-validator sibling point",
+    "file": "lib/validate.mjs",
+    "line": 165,
+    "contains": "const items ="
+  },
+  {
+    "why": "A8: the existing README promises that dead ends are surfaced",
+    "file": "README.md",
+    "line": 12,
+    "contains": "the dead ends you ruled out"
+  },
+  {
+    "why": "issue-redact-order: legacy adapter fields currently call truncate before the entry-level redaction backstop",
+    "file": "lib/claude-adapter.mjs",
+    "line": 311,
+    "contains": "function truncate"
+  },
+  {
+    "why": "issue-redact-order: the existing adapter applies the deep-redaction backstop after assembling the entry",
+    "file": "lib/claude-adapter.mjs",
+    "line": 518,
+    "contains": "redactor.deepRedact(entry)"
+  }
+]

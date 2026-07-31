@@ -1,0 +1,80 @@
+[
+  {
+    "why": "R1: the current base report model is assembled before mode-specific rendering",
+    "file": "lib/build.mjs",
+    "line": 285,
+    "contains": "assembleReportModel"
+  },
+  {
+    "why": "D45: normalizeWeek produces the canonical current week start consumed by dispositionAsOf",
+    "file": "lib/build.mjs",
+    "line": 253,
+    "contains": "const week = normalizeWeek"
+  },
+  {
+    "why": "D63: the existing build summary bytes must remain unchanged when the final lane set is absent",
+    "file": "lib/build.mjs",
+    "line": 438,
+    "contains": "`build: wrote ${result.path}"
+  },
+  {
+    "why": "R2: an archive snapshot stores the supplied public report model and is not a ref-bearing carry source",
+    "file": "lib/archive.mjs",
+    "line": 51,
+    "contains": "report: model"
+  },
+  {
+    "why": "R6: the current emit try block starts after verify and voice gates",
+    "file": "lib/build.mjs",
+    "line": 351,
+    "contains": "try {"
+  },
+  {
+    "why": "R6: page mode deep-redacts its public model before emit and archive",
+    "file": "lib/build.mjs",
+    "line": 386,
+    "contains": "redactor.deepRedact(pageModel)"
+  },
+  {
+    "why": "R6: markdown modes deep-redact their public model before emit and archive",
+    "file": "lib/build.mjs",
+    "line": 405,
+    "contains": "redactor.deepRedact(model)"
+  },
+  {
+    "why": "R6 and R10: the existing weekly archive write is optional and must not gate the forward index",
+    "file": "lib/build.mjs",
+    "line": 422,
+    "contains": "config.output?.archive"
+  },
+  {
+    "why": "D46: the archive index currently writes its fixed-shape week entry at the conditional-field insertion point",
+    "file": "lib/archive.mjs",
+    "line": 56,
+    "contains": "weeks.push({ week, mode, file: snapshotName, items: countItems(model), generatedAt: nowISO })"
+  },
+  {
+    "why": "D49: an unresolved optional commit already has a resolved-false result distinct from a missing row identity",
+    "file": "lib/git.mjs",
+    "line": 79,
+    "contains": "return { resolved: false"
+  },
+  {
+    "why": "D49: lookupCommit documents the repository failure that throws rather than returning unresolved",
+    "file": "lib/git.mjs",
+    "line": 68,
+    "contains": "Throws only when"
+  },
+  {
+    "why": "R9: init already exposes an idempotent gitignore helper for sidecars",
+    "file": "lib/init.mjs",
+    "line": 115,
+    "contains": "export function ensureGitignore"
+  },
+  {
+    "why": "R9: the committed gitignore begins with the honestweek sidecar block",
+    "file": ".gitignore",
+    "line": 1,
+    "contains": "honestweek sidecars"
+  }
+]

@@ -1,0 +1,22 @@
+{
+  "audit": "closure",
+  "freshAfter": "D73-D79",
+  "status": "pass",
+  "blockers": 0,
+  "majorBoundaryGaps": 0,
+  "phaseShipAlone": { "phase1": "PASS", "phase2": "PASS", "phase3": "PASS", "phase4": "PASS" },
+  "closures": [
+    { "id": "identity-carrier", "closed": true, "sources": ["decisions.md:D73", "phase-1.md:R17/A57", "phase-2.md:R8/A64"], "proof": "one injected build-local carrier preserves all source ordinals and legacy adapter returns" },
+    { "id": "identity-validation", "closed": true, "sources": ["decisions.md:D73", "phase-4.md:R2/R3/R11/A24b"], "proof": "shared hash/canonical validator runs before every carry join with matching and forged controls" },
+    { "id": "closedBy-format-slot", "closed": true, "sources": ["decisions.md:D77", "phase-2.md:R19/A72", "phase-3.md:R8/R9/A17"], "proof": "Phase 2 owns optional pointer bytes; Phase 3 supplies only a resolved receipt" },
+    { "id": "diagnostics-return", "closed": true, "sources": ["decisions.md:D74/D79", "phase-3.md:R4/R6/R16/A44", "phase-4.md:R1/A35"], "proof": "named object carries four exact diagnostic arrays without recomputation" },
+    { "id": "stdout-authority", "closed": true, "sources": ["decisions.md:D75", "phase-2.md:R23", "phase-3.md:R10/A29b", "phase-4.md:R8"], "proof": "raw authored/engine presence selects stdout while final presence selects rendering" },
+    { "id": "receipt-invariant", "closed": true, "sources": ["decisions.md:D76", "phase-2.md:R21/R26/A71", "AGENTS.md:invariant-1", "lib/build.mjs:display-guards"], "proof": "source receipts allow transcript-only private/display/session work and preserve zero Git reads" },
+    { "id": "modal-proof-and-copy-ownership", "closed": true, "sources": ["decisions.md:D72/D77/D79", "phase-1.md:A56", "phase-2.md:A70/A72", "phase-4.md:R7"], "proof": "explicit must/may inequality and please equality are capable; Phase 2 owns carry wording" },
+    { "id": "round3-major-schemas", "closed": true, "sources": ["decisions.md:D74/D78", "phase-1.md:R4/A13", "phase-2.md:R8/R12/R18", "phase-3.md:R3/R13/R16"], "proof": "assistantTurns, receipt helper, Forward item, engine rows, copy index, and diagnostics have exact schemas" }
+  ],
+  "remainingUncertainty": [
+    "This is specification validation, not executable product implementation; phase acceptance tests remain to be written by their owning implementation phases.",
+    "The legacy neither-lane page footer remains byte-frozen by additivity even though D76 is the authoritative receipt invariant."
+  ]
+}
