@@ -1,25 +1,79 @@
 {
   "version": 1,
   "coverageInputs": [
-    { "path": "../spec/revision-inputs.json", "sha256": "7829d09717b5f2d0383c324df7987dced434804e81a4d81c4005d873e5971103" },
-    { "path": "revision-inputs-round2.json", "sha256": "a8873399d9ff453060bb2bf33be2b513c5bc22fa1ca30fda14ed345b9fd68d4d" },
-    { "path": "revision-inputs-round3.json", "sha256": "5e23c9c8e7ceb224a319547ba667b3c8cefe28066f1f7c576aec653fd85a9095" }
+    {
+      "path": "../spec/revision-inputs.json",
+      "sha256": "7829d09717b5f2d0383c324df7987dced434804e81a4d81c4005d873e5971103"
+    },
+    {
+      "path": "revision-inputs-round2.json",
+      "sha256": "a8873399d9ff453060bb2bf33be2b513c5bc22fa1ca30fda14ed345b9fd68d4d"
+    },
+    {
+      "path": "revision-inputs-round3.json",
+      "sha256": "5e23c9c8e7ceb224a319547ba667b3c8cefe28066f1f7c576aec653fd85a9095"
+    }
   ],
   "artifacts": [
-    { "path": "product-roadmap.md", "sha256": "35b27ec609e4b283733d6ca4f3594ed1de9ac4ef689bef65bdc5fc26875f827a" },
-    { "path": "slice-1-end-to-end-prompts.md", "sha256": "16e596ef13a45d15c38a7093bb912e47d3d3f6ec9613699aaa2851e225981d3d" },
-    { "path": "implementation-brief.md", "sha256": "162b5c4ac6faf58fa00ac37a41abda71837930f9016e6ad9da4627c47094f235" },
-    { "path": "decisions.md", "sha256": "e0dcb4903e6fb171ebf5ea4649a8dacead8e4eccf6e6520302603c3f9d5fc53d" },
-    { "path": "implementation-control-plan.md", "sha256": "a11a4429403206b8098628126024ed8d13c1ffbe35c28b09382ce5eac04531fa" },
-    { "path": "phase-assignment.md", "sha256": "72c66ed71bdbf80c4da0f3ad46aa4f7dae30b44489456f33902e9cf333a5ca41" },
-    { "path": "phase-1.md", "sha256": "156134c1a16e70ec620607d4de00e17e5eacab3432d20fe837a3acde16b6daac" },
-    { "path": "phase-2.md", "sha256": "5de6ae7aef76f4e420c90d403bab272b1ef6631b5fa77056889538ebf59c9d3c" },
-    { "path": "phase-3.md", "sha256": "206c94ba62e9e30613f0687161c4a36b13ac4daf606a6935435cef26c79e661b" },
-    { "path": "phase-4.md", "sha256": "0a19c265637f657dc8cef1f2c6382460eb1c77c415a97253641a3b3a3242ca04" },
-    { "path": "producer-consumer-ledger.json", "sha256": "908eb50b63cdd8521eec24fb664483a7df1721bb012173b8fa9dfaa1e69ef3d0" },
-    { "path": "invariant-diff-tests.json", "sha256": "c69ac1bbde2b231c7d9bdaaa896e43811b520f87259c3abd1d3a47c5089fd911" },
-    { "path": "audit-closure.json", "sha256": "002cfa1dfae52de1fb266f33aea4b5b346eca66987212a079bf482746e8507e8" },
-    { "path": "audit-consistency.json", "sha256": "f2d4f85ffa1c3af646f92a0a82eed5319bbe5a91997eddafeedaf684df17af59" },
-    { "path": "audit-defects.json", "sha256": "081485a1d000fcd2b762e71bf430992858b613d2e039821fa6a2bf6f83360003" }
+    {
+      "path": "product-roadmap.md",
+      "sha256": "54f9b442cb4bee6f84367807e0a5768c6b603579bfa1f37ea1d22d701c9ce75e"
+    },
+    {
+      "path": "slice-1-end-to-end-prompts.md",
+      "sha256": "6110815ab03e030d21e5279be5427a1d01324c3fa470198c1820f73be3186b37"
+    },
+    {
+      "path": "implementation-brief.md",
+      "sha256": "162b5c4ac6faf58fa00ac37a41abda71837930f9016e6ad9da4627c47094f235"
+    },
+    {
+      "path": "decisions.md",
+      "sha256": "f902236f9677fd6d9c2cd52e86ccfacaa72a1599e87ef2d89f91c5304c8904f6"
+    },
+    {
+      "path": "implementation-control-plan.md",
+      "sha256": "a11a4429403206b8098628126024ed8d13c1ffbe35c28b09382ce5eac04531fa"
+    },
+    {
+      "path": "phase-assignment.md",
+      "sha256": "72c66ed71bdbf80c4da0f3ad46aa4f7dae30b44489456f33902e9cf333a5ca41"
+    },
+    {
+      "path": "phase-1.md",
+      "sha256": "156134c1a16e70ec620607d4de00e17e5eacab3432d20fe837a3acde16b6daac"
+    },
+    {
+      "path": "phase-2.md",
+      "sha256": "b8e2208d90e0dfd8b4bfb5af4ca0bf9847fbd4f01cca3892b8b3b9117a6f0d0e"
+    },
+    {
+      "path": "phase-3.md",
+      "sha256": "b3edaa80139e73a4c1ccd24b7767de4a0723b6687ec2a7449d048eb633b69c4c"
+    },
+    {
+      "path": "phase-4.md",
+      "sha256": "a251c908dfe06de238ed79a12df5f1742a54fe9a922e02ccc81a4296f966c4ae"
+    },
+    {
+      "path": "producer-consumer-ledger.json",
+      "sha256": "908eb50b63cdd8521eec24fb664483a7df1721bb012173b8fa9dfaa1e69ef3d0"
+    },
+    {
+      "path": "invariant-diff-tests.json",
+      "sha256": "c69ac1bbde2b231c7d9bdaaa896e43811b520f87259c3abd1d3a47c5089fd911"
+    },
+    {
+      "path": "audit-closure.json",
+      "sha256": "002cfa1dfae52de1fb266f33aea4b5b346eca66987212a079bf482746e8507e8"
+    },
+    {
+      "path": "audit-consistency.json",
+      "sha256": "f2d4f85ffa1c3af646f92a0a82eed5319bbe5a91997eddafeedaf684df17af59"
+    },
+    {
+      "path": "audit-defects.json",
+      "sha256": "081485a1d000fcd2b762e71bf430992858b613d2e039821fa6a2bf6f83360003"
+    }
   ]
 }

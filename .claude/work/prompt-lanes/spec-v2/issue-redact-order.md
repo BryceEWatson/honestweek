@@ -59,8 +59,8 @@ Four call sites in `lib/claude-adapter.mjs`, all inside `extractEntry`:
 | 370 | `notes[]` from a `thinking` block | `MAX_NOTE_LEN` 400 |
 | 372 | `notes[]` from a `text` block | `MAX_NOTE_LEN` 400 |
 
-Each calls `truncate(content, max)` (`lib/claude-adapter.mjs:311`) on the raw string. Redaction runs
-later, once, over the assembled entry at `lib/claude-adapter.mjs:518` via
+Each calls `truncate(content, max)` (`lib/claude-adapter.mjs:306`) on the raw string. Redaction runs
+later, once, over the assembled entry at `lib/claude-adapter.mjs:513` via
 `redactor.deepRedact(entry)`. The fix is to redact each string at the mining site, before
 `truncate`, so `deepRedact` at 518 becomes a second pass over already-clean values rather than the
 only pass.

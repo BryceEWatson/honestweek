@@ -11,6 +11,34 @@ This is a product completion roadmap, not an experiment program. Defaults below 
 disclosed product choices. They do not claim to identify universally important material. Owner
 feedback may change a default through an intentional, tested configuration or product revision.
 
+The completion target is the balanced weekly digest, not a prompt-highlights endpoint. Slice 1 is
+the first shippable foundation because it proves dual-source identity, receipts, controls, privacy
+validation, selection disclosure, and the established weekly-page join end to end. It is not the
+finished product and must not be described as coverage of the other five material types.
+
+## Ordered continuation plan
+
+1. Finish and checkpoint Slice 1 as the prompt-only foundation through the existing configured
+   weekly-work-page artifact.
+2. Add balanced extraction and curation for prompts, ideas, techniques, decisions, reversals, and
+   next steps in one concise digest. Apply the documented per-category caps, overall target, receipt
+   rules, selection reasons, omitted counts, and uncertainty disclosure through that same page.
+   Extend Slice 1's deterministic low-risk privacy gate to every category in this slice; anything
+   ambiguous or outside its closed transformations remains private rather than reaching the page.
+3. Add cross-week retention, keep/hide/delete, bounded automatic recurrence, explicit carry-forward,
+   terminal retirement, and recoverable output/carry transactions for all six categories.
+4. Complete the separate private-to-public-safe rendition path with additional meaning-preserving
+   transformations, configured generalization, and exceptional approval. The low-risk gate already
+   protects every visible category in step 2; this step safely recovers more strong material without
+   weakening that gate, escalating ambiguity and excluding residual high risk with source links.
+5. Add exact-item useful/not-useful feedback and a count-only improvement backlog. Suggestions may
+   propose reviewed configuration changes, but never silently change weights or construct personas.
+
+Each continuation slice must deliver visible, receipt-bearing behavior in the established
+configured weekly-work-page flow. Private commands and sidecars support that outcome; none is a
+standalone completion boundary. The product is complete only when all five steps have cleared their
+own contract, execution, additivity, target-compatibility, and independent-review gates.
+
 ## Non-negotiable constraints
 
 - Every visible item has a transcript or verified-commit receipt.
@@ -217,8 +245,9 @@ or medium/ambiguous/unusual status is `needs-approval`; strong plus residual low
 transform limit is `automatic-safe`; everything else remains private as `not-strong`. Approval may
 resolve medium ambiguity after a valid rendition but cannot override a validator failure or high
 risk. Slice 1 pins and implements the closed prompt-specific detector, audit, and automatic-safe
-subset before its code changes. Slice 4 extends that validated kernel to the other categories,
-configured generalization mappings, and exceptional approval; it does not replace or weaken it.
+subset before its code changes. Slice 2 applies that deterministic low-risk kernel to every visible
+category. Slice 4 adds configured generalization mappings, more allowed transformations, and
+exceptional approval; it does not replace, defer, or weaken the gate.
 
 Automatic transformations are limited to redactor replacements, removal of a validator-identified
 sensitive span, and configured exact generalization mappings. They may not add an actor, motive,
@@ -310,7 +339,8 @@ receipts. The same validated lane input joins the established build and weekly p
 explain both selected and omitted material without claiming universal importance.
 
 **Release gate.** Declared clean-room fixtures pin extraction authority, category, score, caps,
-reasons, receipts, privacy disposition, page order, and lane-absent additivity for every category.
+reasons, receipts, privacy disposition under the deterministic low-risk gate, page order, and
+lane-absent additivity for every category. Ambiguous or unsupported transformations remain private.
 
 ### Slice 3: lifecycle and recurrence on the generated page
 
@@ -321,10 +351,11 @@ carry state commit as one recoverable local transaction.
 **Release gate.** Multi-week fixtures prove retention, the two-week automatic limit, explicit
 one-week renewal, tombstones, terminal suppression, and output/carry recovery at each fault point.
 
-### Slice 4: complete public-rendition triage through the page
+### Slice 4: expanded public-rendition triage through the page
 
-**User experience.** The selector attempts allowed minimal transformations for every strong item.
-Automatic-safe renditions join the weekly page; ambiguous items enter a local approval queue; high
+**User experience.** Building on the low-risk gate already applied to every category in Slice 2,
+the selector attempts additional allowed minimal transformations for every strong item. Newly
+automatic-safe renditions join the weekly page; ambiguous items enter a local approval queue; high
 residual risk stays excluded. Approval is exceptional, side-by-side, and cannot override high risk
 or failed validation.
 

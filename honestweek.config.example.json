@@ -28,6 +28,18 @@
     "names": [],
     "terms": []
   },
+  "curation": {
+    "automaticMinScore": 2,
+    "categoryCaps": { "prompts": 2 }
+  },
+  "privacy": {
+    "publicRenditions": {
+      "enabled": true,
+      "maxAutomaticChangedPercent": 20,
+      "generalizationMappings": {},
+      "neverPublicTerms": []
+    }
+  },
   "output": {
     "mode": "digest",
     "file": "honestweek.digest.md"

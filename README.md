@@ -68,7 +68,7 @@ node bin/honestweek.mjs --help
 
 Once it's published to npm (**not yet**; see [Releasing](#releasing-maintainers)), `npx honestweek` and `npm i -g honestweek` will work too.
 
-The CLI surface is six subcommands: `init`, `discover`, `validate`, `build`, `harvest`, and `preview`. The `harvest` command (`node bin/honestweek.mjs harvest`) proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review). The `preview` command (`node bin/honestweek.mjs preview`) renders the built output as HTML and serves it on a local-only (`127.0.0.1`) server for you to read in your browser.
+The CLI surface is seven subcommands: `init`, `discover`, `prompts`, `validate`, `build`, `harvest`, and `preview`. The `prompts` command (`node bin/honestweek.mjs prompts --help`) privately captures and controls Claude Code and Codex prompts, then curates a receipt-bearing prompt lane for `page` or `site` output. The `harvest` command (`node bin/honestweek.mjs harvest`) proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review). The `preview` command (`node bin/honestweek.mjs preview`) renders the built output as HTML and serves it on a local-only (`127.0.0.1`) server for you to read in your browser.
 
 ## The flow
 
@@ -85,6 +85,7 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    node bin/honestweek.mjs discover          # or: discover --week 2024-W23
    ```
 3. **`/honestweek`** (the skill) → **distils** the draft into the human-reviewable `honestweek.items.json`, with a status badge **and** a receipt on every item. This is the one model-judgment step; see [`SKILL.md`](SKILL.md) for the distillation contract.
+   For `page` or `site` output, `node bin/honestweek.mjs prompts curate` also scans the completed week from Claude Code and Codex, updates the gitignored private inbox `honestweek.prompts.json`, and writes the public-safe, receipt-bearing `honestweek.prompt-items.json` lane. Use `prompts list`, `keep`, `hide`, `delete`, and `source` for local control. Raw prompts stay in their source transcripts; deletion leaves a no-text tombstone. Automatic selection is a disclosed recurrence or observed-verification heuristic, not a claim of universal importance. Privacy edits are deterministic redactions, and ambiguous or residual high-risk material stays private.
    > Optional but recommended: gate the distilled items before building:
    > ```bash
    > node bin/honestweek.mjs validate          # add --no-dashes for the voice rule
@@ -94,7 +95,7 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    ```bash
    node bin/honestweek.mjs build
    ```
-5. **emit** → on success, `build` renders the final **local** output in the configured `output.mode` (`post` / `changelog` / `digest` / `report` / `page`) to `output.file`. The `digest` carries a git-derived **Activity** summary (commits and active days for `featured`/`reference` repos; `display` repos are never git-read, so they get no metrics, and an unreadable repo gets no fabricated `0`). `page` renders a self-contained, interactive HTML **standalone site** (see below). You review it and publish it yourself.
+5. **emit** → on success, `build` renders the final **local** output in the configured `output.mode` (`post` / `changelog` / `digest` / `report` / `page` / `site`) to `output.file`. The `digest` carries a git-derived **Activity** summary (commits and active days for `featured`/`reference` repos; `display` repos are never git-read, so they get no metrics, and an unreadable repo gets no fabricated `0`). `page` renders a self-contained, interactive HTML **standalone site** (see below). You review it and publish it yourself.
 6. **`preview`** (optional) → serves the built `output.file` on a local-only `127.0.0.1` server, then opens your browser. A Markdown output is converted to a locked-down HTML page; the `page` output is already HTML and is served verbatim (with its inline interactivity). It is a viewer: it reads the file `build` wrote, publishes nothing, and needs no internet. Press Ctrl+C to stop.
    ```bash
    node bin/honestweek.mjs preview              # add --no-open to just print the URL, or --port <n>
@@ -229,6 +230,8 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
     { "path": "~/code/a-client-repo", "label": "a-private-project", "role": "display" }
   ],
   "redaction": { "codenames": [], "names": [], "terms": [] },  // optional; default-empty private term-lists, scrubbed case-insensitively
+  "curation": { "automaticMinScore": 2, "categoryCaps": { "prompts": 2 } }, // prompt selection floor and automatic page cap
+  "privacy": { "publicRenditions": { "enabled": true, "maxAutomaticChangedPercent": 20, "generalizationMappings": {}, "neverPublicTerms": [] } }, // deterministic public-rendition gate
   "output": { "mode": "digest", "file": "honestweek.digest.md" },  // optional; mode ∈ post|changelog|digest|report|page|site, default digest
   "voice": { "denyMeta": false }                               // optional; OFF by default. true = lint authored prose for withholding/honesty-meta (see below)
 }
@@ -243,6 +246,8 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `repos[].label` | The short name items reference and outputs display. |
 | `repos[].role` | One of the three trust levels below. |
 | `redaction.codenames` / `names` / `terms` | Private tokens scrubbed from all output. Default empty (clean-room). |
+| `curation.*` | Local weekly-selection policy. Slice 1 uses `automaticMinScore`, `categoryCaps.prompts`, and the prompt signal weights. Defaults require recurrence or observed verification and cap automatic prompt highlights at 2; explicit keeps bypass capacity, never receipt or privacy gates. |
+| `privacy.publicRenditions.*` | Public-rendition gate. `enabled` defaults true for the local artifact, `maxAutomaticChangedPercent` defaults 20, `neverPublicTerms` extends hard redaction, and Slice 1 requires `generalizationMappings` to remain empty. Ambiguous or residual high-risk prompts stay private. |
 | `output.mode` | `post` (build-in-public update), `changelog` (in-repo `CHANGELOG.md` section), `digest` (the private, local-only weekly file; the default and trust anchor), `report` (grouped by project, each headed by its git-derived metrics; the structured weekly-work-log shape, still a local file you publish yourself), or `site` (integrate the verified report into a target website's data artifact via a committed adapter — advanced; see [docs/site-integration.md](docs/site-integration.md)). |
 | `output.file` | Where the output is written. Defaults per mode when unset. (Not used by `site`, whose write path comes from the adapter.) |
 | `output.adapter` | **Required for `site` mode only**: path to the committed adapter (resolved like a repo path) — a `.json` *static* field-map, or a `.mjs` *transform* (`transform(model, ctx)`) for artifacts needing grouping/sorting/joins. It maps the verified model onto the site's data artifact; the artifact's own write path lives in the adapter. |
@@ -262,6 +267,8 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | File | Status |
 | --- | --- |
 | `honestweek.draft.json` | The redacted weekly digest from `discover`. **Gitignored.** An intermediate working artifact, never published. |
+| `honestweek.prompts.json` | The private, redacted Claude Code and Codex prompt inbox plus no-text deletion tombstones. **Gitignored.** Never read by a renderer. |
+| `honestweek.prompt-items.json` | The public-safe prompt lane from `prompts curate`, with selection reasons and transcript receipts. **Gitignored.** `validate` and `build` reconstruct it from local sources before use. |
 | `honestweek.items.json` | The distilled, human-reviewable items. **Yours to keep or ignore** (gitignored by default; safe to delete). |
 | `honestweek.harvest.json` | Proposed redaction-denylist candidates from `harvest`. **Gitignored.** Only the count is printed; the raw nouns stay local for you to review. |
 | `output.file` (e.g. `honestweek.digest.md`) | The final rendered output. **Yours to keep or ignore.** |

@@ -361,7 +361,11 @@ abbreviations and non-ASCII uppercase tokens are therefore medium. Fixtures pin 
 boundary, combining marks, curly/straight apostrophes, hyphens, acronyms, and Unicode uppercase.
 
 `honestweek.prompt-items.json` is version 1 with exact top keys `version`, `week`, `generatedAt`,
-`policy`, `sourceStatus`, `items`, and `withheld`. A successful one-source curation records and prints
+`outputBinding`, `policy`, `sourceStatus`, `items`, and `withheld`. `outputBinding` has exact keys
+`mode`, `adapterHash`, and `objectives`; it records `page` plus a null hash, or `site` plus SHA-256
+over the normalized adapter path and its bytes, and records `objectives:false` in Slice 1. Validation
+recomputes this binding so a mode, adapter path/content, or objectives-state change fails loudly
+without persisting a private path. A successful one-source curation records and prints
 both source states, and each visible prompt summary includes the fixed coverage clause `Coverage:
 Claude Code <present|absent>; Codex <present|absent>.` It never labels the result a complete
 cross-tool week when one source is absent. `policy` has exact keys `version`,

@@ -7,7 +7,7 @@
 // module that another issue has not built yet — `--help` works from a fresh
 // clone with zero modules present.
 
-const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview'];
+const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts'];
 
 const USAGE = `honestweek: honest, git-verified weekly summaries from your AI coding sessions.
 
@@ -17,6 +17,8 @@ Usage:
 Commands:
   init        Scaffold honestweek.config.json (two-confirmation setup).
   discover    Read the last completed week's sessions into a redacted draft.
+  prompts     Sync, review, control, and curate private Claude Code and Codex
+              prompts for the existing weekly page.
   validate    Gate the distilled items: valid badge + receipt, no display-repo
               leak, no private term in prose (run before build). Add --no-dashes
               for the optional voice rule.

@@ -242,7 +242,7 @@ Closes: items 20, 32.
 handoff-sourced row. It is styled distinctly from a git SHA (a leading `session ` / `handoff ` label
 in markdown, a separate CSS class in HTML) so it cannot be misread as a commit.
 
-`AGENTS.md:40` and `README.md:285` are then restated to the **stronger and true** form:
+`AGENTS.md:40` and `README.md:292` are then restated to the **stronger and true** form:
 
 > A git receipt on every work line; a transcript receipt on every lane line.
 
@@ -689,7 +689,7 @@ Closes: items 16, 30.
 
 1. A lane row may carry an optional `repo` label field, checked exactly as a work item's is.
 2. **Independently**, every lane `text` is scanned for any `display`-role repo's configured label as
-   a substring, which is the naming half of the existing rule at `lib/validate.mjs:114-120`.
+   a substring, which is the naming half of the existing rule at `lib/validate.mjs:117-120`.
 
 Both parts are required; neither alone repeats the existing rule.
 
@@ -1184,7 +1184,7 @@ phase spec never invents, they are settled here first.
 D5 says "collisions across kinds are prevented by `kind` being in the canonical string". That is
 true and beside the point: it rules out identical canonical strings, not identical hashes of
 different canonical strings. `shortHash` is a 32-bit FNV-1a rendered as 8 hex
-(`lib/claude-adapter.mjs:422`), so distinct inputs can and eventually do land on the same value. D39
+(`lib/claude-adapter.mjs:417`), so distinct inputs can and eventually do land on the same value. D39
 then uses that same 8-hex construction as the sole grouping key behind the `repeated without
 correction` claim, which turns a hash accident into a false honesty claim. That is the claim class
 this product exists to refuse, so the hash is demoted from identity to lookup token.

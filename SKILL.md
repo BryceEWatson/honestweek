@@ -14,6 +14,8 @@ See the v0.1 epic and the repo Issues for cross-cutting decisions (config schema
 
 ## Orchestrator flow: `init` → `discover` → **DISTIL** → `build` → `review`
 
+For `page` or `site` output, `honestweek prompts curate` is an additive input to the same build. It scans local Claude Code and Codex transcripts, keeps raw source private, writes a gitignored redacted inbox and validated public-safe prompt lane, and gives the user `list`, `source`, `keep`, `hide`, and `delete` controls. Automatic prompt selection requires recurrence across sessions or observed verification; privacy ambiguity remains private. Every surfaced prompt carries a transcript receipt, and `validate` plus `build` re-scan the source before the existing page-generation pipeline writes anything.
+
 Drive the pipeline in this exact order. Each stage names its input and its output artifact.
 
 **Running the bundled CLI.** honestweek ships a Node CLI bundled with this skill. Run the commands below from the **user's project directory** (so the config and sidecars land there), but invoke the script by its **skill-anchored absolute path**. `${CLAUDE_SKILL_DIR}` resolves to this skill's own install directory, so the path works regardless of the current working directory (personal, project, or plugin install). If `${CLAUDE_SKILL_DIR}` is ever not substituted in your environment, fall back to the absolute path of the directory containing this `SKILL.md`.

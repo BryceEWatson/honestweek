@@ -2,19 +2,19 @@
   {
     "why": "R1: the current base report model is assembled before mode-specific rendering",
     "file": "lib/build.mjs",
-    "line": 285,
+    "line": 315,
     "contains": "assembleReportModel"
   },
   {
     "why": "D45: normalizeWeek produces the canonical current week start consumed by dispositionAsOf",
     "file": "lib/build.mjs",
-    "line": 253,
+    "line": 269,
     "contains": "const week = normalizeWeek"
   },
   {
     "why": "D63: the existing build summary bytes must remain unchanged when the final lane set is absent",
     "file": "lib/build.mjs",
-    "line": 438,
+    "line": 468,
     "contains": "`build: wrote ${result.path}"
   },
   {
@@ -26,25 +26,25 @@
   {
     "why": "R6: the current emit try block starts after verify and voice gates",
     "file": "lib/build.mjs",
-    "line": 351,
+    "line": 381,
     "contains": "try {"
   },
   {
     "why": "R6: page mode deep-redacts its public model before emit and archive",
     "file": "lib/build.mjs",
-    "line": 386,
+    "line": 416,
     "contains": "redactor.deepRedact(pageModel)"
   },
   {
     "why": "R6: markdown modes deep-redact their public model before emit and archive",
     "file": "lib/build.mjs",
-    "line": 405,
+    "line": 435,
     "contains": "redactor.deepRedact(model)"
   },
   {
     "why": "R6 and R10: the existing weekly archive write is optional and must not gate the forward index",
     "file": "lib/build.mjs",
-    "line": 422,
+    "line": 452,
     "contains": "config.output?.archive"
   },
   {
@@ -68,7 +68,7 @@
   {
     "why": "R9: init already exposes an idempotent gitignore helper for sidecars",
     "file": "lib/init.mjs",
-    "line": 115,
+    "line": 120,
     "contains": "export function ensureGitignore"
   },
   {

@@ -32,7 +32,7 @@
   {
     "why": "R8: adaptSessions is the current transcript re-derivation entry point",
     "file": "lib/claude-adapter.mjs",
-    "line": 529,
+    "line": 524,
     "contains": "export async function adaptSessions"
   },
   {
@@ -44,7 +44,7 @@
   {
     "why": "R9: lane gates must run before the emit try block",
     "file": "lib/build.mjs",
-    "line": 351,
+    "line": 381,
     "contains": "try {"
   },
   {
@@ -62,55 +62,55 @@
   {
     "why": "R14: current work validation's display discipline is field-based",
     "file": "lib/validate.mjs",
-    "line": 114,
+    "line": 117,
     "contains": "display discipline"
   },
   {
     "why": "R14: current work private-term matching is case-insensitive",
     "file": "lib/validate.mjs",
-    "line": 124,
+    "line": 127,
     "contains": "const lower = text.toLowerCase();"
   },
   {
     "why": "R15: current work-item voice collection is a separate build call",
     "file": "lib/build.mjs",
-    "line": 298,
+    "line": 328,
     "contains": "const violations = checkVoice"
   },
   {
     "why": "R16: validate currently extracts only the work items array",
     "file": "lib/validate.mjs",
-    "line": 165,
-    "contains": "const items ="
+    "line": 182,
+    "contains": "let items ="
   },
   {
     "why": "R17: the base report model is assembled before mode dispatch",
     "file": "lib/build.mjs",
-    "line": 285,
+    "line": 315,
     "contains": "assembleReportModel"
   },
   {
     "why": "R17: site augmentation currently receives the base model",
     "file": "lib/build.mjs",
-    "line": 355,
+    "line": 385,
     "contains": "augmentSiteModel(model"
   },
   {
     "why": "R17: page mode currently builds a page model before redaction",
     "file": "lib/build.mjs",
-    "line": 385,
+    "line": 415,
     "contains": "const pageModel = buildPageModel"
   },
   {
     "why": "R17: page mode deep-redacts the page model",
     "file": "lib/build.mjs",
-    "line": 386,
+    "line": 416,
     "contains": "redactor.deepRedact(pageModel)"
   },
   {
     "why": "R17: markdown modes deep-redact the assembled model before emit",
     "file": "lib/build.mjs",
-    "line": 405,
+    "line": 435,
     "contains": "redactor.deepRedact(model)"
   },
   {
@@ -158,13 +158,13 @@
   {
     "why": "R21: page's lane-absent foot bytes",
     "file": "lib/emit/page.mjs",
-    "line": 391,
+    "line": 397,
     "contains": "Every line carries a status badge and a git receipt"
   },
   {
     "why": "R21: README's current sample-output contract bytes",
     "file": "README.md",
-    "line": 127,
+    "line": 128,
     "contains": "Every line carries a status badge and a receipt"
   },
   {
@@ -188,7 +188,7 @@
   {
     "why": "R22: page's current lane-absent empty state",
     "file": "lib/emit/page.mjs",
-    "line": 369,
+    "line": 375,
     "contains": "No interactive coding sessions"
   },
   {
@@ -206,7 +206,7 @@
   {
     "why": "R26: README currently states the launch receipt invariant",
     "file": "README.md",
-    "line": 285,
+    "line": 292,
     "contains": "A receipt on every line."
   },
   {
@@ -218,7 +218,7 @@
   {
     "why": "R23: lane-absent builds preserve the existing successful-build stdout format",
     "file": "lib/build.mjs",
-    "line": 438,
+    "line": 468,
     "contains": "build: wrote"
   }
 ]

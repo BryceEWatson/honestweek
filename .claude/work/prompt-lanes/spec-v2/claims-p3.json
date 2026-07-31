@@ -8,37 +8,37 @@
   {
     "why": "R8: the current report model is assembled before output-mode dispatch",
     "file": "lib/build.mjs",
-    "line": 285,
+    "line": 315,
     "contains": "assembleReportModel"
   },
   {
     "why": "R5 and D45: build creates the normalized week whose start is the exact dispositionAsOf value",
     "file": "lib/build.mjs",
-    "line": 253,
+    "line": 269,
     "contains": "const week = normalizeWeek"
   },
   {
     "why": "R8 and A30: site augmentation currently receives the base report model",
     "file": "lib/build.mjs",
-    "line": 355,
+    "line": 385,
     "contains": "augmentSiteModel(model"
   },
   {
     "why": "R8: page mode builds its page model before redaction",
     "file": "lib/build.mjs",
-    "line": 385,
+    "line": 415,
     "contains": "const pageModel = buildPageModel"
   },
   {
     "why": "R8: page mode deep-redacts the page model before emit",
     "file": "lib/build.mjs",
-    "line": 386,
+    "line": 416,
     "contains": "redactor.deepRedact(pageModel)"
   },
   {
     "why": "R8: markdown modes deep-redact the assembled report model before emit",
     "file": "lib/build.mjs",
-    "line": 405,
+    "line": 435,
     "contains": "redactor.deepRedact(model)"
   },
   {
@@ -56,7 +56,7 @@
   {
     "why": "R9 and A27: the current page work badge span is the site Phase 2 parameterizes",
     "file": "lib/emit/page.mjs",
-    "line": 352,
+    "line": 356,
     "contains": "const badge = BADGE_CLASS"
   },
   {
@@ -86,8 +86,8 @@
   {
     "why": "R12: validate currently extracts the work array at the forward-validator sibling point",
     "file": "lib/validate.mjs",
-    "line": 165,
-    "contains": "const items ="
+    "line": 182,
+    "contains": "let items ="
   },
   {
     "why": "A8: the existing README promises that dead ends are surfaced",
@@ -98,13 +98,13 @@
   {
     "why": "issue-redact-order: legacy adapter fields currently call truncate before the entry-level redaction backstop",
     "file": "lib/claude-adapter.mjs",
-    "line": 311,
+    "line": 306,
     "contains": "function truncate"
   },
   {
     "why": "issue-redact-order: the existing adapter applies the deep-redaction backstop after assembling the entry",
     "file": "lib/claude-adapter.mjs",
-    "line": 518,
+    "line": 513,
     "contains": "redactor.deepRedact(entry)"
   }
 ]
