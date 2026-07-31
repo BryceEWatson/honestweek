@@ -28,6 +28,19 @@
       "status": "resolved"
     },
     {
+      "id": "validatedIdentityIndexes",
+      "producer": "phase-1:R17",
+      "consumers": ["phase-2:R30", "phase-3:R1", "phase-4:R3"],
+      "schema": { "refSignature": "buildValidatedRefIndex(records):FrozenRefIndex", "refExactKeys": ["size", "has", "get", "entries"], "shapeSignature": "buildValidatedShapeIndex(records):FrozenShapeIndex", "shapeExactKeys": ["size", "collisionGroups", "has", "get", "entries"], "get": "frozen-source-ordered-record-array|undefined", "entries": "new-frozen-array-of-frozen-key-record-array-pairs", "mutableMapExposed": false },
+      "privacy": "build-local capabilities; canonical strings and records never rendered or archived",
+      "validation": "builders call validateRefIdentity or validateShapeIdentity before indexing",
+      "error": "ref mismatch or same-ref/different-canonical throws before result; every distinct canonical group under a colliding shape key contributes one to collisionGroups and all records under that key are excluded from lookup",
+      "positiveControl": "phase-1:R17 exact frozen capabilities consumed directly by phases 2-4",
+      "negativeControl": "consumer wrapper, mutable Map, ref collision, or collided shape lookup",
+      "sources": ["decisions.md:D73", "phase-1.md:R17", "phase-2.md:R30", "phase-3.md:R1", "phase-4.md:R3"],
+      "status": "resolved"
+    },
+    {
       "id": "ensureLaneCorpus",
       "producer": "phase-2:R8",
       "consumers": ["phase-3:R1", "phase-4:R1"],

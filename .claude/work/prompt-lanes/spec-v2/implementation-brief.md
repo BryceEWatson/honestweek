@@ -1,17 +1,21 @@
-# Implementation brief: build one phase
+# Implementation brief: build one approved work package
 
-You are implementing a phase of the prompt-lanes feature in honestweek. You write code and tests.
+You are implementing an approved work package of the prompt-lanes feature in honestweek. You write
+code and tests only after the control gates permit it.
 You do **not** own git: no branches, no commits, no PRs. The orchestrator does that, and runs the
 suite itself before it believes anything.
 
 ## Read first
 
 1. `AGENTS.md` — hard constraints and the invariants that must not break.
-2. `.claude/work/prompt-lanes/spec-v2/decisions.md` — the 79 settled cross-phase decisions, across
+2. `.claude/work/prompt-lanes/spec-v2/implementation-control-plan.md` — the current gate state,
+   phase-to-reader mapping, required evidence, and stop conditions. A `BLOCKED` prerequisite ends
+   implementation work without choosing a policy on the user's behalf.
+3. `.claude/work/prompt-lanes/spec-v2/decisions.md` — the 79 settled cross-phase decisions, across
    six addenda. Read D50 to D79: several **reverse** an earlier decision in the same file, and the
    later one wins.
-3. `.claude/work/prompt-lanes/spec-v2/phase-<N>.md` — **your** phase spec. This is the contract.
-4. `.claude/work/prompt-lanes/spec-v2/phase-assignment.md` — what is yours and what is not, plus the
+4. `.claude/work/prompt-lanes/spec-v2/phase-<N>.md` — **your** work-package spec. This is the contract.
+5. `.claude/work/prompt-lanes/spec-v2/phase-assignment.md` — what is yours and what is not, plus the
    four decisions that deliberately bind no phase.
 
 ## What this feature does not contain
@@ -42,7 +46,8 @@ Every requirement `R<k>` in your phase spec, and every acceptance criterion `A<k
    change, say which, why, and what the new assertion proves, in your final message. The orchestrator
    treats a silently relaxed test as a failed phase.
 7. **Do not touch `.git`.** Your sandbox denies it anyway.
-8. **Do not implement another phase's work.** If your phase needs something `phase-assignment.md`
+8. **Do not implement another package's work.** Phases 1 and 2 are one combined release package and
+   must be verified together; that does not authorize Phase 3 work. If your package needs something `phase-assignment.md`
    assigns elsewhere, stop and say so rather than building it.
 9. **Public-facing prose** (README, SKILL.md, AGENTS.md, `--help`, plugin manifests) clears the
    repo's voice bar: **no em dash and no ` -- `**, no marketing tone, first person with

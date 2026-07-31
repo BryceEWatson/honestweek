@@ -2,7 +2,8 @@
 
 honestweek tells you what you shipped last week. It can't yet tell you *how you got there*: which
 ways of asking actually worked, and which ideas came up that you haven't done anything with. This
-epic adds both, in four shippable phases. The hard part is that "this prompt worked well" is exactly
+epic adds both in four implementation work packages. Phases 1 and 2 share one release gate; Phases 3
+and 4 must each ship independently. The hard part is that "this prompt worked well" is exactly
 the kind of unprovable claim honestweek exists to refuse, so the deterministic engine computes the
 evidence and the model's only job is to name the technique in plain words.
 
@@ -10,14 +11,17 @@ evidence and the model's only job is to name the technique in plain words.
 
 Whether to build two new output bands, and whether the four-phase split below is the right order.
 
-Merging this epic changes nothing on its own. It's the parent for four issues, each of which ships a
-PR. What the four phases together change:
+Merging this epic changes nothing on its own. It's the parent for four issue scopes. Phases 1 and 2
+are implemented together and checkpointed behind one release decision because the identity producer
+and its first authoritative consumer must advance together. What all four scopes change:
 
 - **New:** two bands in `digest`, `report`, `page` and `post` output. One names techniques with the
   measured evidence behind them. One lists ideas that came up, where each came from, and what
   happened to it.
-- **New:** a gitignored `honestweek.prompts.json` sidecar holding your verbatim prompts locally, so
-  the model can read what you actually asked for. It is never published and never committed.
+- **New:** a gitignored `honestweek.prompts.json` sidecar holding source-faithful prompts after
+  redaction locally, so the model can read what you actually asked for. The private record is never
+  published or committed. A separate public-safe rendition remains behind the control plan's
+  unresolved triage gate.
 - **New:** one config key, `redaction.strictLaneNouns`, off by default.
 - **Unchanged:** absent the new inputs, every emitted byte stays identical. Phase 1 changes no
   rendered byte at all.
@@ -48,7 +52,7 @@ rate is what tells you whether it is. A final 26-item round then found producer/
 that the mechanical checks could not see. D73-D79 close those boundaries, and the readiness gate now
 requires an exact-schema ledger plus closure, consistency, and adversarial audits.
 
-The four phases now split on where the risk actually is:
+The four work packages now split on where the risk actually is:
 
 1. **Evidence substrate.** All the deterministic mining, and every identifier later phases key on.
    Renders nothing, so "no output changed" is provable rather than argued.
@@ -64,10 +68,14 @@ The four phases now split on where the risk actually is:
 - Additive: absent its new inputs, existing output is byte-identical.
 - Verify or abort: `build` exits 2 writing nothing rather than emit a half-true summary.
 - `display`-role repos are never git-read.
-- Publish the technique, never the prompt. Verbatim prose stays in a gitignored sidecar.
+- Keep the private prompt private. A distinct public-safe rendition may surface automatically only
+  after the control plan's strong-material, minor-transform, deterministic-validation, and residual-
+  risk thresholds pass; ambiguous or unusual cases require approval and persistent high risk is
+  excluded. This contract is not yet implementation-ready.
 - Every lane row renders a receipt, styled so it can't be misread as a commit. This satisfies the
   README's "a receipt on every line" promise rather than narrowing it.
-- Nothing auto-publishes.
+- Nothing uploads or leaves the local build. “Public” prompt handling means inclusion in a
+  public-facing local artifact, not network publication.
 
 ## One thing lands before phase 1
 
@@ -82,8 +90,9 @@ in this epic stays additive.
 
 ## Implementation detail
 
-Settled decisions, phase specs, and the mechanical verifiers live in the working tree under
-`.claude/work/prompt-lanes/spec-v2/` (not committed: they carry machine-local paths).
+Settled decisions, phase specs, and the mechanical verifiers are intentionally tracked under
+`.claude/work/prompt-lanes/spec-v2/`; the repaired baseline is checkpoint `9e30b0a`. Machine-local
+paths were replaced with clean-room placeholders before that checkpoint.
 
 - `decisions.md` holds 79 numbered cross-phase decisions across six addenda. Every phase spec
   references a decision by id and never restates its wording, which is what kept two phases from
@@ -106,6 +115,9 @@ Settled decisions, phase specs, and the mechanical verifiers live in the working
   the source-backed invariant diffs, audit verdicts, and manifest hashes.
 - All verifiers are model-free and exit non-zero on a gap. `verify-refs.mjs --self-test` proves the
   citation check can actually fail.
+- `implementation-control-plan.md` separates contract readiness from product readiness, maps each
+  work package to the reader-visible result, and prevents implementation while deletion, selection,
+  public-prompt triage, or carry-lifecycle decisions remain open.
 
 Two measured findings that shaped the design:
 

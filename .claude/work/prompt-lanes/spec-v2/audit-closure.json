@@ -4,7 +4,7 @@
   "status": "pass",
   "blockers": 0,
   "majorBoundaryGaps": 0,
-  "phaseShipAlone": { "phase1": "PASS", "phase2": "PASS", "phase3": "PASS", "phase4": "PASS" },
+  "releaseGates": { "phase1And2": "PASS", "phase3": "PASS", "phase4": "PASS" },
   "closures": [
     { "id": "identity-carrier", "closed": true, "sources": ["decisions.md:D73", "phase-1.md:R17/A57", "phase-2.md:R8/A64"], "proof": "one injected build-local carrier preserves all source ordinals and legacy adapter returns" },
     { "id": "identity-validation", "closed": true, "sources": ["decisions.md:D73", "phase-4.md:R2/R3/R11/A24b"], "proof": "shared hash/canonical validator runs before every carry join with matching and forged controls" },

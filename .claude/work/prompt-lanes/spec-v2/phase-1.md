@@ -206,7 +206,9 @@ one handoff with a `## Reversals` section whose bare-string result is exactly
 next-steps-only handoff containing `- Add a focused parser test.` that pre-change discovery drops.
 Keep the resulting reversal array nonempty and immutable after implementation. (D19, D22, D71)
 
-R17. Implement D73's `createLaneIdentityCarrier()` and `validateRefIdentity()` in `lib/lanes.mjs`.
+R17. Implement D73's `createLaneIdentityCarrier()`, `validateRefIdentity()`,
+`buildValidatedRefIndex()`, `validateShapeIdentity()`, and `buildValidatedShapeIndex()` in
+`lib/lanes.mjs`.
 Create exactly one carrier per discovery or build and pass that same object through the optional
 final `{ identityCarrier }` dependency to `adaptSessions` and `discoverHandoffs`, without changing
 either legacy return. Register turn, idea, next-step, reversal, and shape records at extraction time,
@@ -216,7 +218,9 @@ before it detects a same-hash/different-canonical collision; the shape index ide
 colliding canonical groups so later grading can under-claim rather than merge them. Identical
 canonical repeats are not collisions. Keep the carrier, canonical strings, and normalized phrases
 build-local and out of the D37 window shape, sidecar, rendered artifacts, and archive snapshots. No
-consumer may re-mint or reimplement validation or collision checks. (D5, D39, D69, D73)
+consumer may re-mint or reimplement validation or collision checks. Both builders expose only
+D73's frozen `{ size, has, get, entries }` capability, with `collisionGroups` added only to the
+shape capability; no mutable `Map` crosses the boundary. (D5, D39, D69, D73)
 
 ## Acceptance criteria
 

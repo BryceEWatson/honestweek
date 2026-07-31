@@ -1,5 +1,8 @@
 Part of the prompt-lanes epic: EPIC_LINK. Depends on phase 1: PHASE1_LINK
 
+Implemented with Phase 1 behind one release gate. Both work packages must pass their contract checks
+and the combined reader-visible outcome gate before either advances.
+
 ## In plain terms
 
 This phase adds the first new band: ways of asking that measurably worked. The model may name a

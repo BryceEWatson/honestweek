@@ -88,8 +88,9 @@ building a second projection. Whenever lanes are enabled, invoke that memoized o
 per build even when both authored lane arrays are absent. Use its sessions, handoffs, file-count
 state, D78 copy-run index, and D73 carrier records to derive the D6 `engineForwardRows` collection
 before any Phase 4 fast
-path can run. Build the current-week ref lookup only through the shared D69 ref-index builder over
-session ideas, `handoffs[].nextSteps`, and `handoffs[].reversalRefs`; retain each record's D69
+path can run. Build the current-week ref lookup only by calling D73's exact Phase 1 export
+`buildValidatedRefIndex(records)` over session ideas, `handoffs[].nextSteps`, and
+`handoffs[].reversalRefs`; retain each record's D69
 canonical identity until the private Phase 4 boundary. Validate every pair with D73's shared
 validator and abort before any join on a mismatch or ref collision.
 Retain the source session id or handoff id, the D65 source repo label, and, for an idea, its

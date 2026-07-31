@@ -37,7 +37,8 @@ function checkManifest(manifest) {
   }
   const artifacts = new Set((manifest.artifacts ?? []).map((x) => x.path));
   for (const required of [
-    'decisions.md', 'phase-assignment.md', 'phase-1.md', 'phase-2.md', 'phase-3.md', 'phase-4.md',
+    'decisions.md', 'implementation-control-plan.md', 'phase-assignment.md', 'phase-1.md',
+    'phase-2.md', 'phase-3.md', 'phase-4.md',
     'producer-consumer-ledger.json', 'invariant-diff-tests.json', 'audit-closure.json',
     'audit-consistency.json', 'audit-defects.json'
   ]) {
@@ -123,9 +124,11 @@ const defects = JSON.parse(read(join(specDir, 'audit-defects.json')));
 if (closure.blockers !== 0 || closure.majorBoundaryGaps !== 0 || closure.status !== 'pass') {
   failures.push('closure audit is not a zero-blocker/zero-major pass');
 }
+const expectedReleaseGates = ['phase1And2', 'phase3', 'phase4'];
 if (consistency.implementationOrderIsSound !== true ||
-    Object.values(consistency.shipAlone ?? {}).some((v) => v !== 'PASS')) {
-  failures.push('consistency audit does not prove sound order and ship-alone PASS for every phase');
+    Object.keys(consistency.releaseGates ?? {}).sort().join(',') !== expectedReleaseGates.sort().join(',') ||
+    Object.values(consistency.releaseGates ?? {}).some((v) => v !== 'PASS')) {
+  failures.push('consistency audit does not prove sound order and PASS for the combined Phase 1+2, Phase 3, and Phase 4 release gates');
 }
 if (defects.blockers !== 0 || defects.majorBoundaryGaps !== 0 || defects.status !== 'pass') {
   failures.push('defect audit is not a zero-blocker/zero-major pass');

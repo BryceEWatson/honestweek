@@ -111,8 +111,8 @@ means a week whose `week.start` is earlier than the build's current `week.start`
 array order; a later stored week never changes an earlier rerun. Build the zombie set from every
 prior entry whose disposition is `picked up` or `ruled out`. A zombie ref contributes no current or
 carried row. For each remaining ref, select its latest prior `not started` or `deferred` entry by
-week start. Before any zombie lookup, same-ref suppression, or carry join, apply D69 to the
-producer-owned canonical identities through D73's shared validator and index; a mismatched
+week start. Before any zombie lookup, same-ref suppression, or carry join, call D73's exact Phase 1
+export `buildValidatedRefIndex(records)` over the producer-owned canonical identities; a mismatched
 ref/canonical pair or same-hash/different-canonical pair follows D69 rather than
 any D47 branch. Apply this precedence exactly once, reading current-row authorship only from D57
 `sourceKind` and treating a selected prior entry as the separately typed carry candidate:

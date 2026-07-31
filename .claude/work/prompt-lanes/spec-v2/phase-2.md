@@ -467,10 +467,13 @@ contain the rendered receipt but no local-only key or value named here. (D5, D67
 ### Documentation and additivity
 
 R25. Update `SKILL.md` once for Lane A and reserve Phase 3's rule number without teaching an
-unsupported input. Step 2 names `honestweek.prompts.json` as a second gitignored, verbatim,
-local-only discover output. Step 3 names both files as inputs and says:
+unsupported input. Step 2 names `honestweek.prompts.json` as a second gitignored, source-faithful
+post-redaction, local-only discover output. Before Step 3 authors any lane row, it runs one read-only
+`build --explain-lanes` invocation and supplies the resulting gradeable-window list to DISTIL. Step
+3 names that list and both files as inputs and says:
 `Read it to understand what you asked for; name the technique in your own words; never copy a run of words from it.`
-Step 4 describes both D10 failure classes, `--no-lanes`, and `--explain-lanes`.
+Step 4 describes both D10 failure classes and `--no-lanes`; it does not introduce
+`--explain-lanes` after authoring has already happened.
 
 Add this final active contract rule after existing rule 6:
 
@@ -548,14 +551,16 @@ are invalid and fixture expectations use the exact D73 encoding.
 Read `opensWithCorrection` and `correctionObserved` from the window. Do not add or run another
 correction regex in Phase 2. (D37, D38, D39, D40, D41, D59, D68, D69, D72, D73)
 
-R30. Call D69/D73's shared identity validator and collision-aware index builders before any ref join
-or shape grade; do not
-implement a Phase 2 collision check. The builders receive each R8 `{ ref, refCanonical }` pair and
-each non-null `{ shapeKey, shapeCanonical }` pair. A same-hash/different-canonical ref pair aborts before a
-receipt can resolve, exits 2, and writes nothing. A same-hash/different-canonical shape pair removes
-both canonical groups from recurrence grading, follows D10's under-claim path, and reports the exact
-`collisionGroups` count under D79; it never labels groups as rows or implies the affected rows were
-dropped. Consumers receive the checked index
+R30. Before any ref join or shape grade, call D73's exact Phase 1 exports directly:
+`buildValidatedRefIndex(records)` over each R8 `{ ref, refCanonical }` pair and
+`buildValidatedShapeIndex(records)` over each non-null `{ shapeKey, shapeCanonical }` pair. Do not
+implement or wrap a Phase 2 validator, index, or collision check. A same-hash/different-canonical
+ref pair aborts before a receipt can resolve, exits 2, and writes nothing. A
+same-hash/different-canonical shape pair contributes its two distinct canonical groups to the
+returned `collisionGroups`; all records under the colliding key are absent from that capability's
+`has`, `get`, and `entries`, follow D10's under-claim path, and report the
+exact excluded-canonical-group count under D79. The diagnostic never labels groups as rows or
+implies the affected rows were dropped. Consumers use only the builders' frozen capability methods
 and do not compare or rebuild canonical strings. (D10, D64, D69, D73, D79)
 
 ## Acceptance criteria
@@ -645,8 +650,10 @@ same work items. (R10)
 
 A25. Every stderr line emitted by a lane code path contains the literal `--no-lanes`. (R9, R10)
 
-A26. `build --explain-lanes` writes no report or archive and prints no source prompt substring.
-(R10)
+A26. The orchestrator flow invokes `build --explain-lanes` exactly once after discover and before
+DISTIL authors `techniques`; the gradeable-window list is an explicit DISTIL input. The command
+writes no report or archive and prints no source prompt substring. A flow with the invocation moved
+after DISTIL fails the ordering assertion. (R10, R25)
 
 A27. A build with exactly one valid derived technique row runs all gates in all six modes. The four
 rendering modes contain its text; `site` and `changelog` contain none; `site` emits no ignored-row

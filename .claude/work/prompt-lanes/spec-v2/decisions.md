@@ -464,7 +464,7 @@ Closes: items 44, 51.
 **Decision.** Phase 2's docs requirement:
 
 - SKILL.md **step 2** gains `honestweek.prompts.json` as a second `discover` output (gitignored,
-  verbatim, local-only).
+  source-faithful after redaction, local-only).
 - SKILL.md **step 3 DISTIL** gains it as a second **input**, with a one-line rule: *read it to
   understand what you asked for; name the technique in your own words; never copy a run of words
   from it.*
@@ -473,7 +473,8 @@ Closes: items 44, 51.
   `complete`, `kind`, `shapeKey`, `correctionObserved`, `testSignals`, `commitShas`), plus an
   explicit instruction to omit a technique whose only evidence is an unverified commit SHA.
 - Rule 8 states that a forward row's `ref` is copied verbatim from a draft record.
-- `build --explain-lanes` prints the gradeable-window list, read-only, so authoring is informed
+- The orchestrator runs `build --explain-lanes` once after discover and before DISTIL authors lane
+  rows. Its read-only gradeable-window list is an explicit DISTIL input, so authoring is informed
   rather than a retry loop at one full transcript scan per attempt.
 - `test/skill.test.mjs` asserts DISTIL's input list names both files.
 
@@ -1417,6 +1418,29 @@ segments, recomputes the shipped hash, and returns the parsed frozen
 error. Every ref-index builder calls this validator before collision checks. Phase 4 calls it on
 every parseable carry entry before duplicate, zombie, suppression, or join logic.
 
+The same module is the sole producer of both checked index APIs:
+
+- `buildValidatedRefIndex(records)` accepts a read-only array whose entries contain string `ref` and
+  `refCanonical`. It validates every pair, preserves input order, and returns a frozen capability
+  object with exact keys `{ size, has, get, entries }`. `has(ref)` is boolean; `get(ref)` returns a
+  frozen source-ordered array of the original records or `undefined`; `entries()` returns a new
+  frozen array of frozen `[ref, records]` pairs. A same-ref/different-canonical pair throws the D69
+  identity error before the result exists. Same-ref/same-canonical records remain grouped so the
+  owning consumer can apply its declared duplicate or precedence rule; the builder never silently
+  chooses one.
+- `validateShapeIdentity(shapeKey, shapeCanonical)` accepts only a lowercase 8-hex key and nonempty
+  canonical string, recomputes the shipped hash, and throws on a mismatch.
+  `buildValidatedShapeIndex(records)` accepts a read-only array whose entries contain non-null
+  `shapeKey` and `shapeCanonical`, validates every pair, and returns a frozen capability object with
+  exact keys `{ size, collisionGroups, has, get, entries }`. When a key has more than one validated
+  canonical, each distinct canonical group under that key contributes one to `collisionGroups`; all
+  records under that key are absent from `has`, `get`, and `entries` and therefore cannot support
+  recurrence grading. Noncolliding `get`/`entries` values are frozen
+  source-ordered record arrays with the same semantics as the ref index.
+
+Neither capability exposes its private `Map` or a mutator. Phase 1 implements these four exports;
+Phases 2-4 call them directly and never wrap, parse, re-mint, or reimplement them.
+
 The version-1 carry property is named `refCanonical` and is the same in-memory NUL-delimited string.
 On disk it is encoded only by `JSON.stringify`, so each separator is persisted as the six ASCII
 bytes `\\u0000`; readers use `JSON.parse` and then the shared validator. No tuple object, pipe form,
@@ -1511,7 +1535,8 @@ source string or normalized run in the build result.
 
 ### D79 — Diagnostics name their unit, and acceptance controls must exercise both sides
 
-Shape collisions report `collisionGroups: <count>` and never call that count rows or dropped rows.
+Shape collisions report `collisionGroups: <count>` as the number of distinct validated canonical
+groups excluded under colliding keys, not the number of keys, records, rows, or dropped rows.
 Row drops report rows. Optional commit failures report affected rows. Idea truncations report ideas
 plus the affected session id. These units are not interchangeable.
 

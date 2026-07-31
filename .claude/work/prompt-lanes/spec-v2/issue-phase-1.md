@@ -1,9 +1,13 @@
 Part of the prompt-lanes epic: EPIC_LINK
 
+Implemented with Phase 2 behind one release gate. Phase 1 remains reader-invisible and does not
+advance independently of the identity consumer and first visible band.
+
 ## In plain terms
 
 This phase teaches honestweek to notice which of your instructions each piece of session evidence
-belongs to, and to keep your exact wording in a private local file it never publishes. It separates
+belongs to, and to keep source-faithful wording after redaction in a private local file it never
+publishes. It separates
 real instructions from machine notices like slash-command envelopes, records ideas that came up and
 next steps written into session-end handoffs, and gives every usable record a stable local id so
 later phases can point at it. Nothing renders. Not one byte of any report, page, site bundle or
@@ -11,13 +15,13 @@ archive snapshot changes in this phase.
 
 ## What you're deciding
 
-Whether honestweek may keep a gitignored file of your verbatim prompts on your own machine.
+How honestweek safely controls a gitignored file of your automatically captured prompts.
 
-That's the real question here. Everything else is plumbing. `honestweek.prompts.json` holds your
-redacted prompt text so the distilling model can read what you actually asked for and name the
-technique in its own words. It is added to `.gitignore` **before** it is written, it never reaches
-any rendered artifact, and `build` never reads it. If you'd rather it not exist, say so now, because
-the two lanes can't be built without it.
+Automatic private capture is approved. `honestweek.prompts.json` holds redacted prompt text so the
+distilling model can read what you actually asked for and name the technique in its own words. It is
+added to `.gitignore` **before** it is written, it never reaches any rendered artifact, and `build`
+never reads it. The combined Phase 1+2 release remains blocked until individual and whole-sidecar
+user-initiated deletion and regeneration behavior are specified.
 
 What merging this changes:
 
