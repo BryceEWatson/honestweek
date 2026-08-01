@@ -441,6 +441,164 @@ test('persistent high-risk residuals in every category are withheld before publi
     assert.equal(result.review.withheld.total['high-risk'], result.review.candidates.length);
     assert.equal(result.lane.items.length, 0);
     assert.doesNotMatch(JSON.stringify(result.lane), /person@example\.com/);
+
+    const keptReview = structuredClone(result.review);
+    for (const candidate of keptReview.candidates) candidate.state = 'kept';
+    const keptResult = curateDigest(
+      unsafeStore, unsafeDigest, config, { start:'2024-06-10', end:'2024-06-16' }, f.now,
+      { outputBinding:{ mode:'page', adapterHash:null, objectives:false }, priorReview:keptReview },
+    );
+    for (const category of DIGEST_CATEGORIES) {
+      assert.equal(keptResult.review.candidates.some((value) =>
+        value.category === category && value.state === 'kept' && value.decision === 'high-risk'), true, `${category}: keep cannot bypass privacy`);
+    }
+    assert.equal(keptResult.lane.items.length, 0);
+  } finally { rmSync(f.root, { recursive:true, force:true }); }
+});
+
+test('digest keep, hide, and delete control every category through re-prepare, validate, and build', async () => {
+  for (const command of ['keep','hide','delete']) {
+    const f = fixture();
+    const oldClaude = process.env.CLAUDE_CONFIG_DIR; const oldCodex = process.env.CODEX_HOME;
+    try {
+      process.env.CLAUDE_CONFIG_DIR = f.claude; process.env.CODEX_HOME = f.codex;
+      verifiedCommit(f.project);
+      let output = io();
+      assert.equal(await runDigest({ cwd:f.root, argv:['prepare'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+      const initial = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+      const controlled = Object.fromEntries(DIGEST_CATEGORIES.map((category) => [
+        category, initial.candidates.find((candidate) => candidate.category === category && candidate.decision === 'automatic-safe'),
+      ]));
+      assert.equal(Object.values(controlled).every(Boolean), true, `${command}: clean candidate per category`);
+
+      for (const category of DIGEST_CATEGORIES) {
+        const candidate = controlled[category];
+        output = io();
+        const argv = [command, candidate.itemRef.slice(0, 12), ...(command === 'delete' ? ['--yes'] : [])];
+        assert.equal(await runDigest({ cwd:f.root, argv, now:f.now, roots:f.roots, io:output }), 0, `${category}: ${output.stderr}`);
+        assert.doesNotMatch(output.stdout, new RegExp(candidate.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+      }
+
+      if (command === 'delete') {
+        output = io();
+        assert.equal(await runPrompts({
+          cwd:f.root, argv:['delete',controlled.prompts.receipts[0].ref.slice(0, 12),'--yes'],
+          now:f.now, roots:f.roots, io:output,
+        }), 0, output.stderr);
+      }
+
+      output = io();
+      assert.equal(await runDigest({ cwd:f.root, argv:['prepare'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+      const review = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+      const lane = JSON.parse(readFileSync(join(f.root, 'honestweek.prompt-items.json'), 'utf8'));
+      assert.equal(lane.version, 2, `${command}: public schema compatibility`);
+      for (const category of DIGEST_CATEGORIES) {
+        const candidate = controlled[category];
+        const current = review.candidates.find((value) => value.itemRef === candidate.itemRef);
+        const publicItem = lane.items.find((value) => value.itemRef === candidate.itemRef);
+        if (command === 'keep') {
+          assert.equal(current?.state, 'kept', category);
+          assert.equal(publicItem?.curationState, 'kept', category);
+          assert.equal(publicItem?.selection.primaryReasonCode, 'explicit-keep', category);
+          assert.equal(publicItem?.selection.reason, category === 'prompts' ? 'you kept this prompt' : 'you kept this item', category);
+          assert.deepEqual(publicItem?.receipts, candidate.receipts, category);
+        } else if (command === 'hide') {
+          assert.equal(current?.state, 'hidden', category);
+          assert.equal(current?.decision, 'hidden', category);
+          assert.equal(publicItem, undefined, category);
+        } else {
+          assert.equal(current, undefined, category);
+          const tombstone = review.tombstones.find((value) => value.itemRef === candidate.itemRef);
+          assert.deepEqual(tombstone, {
+            itemRef:candidate.itemRef, category, evidenceRefs:candidate.evidenceRefs, deletedAt:f.now.toISOString(),
+          }, category);
+          assert.equal(publicItem, undefined, category);
+        }
+      }
+      if (command === 'delete') {
+        assert.equal(review.version, 2);
+        assert.equal(review.tombstones.length, DIGEST_CATEGORIES.length);
+        const tombstoneText = JSON.stringify(review.tombstones);
+        for (const candidate of Object.values(controlled)) assert.doesNotMatch(tombstoneText, new RegExp(candidate.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+      } else {
+        assert.equal(review.version, 1);
+      }
+
+      output = io(); assert.equal(await runValidate({ cwd:f.root, now:f.now, io:output }), 0, output.stderr);
+      output = io(); assert.equal(await runBuild({ cwd:f.root, now:f.now, io:output }), 0, output.stderr);
+      const html = readFileSync(join(f.root, 'report.html'), 'utf8');
+      if (command === 'keep') {
+        for (const category of DIGEST_CATEGORIES) {
+          const item = lane.items.find((value) => value.itemRef === controlled[category].itemRef);
+          assert.match(html, new RegExp(item.snippets[1].text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${category}: receipt rendered`);
+        }
+      }
+    } finally {
+      if (oldClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = oldClaude;
+      if (oldCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = oldCodex;
+      rmSync(f.root, { recursive:true, force:true });
+    }
+  }
+});
+
+test('digest delete requires confirmation and tombstone schema failures write nothing', async () => {
+  const f = fixture();
+  try {
+    let output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['prepare'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    const reviewPath = join(f.root, 'honestweek.curated.json');
+    const lanePath = join(f.root, 'honestweek.prompt-items.json');
+    const review = JSON.parse(readFileSync(reviewPath, 'utf8'));
+    const candidate = review.candidates.find((value) => value.category === 'ideas');
+    const before = { review:readFileSync(reviewPath), lane:readFileSync(lanePath) };
+
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['delete',candidate.itemRef.slice(0, 12)], now:f.now, roots:f.roots, io:output }), 2);
+    assert.match(output.stderr, /requires --yes/);
+    assert.deepEqual(readFileSync(reviewPath), before.review);
+    assert.deepEqual(readFileSync(lanePath), before.lane);
+
+    const invalid = structuredClone(review);
+    invalid.version = 2;
+    invalid.tombstones = [{ itemRef:candidate.itemRef, category:'ideas', evidenceRefs:candidate.evidenceRefs, deletedAt:'not-a-date' }];
+    writeFileSync(reviewPath, JSON.stringify(invalid));
+    const tampered = readFileSync(reviewPath);
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['prepare'], now:f.now, roots:f.roots, io:output }), 2);
+    assert.match(output.stderr, /tombstone state is invalid/);
+    assert.deepEqual(readFileSync(reviewPath), tampered);
+    assert.deepEqual(readFileSync(lanePath), before.lane);
+    assert.equal(existsSync(join(f.root, DIGEST_PENDING)), false);
+  } finally { rmSync(f.root, { recursive:true, force:true }); }
+});
+
+test('a lifecycle control fault leaves an existing recoverable digest prefix', async () => {
+  const f = fixture();
+  try {
+    let output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['prepare'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    const priorLane = readFileSync(join(f.root, 'honestweek.prompt-items.json'));
+    const review = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+    const candidate = review.candidates.find((value) => value.category === 'decisions');
+
+    output = io();
+    assert.equal(await runDigest({
+      cwd:f.root, argv:['keep',candidate.itemRef.slice(0, 12)], now:f.now, roots:f.roots, io:output,
+      transactionFs:{ lane:failAtomic('renameSync') },
+    }), 2);
+    assert.match(output.stderr, /transaction remains pending/);
+    assert.equal(existsSync(join(f.root, DIGEST_PENDING)), true);
+    assert.deepEqual(readFileSync(join(f.root, 'honestweek.prompt-items.json')), priorLane);
+    assert.equal(JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8')).candidates
+      .find((value) => value.itemRef === candidate.itemRef).state, 'kept');
+
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['candidates'], now:f.now, roots:f.roots, io:output }), 2);
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['prepare'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    assert.equal(existsSync(join(f.root, DIGEST_PENDING)), false);
+    const lane = JSON.parse(readFileSync(join(f.root, 'honestweek.prompt-items.json'), 'utf8'));
+    assert.equal(lane.items.find((value) => value.itemRef === candidate.itemRef).curationState, 'kept');
   } finally { rmSync(f.root, { recursive:true, force:true }); }
 });
 

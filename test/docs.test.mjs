@@ -96,6 +96,18 @@ test('the sidecar section marks draft.json gitignored and items.json/output as t
   assert.match(sec, /honestweek\.items\.json[\s\S]*?keep or ignore|keep/i);
 });
 
+test('README and SKILL document all-category digest controls without weakening privacy', () => {
+  for (const doc of [README, SKILL]) {
+    assert.match(doc, /digest keep/);
+    assert.match(doc, /hide/);
+    assert.match(doc, /delete/);
+    assert.match(doc, /no-text tombstone/);
+    assert.match(doc, /never bypass|cannot bypass/i);
+    assert.match(doc, /receipt or privacy gates/i);
+  }
+  assert.match(README, /cannot recall an output you've already built/i);
+});
+
 test('the sample output snippets show a status badge and a receipt on every rendered line', () => {
   const sec = README.slice(README.indexOf('## Sample output'), README.indexOf('## Config reference'));
   for (const status of ['shipped', 'designed, not proven']) assert.ok(sec.includes(status), `sample shows ${status}`);

@@ -28,6 +28,10 @@
       "sha256": "563e4a5e0943c8cd6c703b5af5691297e5dc2de6bef35c867cb3f0accb202d55"
     },
     {
+      "path": "slice-3a-lifecycle-controls.md",
+      "sha256": "f41852d1baf26950249998e0d627d1898c4122d2543b80b8f38dc701960f27a3"
+    },
+    {
       "path": "implementation-brief.md",
       "sha256": "162b5c4ac6faf58fa00ac37a41abda71837930f9016e6ad9da4627c47094f235"
     },
