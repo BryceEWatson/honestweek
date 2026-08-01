@@ -88,7 +88,7 @@ as `not started`, and carry retains it without turning optional evidence into an
 Only after the mandatory corpus result proves that the current row set is empty may an absent
 `honestweek.forward-index.json` skip the carry reader, all carry diagnostics, and the index writer;
 the corpus operation itself is never part of that fast path. The existing model assembled at
-`lib/build.mjs:315` and the lane-absent stdout remain unchanged. `--no-lanes` skips the Phase 3
+`lib/build.mjs:323` and the lane-absent stdout remain unchanged. `--no-lanes` skips the Phase 3
 corpus operation and every Phase 4 read, gate, render, and write. (D6, D10, D12, D24, D28, D34,
 D49, D50, D55, D57, D58, D65, D69, D74, D75, D78, D79)
 
@@ -127,7 +127,7 @@ any D47 branch. Apply this precedence exactly once, reading current-row authorsh
 The carried copy preserves the selected index entry's `ref`, `id`, `text`, `origin`, `receipt`,
 required D65 `repo`, D69 canonical identity, and `firstSeenWeek`; only `disposition` becomes
 `deferred` and `dispositionAsOf` becomes the normalized current `week.start` produced at
-`lib/build.mjs:269`. Assert that same D45 value on every final row, including unchanged current
+`lib/build.mjs:276`. Assert that same D45 value on every final row, including unchanged current
 rows. Apply D47 to the current-plus-selected candidate union in this order: any duplicate id aborts
 before suppression; two D57-authored rows with the same ref abort; otherwise a D57-authored row
 suppresses a same-ref engine or carry candidate. The resulting union has unique refs and ids, and no
@@ -186,7 +186,7 @@ replaces, rather than duplicates, that week. An exit-2 gate, `--no-lanes`, or a 
 does not create or mutate the index. An index-write failure after a successful primary emit uses
 the count-free D64 file-level channel and preserves the already-written work artifact. Perform this
 write in every successful build mode when Phase 4 is active, independently of the optional archive
-block at `lib/build.mjs:452`. (D5, D10, D11, D12, D45, D57, D64, D65, D69)
+block at `lib/build.mjs:460`. (D5, D10, D11, D12, D45, D57, D64, D65, D69)
 
 R7. Use the settled Phase 2 forward renderer for carried rows. Supply only D12's `firstSeenWeek` to
 D77's producer-owned metadata formatter; Phase 4 authors no public phrase. That formatter changes a
@@ -211,12 +211,12 @@ disposition is `not started` or `deferred`; `picked up` and `ruled out` do not c
 snapshots may contain the redacted public carried row and its transcript receipt, but contain no D5
 ref and are never read by Phase 4. Final presence controls those render/count fields only. Apply D63
 from D74's raw `laneInputPresence` plus Phase 2's raw authored-technique presence: the existing stdout
-at `lib/build.mjs:468` remains byte-identical only when all three raw sources are absent, and the
+at `lib/build.mjs:476` remains byte-identical only when all three raw sources are absent, and the
 settled extended summary remains selected when an authored row later drops to a zero final count.
 (D5, D6, D12, D25, D29, D46, D63, D74, D75)
 
 R9. Make the index engine-written local state. Extend `lib/init.mjs` through its existing
-`ensureGitignore` helper at `lib/init.mjs:120`, and add `honestweek.forward-index.json` to the
+`ensureGitignore` helper at `lib/init.mjs:121`, and add `honestweek.forward-index.json` to the
 committed sidecar block beginning at `.gitignore:1`. Build ensures that ignore line before its first
 index write, using the settled idempotent sidecar behavior and already-tracked warning. `init` and
 repeated builds leave exactly one ignore line. README documents the cumulative local file, the
@@ -264,7 +264,7 @@ ordinary handoff has no D42 next-step section and no D7-eligible reversal, and n
 `honestweek.forward-index.json`, Phase 3's producer-owned corpus operation is called exactly once
 and returns the empty engine-presence result. All six artifacts remain byte-identical to the settled
 lane-absent goldens; Phase 4 performs no carry read or write, emits no carry diagnostic, creates no
-index, and preserves the exact lane-absent stdout bytes rooted at `lib/build.mjs:468`. (R1, R8,
+index, and preserves the exact lane-absent stdout bytes rooted at `lib/build.mjs:476`. (R1, R8,
 R12)
 
 A3. In each of the four lane-rendering modes, a valid current-week forward set produces identical
@@ -287,7 +287,7 @@ input field.
 A6. With `output.archive: false`, build an explicit week 1 of
 `{ start: '2026-01-05', end: '2026-01-11' }` containing one `not started` row. For week 2, omit the
 items envelope's week, inject `now: 2026-01-19T12:00:00.000Z` with timezone `UTC`, and provide no
-current row, forcing the fallback branch reached by the call at `lib/build.mjs:269`. Week 2 renders
+current row, forcing the fallback branch reached by the call at `lib/build.mjs:276`. Week 2 renders
 one `deferred` row whose text is byte-equal to week 1's, whose visible date clause is exactly
 `first seen 2026-01-05; as of 2026-01-12`, and whose origin and receipt deep-equal week 1's. Its
 private and public `dispositionAsOf` values equal `2026-01-12`, as do those of every other final row

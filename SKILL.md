@@ -14,7 +14,7 @@ See the v0.1 epic and the repo Issues for cross-cutting decisions (config schema
 
 ## Orchestrator flow: `init` → `discover` → **DISTIL** → `build` → `review`
 
-For `page` or `site` output, `honestweek prompts curate` is an additive input to the same build. It scans local Claude Code and Codex transcripts, keeps raw source private, writes a gitignored redacted inbox and validated public-safe prompt lane, and gives the user `list`, `source`, `keep`, `hide`, and `delete` controls. Automatic prompt selection requires recurrence across sessions or observed verification; privacy ambiguity remains private. Every surfaced prompt carries a transcript receipt, and `validate` plus `build` re-scan the source before the existing page-generation pipeline writes anything.
+For `page` or `site` output, `honestweek digest prepare` is an additive input to the same build. It scans local Claude Code and Codex transcripts, keeps raw source private, and writes a gitignored redacted review plus a validated public-safe lane across prompts, ideas, techniques, decisions, reversals, and next steps. Every visible item states its deterministic selection reason and carries a transcript receipt. Configured floors, the overall target, category caps, omitted counts, and uncertainty are disclosed. The low-risk privacy gate applies to every category; ambiguity and residual high risk remain private. `validate` plus `build` re-scan the sources before the existing page-generation pipeline writes anything. `honestweek prompts curate` remains the prompt-only compatibility path, with `list`, `source`, `keep`, `hide`, and `delete` controls.
 
 Drive the pipeline in this exact order. Each stage names its input and its output artifact.
 

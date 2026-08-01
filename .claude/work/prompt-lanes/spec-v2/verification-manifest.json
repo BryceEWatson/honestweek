@@ -24,12 +24,16 @@
       "sha256": "6110815ab03e030d21e5279be5427a1d01324c3fa470198c1820f73be3186b37"
     },
     {
+      "path": "slice-2-balanced-weekly-digest.md",
+      "sha256": "563e4a5e0943c8cd6c703b5af5691297e5dc2de6bef35c867cb3f0accb202d55"
+    },
+    {
       "path": "implementation-brief.md",
       "sha256": "162b5c4ac6faf58fa00ac37a41abda71837930f9016e6ad9da4627c47094f235"
     },
     {
       "path": "decisions.md",
-      "sha256": "f902236f9677fd6d9c2cd52e86ccfacaa72a1599e87ef2d89f91c5304c8904f6"
+      "sha256": "503aa68fea8122f0857408c0927b863280d72afe0fd4ee58f671db295b04b9ed"
     },
     {
       "path": "implementation-control-plan.md",
@@ -45,15 +49,15 @@
     },
     {
       "path": "phase-2.md",
-      "sha256": "b8e2208d90e0dfd8b4bfb5af4ca0bf9847fbd4f01cca3892b8b3b9117a6f0d0e"
+      "sha256": "91037de1f6357ea68865d60d071aa7efccb9f89f8f6df972d9af3a854acdf278"
     },
     {
       "path": "phase-3.md",
-      "sha256": "b3edaa80139e73a4c1ccd24b7767de4a0723b6687ec2a7449d048eb633b69c4c"
+      "sha256": "b9e91e81aff21c4b9d2bc3c0d446161e95185a8f98f55d47d97c4b61ce2f77fa"
     },
     {
       "path": "phase-4.md",
-      "sha256": "a251c908dfe06de238ed79a12df5f1742a54fe9a922e02ccc81a4296f966c4ae"
+      "sha256": "8bb7876eb1c0697bea229f29876cdfae372b11d7a8203fbbccfd1ed4fadcfc30"
     },
     {
       "path": "producer-consumer-ledger.json",

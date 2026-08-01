@@ -4,8 +4,9 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const specDir = resolve(process.argv[2] ?? dirname(new URL(import.meta.url).pathname));
+const specDir = resolve(process.argv[2] ?? dirname(fileURLToPath(import.meta.url)));
 const repoRoot = resolve(specDir, '../../../..');
 const failures = [];
 const read = (path) => readFileSync(path, 'utf8');
@@ -37,7 +38,7 @@ function checkManifest(manifest) {
   }
   const artifacts = new Set((manifest.artifacts ?? []).map((x) => x.path));
   for (const required of [
-    'product-roadmap.md', 'slice-1-end-to-end-prompts.md',
+    'product-roadmap.md', 'slice-1-end-to-end-prompts.md', 'slice-2-balanced-weekly-digest.md',
     'decisions.md', 'implementation-control-plan.md', 'phase-assignment.md', 'phase-1.md',
     'phase-2.md', 'phase-3.md', 'phase-4.md',
     'producer-consumer-ledger.json', 'invariant-diff-tests.json', 'audit-closure.json',
@@ -142,8 +143,9 @@ if (process.argv.includes('--self-test')) {
   checkLedger(badLedger);
   const badManifest = structuredClone(manifest);
   badManifest.coverageInputs = badManifest.coverageInputs.filter((x) => x.path !== 'revision-inputs-round3.json');
+  badManifest.artifacts = badManifest.artifacts.filter((x) => x.path !== 'slice-2-balanced-weekly-digest.md');
   checkManifest(badManifest);
-  if (failures.length < before + 2) failures.push('self-test negative controls did not fail');
+  if (failures.length < before + 3) failures.push('self-test negative controls did not fail');
   else failures.splice(before);
 }
 

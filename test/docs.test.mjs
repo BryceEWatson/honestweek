@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +11,7 @@ const README = readFileSync(resolve(ROOT, 'README.md'), 'utf8');
 const SKILL = readFileSync(resolve(ROOT, 'SKILL.md'), 'utf8');
 const BIN = readFileSync(resolve(ROOT, 'bin', 'honestweek.mjs'), 'utf8');
 const EXAMPLE = JSON.parse(readFileSync(resolve(ROOT, 'honestweek.config.example.json'), 'utf8'));
+const CONTRACT_VERIFIER = resolve(ROOT, '.claude', 'work', 'prompt-lanes', 'spec-v2', 'verify-contracts.mjs');
 
 /** The subcommands the dispatcher actually accepts. */
 function actualSubcommands() {
@@ -105,7 +107,7 @@ test('the sample output snippets show a status badge and a receipt on every rend
 
 test('DOCS-CONSISTENCY: documented subcommands match the dispatcher, with no phantom commands', () => {
   const subs = actualSubcommands();
-  assert.deepEqual(subs.sort(), ['build', 'discover', 'harvest', 'init', 'preview', 'prompts', 'validate']);
+  assert.deepEqual(subs.sort(), ['build', 'digest', 'discover', 'harvest', 'init', 'preview', 'prompts', 'validate']);
   for (const s of subs) assert.ok(README.includes(`honestweek.mjs ${s}`) || README.includes(`honestweek ${s}`), `README documents the ${s} command`);
   // there is no distil/verify/emit SUBCOMMAND — the docs must not invent one
   for (const phantom of ['distil', 'verify', 'emit']) {
@@ -130,4 +132,9 @@ test('README and SKILL.md describe the same flow and invariants without contradi
 test('clean-room: README contains no real personal data', () => {
   assert.doesNotMatch(README, /@(?:gmail|outlook|yahoo|proton|icloud)\.com/i);
   assert.doesNotMatch(README, /\/home\/[a-z]+\/|C:\\Users\\[A-Za-z]+\\/);
+});
+
+test('the contract verifier resolves its own default spec directory cross-platform', () => {
+  const output = execFileSync(process.execPath, [CONTRACT_VERIFIER], { cwd:ROOT, encoding:'utf8' });
+  assert.match(output, /verify-contracts: OK/);
 });

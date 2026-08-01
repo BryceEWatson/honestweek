@@ -44,7 +44,7 @@
   {
     "why": "R9: lane gates must run before the emit try block",
     "file": "lib/build.mjs",
-    "line": 381,
+    "line": 389,
     "contains": "try {"
   },
   {
@@ -62,55 +62,55 @@
   {
     "why": "R14: current work validation's display discipline is field-based",
     "file": "lib/validate.mjs",
-    "line": 117,
+    "line": 121,
     "contains": "display discipline"
   },
   {
     "why": "R14: current work private-term matching is case-insensitive",
     "file": "lib/validate.mjs",
-    "line": 127,
+    "line": 131,
     "contains": "const lower = text.toLowerCase();"
   },
   {
     "why": "R15: current work-item voice collection is a separate build call",
     "file": "lib/build.mjs",
-    "line": 328,
+    "line": 336,
     "contains": "const violations = checkVoice"
   },
   {
     "why": "R16: validate currently extracts only the work items array",
     "file": "lib/validate.mjs",
-    "line": 182,
+    "line": 187,
     "contains": "let items ="
   },
   {
     "why": "R17: the base report model is assembled before mode dispatch",
     "file": "lib/build.mjs",
-    "line": 315,
+    "line": 323,
     "contains": "assembleReportModel"
   },
   {
     "why": "R17: site augmentation currently receives the base model",
     "file": "lib/build.mjs",
-    "line": 385,
+    "line": 393,
     "contains": "augmentSiteModel(model"
   },
   {
     "why": "R17: page mode currently builds a page model before redaction",
     "file": "lib/build.mjs",
-    "line": 415,
+    "line": 423,
     "contains": "const pageModel = buildPageModel"
   },
   {
     "why": "R17: page mode deep-redacts the page model",
     "file": "lib/build.mjs",
-    "line": 416,
+    "line": 424,
     "contains": "redactor.deepRedact(pageModel)"
   },
   {
     "why": "R17: markdown modes deep-redact the assembled model before emit",
     "file": "lib/build.mjs",
-    "line": 435,
+    "line": 443,
     "contains": "redactor.deepRedact(model)"
   },
   {
@@ -140,13 +140,13 @@
   {
     "why": "R20: page's existing work legend begins here",
     "file": "lib/emit/page.mjs",
-    "line": 32,
+    "line": 33,
     "contains": "const LEGEND"
   },
   {
     "why": "R20: page's existing work badge class map is separate",
     "file": "lib/emit/page.mjs",
-    "line": 37,
+    "line": 38,
     "contains": "const BADGE_CLASS"
   },
   {
@@ -158,7 +158,7 @@
   {
     "why": "R21: page's lane-absent foot bytes",
     "file": "lib/emit/page.mjs",
-    "line": 397,
+    "line": 410,
     "contains": "Every line carries a status badge and a git receipt"
   },
   {
@@ -188,7 +188,7 @@
   {
     "why": "R22: page's current lane-absent empty state",
     "file": "lib/emit/page.mjs",
-    "line": 375,
+    "line": 388,
     "contains": "No interactive coding sessions"
   },
   {
@@ -206,7 +206,7 @@
   {
     "why": "R26: README currently states the launch receipt invariant",
     "file": "README.md",
-    "line": 292,
+    "line": 294,
     "contains": "A receipt on every line."
   },
   {
@@ -218,7 +218,7 @@
   {
     "why": "R23: lane-absent builds preserve the existing successful-build stdout format",
     "file": "lib/build.mjs",
-    "line": 468,
+    "line": 476,
     "contains": "build: wrote"
   }
 ]

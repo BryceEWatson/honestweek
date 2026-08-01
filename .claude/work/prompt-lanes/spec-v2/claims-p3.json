@@ -8,37 +8,37 @@
   {
     "why": "R8: the current report model is assembled before output-mode dispatch",
     "file": "lib/build.mjs",
-    "line": 315,
+    "line": 323,
     "contains": "assembleReportModel"
   },
   {
     "why": "R5 and D45: build creates the normalized week whose start is the exact dispositionAsOf value",
     "file": "lib/build.mjs",
-    "line": 269,
+    "line": 276,
     "contains": "const week = normalizeWeek"
   },
   {
     "why": "R8 and A30: site augmentation currently receives the base report model",
     "file": "lib/build.mjs",
-    "line": 385,
+    "line": 393,
     "contains": "augmentSiteModel(model"
   },
   {
     "why": "R8: page mode builds its page model before redaction",
     "file": "lib/build.mjs",
-    "line": 415,
+    "line": 423,
     "contains": "const pageModel = buildPageModel"
   },
   {
     "why": "R8: page mode deep-redacts the page model before emit",
     "file": "lib/build.mjs",
-    "line": 416,
+    "line": 424,
     "contains": "redactor.deepRedact(pageModel)"
   },
   {
     "why": "R8: markdown modes deep-redact the assembled report model before emit",
     "file": "lib/build.mjs",
-    "line": 435,
+    "line": 443,
     "contains": "redactor.deepRedact(model)"
   },
   {
@@ -56,7 +56,7 @@
   {
     "why": "R9 and A27: the current page work badge span is the site Phase 2 parameterizes",
     "file": "lib/emit/page.mjs",
-    "line": 356,
+    "line": 369,
     "contains": "const badge = BADGE_CLASS"
   },
   {
@@ -86,7 +86,7 @@
   {
     "why": "R12: validate currently extracts the work array at the forward-validator sibling point",
     "file": "lib/validate.mjs",
-    "line": 182,
+    "line": 187,
     "contains": "let items ="
   },
   {

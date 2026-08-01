@@ -5,6 +5,10 @@ honestweek.prompts.json.tmp-*
 honestweek.prompts.json.lock
 honestweek.prompt-items.json
 honestweek.prompt-items.json.tmp-*
+honestweek.curated.json
+honestweek.curated.json.tmp-*
+honestweek.digest.pending.json
+honestweek.digest.pending.json.tmp-*
 honestweek.items.json
 
 # The user's own config MAY contain private repo paths and redaction terms,
