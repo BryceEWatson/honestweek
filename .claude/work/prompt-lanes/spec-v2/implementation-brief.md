@@ -8,12 +8,14 @@ suite itself before it believes anything.
 ## Read first
 
 1. `AGENTS.md` — hard constraints and the invariants that must not break.
-2. `.claude/work/prompt-lanes/spec-v2/product-roadmap.md` — the owner-approved product setpoint,
-   explicit defaults, vertical slices, user experience, release gates, and stop conditions. It
-   supersedes the earlier open-ended blocker posture in `implementation-control-plan.md`.
-3. `.claude/work/prompt-lanes/spec-v2/slice-<N>-*.md` — **your** reviewed executable slice contract.
+2. `.claude/work/prompt-lanes/spec-v2/owner-approval.md` — the durable 2026-08-01 owner decision for
+   the seven load-bearing product rules and the authorized next implementation boundary.
+3. `.claude/work/prompt-lanes/spec-v2/product-roadmap.md` — the approved product setpoint, explicit
+   defaults, vertical slices, user experience, release gates, and stop conditions. It supersedes the
+   earlier open-ended blocker posture in `implementation-control-plan.md`.
+4. `.claude/work/prompt-lanes/spec-v2/slice-<N>-*.md` — **your** reviewed executable slice contract.
    Stop if it does not exist. Slice 1 is `slice-1-end-to-end-prompts.md`.
-4. `.claude/work/prompt-lanes/spec-v2/decisions.md` and the Phase 1-4 files are historical technical
+5. `.claude/work/prompt-lanes/spec-v2/decisions.md` and the Phase 1-4 files are historical technical
    evidence only. Do not use them to override or silently fill a roadmap/slice-contract gap.
 
 ## Compatibility boundary

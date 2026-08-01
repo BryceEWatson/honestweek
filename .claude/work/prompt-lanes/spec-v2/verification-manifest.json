@@ -16,8 +16,12 @@
   ],
   "artifacts": [
     {
+      "path": "owner-approval.md",
+      "sha256": "0fd6a43d2f212653537086d58fbb21bb0815ee32447540b10e131610292f4161"
+    },
+    {
       "path": "product-roadmap.md",
-      "sha256": "54f9b442cb4bee6f84367807e0a5768c6b603579bfa1f37ea1d22d701c9ce75e"
+      "sha256": "25105a5d9b8bd9d50d2ab44e756fcb2822ef2333d13b6e2cc6a1e4ca2c4d7f56"
     },
     {
       "path": "slice-1-end-to-end-prompts.md",
@@ -33,7 +37,7 @@
     },
     {
       "path": "implementation-brief.md",
-      "sha256": "162b5c4ac6faf58fa00ac37a41abda71837930f9016e6ad9da4627c47094f235"
+      "sha256": "2daea1c33886e3e62af98e2a180048d9b2b75186d70d0f4ef6057fc56fcea6c8"
     },
     {
       "path": "decisions.md",
@@ -41,7 +45,7 @@
     },
     {
       "path": "implementation-control-plan.md",
-      "sha256": "a11a4429403206b8098628126024ed8d13c1ffbe35c28b09382ce5eac04531fa"
+      "sha256": "3eb52c64e420e5d5b4904e48215e9a87898cc3e47892779b5a1c52b7c2e1638b"
     },
     {
       "path": "phase-assignment.md",

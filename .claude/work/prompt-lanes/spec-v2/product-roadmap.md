@@ -11,6 +11,13 @@ This is a product completion roadmap, not an experiment program. Defaults below 
 disclosed product choices. They do not claim to identify universally important material. Owner
 feedback may change a default through an intentional, tested configuration or product revision.
 
+The owner explicitly approved the seven load-bearing product rules on 2026-08-01. The durable
+decision record is `owner-approval.md`: evidence-based selection; deletion with no-text tombstones
+and explicit reset; low-risk automatic privacy surfacing with a 20-percent edit ceiling; separate
+groups with the documented caps and target; bounded carry and retirement; hash-bound pending
+recovery; and mandatory representative multi-week proof plus independent review. That approval
+settles policy. It does not mark implementation, proof, review, or release gates as passed.
+
 The completion target is the balanced weekly digest, not a prompt-highlights endpoint. Slice 1 is
 the first shippable foundation because it proves dual-source identity, receipts, controls, privacy
 validation, selection disclosure, and the established weekly-page join end to end. It is not the
@@ -54,13 +61,15 @@ own contract, execution, additivity, target-compatibility, and independent-revie
 
 ## Authority and precedence
 
-This roadmap is the product source of truth for the owner-directed vertical-slice program. Before a
-slice changes runtime behavior, its exact `slice-<N>-*.md` contract becomes the executable authority
-for that slice. The earlier D1-D79 decisions, four phase specs, assignment, ledger, and audits remain
-historical technical evidence only. When they conflict with this roadmap or a reviewed slice
-contract, they are superseded and must not be used to fill a gap silently. Slice 1 is specified in
-`slice-1-end-to-end-prompts.md`; later slice contracts must close their schemas and failure tables
-before their implementation gate.
+`owner-approval.md` is the decision authority for the seven approved product rules. This roadmap is
+their product source of truth for the owner-directed vertical-slice program. Before a slice changes
+runtime behavior, its exact `slice-<N>-*.md` contract becomes the executable authority for that
+slice. A slice contract may close implementation detail but may not broaden or weaken an approved
+rule. The earlier D1-D79 decisions, four phase specs, assignment, ledger, and audits remain
+historical technical evidence only. When they conflict with the approval record, this roadmap, or a
+reviewed slice contract, they are superseded and must not be used to fill a gap silently. Slice 1 is
+specified in `slice-1-end-to-end-prompts.md`; later slice contracts must close their schemas and
+failure tables before their implementation gate.
 
 The established weekly-work-page pipeline remains output authority: `honestweek.items.json` plus any
 reviewed additive lane file enters `validate`, then `build`, then the configured existing emitter.

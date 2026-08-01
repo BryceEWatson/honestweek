@@ -38,8 +38,8 @@ function checkManifest(manifest) {
   }
   const artifacts = new Set((manifest.artifacts ?? []).map((x) => x.path));
   for (const required of [
-    'product-roadmap.md', 'slice-1-end-to-end-prompts.md', 'slice-2-balanced-weekly-digest.md',
-    'slice-3a-lifecycle-controls.md',
+    'owner-approval.md', 'product-roadmap.md', 'slice-1-end-to-end-prompts.md',
+    'slice-2-balanced-weekly-digest.md', 'slice-3a-lifecycle-controls.md',
     'decisions.md', 'implementation-control-plan.md', 'phase-assignment.md', 'phase-1.md',
     'phase-2.md', 'phase-3.md', 'phase-4.md',
     'producer-consumer-ledger.json', 'invariant-diff-tests.json', 'audit-closure.json',
@@ -124,6 +124,22 @@ for (const file of ['audit-closure.json', 'audit-consistency.json', 'audit-defec
 const closure = JSON.parse(read(join(specDir, 'audit-closure.json')));
 const consistency = JSON.parse(read(join(specDir, 'audit-consistency.json')));
 const defects = JSON.parse(read(join(specDir, 'audit-defects.json')));
+const ownerApproval = read(join(specDir, 'owner-approval.md'));
+const controlPlan = read(join(specDir, 'implementation-control-plan.md'));
+for (let i = 1; i <= 7; i += 1) {
+  if (!ownerApproval.includes(`## A${i} - APPROVED:`)) {
+    failures.push(`owner approval record does not contain approved decision A${i}`);
+  }
+}
+if (!ownerApproval.includes('The next authorized runtime boundary is the reviewed Slice 3b')) {
+  failures.push('owner approval record does not name the authorized Slice 3b boundary');
+}
+if (/\|\s*BLOCKED\s*\|/.test(controlPlan)) {
+  failures.push('implementation control plan still contains a BLOCKED product-policy status');
+}
+if (!controlPlan.includes('The 2026-08-01 owner decision resolves the load-bearing product-policy findings')) {
+  failures.push('implementation control plan does not reconcile the owner decision with the historical review gate');
+}
 if (closure.blockers !== 0 || closure.majorBoundaryGaps !== 0 || closure.status !== 'pass') {
   failures.push('closure audit is not a zero-blocker/zero-major pass');
 }

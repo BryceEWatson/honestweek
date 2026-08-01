@@ -3,7 +3,9 @@
 > Historical review gate. Owner direction after checkpoint `da6812c` supersedes this document's
 > stop-at-open-product-choices posture. The current product setpoint, explicit default choices, and
 > vertical release gates are authoritative in `product-roadmap.md`. The contract findings and safety
-> constraints below remain evidence, not a reason to reopen an indefinite experiment program.
+> constraints below remain evidence, not a reason to reopen an indefinite experiment program. The
+> owner explicitly approved the seven load-bearing rules on 2026-08-01; `owner-approval.md` is the
+> durable decision record and reconciles the historical blocked statuses below.
 
 ## Objective and setpoint
 
@@ -12,10 +14,11 @@ reader-useful addition to Honest Week: prompt techniques supported by observable
 and forward-looking material that is still worth the reader's attention. Contract correctness is a
 necessary foundation, not the product outcome.
 
-The current repaired specification proves identity, privacy, rendering, persistence, and
-producer/consumer closure. It does not yet prove worthwhile selection, prompt deletion, safe
-public-prompt triage, or a bounded lifecycle for recurring ideas. Those are open product gates, not
-implementation details.
+The repaired specification proves identity, privacy, rendering, persistence, and producer/consumer
+closure. The owner-approved policy now defines worthwhile selection, prompt deletion, safe
+public-prompt triage, reader load, bounded recurrence and retirement, output/carry recovery, and the
+representative proof required for completion. Approval settles the policy inputs. It does not itself
+prove their runtime behavior or pass a release gate.
 
 ## System state
 
@@ -24,15 +27,18 @@ implementation details.
 | Provenance reconciled | checkpoint `9e30b0a`; 35 allowlisted artifacts; personal paths redacted | PASS |
 | Contract verification | refs 201/124/66; 79-decision coverage; 13-boundary contract ledger | PASS |
 | Execution baseline | `node --test`: 371 pass, 0 fail | PASS |
-| Product-selection contract | no inclusion, exclusion, global order, or reader-volume rule | BLOCKED |
+| Product-selection policy | A1 and A4 in `owner-approval.md`; roadmap score, order, target, caps, and disclosure | APPROVED |
 | Private prompt capture policy | automatic capture is approved; text is redacted before disk and private by default | PASS |
-| Prompt deletion control | no user-initiated individual/all deletion contract exists | BLOCKED |
-| Public prompt triage | automatic-safe, escalation, exclusion, transformation, and receipt thresholds are not yet defined | BLOCKED |
-| Cross-week lifecycle | nonterminal rows recur indefinitely with no selective retirement contract | BLOCKED |
-| Output/carry coherence | an index failure after primary emit can leave carry authority behind visible output | BLOCKED |
+| Prompt deletion policy | A2; confirmed individual/all deletion, no-text tombstones, explicit reset | APPROVED |
+| Public prompt triage policy | A3; residual-low automatic, ambiguous private, residual-high excluded, 20-percent ceiling | APPROVED |
+| Cross-week lifecycle policy | A5; two-week idea/next-step recurrence, one-digest renewal, terminal retirement, 12-week history | APPROVED |
+| Output/carry recovery policy | A6; hash-bound pending protocol and fail-closed recovery | APPROVED |
+| Representative product proof | A7; predeclared dual-source, all-category, multi-week proof and independent review | REQUIRED |
 | Persona hypothesis | no persona source, schema, consent rule, or relevance evidence | DEFERRED |
 
-No product implementation may begin while any required state is `BLOCKED`.
+Owner approval cleared the historical product-policy blockers. Runtime work may advance only inside
+the next reviewed slice contract. `REQUIRED` evidence remains fail-closed: approval does not turn an
+unrun proof or review into `PASS`.
 
 ## Sensors
 
@@ -61,16 +67,19 @@ The controller may advance only when all inputs for the next gate are observable
 
 1. **Private capture decision (settled).** Discovery automatically captures source-faithful prompt
    text after redaction, in the gitignored local sidecar. Capture is not public approval. Before the
-   combined Phase 1+2 release, define user-initiated deletion for one receipt and for the whole
-   sidecar, atomic rewrite/delete behavior, and what regeneration does. Deletion must not relax any
-   public-safety gate or imply that an already published copy can be recalled.
-2. **Selection decision (open).** Separate evidence eligibility from editorial worth. Declare
-   inclusion, exclusion, deterministic tie/order behavior, and reader-facing volume bounds for both
-   techniques and forward material. If evidence supports only narrow cue capture, name it narrowly
-   and defer broader "interesting material" discovery.
-3. **Carry lifecycle decision (open).** Separate history needed for zombie suppression from rows
-   worth resurfacing. Declare a selective retirement or bounded recurrence policy and a long-run
-   acceptance sequence. `--no-lanes` is not a per-row lifecycle control.
+   combined Phase 1+2 release, user-initiated deletion was required. A2 now settles individual and
+   all-items deletion, atomic replacement, no-text tombstones, ordinary-rescan suppression, and a
+   separate explicit reset. Deletion never relaxes a public-safety gate or implies that an already
+   built, copied, or published artifact can be recalled.
+2. **Selection decision (approved).** A1 separates evidence eligibility from editorial worth and
+   ratifies the roadmap's disclosed floor, weights, category-specific eligibility signals, and
+   deterministic order. A4 ratifies placement, volume bounds, omission disclosure, and explicit
+   keeps. The policy names its narrow evidence basis and makes no broader "interesting material" or
+   universal-importance claim.
+3. **Carry lifecycle decision (approved).** A5 separates suppression history from rows worth
+   resurfacing. Only unresolved ideas and next steps recur automatically, for two following digests;
+   a manual renewal lasts one digest; terminal rows retire; and history is bounded to 12 weeks.
+   `--no-lanes` remains a build-wide compatibility control, not a per-row lifecycle control.
 4. **Persona decision (settled for this scope).** Do not infer, persist, or rank by persona in
    Phases 1-4. A source prompt that explicitly defines a persona may be named as a technique only
    when it passes the ordinary Phase 2 evidence contract. Persona-based selection or framing is a
@@ -79,7 +88,7 @@ The controller may advance only when all inputs for the next gate are observable
 5. **Release decision (settled).** Phase 1 and Phase 2 are implementation work packages behind one
    release gate. Their identity carrier, exact encoding, shared validators, corpus boundary, and
    first reader-visible output advance or roll back together.
-6. **Public prompt decision (settled flow, open thresholds).** Explicit approval is an exception,
+6. **Public prompt decision (settled flow and thresholds).** Explicit approval is an exception,
    not a requirement for every public-safe prompt and not a substitute for privacy validation.
    Automatic capture, model selection, a technique row, deletion, or material strength alone never
    establishes public safety. When the public-prompt renderer is enabled, an individual prompt is
@@ -107,7 +116,7 @@ The controller may advance only when all inputs for the next gate are observable
    privacy-edited indicator when changed, never private text or transform details. Build re-resolves
    the hashes and policy and verify-or-aborts on mismatch.
 
-7. **Privacy triage decision (settled shape, open thresholds).** Privacy is an independent
+7. **Privacy triage decision (settled policy).** Privacy is an independent
    evaluation dimension, not a first-hit rejection shortcut and not a mandatory-approval signal.
    Triage uses an ordered decision table rather than an invented aggregate score: material-strength
    class, raw privacy-risk class, feasible transform class, transform extent, residual privacy-risk
@@ -115,30 +124,31 @@ The controller may advance only when all inputs for the next gate are observable
    (`automatic-safe`, `needs-approval`, or `excluded`). For a promising item the default sequence is
    assess, attempt the smallest meaning-preserving privacy transformation, validate the rendition,
    then choose the terminal decision. Low or medium raw risk cannot exclude or automatically force
-   approval before that attempt. The gate must declare an auditable target for the share of strong
+   approval before that attempt. A3 defines `strong` as explicit keep or score at/above the approved
+   floor. Automatic handling requires residual low risk, 100-percent changed-span accounting,
+   allowlisted canonical replacements, no unknown mapping or validator uncertainty, and at most 20
+   percent of non-whitespace source characters changed. The A7 proof reports the share of strong
    candidates reaching `automatic-safe`, using all strong candidates entering privacy triage as the
-   denominator, and demonstrate it on representative clean-room fixtures. No numeric target is
-   inferred here. Residual high risk after every permitted
+   denominator. No numeric quota is approved for the current slices, and no quota may weaken the
+   safety table. Residual high risk after every permitted
    minor transform is a non-compensatory item stop: material strength cannot outweigh it. The item
    is excluded with a count-only diagnostic while the rest of the safe report may continue. Any
    privacy hit that survives into the final public collection remains a build-level verify-or-abort
    failure and writes nothing.
 
-   The open, auditable policy choices are: the evidence-backed definition of `promising` and
-   `strong`; raw and residual risk classes; the exact automatic-safe, escalation, and exclusion
-   decision-table rows; the allowed operation types and maximum per-operation and total changed-span
-   extent; approved generalization mappings; what makes a case ambiguous or unusual; the approval
-   queue/control shape; the `automatic-safe` share target; where a surfaced prompt appears; and the
-   visible privacy-edited wording.
-   Undefined or unmeasurable thresholds fail closed to `needs-approval`; unavailable approval leaves
-   the item private. Implementation stops until these thresholds and controls are reviewed.
+   A3 and A4 settle the current automatic-safe, needs-approval, exclusion, placement, and visible
+   `Privacy edited.` rules. Generalization mappings, a local approval queue, and a numeric
+   automatic-safe target remain Slice 4 implementation choices and require a separately reviewed
+   contract before they can broaden the automatic path. Undefined or unmeasurable behavior fails
+   closed to `needs-approval`; unavailable approval leaves the item private.
 
-8. **Output/carry transaction decision (open).** Before Phase 4, specify one cross-platform
-   transaction or durable recovery protocol for the primary artifact and sole forward-index
-   authority. Fault injection must prove that a failure at every write, flush, or rename boundary
-   either leaves both at the prior state, advances both, or leaves a redacted recovery record that
-   blocks later carry decisions until reconciled. A count-free warning after preserving a newer
-   visible artifact with an older index is not sufficient.
+8. **Output/carry transaction decision (approved).** A6 specifies the cross-platform, hash-bound
+   pending protocol for the primary artifact and sole carry authority. Exact-hash recovery may
+   promote pending automatically; output mismatch requires explicit discard and a fresh prepare and
+   build; every unknown state fails closed. Fault injection must prove that a failure at every write,
+   flush, phase rewrite, or rename boundary either leaves both at the prior state, advances both, or
+   leaves a redacted recovery record that blocks later carry decisions until reconciled. A warning
+   after preserving a newer visible artifact with an older index is not sufficient.
 
 ## Actuators
 
@@ -201,7 +211,10 @@ After all phase gates pass, run one clean-room end-to-end completed-week scenari
 authoring, validation, build, rendering, carry, and the following week's suppression/resurfacing.
 Record expected and actual inclusions, exclusions, order, visible counts, receipts, diagnostics,
 output bytes for the lane-absent control, and cross-week state. Then run the full test suite and a
-fresh review-loop.
+fresh review-loop. A7 makes this predeclared representative proof mandatory, expands it to both
+supported tools and all six categories, and requires the multi-week recurrence, renewal, retirement,
+tombstone, pruning, target-compatibility, and transaction fault cases recorded in
+`owner-approval.md`.
 
 Completion requires: zero unresolved load-bearing review findings; every required sensor green;
 independently shippable Phase 3 and Phase 4 checkpoints; one combined Phase 1+2 release checkpoint;
@@ -209,29 +222,31 @@ no personal data in committed evidence; and no external action.
 
 ## Review-loop gate
 
-The execution-grounded review-loop verdict on checkpoint `9e30b0a` is **NOT CLEAN**. Runtime
-implementation is stopped. Corrective review closed the stale epic provenance, post-authoring
-`--explain-lanes` retry, missing exact identity-index APIs, collision-count unit, and contradictory
-Phase 1/Phase 2 ship-alone checks. Bounded re-review passed those corrections.
+The execution-grounded review-loop verdict on checkpoint `9e30b0a` remains historically **NOT
+CLEAN**. Corrective review closed the stale epic provenance, post-authoring `--explain-lanes` retry,
+missing exact identity-index APIs, collision-count unit, and contradictory Phase 1/Phase 2
+ship-alone checks. Bounded re-review passed those corrections.
 
-Load-bearing work remains: worthwhile inclusion/exclusion/order/volume rules; calibration or narrow
-claims for the four idea cues; routine/duplicate suppression and a display bound for Phase 3;
-private prompt deletion/regeneration; automatic-safe/escalation/exclusion thresholds and public
-prompt placement; selective cross-week retirement; output/index transaction recovery; and a
-representative end-to-end test that proves useful weekly selection rather than contract closure
-alone. The controller cannot advance until these inputs are settled and a fresh review-loop returns
-clean.
+The 2026-08-01 owner decision resolves the load-bearing product-policy findings without rewriting
+that historical verdict. Calibration, runtime acceptance, target compatibility, the A7
+representative proof, and a fresh independent review remain evidence gates. The controller may now
+advance through reviewed slice contracts, but no affected slice is complete or releasable until its
+named evidence is green and the fresh review has zero unresolved load-bearing findings.
 
 ## Uncertainty and stop conditions
 
 - The current corpus does not support general "interesting material" recall. Under-claim rather
   than presenting four lexical cues as comprehensive idea discovery.
 - The current corpus provides no evidence for persona-based ranking or framing.
-- Automatic private capture is approved, but the current plan provides no deletion command/flow,
-  public-prompt decision thresholds, escalated-approval control, prompt placement, or
-  deletion-versus-already-published policy.
-- Public prompt text remains prohibited from automatic bands until the dedicated triage,
-  privacy-transformation, receipt, and validation contract passes review. Once it does, explicit
-  approval is reserved for the `needs-approval` path; it is not imposed on `automatic-safe` items.
+- A2 approves deletion and regeneration policy. Exact all-items and reset command schemas remain
+  implementation work for their reviewed lifecycle slice. Deletion never recalls an already built,
+  copied, or published artifact.
+- A3 and A4 approve the current automatic-safe thresholds and placement. Public prompt text remains
+  prohibited until the dedicated triage, privacy-transformation, receipt, and validation contract
+  passes review. Explicit approval is reserved for a later `needs-approval` path; it is not imposed
+  on `automatic-safe` items and cannot override high risk or failed validation.
+- A5 and A6 authorize a reviewed Slice 3b contract for bounded cross-week lifecycle and hash-bound
+  recovery after the current-week Slice 3a work is complete and clean. They do not authorize Slice 4
+  generalization/approval UI or Slice 5 feedback behavior.
 - Any attempt to resolve those choices by inventing a UI, persona data, or ranking heuristic stops
   the controller and returns the decision to the user.
