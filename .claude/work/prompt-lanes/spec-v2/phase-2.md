@@ -247,7 +247,7 @@ are `lib/claude-adapter.mjs:524` and `lib/handoffs.mjs:103`. R30, not a consumer
 collision-aware indexes from this result. (D20, D28, D55, D65, D69, D73, D78)
 
 R9. Implement D10's two failure classes before the emit try block that starts at
-`lib/build.mjs:389`.
+`lib/build.mjs:420`.
 
 | D10 class | What could not be resolved | Behavior |
 | --- | --- | --- |
@@ -319,19 +319,19 @@ field against config roles, and case-insensitively scan `text` for each configur
 label as a substring. Featured and reference labels are permitted unless another gate catches them.
 Also scan `text` for configured `redaction.codenames`, `redaction.names`, and `redaction.terms`.
 This scan is case-insensitive, matching the current work-item term check at
-`lib/validate.mjs:131`. These are positive dishonesty hits in validate and build, reported by row id
+`lib/validate.mjs:132`. These are positive dishonesty hits in validate and build, reported by row id
 with no matched label or term echoed. Do not reuse work-item `itemRepoLabel` alone: the current
-field-only check begins at `lib/validate.mjs:121` and cannot see a label in lane prose.
+field-only check begins at `lib/validate.mjs:122` and cannot see a label in lane prose.
 (D7, D10, D32)
 
 R15. Run R3's `checkLaneVoice` over the technique rows when `voice.denyMeta` is enabled. The helper
 reuses the shipped `checkVoice` rules internally but remains separate from the work-item call at
-`lib/build.mjs:336`, so a lane violation reports its D67 technique id and can never be mislabeled as
+`lib/build.mjs:366`, so a lane violation reports its D67 technique id and can never be mislabeled as
 `item[N]`. This remains a D10 positive honesty hit and its message includes `--no-lanes`. (D7, D10,
 D55, D67)
 
 R16. Validate lane rows with a sibling pure validator rather than widening `validateItems`. Extract
-`techniques` beside the current work-item extraction at `lib/validate.mjs:187`. When a lane is
+`techniques` beside the current work-item extraction at `lib/validate.mjs:198`. When a lane is
 present, read and parse the sidecar; compare `week.start` and `week.end` field-wise only when the
 items envelope carries `week`. If the items envelope has no week, skip the comparison and print that
 the check was skipped. When `truncated === true`, run the copy check over available rows and warn
@@ -342,11 +342,11 @@ through the abort channel. (D10, D20, D31, D67)
 ### Attach point, receipt, render, and copy policy
 
 R17. Attach lane keys only after report-model assembly and before `deepRedact`, using a conditional
-spread. In markdown modes, copy the base model returned at `lib/build.mjs:323`, conditionally attach
+spread. In markdown modes, copy the base model returned at `lib/build.mjs:353`, conditionally attach
 the derived `techniques`, then pass that object to the redaction call currently at
-`lib/build.mjs:443`. In page mode, conditionally attach after `buildPageModel` returns at
-`lib/build.mjs:423` and before the redaction call at `lib/build.mjs:424`. Pass the untouched base
-model into `augmentSiteModel` at `lib/build.mjs:393`, and assert both its input and return have
+`lib/build.mjs:458`. In page mode, conditionally attach after `buildPageModel` returns at
+`lib/build.mjs:454` and before the redaction call at `lib/build.mjs:455`. Pass the untouched base
+model into `augmentSiteModel` at `lib/build.mjs:424`, and assert both its input and return have
 neither lane key. Never attach after redaction: the archive serializes the redacted model wholesale
 at `lib/archive.mjs:51`. (D5, D11)
 
@@ -425,7 +425,7 @@ call it with the actual technique presence and `hasForward: false`; Phase 3 wire
 already-authored forward boolean. No renderer reconstructs or edits a returned string. The
 "neither" branch stays byte-identical to the current digest line at
 `lib/emit/digest.mjs:25`, page foot at `lib/emit/page.mjs:410`, and README sample line at
-`README.md:128`. (D6, D16, D55, D60)
+`README.md:132`. (D6, D16, D55, D60)
 
 | Presence | Digest contract line | Page foot contract copy | README sample-output contract copy |
 | --- | --- | --- | --- |
@@ -450,7 +450,7 @@ wrapper changing. The current neither-lane lines are at `lib/emit/digest.mjs:49`
 R23. Keep work totals work-only. Do not change `emit`'s `itemCount` or archive `countItems`. When
 both authored lane arrays are empty/absent and the Phase 3 producer reports no raw engine row,
 preserve the existing successful-build
-stdout branch at `lib/build.mjs:476` byte for byte, including its optional goals and archive suffixes:
+stdout branch at `lib/build.mjs:563` byte for byte, including its optional goals and archive suffixes:
 `build: wrote <path> (<mode>, <N> item(s), <bytes> bytes).` When at least one lane is present under
 D6, including a non-empty authored array whose rows later under-claim to zero, use the extended form:
 `build: wrote <path> (<mode>, <N> item(s), <T> technique row(s), <F> carried-forward row(s), <bytes> bytes).`
@@ -512,7 +512,7 @@ R26. Update README, CLI help, SKILL, and AGENTS together. README documents the r
 sidecar role, copy/noun gates, lane failure classes, both flags, the contract-copy matrix, and the
 session-derived evidence limitation. Restate invariant 1 in README, SKILL, and `AGENTS.md` exactly as:
 `A source receipt on every emitted item. Git-checkable work uses a commit receipt. Private, display-role, and session-only work may use a transcript receipt. Every lane line uses a transcript receipt. An item reaching a renderer without its required receipt is a build error.`
-This replaces the current AGENTS wording at `AGENTS.md:40` and README wording at `README.md:294`
+This replaces the current AGENTS wording at `AGENTS.md:40` and README wording at `README.md:300`
 without narrowing the promise. Keep Phase 1's invariant 6 wording unchanged. (D8, D16, D17, D18,
 D76)
 

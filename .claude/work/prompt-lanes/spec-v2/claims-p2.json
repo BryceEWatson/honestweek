@@ -44,7 +44,7 @@
   {
     "why": "R9: lane gates must run before the emit try block",
     "file": "lib/build.mjs",
-    "line": 389,
+    "line": 420,
     "contains": "try {"
   },
   {
@@ -62,55 +62,55 @@
   {
     "why": "R14: current work validation's display discipline is field-based",
     "file": "lib/validate.mjs",
-    "line": 121,
+    "line": 122,
     "contains": "display discipline"
   },
   {
     "why": "R14: current work private-term matching is case-insensitive",
     "file": "lib/validate.mjs",
-    "line": 131,
+    "line": 132,
     "contains": "const lower = text.toLowerCase();"
   },
   {
     "why": "R15: current work-item voice collection is a separate build call",
     "file": "lib/build.mjs",
-    "line": 336,
+    "line": 366,
     "contains": "const violations = checkVoice"
   },
   {
     "why": "R16: validate currently extracts only the work items array",
     "file": "lib/validate.mjs",
-    "line": 187,
+    "line": 198,
     "contains": "let items ="
   },
   {
     "why": "R17: the base report model is assembled before mode dispatch",
     "file": "lib/build.mjs",
-    "line": 323,
+    "line": 353,
     "contains": "assembleReportModel"
   },
   {
     "why": "R17: site augmentation currently receives the base model",
     "file": "lib/build.mjs",
-    "line": 393,
+    "line": 424,
     "contains": "augmentSiteModel(model"
   },
   {
     "why": "R17: page mode currently builds a page model before redaction",
     "file": "lib/build.mjs",
-    "line": 423,
+    "line": 454,
     "contains": "const pageModel = buildPageModel"
   },
   {
     "why": "R17: page mode deep-redacts the page model",
     "file": "lib/build.mjs",
-    "line": 424,
+    "line": 455,
     "contains": "redactor.deepRedact(pageModel)"
   },
   {
     "why": "R17: markdown modes deep-redact the assembled model before emit",
     "file": "lib/build.mjs",
-    "line": 443,
+    "line": 458,
     "contains": "redactor.deepRedact(model)"
   },
   {
@@ -164,7 +164,7 @@
   {
     "why": "R21: README's current sample-output contract bytes",
     "file": "README.md",
-    "line": 128,
+    "line": 132,
     "contains": "Every line carries a status badge and a receipt"
   },
   {
@@ -206,7 +206,7 @@
   {
     "why": "R26: README currently states the launch receipt invariant",
     "file": "README.md",
-    "line": 294,
+    "line": 300,
     "contains": "A receipt on every line."
   },
   {
@@ -218,7 +218,7 @@
   {
     "why": "R23: lane-absent builds preserve the existing successful-build stdout format",
     "file": "lib/build.mjs",
-    "line": 476,
+    "line": 563,
     "contains": "build: wrote"
   }
 ]

@@ -8,37 +8,37 @@
   {
     "why": "R8: the current report model is assembled before output-mode dispatch",
     "file": "lib/build.mjs",
-    "line": 323,
+    "line": 353,
     "contains": "assembleReportModel"
   },
   {
     "why": "R5 and D45: build creates the normalized week whose start is the exact dispositionAsOf value",
     "file": "lib/build.mjs",
-    "line": 276,
+    "line": 294,
     "contains": "const week = normalizeWeek"
   },
   {
     "why": "R8 and A30: site augmentation currently receives the base report model",
     "file": "lib/build.mjs",
-    "line": 393,
+    "line": 424,
     "contains": "augmentSiteModel(model"
   },
   {
     "why": "R8: page mode builds its page model before redaction",
     "file": "lib/build.mjs",
-    "line": 423,
+    "line": 454,
     "contains": "const pageModel = buildPageModel"
   },
   {
     "why": "R8: page mode deep-redacts the page model before emit",
     "file": "lib/build.mjs",
-    "line": 424,
+    "line": 455,
     "contains": "redactor.deepRedact(pageModel)"
   },
   {
     "why": "R8: markdown modes deep-redact the assembled report model before emit",
     "file": "lib/build.mjs",
-    "line": 443,
+    "line": 458,
     "contains": "redactor.deepRedact(model)"
   },
   {
@@ -62,7 +62,7 @@
   {
     "why": "R10: emit currently returns a work-only item count",
     "file": "lib/emit/index.mjs",
-    "line": 122,
+    "line": 134,
     "contains": "const itemCount"
   },
   {
@@ -86,7 +86,7 @@
   {
     "why": "R12: validate currently extracts the work array at the forward-validator sibling point",
     "file": "lib/validate.mjs",
-    "line": 187,
+    "line": 198,
     "contains": "let items ="
   },
   {

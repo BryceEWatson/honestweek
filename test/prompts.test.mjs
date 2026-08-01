@@ -273,4 +273,5 @@ test('curation and privacy defaults are explicit and bounded',()=>{
   assert.throws(()=>normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}],privacy:{publicRenditions:{generalizationMappings:{x:'y'}}}}),/not supported/);
   assert.throws(()=>normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}],curation:{categoryCaps:{prompts:21}}}),/0 to 20/);
   assert.throws(()=>normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}],curation:{automaticCarryWeeks:9}}),/0 to 8/);
+  assert.throws(()=>normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}],privacy:{publicRenditions:{maxAutomaticChangedPercent:21}}}),/0 to 20/);
 });

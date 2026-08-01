@@ -138,7 +138,7 @@ a row once even if several lookups throw or do not resolve; do not drop the iden
 
 R5. Add `dispositionAsOf` to every derived current-week row before attachment, and pass it unchanged
 to the final Phase 2 formatting policy. Set it to the ISO date string in the normalized build
-`week.start` created at `lib/build.mjs:276`, identical on every row the build emits. Do not accept an
+`week.start` created at `lib/build.mjs:294`, identical on every row the build emits. Do not accept an
 authored value or derive a second date. (D16, D45)
 
 R6. Consume the four exact Phase 2 D55 text-gate exports on every row that survives R2 and R3; do
@@ -165,9 +165,9 @@ suppresses all lane corpus readers, gates, counts, and rendering. Every new lane
 R8. Keep the final private current rows intact through the R16 Phase 4 boundary, then attach only a
 non-empty public `forward` projection through D11: after report/page model construction and before
 `deepRedact`, never inside report-model assembly, never after redaction, and never on the site path.
-The current base-model assembly is at `lib/build.mjs:323`; site augmentation is at
-`lib/build.mjs:393`; page construction and redaction are at `lib/build.mjs:423` and
-`lib/build.mjs:424`; the markdown redaction call is at `lib/build.mjs:443`. Before attachment,
+The current base-model assembly is at `lib/build.mjs:353`; site augmentation is at
+`lib/build.mjs:424`; page construction and redaction are at `lib/build.mjs:454` and
+`lib/build.mjs:455`; the markdown redaction call is at `lib/build.mjs:458`. Before attachment,
 strip `ref`, the D69 canonical identity, `id`, and D57 `sourceKind`. Resolve a valid D62 pointer to
 its D8 handoff receipt and pass only `closedByReceipt` into D77's Phase 2 formatter, then strip its
 reversal ref as well. No emitter, site bundle,
@@ -187,7 +187,7 @@ work-only span site at `lib/emit/page.mjs:369`. (D8, D15, D16, D25, D35, D52, D5
 
 R10. Compute `hasForward` from the final post-drop authored-engine union and pass only that boolean
 to Phase 2's settled contract-copy and empty-state helpers. Do not edit any matrix cell. Keep the
-work item count at `lib/emit/index.mjs:122` and archive `countItems` at
+work item count at `lib/emit/index.mjs:134` and archive `countItems` at
 `lib/archive.mjs:17` work-only. Apply D63 to stdout: preserve the pre-lane build summary byte for
 the exact case where both authored lane arrays and all engine rows are absent, and use Phase 2's
 extended lane summary only when at least one authored lane is present or an engine row exists before
@@ -203,7 +203,7 @@ refs are stripped. Private/display/session-only work continues to follow D76 and
 onto a Git receipt path. (D8, D26, D76)
 
 R12. Add a sibling forward validator at the item extraction boundary currently at
-`lib/validate.mjs:187`; do not widen work-item validation. Validate the R3 authored shape,
+`lib/validate.mjs:198`; do not widen work-item validation. Validate the R3 authored shape,
 union-independent id rules, `closedBy`'s D56 string type, configured terms, D32 display checks, D30
 copy gate, D14/D51 noun behavior, and the sidecar states already settled in Phase 2. Validate cannot
 authenticate a handoff ref, a D65 source repo, or a `closedBy` target from the prompts sidecar, so

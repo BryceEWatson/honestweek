@@ -242,7 +242,7 @@ Closes: items 20, 32.
 handoff-sourced row. It is styled distinctly from a git SHA (a leading `session ` / `handoff ` label
 in markdown, a separate CSS class in HTML) so it cannot be misread as a commit.
 
-`AGENTS.md:40` and `README.md:294` are then restated to the **stronger and true** form:
+`AGENTS.md:40` and `README.md:300` are then restated to the **stronger and true** form:
 
 > A git receipt on every work line; a transcript receipt on every lane line.
 
@@ -689,7 +689,7 @@ Closes: items 16, 30.
 
 1. A lane row may carry an optional `repo` label field, checked exactly as a work item's is.
 2. **Independently**, every lane `text` is scanned for any `display`-role repo's configured label as
-   a substring, which is the naming half of the existing rule at `lib/validate.mjs:121-124`.
+   a substring, which is the naming half of the existing rule at `lib/validate.mjs:122-125`.
 
 Both parts are required; neither alone repeats the existing rule.
 

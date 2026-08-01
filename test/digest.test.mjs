@@ -24,6 +24,10 @@ import { loadConfig, OUTPUT_MODES } from '../lib/config.mjs';
 import { isReservedDigestItem } from '../lib/digest-schema.mjs';
 import { buildPageModel, render as renderPage } from '../lib/emit/page.mjs';
 
+const REPRESENTATIVE_PROOF = JSON.parse(readFileSync(
+  new URL('./fixtures/representative-proof.expected.json', import.meta.url), 'utf8',
+));
+
 function io() {
   let stdout = ''; let stderr = ''; let exitCode = null;
   return {
@@ -363,10 +367,15 @@ test('digest source scan pins exact receipts, boundaries, exclusions, and both t
       acceptedCueCount:digest.evidence.length,
     });
     const writtenEvidence = JSON.stringify(digest.evidence);
-    for (const excluded of [
+    const suppressed = [
       'before-week cue', 'after-week cue', 'subagent cue', 'Codex subagent cue', 'control cue',
       'orphaned control response', 'reasoning cue', 'tool output cue',
-    ]) assert.doesNotMatch(writtenEvidence, new RegExp(excluded));
+    ];
+    for (const excluded of suppressed) assert.doesNotMatch(writtenEvidence, new RegExp(excluded));
+    assert.deepEqual({
+      acceptedSources:[...new Set(digest.evidence.map((value) => value.source))].sort(),
+      ideaAssistantFinalExcluded:digest.scanExcluded.ideas['assistant-final'], suppressed,
+    }, REPRESENTATIVE_PROOF.closedCueSuppression);
   } finally { rmSync(f.root, { recursive:true, force:true }); }
 });
 
@@ -441,6 +450,13 @@ test('persistent high-risk residuals in every category are withheld before publi
     assert.equal(result.review.withheld.total['high-risk'], result.review.candidates.length);
     assert.equal(result.lane.items.length, 0);
     assert.doesNotMatch(JSON.stringify(result.lane), /person@example\.com/);
+    assert.deepEqual({
+      injectionPoint:'post-scan-integrity-fault',
+      canonicalScannerResidualHigh:digest.evidence.filter((value) => value.residualRisk === 'high').length,
+      byCategory:Object.fromEntries(DIGEST_CATEGORIES.map((category) => [category,
+        result.review.candidates.filter((value) => value.category === category && value.decision === 'high-risk').length])),
+      total:result.review.withheld.total['high-risk'], publicItems:result.lane.items.length,
+    }, REPRESENTATIVE_PROOF.persistentHighRisk);
 
     const keptReview = structuredClone(result.review);
     for (const candidate of keptReview.candidates) candidate.state = 'kept';
@@ -949,7 +965,9 @@ test('digest transaction faults leave only documented recoverable prefixes', asy
 
 test('all six categories apply unchanged, edited, private, and ambiguous privacy outcomes', async () => {
   const f = fixture();
+  const oldClaude = process.env.CLAUDE_CONFIG_DIR; const oldCodex = process.env.CODEX_HOME;
   try {
+    process.env.CLAUDE_CONFIG_DIR = f.claude; process.env.CODEX_HOME = f.codex;
     const safe = 'use deterministic evidence boundaries with enough ordinary lowercase words for this weekly review';
     jsonl(join(f.claude, 'projects', 'p', 'safe.jsonl'), claudeVerifiedTurn({
       sessionId:'safe-session', cwd:f.project,
@@ -986,18 +1004,20 @@ test('all six categories apply unchanged, edited, private, and ambiguous privacy
       prompt:`please verify the exact threshold\nIdea: ${email} ${'x'.repeat(68)}`,
       final:'verification completed', at:'2024-06-15T10:00:00.000Z',
     }));
+    const adapter = join(f.root, 'honestweek.site.mjs');
+    writeFileSync(adapter, "export const artifact='site-data.json'; export function transform(model){return {items:model.items.map((item)=>({id:item.id,category:item.category,summary:item.summary,receipts:item.receipts}))};}\n");
     writeFileSync(join(f.root, 'honestweek.config.json'), JSON.stringify({
       ...f.config,
-      curation:{ maxItems:50, categoryCaps:Object.fromEntries(DIGEST_CATEGORIES.map((category) => [category, 10])) },
+      output:{ mode:'site', adapter },
     }));
     let output = io();
     assert.equal(await runDigest({ cwd:f.root, argv:['prepare'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
     const review = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
     const lane = JSON.parse(readFileSync(join(f.root, 'honestweek.prompt-items.json'), 'utf8'));
     for (const category of DIGEST_CATEGORIES) {
-      const visible = lane.items.filter((item) => item.category === category);
-      assert.equal(visible.some((item) => item.privacy.transform === 'none'), true, `${category}: unchanged`);
-      assert.equal(visible.some((item) => item.privacy.transform === 'redaction'), true, `${category}: edited`);
+      const automaticSafe = review.candidates.filter((item) => item.category === category && item.privacy.decision === 'automatic-safe');
+      assert.equal(automaticSafe.some((item) => item.privacy.transform === 'none'), true, `${category}: unchanged`);
+      assert.equal(automaticSafe.some((item) => item.privacy.transform === 'redaction'), true, `${category}: edited`);
       assert.equal(review.candidates.some((item) => item.category === category && item.decision === 'private-source'), true, `${category}: private`);
       assert.equal(review.candidates.some((item) => item.category === category && item.decision === 'needs-approval'), true, `${category}: ambiguous`);
     }
@@ -1007,8 +1027,8 @@ test('all six categories apply unchanged, edited, private, and ambiguous privacy
     assert.equal(techniqueAudit?.privacy.changedPercent, 0);
     assert.equal(techniqueAudit?.privacy.sourceRefs.length, 2, 'supporting prompt remains an exact receipt without contaminating cue privacy');
     const thresholdIdeas = review.candidates.filter((item) => item.category === 'ideas' && [20,21].includes(item.changedPercent));
-    assert.equal(thresholdIdeas.find((item) => item.changedPercent === 20)?.decision, 'automatic-safe');
-    assert.equal(thresholdIdeas.find((item) => item.changedPercent === 21)?.decision, 'needs-approval');
+    assert.equal(thresholdIdeas.find((item) => item.changedPercent === 20)?.privacy.decision, 'automatic-safe');
+    assert.equal(thresholdIdeas.find((item) => item.changedPercent === 21)?.privacy.decision, 'needs-approval');
     for (const candidate of review.candidates) {
       assert.equal(candidate.contentHash, sha256(candidate.text), `${candidate.itemRef}: content hash`);
       assert.equal(candidate.privacy.renditionHash, sha256(candidate.text), `${candidate.itemRef}: rendition hash`);
@@ -1028,6 +1048,49 @@ test('all six categories apply unchanged, edited, private, and ambiguous privacy
     const publicText = JSON.stringify(lane);
     assert.doesNotMatch(publicText, /Nimbus|unmatched source confined/);
     assert.equal(review.candidates.length, lane.items.length + Object.values(review.withheld.total).reduce((sum, value) => sum + value, 0));
+    const proof = {
+      categories: Object.fromEntries(DIGEST_CATEGORIES.map((category) => [category, {
+        unchanged: review.candidates.filter((item) => item.category === category &&
+          item.privacy.decision === 'automatic-safe' && item.privacy.transform === 'none').length,
+        edited: review.candidates.filter((item) => item.category === category &&
+          item.privacy.decision === 'automatic-safe' && item.privacy.transform === 'redaction').length,
+        private: review.candidates.filter((item) => item.category === category && item.decision === 'private-source').length,
+        ambiguous: review.candidates.filter((item) => item.category === category && item.decision === 'needs-approval').length,
+        highRisk: review.candidates.filter((item) => item.category === category && item.decision === 'high-risk').length,
+      }])),
+      publicOrder: lane.items.map((item) => [
+        item.category, item.curationState, item.selection.score, item.selection.primaryReasonCode,
+        item.receipts.map((receipt) => `${receipt.source}:${receipt.kind}:${receipt.turn}`).join(','),
+      ].join('|')),
+      identityOrderHash:sha256(JSON.stringify(lane.items.map((item) => ({
+        itemRef:item.itemRef,
+        receipts:item.receipts.map(({ source, sessionKey, kind, turn, ref }) => ({ source, sessionKey, kind, turn, ref })),
+      })))),
+      excludedIdentity: (() => {
+        const excluded = review.candidates.filter((item) => item.decision !== 'automatic-safe');
+        return {
+          count:excluded.length,
+          hash:sha256(JSON.stringify(excluded.map((item) => ({
+            itemRef:item.itemRef, category:item.category, decision:item.decision, score:item.score,
+            reasonCode:item.selectionReasonCode,
+            receipts:item.receipts.map(({ source, sessionKey, kind, turn, ref }) => ({ source, sessionKey, kind, turn, ref })),
+          })))),
+        };
+      })(),
+      withheld: review.withheld.total,
+      scanExcluded: review.withheld.scanExcluded,
+      editBoundary: thresholdIdeas.map((item) => ({ changedPercent: item.changedPercent, decision: item.privacy.decision })),
+      calibration: (() => {
+        const strong = review.candidates.filter((item) => item.state === 'kept' || item.score >= review.policy.automaticMinScore);
+        const automaticSafe = strong.filter((item) => item.privacy.decision === 'automatic-safe');
+        return {
+          strongCandidatesEnteringTriage:strong.length,
+          automaticSafeStrongCandidates:automaticSafe.length,
+          reducedShare:`${automaticSafe.length}/${strong.length}`,
+        };
+      })(),
+    };
+    assert.deepEqual(proof, REPRESENTATIVE_PROOF.privacy);
 
     output = io();
     assert.equal(await runDigest({
@@ -1053,7 +1116,78 @@ test('all six categories apply unchanged, edited, private, and ambiguous privacy
     assert.doesNotMatch(output.stdout, /Nimbus|person@example\.com|ambiguous-session|[A-Za-z]:\\|honestweek-digest-/);
     output = io(); assert.equal(await runDigest({ cwd:f.root, argv:['explain','abc'], now:f.now, roots:f.roots, io:output }), 2);
     output = io(); assert.equal(await runDigest({ cwd:f.root, argv:['explain','000000000000'], now:f.now, roots:f.roots, io:output }), 2);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+
+    const hideRef = review.candidates.find((item) => item.category === 'techniques' && item.privacy.decision === 'automatic-safe').itemRef;
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['hide',hideRef.slice(0,12)], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    let controlledReview = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+    const hidden = controlledReview.candidates.find((item) => item.itemRef === hideRef);
+
+    const deleteRef = controlledReview.candidates.find((item) =>
+      item.category === 'decisions' && item.itemRef !== hideRef && item.privacy.decision === 'automatic-safe').itemRef;
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['delete',deleteRef.slice(0,12),'--yes'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    controlledReview = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+    const deleted = controlledReview.tombstones.find((item) => item.itemRef === deleteRef);
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['reset-tombstones',deleteRef.slice(0,12),'--yes'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['prepare'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['delete','--all','--yes'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    const bulkDeleted = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['reset-tombstones','--all','--yes'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['prepare'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    controlledReview = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+    const keepRefs = controlledReview.candidates.filter((item) => item.privacy.decision === 'automatic-safe').slice(0, 13).map((item) => item.itemRef);
+    assert.equal(keepRefs.length, 13);
+    for (const itemRef of keepRefs) {
+      output = io();
+      assert.equal(await runDigest({ cwd:f.root, argv:['keep',itemRef.slice(0,12)], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    }
+    const controlledLane = JSON.parse(readFileSync(join(f.root, 'honestweek.prompt-items.json'), 'utf8'));
+    controlledReview = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+    const controlProof = {
+      individual: {
+        hiddenState:hidden.state, hiddenDecision:hidden.decision,
+        deletedTombstoneHasText:Object.hasOwn(deleted, 'text'),
+        deletedTombstoneReceiptCount:deleted.evidenceRefs.length,
+      },
+      bulk: {
+        remainingCandidates:bulkDeleted.candidates.length,
+        tombstones:bulkDeleted.tombstones.length,
+        tombstonesContainText:bulkDeleted.tombstones.some((item) => Object.hasOwn(item, 'text')),
+      },
+      readerLoad: {
+        maxItems:controlledLane.policy.maxItems,
+        categoryCaps:controlledLane.policy.categoryCaps,
+        visible:controlledLane.items.length,
+        kept:controlledLane.items.filter((item) => item.curationState === 'kept').length,
+        automatic:controlledLane.items.filter((item) => item.curationState === 'automatic').length,
+        byCategory:Object.fromEntries(DIGEST_CATEGORIES.map((category) => [category,
+          controlledLane.items.filter((item) => item.category === category).length])),
+        categoryOmissions:controlledReview.withheld.total['category-capacity'],
+        overallOmissions:controlledReview.withheld.total['overall-capacity'],
+        disclosed:controlledLane.items.every((item) => item.summary.includes('overall target 12')),
+      },
+      identityOrderHash:sha256(JSON.stringify(controlledLane.items.map((item) => ({
+        itemRef:item.itemRef, receipts:item.receipts,
+      })))),
+    };
+    assert.deepEqual(controlProof, REPRESENTATIVE_PROOF.controls);
+    output = io();
+    assert.equal(await runValidate({ cwd:f.root, now:f.now, io:output }), 0, output.stderr);
+    output = io();
+    assert.equal(await runBuild({ cwd:f.root, now:f.now, io:output }), 0, output.stderr);
+    assert.equal(JSON.parse(readFileSync(join(f.root, 'site-data.json'), 'utf8')).items.length, controlledLane.items.length);
+  } finally {
+    if (oldClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = oldClaude;
+    if (oldCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = oldCodex;
+    rmSync(f.root, { recursive:true, force:true });
+  }
 });
 
 test('disabled public renditions withhold every otherwise visible category', async () => {

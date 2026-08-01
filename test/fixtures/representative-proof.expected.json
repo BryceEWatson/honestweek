@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "privacy": {
+    "categories": {
+      "prompts": { "unchanged": 1, "edited": 2, "private": 1, "ambiguous": 4, "highRisk": 0 },
+      "ideas": { "unchanged": 1, "edited": 3, "private": 1, "ambiguous": 2, "highRisk": 0 },
+      "techniques": { "unchanged": 2, "edited": 1, "private": 1, "ambiguous": 1, "highRisk": 0 },
+      "decisions": { "unchanged": 1, "edited": 1, "private": 1, "ambiguous": 1, "highRisk": 0 },
+      "reversals": { "unchanged": 1, "edited": 1, "private": 1, "ambiguous": 1, "highRisk": 0 },
+      "nextSteps": { "unchanged": 1, "edited": 2, "private": 1, "ambiguous": 1, "highRisk": 0 }
+    },
+    "publicOrder": [
+      "prompts|automatic|4|recurs|claude-code:human-prompt:1",
+      "prompts|automatic|4|recurs|codex:human-prompt:1",
+      "ideas|automatic|4|observed-verification|claude-code:human-cue:1",
+      "ideas|automatic|4|observed-verification|codex:assistant-final:1",
+      "techniques|automatic|2|observed-verification|claude-code:assistant-final:1,claude-code:human-prompt:1",
+      "techniques|automatic|2|observed-verification|claude-code:assistant-final:1,claude-code:human-prompt:1",
+      "techniques|automatic|2|observed-verification|claude-code:assistant-final:1,claude-code:human-prompt:1",
+      "decisions|automatic|5|decision-or-reversal|claude-code:assistant-final:1",
+      "decisions|automatic|5|decision-or-reversal|claude-code:assistant-final:1",
+      "reversals|automatic|5|decision-or-reversal|codex:assistant-final:1",
+      "nextSteps|automatic|5|recurs|claude-code:assistant-final:1",
+      "nextSteps|automatic|5|recurs|codex:assistant-final:1"
+    ],
+    "identityOrderHash": "8e965597a1287fa63e87145fa24b8247ba884c403acce65026a2b24fa342ab76",
+    "excludedIdentity": { "count": 21, "hash": "32536173e06b2b2371c2d415e1f5e0c47cf5fb64aeb4a0a65001476c28f3c883" },
+    "withheld": {
+      "hidden": 0,
+      "private-source": 6,
+      "high-risk": 0,
+      "needs-approval": 10,
+      "public-renditions-disabled": 0,
+      "missing-eligibility-signal": 0,
+      "below-automatic-floor": 0,
+      "category-capacity": 5,
+      "overall-capacity": 0
+    },
+    "scanExcluded": {
+      "prompts": { "human-cue": 0, "assistant-final": 0 },
+      "ideas": { "human-cue": 0, "assistant-final": 0 },
+      "techniques": { "human-cue": 0, "assistant-final": 0 },
+      "decisions": { "human-cue": 0, "assistant-final": 0 },
+      "reversals": { "human-cue": 0, "assistant-final": 0 },
+      "nextSteps": { "human-cue": 0, "assistant-final": 0 }
+    },
+    "editBoundary": [
+      { "changedPercent": 21, "decision": "needs-approval" },
+      { "changedPercent": 20, "decision": "automatic-safe" }
+    ],
+    "calibration": {
+      "strongCandidatesEnteringTriage": 33,
+      "automaticSafeStrongCandidates": 17,
+      "reducedShare": "17/33"
+    }
+  },
+  "persistentHighRisk": {
+    "injectionPoint": "post-scan-integrity-fault",
+    "canonicalScannerResidualHigh": 0,
+    "byCategory": { "prompts": 2, "ideas": 2, "techniques": 1, "decisions": 1, "reversals": 1, "nextSteps": 2 },
+    "total": 9,
+    "publicItems": 0
+  },
+  "closedCueSuppression": {
+    "acceptedSources": ["claude-code", "codex"],
+    "ideaAssistantFinalExcluded": 1,
+    "suppressed": [
+      "before-week cue", "after-week cue", "subagent cue", "Codex subagent cue",
+      "control cue", "orphaned control response", "reasoning cue", "tool output cue"
+    ]
+  },
+  "controls": {
+    "individual": {
+      "hiddenState": "hidden",
+      "hiddenDecision": "hidden",
+      "deletedTombstoneHasText": false,
+      "deletedTombstoneReceiptCount": 1
+    },
+    "bulk": {
+      "remainingCandidates": 0,
+      "tombstones": 33,
+      "tombstonesContainText": false
+    },
+    "readerLoad": {
+      "maxItems": 12,
+      "categoryCaps": { "prompts": 2, "ideas": 2, "techniques": 3, "decisions": 2, "reversals": 1, "nextSteps": 2 },
+      "visible": 13,
+      "kept": 13,
+      "automatic": 0,
+      "byCategory": { "prompts": 3, "ideas": 4, "techniques": 3, "decisions": 2, "reversals": 1, "nextSteps": 0 },
+      "categoryOmissions": 0,
+      "overallOmissions": 4,
+      "disclosed": true
+    },
+    "identityOrderHash": "1267e77b6e6ee9230ba73f74159c427479fdfb67c1563589cfbdfb7216431bd4"
+  },
+  "lifecycle": {
+    "week1": {
+      "publicOrder": [
+        "prompts|automatic|2|observed-verification|claude-code:human-prompt:1",
+        "prompts|automatic|2|observed-verification|codex:human-prompt:1",
+        "ideas|automatic|2|observed-verification|claude-code:human-cue:1",
+        "ideas|automatic|2|observed-verification|claude-code:assistant-final:1",
+        "techniques|automatic|2|observed-verification|claude-code:assistant-final:1,claude-code:human-prompt:1",
+        "decisions|automatic|5|decision-or-reversal|claude-code:assistant-final:1",
+        "reversals|automatic|5|decision-or-reversal|claude-code:assistant-final:1",
+        "nextSteps|automatic|3|unresolved-next-step|codex:assistant-final:1"
+      ],
+      "identityOrderHash": "6b2c802aaf8c4094655d9820ae8112a440b458bdebb8eefa90b39c17547151ad",
+      "representative": {
+        "categories": ["decisions", "ideas", "nextSteps", "prompts", "reversals", "techniques"],
+        "automaticSafe": 10,
+        "editedAutomaticSafe": 2,
+        "needsApproval": 2,
+        "privateSource": 2,
+        "wrapperSuppressed": true,
+        "boilerplateSuppressed": true,
+        "hiddenState": "hidden",
+        "individualTombstoneNoText": true,
+        "bulkRemaining": 0,
+        "bulkTombstones": 14,
+        "bulkTombstonesContainText": false
+      },
+      "carry": [
+        { "category": "ideas", "strength": "automatic", "firstSeenWeek": "2024-06-10", "lastShownWeek": "2024-06-10", "automaticThroughWeek": "2024-06-24", "manualTargetWeek": null },
+        { "category": "nextSteps", "strength": "automatic", "firstSeenWeek": "2024-06-10", "lastShownWeek": "2024-06-10", "automaticThroughWeek": "2024-06-24", "manualTargetWeek": null }
+      ]
+    },
+    "week2": {
+      "publicOrder": [
+        "prompts|automatic|2|observed-verification|codex:human-prompt:1",
+        "prompts|automatic|2|observed-verification|claude-code:human-prompt:1",
+        "ideas|kept|2|explicit-keep|claude-code:human-cue:1",
+        "techniques|automatic|2|observed-verification|codex:assistant-final:1,codex:human-prompt:1",
+        "decisions|automatic|5|decision-or-reversal|claude-code:assistant-final:1",
+        "nextSteps|carried|3|automatic-carry|codex:assistant-final:1"
+      ],
+      "identityOrderHash": "b198fc9281257f3731417ec8ed5ee4424574c4a7b4d1dda365ec822447b2757d",
+      "duplicateSuppression": {
+        "visibleIdeaCount": 1,
+        "superseded": 1,
+        "newItemRef": "d1b145771054623067c48b8accf651d67f255b88b458a080faba2da09a13ee78",
+        "receiptIdentityHash": "6b5177aedb978f0e5d9e9b5795b0364a1908eafb956ce699fd2e3bbd6e5bd414",
+        "lineageRef": "2c2e0313ecb05b63b24e0b8ee3aca7d1b7a9db9999c858eff684b776bbac7874",
+        "firstSeenWeek": "2024-06-10",
+        "automaticThroughWeek": "2024-06-24"
+      }
+    },
+    "week3": {
+      "publicOrder": [
+        "prompts|automatic|4|recurs|claude-code:human-prompt:1",
+        "prompts|automatic|4|recurs|codex:human-prompt:1",
+        "ideas|carried|2|automatic-carry|claude-code:human-cue:1",
+        "techniques|automatic|2|observed-verification|codex:assistant-final:1,codex:human-prompt:1",
+        "decisions|renewed|5|manual-renewal|claude-code:assistant-final:1",
+        "reversals|automatic|5|decision-or-reversal|claude-code:assistant-final:1",
+        "nextSteps|carried|3|automatic-carry|codex:assistant-final:1"
+      ],
+      "identityOrderHash": "3e8868940d243e291768210ec3f1de2bdf9abb4ba8eee6657688bc1273f381e3"
+    },
+    "week4": {
+      "publicOrder": [
+        "prompts|automatic|2|observed-verification|claude-code:human-prompt:1",
+        "prompts|automatic|2|observed-verification|codex:human-prompt:1",
+        "techniques|automatic|2|observed-verification|codex:assistant-final:1,codex:human-prompt:1",
+        "decisions|automatic|5|decision-or-reversal|claude-code:assistant-final:1"
+      ],
+      "identityOrderHash": "90dbac4dcbe052a2381b2396fcb0e584865aa3ebaaef81abf5ff0207de4e6b88",
+      "retired": [
+        { "category": "ideas", "reason": "terminal-picked-up", "terminalRef": "63dd90bcaf33d81360faf682e83b4b99298f38c1cdb2e2c772d99fd5468ef19a" },
+        { "category": "nextSteps", "reason": "automatic-limit", "terminalRef": null }
+      ]
+    },
+    "history": {
+      "count": 12,
+      "oldest": "2024-06-17",
+      "newest": "2024-09-02",
+      "activeEntryCounts": [3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "afterConfiguredReduction": { "count": 1, "oldest": "2024-09-09", "newest": "2024-09-09" }
+    }
+  },
+  "recoveryBoundaries": [
+    "pending:openSync", "pending:writeFileSync", "pending:fsyncSync", "pending:renameSync",
+    "primary:openSync", "primary:writeFileSync", "primary:fsyncSync", "primary:renameSync",
+    "phase:openSync", "phase:writeFileSync", "phase:fsyncSync", "phase:renameSync",
+    "carry:openSync", "carry:writeFileSync", "carry:fsyncSync", "carry:renameSync",
+    "remove:unlinkSync"
+  ]
+}

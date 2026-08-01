@@ -45,7 +45,7 @@
     },
     {
       "path": "decisions.md",
-      "sha256": "503aa68fea8122f0857408c0927b863280d72afe0fd4ee58f671db295b04b9ed"
+      "sha256": "ebb1fb9b6cac2aba0ccc89641c6dc2ec294909ba43602d78e89a1217322e8b24"
     },
     {
       "path": "implementation-control-plan.md",
@@ -61,15 +61,15 @@
     },
     {
       "path": "phase-2.md",
-      "sha256": "91037de1f6357ea68865d60d071aa7efccb9f89f8f6df972d9af3a854acdf278"
+      "sha256": "99af96a5c84dad98e2fddc6098afa57c8c1786d619dc5878e9e1ae41ef7fd7d4"
     },
     {
       "path": "phase-3.md",
-      "sha256": "b9e91e81aff21c4b9d2bc3c0d446161e95185a8f98f55d47d97c4b61ce2f77fa"
+      "sha256": "40264f268df1088be26b395bb376249bed47cd6df55d2968c27742681ef9df02"
     },
     {
       "path": "phase-4.md",
-      "sha256": "8bb7876eb1c0697bea229f29876cdfae372b11d7a8203fbbccfd1ed4fadcfc30"
+      "sha256": "1c45a575940f82fcd2f3c649b1d911cfd8394a08e6b09a84973603943d8637ec"
     },
     {
       "path": "producer-consumer-ledger.json",
@@ -90,6 +90,10 @@
     {
       "path": "audit-defects.json",
       "sha256": "081485a1d000fcd2b762e71bf430992858b613d2e039821fa6a2bf6f83360003"
+    },
+    {
+      "path": "../../../../test/fixtures/representative-proof.expected.json",
+      "sha256": "d2490c16a8bb50f670fd1f2bfbbcec53e4102ed7c1e754f5621d09b6cf5d5ae4"
     }
   ]
 }
