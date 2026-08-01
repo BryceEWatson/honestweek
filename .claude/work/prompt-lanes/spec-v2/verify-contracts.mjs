@@ -40,6 +40,7 @@ function checkManifest(manifest) {
   for (const required of [
     'owner-approval.md', 'product-roadmap.md', 'slice-1-end-to-end-prompts.md',
     'slice-2-balanced-weekly-digest.md', 'slice-3a-lifecycle-controls.md',
+    'slice-3b-carry-recovery.md',
     'decisions.md', 'implementation-control-plan.md', 'phase-assignment.md', 'phase-1.md',
     'phase-2.md', 'phase-3.md', 'phase-4.md',
     'producer-consumer-ledger.json', 'invariant-diff-tests.json', 'audit-closure.json',

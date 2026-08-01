@@ -36,6 +36,10 @@
       "sha256": "f41852d1baf26950249998e0d627d1898c4122d2543b80b8f38dc701960f27a3"
     },
     {
+      "path": "slice-3b-carry-recovery.md",
+      "sha256": "99dd9b3340506519d10530ab52306b9850d5f987c3a481b8c96d1c3ec5fa81c0"
+    },
+    {
       "path": "implementation-brief.md",
       "sha256": "2daea1c33886e3e62af98e2a180048d9b2b75186d70d0f4ef6057fc56fcea6c8"
     },
