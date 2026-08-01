@@ -52,6 +52,10 @@
       "sha256": "3eb52c64e420e5d5b4904e48215e9a87898cc3e47892779b5a1c52b7c2e1638b"
     },
     {
+      "path": "implementation-completion-evidence.md",
+      "sha256": "52768e284f867b623560eac48e755ede11ec7d6efd0b4f635d04e035c0e0b624"
+    },
+    {
       "path": "phase-assignment.md",
       "sha256": "72c66ed71bdbf80c4da0f3ad46aa4f7dae30b44489456f33902e9cf333a5ca41"
     },
