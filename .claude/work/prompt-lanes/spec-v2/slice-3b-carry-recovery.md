@@ -76,6 +76,8 @@ Canonical carry has exactly:
           "lineageRef": "64-hex",
           "itemRef": "64-hex",
           "category": "one of the six digest categories",
+          "subject": "redacted public-safe subject or null",
+          "subjectFingerprint": "64-hex or null",
           "reason": "automatic-limit, manual-expired, terminal-picked-up, terminal-ruled-out, hidden, deleted, privacy-withheld, or superseded",
           "terminalRef": "64-hex or null"
         }
@@ -94,13 +96,34 @@ Canonical carry has exactly:
 }
 ```
 
-Weeks sort oldest to newest and contain at most `curation.retentionWeeks` records, default 12.
+Define `effectiveRetentionWeeks = Math.min(12, config.curation.retentionWeeks)`. Weeks have unique
+start/end keys, sort oldest to newest, and contain at most that many records. Configured values above
+12 cannot weaken the owner-approved maximum.
 Entries and retired rows sort by lineage ref, then item ref. Tombstones sort by week start, then
 item ref, persist until explicit reset, and are not history-pruned. A candidate's hashes, evidence refs,
 receipts, score, privacy audit, and item identity are revalidated before use. `lineageRef` is the
 first item ref in a recurrence line. `itemRef` may advance to a current receipt-bearing duplicate;
 text is never an identity input. The latest week before the requested week is the only active-state
 source. Older records are audit history, not independent recurrence authorities.
+
+`subject` is the prior validated public-safe rendition, retained only inside the private carry
+history and re-gated against current privacy configuration before comparison. `subjectFingerprint`
+is SHA-256 over that subject after NFKC normalization,
+lowercasing, trimming, and collapsing Unicode whitespace to one ASCII space. It contains no text.
+Every retired row recomputes it from the retiring candidate before that candidate can be pruned.
+The retained-history no-reseed guard compares this exact fingerprint within the same category; it
+does not attempt a lexical guess from an item ref. The schema recomputes the fingerprint from the
+stored redacted subject; malformed, non-canonical, or mismatched state fails before use. Whenever
+the retiring subject is not currently low-risk, regardless of the higher-precedence retirement
+reason, both subject and fingerprint must be null, no unsafe text is persisted, and that row is
+excluded from the subject-based no-reseed guard. A low-risk retirement requires non-null subject and
+fingerprint for every reason, including `privacy-withheld` never being selected in that case.
+
+Preparing or building a week earlier than the canonical latest week is a rejected backfill and
+changes nothing. Rebuilding the canonical latest week replaces that one unique week record and
+derives it again from the latest record strictly before it; it never appends a duplicate or advances
+its own prior result. A later week appends, then prunes oldest whole records to the effective history
+bound. Gaps are allowed and follow the calendar expiry rules below.
 
 Every candidate embedded into carry is normalized to `state: "inbox"`. `strength` records only
 how the seed first became strong: `automatic` means it met the then-current automatic floor and
@@ -131,7 +154,7 @@ Private review version 1 and 2 remain loadable. Version 3 has the version-2 keys
 `renewals` and a `lifecycle` object. A renewal is exactly `{ itemRef, requestedAt, targetWeek }`.
 Lifecycle is exactly `{ carryHash, entries, retired }`; its entry is exactly
 `{ lineageRef, itemRef, firstSeenWeek, asOfWeek, mode }`, where mode is `automatic` or `manual`.
-Lifecycle retired rows use the no-text retired schema above. Version 3 always carries a tombstones
+Lifecycle retired rows use the redacted retired schema above. Version 3 always carries a tombstones
 array, even when empty. If no carry input, renewal, or lifecycle retirement exists, preparation
 keeps the existing version 1/2 private schemas and version 2 public-lane bytes.
 
@@ -159,7 +182,11 @@ items unless a due manual renewal is the reason they appear.
 
 ## Recurrence, duplicate handling, and retirement
 
-Only a currently public-safe selected idea or next step seeds automatic carry. Define
+Only a currently public-safe selected unresolved idea or next step seeds automatic carry. A next
+step's existing explicit category is unresolved evidence. An idea is unresolved only when its source
+uses the new closed label `unresolved idea: <subject>`; that cue mints discriminator
+`unresolved-idea:<ordinal>`. Plain `idea:` cues remain current-week ideas but never seed automatic
+carry. Define
 `effectiveAutomaticCarryWeeks = Math.min(2, config.curation.automaticCarryWeeks)`. Zero creates no
 automatic entry. Otherwise its window is exactly that many following calendar reporting weeks and
 `automaticThroughWeek = firstSeenWeek + 7 * effectiveAutomaticCarryWeeks days`. Configured values
@@ -168,7 +195,8 @@ start date, and week arithmetic adds or subtracts exact seven-day UTC calendar i
 reversals, prompts, and techniques never recur automatically.
 
 `digest carry-forward <item-ref>` accepts one uniquely resolved current review candidate in any
-category. The candidate must have a valid receipt and an `automatic-safe` privacy result. The
+category. The candidate must be live, not hidden or deleted, have a valid receipt, and have an
+`automatic-safe` privacy result. The
 command records one renewal for exactly the next calendar reporting week. It does not imply keep,
 change factual status, bypass privacy, or write output/carry. Repeating the same request is
 idempotent and preserves the original request time. Repeating it from a later digest is a new,
@@ -183,7 +211,7 @@ The lifecycle transition table is authoritative:
 
 | Prior/current observation | Current action | Next active state |
 | --- | --- | --- |
-| fresh selected idea/next step | render under ordinary rules; seed normalized candidate only when effective automatic carry is nonzero | automatic through `firstSeenWeek + 7 * effectiveAutomaticCarryWeeks days` |
+| fresh selected unresolved idea/next step | render under ordinary rules; seed normalized candidate only when effective automatic carry is nonzero | automatic through `firstSeenWeek + 7 * effectiveAutomaticCarryWeeks days` |
 | automatic due, at floor, capacity available | render as `carried` | preserve original first-seen and automatic-through dates |
 | automatic due but below floor or over capacity | withhold with ordinary disclosed reason | preserve only through the unchanged automatic window |
 | manual target equals current week | render once as `renewed`, even if automatic is also due | consume manual target; preserve any still-live original automatic window |
@@ -194,7 +222,7 @@ The lifecycle transition table is authoritative:
 | a reporting week is skipped | no implicit catch-up | manual target expires; automatic eligibility remains calendar-bounded |
 | automatic-through is before current week | do not render from automatic state | retire as `automatic-limit` |
 | carried subject has one current duplicate | use current receipt/candidate | keep original lineage, first-seen, and automatic-through bounds |
-| a retired lineage reappears as a current duplicate | ordinary current selection may render it | it does not seed a new automatic window; only explicit renewal may carry it |
+| a lineage retired within retained history has the same category and exact normalized subject fingerprint as a current candidate | ordinary current selection may render it | it does not seed a new automatic window; only explicit renewal may carry it |
 
 An entry with both a live automatic window and a due manual target uses manual mode for that week.
 The manual display does not extend, restart, or replace the original automatic bound.
@@ -217,6 +245,13 @@ Hidden or deleted carried candidates retire before rendering. A carried renditio
 low-risk under current configuration retires as `privacy-withheld` and never reaches the public
 lane. Automatic entries retire after their configured window. Manual entries retire after their
 target week unless explicitly renewed again. History pruning removes whole oldest week records only.
+Once a retired row leaves retained history it is no longer a recurrence guard; later evidence may
+start a new lineage under the ordinary seed rules.
+
+When observations overlap, exactly one retired reason is chosen in this precedence order:
+`deleted`, `hidden`, one valid `terminal-picked-up` or `terminal-ruled-out`, `privacy-withheld`,
+`superseded`, `automatic-limit`, then `manual-expired`. A terminal ref is non-null only for the two
+terminal reasons. Ambiguous terminal evidence aborts earlier and therefore never enters precedence.
 
 ## Deletion and reset controls
 
@@ -250,10 +285,11 @@ fails closed.
 ## Output/carry transaction and recovery
 
 The lifecycle transaction predicate is true when a validated version 2 digest lane has at least one
-currently selected idea/next step, the private review has a renewal or tombstone, canonical carry is
-present, or lifecycle preparation recorded an entry or retirement. This includes the first fresh
-week with no prior carry: build derives initial normalized entries from the selected lane items and
-their exact review candidates. Next carry is derived only from the validated prior carry bytes,
+currently selected `unresolved-idea:<ordinal>` candidate or next step, the private review has a
+renewal or tombstone, canonical carry is present, or lifecycle preparation recorded an entry or
+retirement. This includes the first fresh week with no prior carry: build derives initial normalized
+entries only from those lifecycle-eligible selected lane items and their exact review candidates.
+Next carry is derived only from the validated prior carry bytes,
 canonical current review, canonical public lane, resolved week, and active configuration. When the
 predicate is false, build uses the pre-Slice-3b emitter path, writes no carry sidecar, and its output
 and write behavior remain byte-identical.
