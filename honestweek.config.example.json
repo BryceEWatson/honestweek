@@ -31,6 +31,8 @@
   "curation": {
     "maxItems": 12,
     "automaticMinScore": 2,
+    "retentionWeeks": 12,
+    "automaticCarryWeeks": 2,
     "categoryCaps": {
       "prompts": 2,
       "ideas": 2,
