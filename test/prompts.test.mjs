@@ -146,10 +146,19 @@ test('observed verification requires a recognized command and explicit success',
       {type:'event_msg',timestamp:'2024-06-12T11:00:00.000Z',payload:{type:'user_message',message:'fourth prompt with enough neutral words for review'}},
       {type:'response_item',payload:{type:'function_call',name:'shell_command',call_id:'test',arguments:JSON.stringify({command:'node --test'})}},
       {type:'response_item',payload:{type:'function_call_output',call_id:'test',output:'Exit code: 0\n# pass 5\n# fail 0'}},
+      {type:'event_msg',timestamp:'2024-06-12T12:00:00.000Z',payload:{type:'user_message',message:'fifth prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'function_call',name:'shell_command',call_id:'sha',arguments:JSON.stringify({command:'node --test'})}},
+      {type:'response_item',payload:{type:'function_call_output',call_id:'sha',output:`Exit code: 0\n${'a'.repeat(40)}`}},
+      {type:'event_msg',timestamp:'2024-06-12T13:00:00.000Z',payload:{type:'user_message',message:'sixth prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'function_call',name:'shell_command',call_id:'quoted',arguments:JSON.stringify({command:"echo '; npm test PASS'"})}},
+      {type:'response_item',payload:{type:'function_call_output',call_id:'quoted',output:'Exit code: 0\nPASS'}},
+      {type:'event_msg',timestamp:'2024-06-12T14:00:00.000Z',payload:{type:'user_message',message:'seventh prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'function_call',name:'shell_command',call_id:'masked',arguments:JSON.stringify({command:'npm test > test.log 2>&1 || echo PASS'})}},
+      {type:'response_item',payload:{type:'function_call_output',call_id:'masked',output:'Exit code: 0\nPASS'}},
     ]);
     const config=normalizeConfig({identity:{authorEmails:['you@example.com']},week:{timezone:'UTC'},repos:[{path:project,label:'your-project',role:'featured'}]},{configDir:root});
     const got=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':claude,codex},now:new Date('2024-06-17T00:00:00Z')});
-    assert.deepEqual(got.prompts.map((prompt)=>prompt.observedVerification),[false,true,false,true]);
+    assert.deepEqual(got.prompts.map((prompt)=>prompt.observedVerification),[false,true,false,true,false,false,false]);
   }finally{rmSync(root,{recursive:true,force:true});}
 });
 
