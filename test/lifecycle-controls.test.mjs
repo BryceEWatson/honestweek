@@ -136,6 +136,210 @@ test('carry tombstones block a matching receipt until explicit reset regardless 
   ), [tombstone]);
 });
 
+test('a prompt tombstone retires a matching manual carry before it can regenerate', async () => {
+  const f = lifecycleFixture();
+  const priorClaude = process.env.CLAUDE_CONFIG_DIR;
+  const priorCodex = process.env.CODEX_HOME;
+  try {
+    process.env.CLAUDE_CONFIG_DIR = f.claude;
+    process.env.CODEX_HOME = f.codex;
+    writeWeekSources(f, 0,
+      'review the prompt deletion carry boundary with exact receipt evidence and verification',
+      'Decision: a matching prompt tombstone must stop a renewed carry before rendering',
+      'review the independent prompt deletion boundary with exact receipt evidence and verification',
+      'Technique: bind lifecycle deletion to every canonical tombstone source');
+    setItemsWeek(f.root, '2024-06-10', '2024-06-16');
+    let output = capture();
+    assert.equal(await runDigest({
+      cwd: f.root, argv: ['prepare', '--week', '2024-W24'],
+      now: new Date('2024-06-17T12:00:00.000Z'), roots: f.roots, io: output,
+    }), 0, output.stderr);
+    const prompt = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8')).candidates
+      .find((candidate) => candidate.category === 'prompts' && candidate.decision === 'automatic-safe');
+    assert.ok(prompt);
+    output = capture();
+    assert.equal(await runDigest({
+      cwd: f.root, argv: ['carry-forward', prompt.itemRef.slice(0, 12), '--week', '2024-W24'],
+      now: new Date('2024-06-17T12:00:00.000Z'), roots: f.roots, io: output,
+    }), 0, output.stderr);
+    output = capture();
+    assert.equal(await runBuild({
+      cwd: f.root, argv: ['--week', '2024-W24'],
+      now: new Date('2024-06-17T12:00:00.000Z'), io: output,
+    }), 0, output.stderr);
+    output = capture();
+    assert.equal(await runPrompts({
+      cwd: f.root, argv: ['delete', prompt.evidenceRefs[0].slice(0, 12), '--yes'],
+      now: new Date('2024-06-17T12:00:00.000Z'), io: output,
+    }), 0, output.stderr);
+
+    writeWeekSources(f, 1,
+      'review the following prompt deletion week with distinct receipt evidence and verification',
+      'Decision: keep deleted renewed evidence out of the public lane',
+      'review the following independent deletion week with distinct receipt evidence and verification',
+      'Technique: retain a no-text deletion audit without regenerating the prompt');
+    setItemsWeek(f.root, '2024-06-17', '2024-06-23');
+    output = capture();
+    assert.equal(await runDigest({
+      cwd: f.root, argv: ['prepare', '--week', '2024-W25'],
+      now: new Date('2024-06-24T12:00:00.000Z'), roots: f.roots, io: output,
+    }), 0, output.stderr);
+    const lane = JSON.parse(readFileSync(join(f.root, 'honestweek.prompt-items.json'), 'utf8'));
+    assert.equal(lane.items.some((item) => item.itemRef === prompt.itemRef), false);
+    const review = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+    assert.equal(review.lifecycle.retired.some((row) =>
+      row.itemRef === prompt.itemRef && row.reason === 'deleted'), true);
+  } finally {
+    if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = priorClaude;
+    if (priorCodex === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = priorCodex;
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('a prompt tombstone retires a cue-derived carry from the same transcript turn', async () => {
+  const f = lifecycleFixture();
+  const priorClaude = process.env.CLAUDE_CONFIG_DIR;
+  const priorCodex = process.env.CODEX_HOME;
+  const carriedText = 'close the cue deletion carry boundary after local verification';
+  try {
+    process.env.CLAUDE_CONFIG_DIR = f.claude;
+    process.env.CODEX_HOME = f.codex;
+    writeWeekSources(f, 0,
+      'review the cue deletion carry boundary with exact receipt evidence and verification',
+      `Next step: ${carriedText}`,
+      'review the independent cue deletion boundary with exact receipt evidence and verification',
+      'Next step: record a wholly separate follow-up with unrelated vocabulary');
+    setItemsWeek(f.root, '2024-06-10', '2024-06-16');
+    let output = capture();
+    assert.equal(await runDigest({
+      cwd: f.root, argv: ['prepare', '--week', '2024-W24'],
+      now: new Date('2024-06-17T12:00:00.000Z'), roots: f.roots, io: output,
+    }), 0, output.stderr);
+    const review = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+    const candidate = review.candidates
+      .find((value) => value.category === 'nextSteps' && value.text === carriedText && value.decision === 'automatic-safe');
+    assert.ok(candidate);
+    const promptStore = JSON.parse(readFileSync(join(f.root, 'honestweek.prompts.json'), 'utf8'));
+    const sourcePrompt = promptStore.prompts.find((prompt) => candidate.receipts.some((receipt) =>
+      receipt.source === prompt.source && receipt.sessionKey === prompt.sessionKey && receipt.turn === prompt.turn));
+    assert.ok(sourcePrompt);
+    assert.equal(candidate.evidenceRefs.includes(sourcePrompt.ref), false, 'cue identity deliberately omits the prompt ref');
+    output = capture();
+    assert.equal(await runDigest({
+      cwd: f.root, argv: ['carry-forward', candidate.itemRef.slice(0, 12), '--week', '2024-W24'],
+      now: new Date('2024-06-17T12:00:00.000Z'), roots: f.roots, io: output,
+    }), 0, output.stderr);
+    output = capture();
+    assert.equal(await runBuild({
+      cwd: f.root, argv: ['--week', '2024-W24'],
+      now: new Date('2024-06-17T12:00:00.000Z'), io: output,
+    }), 0, output.stderr);
+    output = capture();
+    assert.equal(await runPrompts({
+      cwd: f.root, argv: ['delete', sourcePrompt.ref.slice(0, 12), '--yes'],
+      now: new Date('2024-06-17T12:00:00.000Z'), io: output,
+    }), 0, output.stderr);
+
+    writeWeekSources(f, 1,
+      'review the following cue deletion week with distinct receipt evidence and verification',
+      `Next step: ${carriedText}`,
+      'review the following independent cue week with distinct receipt evidence and verification',
+      'Technique: retain a no-text deletion audit without regenerating the cue');
+    setItemsWeek(f.root, '2024-06-17', '2024-06-23');
+    output = capture();
+    assert.equal(await runDigest({
+      cwd: f.root, argv: ['prepare', '--week', '2024-W25'],
+      now: new Date('2024-06-24T12:00:00.000Z'), roots: f.roots, io: output,
+    }), 0, output.stderr);
+    const lane = JSON.parse(readFileSync(join(f.root, 'honestweek.prompt-items.json'), 'utf8'));
+    assert.equal(lane.items.some((item) => item.itemRef === candidate.itemRef), false);
+    assert.equal(lane.items.some((item) => item.title === carriedText), false);
+    const nextReview = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+    assert.equal(nextReview.lifecycle.retired.some((row) =>
+      row.itemRef === candidate.itemRef && row.reason === 'deleted'), true);
+  } finally {
+    if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = priorClaude;
+    if (priorCodex === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = priorCodex;
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('a hidden current cue replacement retires its carried lineage before rendering', async () => {
+  const f = lifecycleFixture();
+  const priorClaude = process.env.CLAUDE_CONFIG_DIR;
+  const priorCodex = process.env.CODEX_HOME;
+  const carriedText = 'review the hidden replacement boundary after local verification';
+  try {
+    process.env.CLAUDE_CONFIG_DIR = f.claude;
+    process.env.CODEX_HOME = f.codex;
+    writeWeekSources(f, 0,
+      'review the first hidden replacement week with exact receipt evidence and verification',
+      `Next step: ${carriedText}`,
+      'review a separate first week category with unrelated words and verification',
+      'Decision: keep the unrelated first-week source separate');
+    setItemsWeek(f.root, '2024-06-10', '2024-06-16');
+    let output = capture();
+    assert.equal(await runDigest({
+      cwd: f.root, argv: ['prepare', '--week', '2024-W24'],
+      now: new Date('2024-06-17T12:00:00.000Z'), roots: f.roots, io: output,
+    }), 0, output.stderr);
+    output = capture();
+    assert.equal(await runBuild({
+      cwd: f.root, argv: ['--week', '2024-W24'],
+      now: new Date('2024-06-17T12:01:00.000Z'), io: output,
+    }), 0, output.stderr);
+
+    writeWeekSources(f, 1,
+      'review the current hidden replacement week with a new receipt and verification',
+      `Next step: ${carriedText}`,
+      'review a separate current category with wholly unrelated words and verification',
+      'Technique: preserve the unrelated current-week source');
+    setItemsWeek(f.root, '2024-06-17', '2024-06-23');
+    output = capture();
+    assert.equal(await runDigest({
+      cwd: f.root, argv: ['prepare', '--week', '2024-W25'],
+      now: new Date('2024-06-24T12:00:00.000Z'), roots: f.roots, io: output,
+    }), 0, output.stderr);
+    const currentReview = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+    const current = currentReview.candidates.find((candidate) =>
+      candidate.category === 'nextSteps' && candidate.text === carriedText);
+    assert.ok(current);
+    output = capture();
+    assert.equal(await runDigest({
+      cwd: f.root, argv: ['keep', current.itemRef.slice(0, 12), '--week', '2024-W25'],
+      now: new Date('2024-06-24T12:00:30.000Z'), roots: f.roots, io: output,
+    }), 0, output.stderr);
+    const promptStore = JSON.parse(readFileSync(join(f.root, 'honestweek.prompts.json'), 'utf8'));
+    const origin = promptStore.prompts.find((prompt) => current.receipts.some((receipt) =>
+      receipt.source === prompt.source && receipt.sessionKey === prompt.sessionKey && receipt.turn === prompt.turn));
+    assert.ok(origin);
+    output = capture();
+    assert.equal(await runPrompts({
+      cwd: f.root, argv: ['hide', origin.ref.slice(0, 12)],
+      now: new Date('2024-06-24T12:01:00.000Z'), io: output,
+    }), 0, output.stderr);
+    output = capture();
+    assert.equal(await runDigest({
+      cwd: f.root, argv: ['prepare', '--week', '2024-W25'],
+      now: new Date('2024-06-24T12:02:00.000Z'), roots: f.roots, io: output,
+    }), 0, output.stderr);
+    const lane = JSON.parse(readFileSync(join(f.root, 'honestweek.prompt-items.json'), 'utf8'));
+    assert.equal(lane.items.some((item) => item.title === carriedText), false);
+    const hiddenReview = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+    assert.equal(hiddenReview.lifecycle.retired.some((row) => row.reason === 'hidden'), true);
+  } finally {
+    if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = priorClaude;
+    if (priorCodex === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = priorCodex;
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
 test('lifecycle weeks reject impossible dates and non-seven-day spans', () => {
   assert.throws(() => validateLifecycleWeek({ start:'2024-02-30', end:'2024-03-06' }), /invalid/);
   assert.throws(() => validateLifecycleWeek({ start:'2024-06-10', end:'2024-06-15' }), /invalid/);
@@ -828,19 +1032,22 @@ test('carry lineage validation rejects a self-consistent recurrence-window reset
   try {
     const config = normalizeConfig(JSON.parse(readFileSync(join(f.root, 'honestweek.config.json'), 'utf8')), f.root);
     const candidate = {
-      itemRef:'1'.repeat(64), category:'ideas', discriminator:'unresolved-idea:1', evidenceRefs:['2'.repeat(64)],
-      receipts:[{ source:'claude-code', sessionKey:'3'.repeat(64), turn:1, kind:'human-cue', ref:'2'.repeat(64) }],
+      itemRef:'1'.repeat(64), category:'ideas', discriminator:'unresolved-idea:1', evidenceRefs:['2'.repeat(64),'5'.repeat(64)],
+      receipts:[
+        { source:'claude-code', sessionKey:'3'.repeat(64), turn:1, kind:'human-cue', ref:'2'.repeat(64) },
+        { source:'claude-code', sessionKey:'3'.repeat(64), turn:1, kind:'human-prompt', ref:'5'.repeat(64) },
+      ],
       timestamp:'2024-06-10T10:00:00.000Z', project:'your-project', isPrivate:false, state:'inbox',
       text:'retain the bounded recurrence window', sourceHash:'4'.repeat(64),
       contentHash:sha256('retain the bounded recurrence window'), sourceLength:36, redactionCount:0,
       changedPercent:0, rawRisk:'low', rawDetectors:[], redactionOps:[], transform:'none', truncated:false,
       signals:['observed-verification'], score:2, selectionReasonCode:'observed-verification',
       selectionReason:'connected to observed verification', decision:'automatic-safe',
-      privacy:{ sourceRefs:['2'.repeat(64)], sourceContentHashes:[sha256('retain the bounded recurrence window')],
+      privacy:{ sourceRefs:['2'.repeat(64),'5'.repeat(64)], sourceContentHashes:[sha256('retain the bounded recurrence window'),sha256('supporting prompt')],
         renditionHash:sha256('retain the bounded recurrence window'), transform:'none', changedPercent:0,
         rawRisk:'low', residualRisk:'low', decision:'automatic-safe', policyVersion:1 },
     };
-    candidate.itemRef = sha256(`ideas\0${candidate.evidenceRefs[0]}\0${candidate.discriminator}`);
+    candidate.itemRef = sha256(`ideas\0${candidate.evidenceRefs.join('\0')}\0${candidate.discriminator}`);
     const entry = {
       lineageRef:candidate.itemRef, itemRef:candidate.itemRef, category:'ideas', firstSeenWeek:'2024-06-10',
       lastShownWeek:'2024-06-10', automaticThroughWeek:'2024-06-24', manualTargetWeek:null,

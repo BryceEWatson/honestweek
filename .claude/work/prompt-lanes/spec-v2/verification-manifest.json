@@ -97,7 +97,7 @@
     },
     {
       "path": "../../../../test/fixtures/representative-proof.expected.json",
-      "sha256": "5e397fdf5b348cefb1edfac0e045cd3503844273e44926222b672e5fdeb2c57a"
+      "sha256": "7d571104fd439ab2be4e8c1e2cf373a7652cca997faf2d02b69b95491b8e114c"
     }
   ]
 }

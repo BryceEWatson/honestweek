@@ -2,7 +2,7 @@
   "version": 1,
   "privacy": {
     "categories": {
-      "prompts": { "unchanged": 1, "edited": 2, "private": 1, "ambiguous": 4, "highRisk": 0 },
+      "prompts": { "unchanged": 3, "edited": 2, "private": 1, "ambiguous": 2, "highRisk": 0 },
       "ideas": { "unchanged": 1, "edited": 3, "private": 1, "ambiguous": 2, "highRisk": 0 },
       "techniques": { "unchanged": 2, "edited": 1, "private": 1, "ambiguous": 1, "highRisk": 0 },
       "decisions": { "unchanged": 1, "edited": 1, "private": 1, "ambiguous": 1, "highRisk": 0 },
@@ -12,7 +12,7 @@
     "publicOrder": [
       "prompts|automatic|4|recurs|claude-code:human-prompt:1",
       "prompts|automatic|4|recurs|codex:human-prompt:1",
-      "ideas|automatic|4|observed-verification|claude-code:human-cue:1",
+      "ideas|automatic|4|observed-verification|claude-code:human-cue:1,claude-code:human-prompt:1",
       "ideas|automatic|4|observed-verification|codex:assistant-final:1",
       "techniques|automatic|2|observed-verification|claude-code:assistant-final:1,claude-code:human-prompt:1",
       "techniques|automatic|2|observed-verification|claude-code:assistant-final:1,claude-code:human-prompt:1",
@@ -23,17 +23,17 @@
       "nextSteps|automatic|5|recurs|claude-code:assistant-final:1",
       "nextSteps|automatic|5|recurs|codex:assistant-final:1"
     ],
-    "identityOrderHash": "8e965597a1287fa63e87145fa24b8247ba884c403acce65026a2b24fa342ab76",
-    "excludedIdentity": { "count": 21, "hash": "32536173e06b2b2371c2d415e1f5e0c47cf5fb64aeb4a0a65001476c28f3c883" },
+    "identityOrderHash": "faea858364feba356eb46159e46bf8f8da568a43cc40d78e47b66471afd235b3",
+    "excludedIdentity": { "count": 21, "hash": "eb6c0a757114a5212b910fe6631b121c9a28102be81f5ac8e9c868de23a3c185" },
     "withheld": {
       "hidden": 0,
       "private-source": 6,
       "high-risk": 0,
-      "needs-approval": 10,
+      "needs-approval": 8,
       "public-renditions-disabled": 0,
       "missing-eligibility-signal": 0,
       "below-automatic-floor": 0,
-      "category-capacity": 5,
+      "category-capacity": 7,
       "overall-capacity": 0
     },
     "scanExcluded": {
@@ -50,8 +50,8 @@
     ],
     "automaticSafeShare": {
       "strongCandidatesEnteringTriage": 33,
-      "automaticSafeStrongCandidates": 17,
-      "reducedShare": "17/33"
+      "automaticSafeStrongCandidates": 19,
+      "reducedShare": "19/33"
     }
   },
   "persistentHighRisk": {
@@ -87,26 +87,26 @@
       "visible": 13,
       "kept": 13,
       "automatic": 0,
-      "byCategory": { "prompts": 3, "ideas": 4, "techniques": 3, "decisions": 2, "reversals": 1, "nextSteps": 0 },
+      "byCategory": { "prompts": 5, "ideas": 4, "techniques": 3, "decisions": 1, "reversals": 0, "nextSteps": 0 },
       "categoryOmissions": 0,
-      "overallOmissions": 4,
+      "overallOmissions": 6,
       "disclosed": true
     },
-    "identityOrderHash": "1267e77b6e6ee9230ba73f74159c427479fdfb67c1563589cfbdfb7216431bd4"
+    "identityOrderHash": "a82d547dd82ed646dd1e8348551207bb0cbe4a5c8aba8a7c5877dfc0b93f3be8"
   },
   "lifecycle": {
     "week1": {
       "publicOrder": [
         "prompts|automatic|2|observed-verification|claude-code:human-prompt:1",
         "prompts|automatic|2|observed-verification|codex:human-prompt:1",
-        "ideas|automatic|2|observed-verification|claude-code:human-cue:1",
+        "ideas|automatic|2|observed-verification|claude-code:human-cue:1,claude-code:human-prompt:1",
         "ideas|automatic|2|observed-verification|claude-code:assistant-final:1",
         "techniques|automatic|2|observed-verification|claude-code:assistant-final:1,claude-code:human-prompt:1",
         "decisions|automatic|5|decision-or-reversal|claude-code:assistant-final:1",
         "reversals|automatic|5|decision-or-reversal|claude-code:assistant-final:1",
         "nextSteps|automatic|3|unresolved-next-step|codex:assistant-final:1"
       ],
-      "identityOrderHash": "6b2c802aaf8c4094655d9820ae8112a440b458bdebb8eefa90b39c17547151ad",
+      "identityOrderHash": "02c42e1c5b891d26aa3b6943339e24e72f28a9228ece27db8e118657a0a46010",
       "representative": {
         "categories": ["decisions", "ideas", "nextSteps", "prompts", "reversals", "techniques"],
         "automaticSafe": 10,
@@ -130,18 +130,18 @@
       "publicOrder": [
         "prompts|automatic|2|observed-verification|codex:human-prompt:1",
         "prompts|automatic|2|observed-verification|claude-code:human-prompt:1",
-        "ideas|kept|2|explicit-keep|claude-code:human-cue:1",
+        "ideas|kept|2|explicit-keep|claude-code:human-cue:1,claude-code:human-prompt:1",
         "techniques|automatic|2|observed-verification|codex:assistant-final:1,codex:human-prompt:1",
         "decisions|automatic|5|decision-or-reversal|claude-code:assistant-final:1",
         "nextSteps|carried|3|automatic-carry|codex:assistant-final:1"
       ],
-      "identityOrderHash": "b198fc9281257f3731417ec8ed5ee4424574c4a7b4d1dda365ec822447b2757d",
+      "identityOrderHash": "9dd00942c467a9a2b8dee3ce06044d5b7e7d848a89f59b3962da12ef8c37281b",
       "duplicateSuppression": {
         "visibleIdeaCount": 1,
         "superseded": 1,
-        "newItemRef": "d1b145771054623067c48b8accf651d67f255b88b458a080faba2da09a13ee78",
-        "receiptIdentityHash": "6b5177aedb978f0e5d9e9b5795b0364a1908eafb956ce699fd2e3bbd6e5bd414",
-        "lineageRef": "2c2e0313ecb05b63b24e0b8ee3aca7d1b7a9db9999c858eff684b776bbac7874",
+        "newItemRef": "c320cba7bb6d774d67e485056cdfa680d550968a3acac62c0d147d02e81af912",
+        "receiptIdentityHash": "01ca9c29acb69a5eaab3e6a05d27865f4520d2deb39034b0c6440e7c9a6b813b",
+        "lineageRef": "322854e45e809a2a3be5a43a2f5dcd6a14ccbc3f5e20b8a33e1b544ed8571c5d",
         "firstSeenWeek": "2024-06-10",
         "automaticThroughWeek": "2024-06-24"
       }
@@ -150,13 +150,13 @@
       "publicOrder": [
         "prompts|automatic|4|recurs|claude-code:human-prompt:1",
         "prompts|automatic|4|recurs|codex:human-prompt:1",
-        "ideas|carried|2|automatic-carry|claude-code:human-cue:1",
+        "ideas|carried|2|automatic-carry|claude-code:human-cue:1,claude-code:human-prompt:1",
         "techniques|automatic|2|observed-verification|codex:assistant-final:1,codex:human-prompt:1",
         "decisions|renewed|5|manual-renewal|claude-code:assistant-final:1",
         "reversals|automatic|5|decision-or-reversal|claude-code:assistant-final:1",
         "nextSteps|carried|3|automatic-carry|codex:assistant-final:1"
       ],
-      "identityOrderHash": "3e8868940d243e291768210ec3f1de2bdf9abb4ba8eee6657688bc1273f381e3"
+      "identityOrderHash": "613ee8e4e4c2dc631eb2517309c5d246147ca4a4ab0cdf52d2e9e476fd2ee089"
     },
     "week4": {
       "publicOrder": [

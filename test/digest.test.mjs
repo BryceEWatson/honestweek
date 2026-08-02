@@ -472,6 +472,116 @@ test('persistent high-risk residuals in every category are withheld before publi
   } finally { rmSync(f.root, { recursive:true, force:true }); }
 });
 
+test('hidden and private candidates cannot supply digest recurrence evidence', async () => {
+  const f = fixture();
+  try {
+    const { config, promptStore, digest } = await scanFixture(f);
+    const publicPrompt = structuredClone(promptStore.prompts[0]);
+    const hiddenPrompt = structuredClone(promptStore.prompts[1]);
+    const privatePrompt = structuredClone(promptStore.prompts[1]);
+    const text = 'alpha beta gamma delta neutral weekly workflow';
+    for (const prompt of [publicPrompt, hiddenPrompt, privatePrompt]) {
+      prompt.text = text;
+      prompt.contentHash = sha256(text);
+      prompt.observedVerification = false;
+      prompt.followOnCorrection = false;
+      prompt.rawDetectors = [];
+      prompt.redactionCount = 0;
+      prompt.changedPercent = 0;
+      prompt.rawRisk = 'low';
+      prompt.truncated = false;
+    }
+    hiddenPrompt.state = 'hidden';
+    const privateIdentity = promptIdentity('codex', 'private-session', 3);
+    privatePrompt.ref = privateIdentity.ref;
+    privatePrompt.sessionKey = privateIdentity.sessionKey;
+    privatePrompt.turn = 3;
+    privatePrompt.isPrivate = true;
+    privatePrompt.repoKey = null;
+    privatePrompt.project = null;
+    const adjustedDigest = structuredClone(digest);
+    adjustedDigest.accounting.acceptedPromptCount = 3;
+    adjustedDigest.accounting.scannedPromptCount = 3;
+    const result = curateDigest(
+      { ...promptStore, prompts:[publicPrompt, hiddenPrompt, privatePrompt] }, adjustedDigest, config,
+      { start:'2024-06-10', end:'2024-06-16' }, f.now,
+      { outputBinding:{ mode:'page', adapterHash:null, objectives:false } },
+    );
+    const publicCandidate = result.review.candidates.find((candidate) => candidate.evidenceRefs.includes(publicPrompt.ref));
+    assert.equal(publicCandidate.signals.includes('recurs'), false);
+    assert.equal(publicCandidate.decision, 'missing-eligibility-signal');
+    assert.equal(result.lane.items.some((item) => item.itemRef === publicCandidate.itemRef), false);
+  } finally { rmSync(f.root, { recursive:true, force:true }); }
+});
+
+test('cue-derived candidates inherit a hidden origin prompt control', async () => {
+  const f = fixture();
+  try {
+    const { config, promptStore, digest } = await scanFixture(f);
+    const evidence = digest.evidence.find((value) => value.category === 'decisions');
+    assert.ok(evidence);
+    const prompt = promptStore.prompts.find((value) => value.ref === evidence.promptRef);
+    assert.ok(prompt);
+    const first = curateDigest(
+      promptStore, digest, config, { start:'2024-06-10', end:'2024-06-16' }, f.now,
+      { outputBinding:{ mode:'page', adapterHash:null, objectives:false } },
+    );
+    const firstCandidate = first.review.candidates.find((value) => value.evidenceRefs.includes(evidence.evidenceRef));
+    assert.ok(firstCandidate);
+    firstCandidate.state = 'kept';
+    prompt.state = 'hidden';
+    const result = curateDigest(
+      promptStore, digest, config, { start:'2024-06-10', end:'2024-06-16' }, f.now,
+      { outputBinding:{ mode:'page', adapterHash:null, objectives:false }, priorReview:first.review },
+    );
+    const candidate = result.review.candidates.find((value) => value.evidenceRefs.includes(evidence.evidenceRef));
+    assert.ok(candidate);
+    assert.equal(candidate.decision, 'hidden');
+    assert.equal(result.lane.items.some((item) => item.itemRef === candidate.itemRef), false);
+  } finally { rmSync(f.root, { recursive:true, force:true }); }
+});
+
+test('human cues retain the containing prompt receipt and conservative privacy audit', async () => {
+  const f = fixture();
+  try {
+    const { config, promptStore, digest } = await scanFixture(f);
+    const evidence = digest.evidence.find((value) => value.kind === 'human-cue' && value.category === 'ideas');
+    assert.ok(evidence);
+    const prompt = promptStore.prompts.find((value) => value.ref === evidence.promptRef);
+    assert.ok(prompt);
+    prompt.rawRisk = 'medium';
+    prompt.rawDetectors = ['capitalized-unknown'];
+    const result = curateDigest(
+      promptStore, digest, config, { start:'2024-06-10', end:'2024-06-16' }, f.now,
+      { outputBinding:{ mode:'page', adapterHash:null, objectives:false } },
+    );
+    const candidate = result.review.candidates.find((value) => value.evidenceRefs.includes(evidence.evidenceRef));
+    assert.ok(candidate);
+    assert.equal(candidate.decision, 'needs-approval');
+    assert.deepEqual(candidate.evidenceRefs, [evidence.evidenceRef, prompt.ref].sort());
+    assert.deepEqual(candidate.receipts.map((value) => value.kind).sort(), ['human-cue', 'human-prompt']);
+    assert.equal(candidate.rawDetectors.includes('capitalized-unknown'), true);
+    assert.equal(result.lane.items.some((item) => item.itemRef === candidate.itemRef), false);
+  } finally { rmSync(f.root, { recursive:true, force:true }); }
+});
+
+test('disabling public renditions preserves recurrence signals in the private review model', async () => {
+  const f = fixture();
+  try {
+    const { config, promptStore, digest } = await scanFixture(f);
+    config.privacy.publicRenditions.enabled = false;
+    const result = curateDigest(
+      promptStore, digest, config, { start:'2024-06-10', end:'2024-06-16' }, f.now,
+      { outputBinding:{ mode:'page', adapterHash:null, objectives:false } },
+    );
+    const recurringIdeas = result.review.candidates.filter((candidate) =>
+      candidate.category === 'ideas' && candidate.signals.includes('recurs'));
+    assert.ok(recurringIdeas.length >= 2);
+    assert.equal(recurringIdeas.every((candidate) => candidate.decision === 'public-renditions-disabled'), true);
+    assert.equal(result.lane.items.length, 0);
+  } finally { rmSync(f.root, { recursive:true, force:true }); }
+});
+
 test('digest keep, hide, and delete control every category through re-prepare, validate, and build', async () => {
   for (const command of ['keep','hide','delete']) {
     const f = fixture();
@@ -996,13 +1106,13 @@ test('all six categories apply unchanged, edited, private, and ambiguous privacy
     const email = 'person@example.com';
     jsonl(join(f.claude, 'projects', 'p', 'twenty.jsonl'), claudeVerifiedTurn({
       sessionId:'twenty-session', cwd:f.project,
-      prompt:`please verify the exact threshold\nIdea: ${email} ${'x'.repeat(72)}`,
-      final:'verification completed', at:'2024-06-14T10:00:00.000Z',
+      prompt:'please verify the exact threshold with an assistant-derived cue',
+      final:`Idea: ${email} ${'x'.repeat(72)}`, at:'2024-06-14T10:00:00.000Z',
     }));
     jsonl(join(f.claude, 'projects', 'p', 'twenty-one.jsonl'), claudeVerifiedTurn({
       sessionId:'twenty-one-session', cwd:f.project,
-      prompt:`please verify the exact threshold\nIdea: ${email} ${'x'.repeat(68)}`,
-      final:'verification completed', at:'2024-06-15T10:00:00.000Z',
+      prompt:'please verify the exact adjacent threshold with an assistant-derived cue',
+      final:`Idea: ${email} ${'x'.repeat(68)}`, at:'2024-06-15T10:00:00.000Z',
     }));
     const adapter = join(f.root, 'honestweek.site.mjs');
     writeFileSync(adapter, "export const artifact='site-data.json'; export function transform(model){return {items:model.items.map((item)=>({id:item.id,category:item.category,summary:item.summary,receipts:item.receipts}))};}\n");

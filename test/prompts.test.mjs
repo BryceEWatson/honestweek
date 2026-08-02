@@ -13,10 +13,12 @@ import { runPrompts } from '../lib/prompts.mjs';
 import { runValidate } from '../lib/validate.mjs';
 import { runBuild } from '../lib/build.mjs';
 import { scanPromptSources } from '../lib/prompt-adapters.mjs';
+import { mergePromptStore } from '../lib/prompt-store.mjs';
 import { withPromptLock } from '../lib/prompt-lock.mjs';
 import { localDateRangeInstants } from '../lib/resolve-week.mjs';
 import { atomicWriteText } from '../lib/atomic-json.mjs';
 import { loadSiteAdapter } from '../lib/site/load-adapter.mjs';
+import { readBoundedJsonlLines } from '../lib/bounded-jsonl.mjs';
 
 function makeIo(){let stdout='',stderr='',exit=null;return{out:(s)=>{stdout+=s},err:(s)=>{stderr+=s},exit:(c)=>{exit=c;return c},get stdout(){return stdout},get stderr(){return stderr},get exitCode(){return exit}};}
 function jsonl(path,rows){mkdirSync(join(path,'..'),{recursive:true});writeFileSync(path,rows.map((x)=>JSON.stringify(x)).join('\n')+'\n');}
@@ -113,6 +115,20 @@ test('recurrence and cue matching use closed placeholders and Unicode token boun
   assert.deepEqual(evaluatePrompts({prompts:[positive]},cfg,{start:'2024-06-10',end:'2024-06-16'}).evaluated[0].codes,['decision-request','next-step-request']);
 });
 
+test('hidden and private prompts cannot supply recurrence evidence to a public prompt',()=>{
+  const cfg=normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}]});
+  const text='alpha beta gamma delta neutral weekly workflow';
+  const publicPrompt=promptRecord(text,cfg,{session:'public'});
+  const hiddenPrompt=promptRecord(text,cfg,{session:'hidden',turn:2,state:'hidden'});
+  const privatePrompt=promptRecord(text,cfg,{session:'private',turn:3,isPrivate:true});
+  const evaluated=evaluatePrompts({prompts:[publicPrompt,hiddenPrompt,privatePrompt]},cfg,{start:'2024-06-10',end:'2024-06-16'}).evaluated;
+  const publicResult=evaluated.find((value)=>value.p.ref===publicPrompt.ref);
+  assert.equal(publicResult.codes.includes('recurs'),false);
+  assert.equal(publicResult.decision,'below-automatic-floor');
+  assert.equal(evaluated.find((value)=>value.p.ref===hiddenPrompt.ref).decision,'hidden');
+  assert.equal(evaluated.find((value)=>value.p.ref===privatePrompt.ref).decision,'private-source');
+});
+
 test('source wrappers are excluded while unknown user-authored XML remains eligible',async()=>{
   const root=mkdtempSync(join(tmpdir(),'honestweek-wrappers-'));
   try{
@@ -162,6 +178,127 @@ test('observed verification requires a recognized command and explicit success',
     const config=normalizeConfig({identity:{authorEmails:['you@example.com']},week:{timezone:'UTC'},repos:[{path:project,label:'your-project',role:'featured'}]},{configDir:root});
     const got=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':claude,codex},now:new Date('2024-06-17T00:00:00Z')});
     assert.deepEqual(got.prompts.map((prompt)=>prompt.observedVerification),[false,true,false,true,false,false,false,false]);
+  }finally{rmSync(root,{recursive:true,force:true});}
+});
+
+test('current Codex exec wrappers are classified only from one literal shell command and linked success',async()=>{
+  const root=mkdtempSync(join(tmpdir(),'honestweek-custom-exec-'));
+  try{
+    const project=join(root,'project'),codex=join(root,'codex');mkdirSync(project,{recursive:true});
+    const wrapper=(command,tail='')=>`const result = await tools.shell_command({command:${JSON.stringify(command)},workdir:"/path/to/your/repo"}); ${tail} text(result);`;
+    jsonl(join(codex,'sessions','custom.jsonl'),[
+      {type:'session_meta',payload:{id:'custom-exec-session',cwd:project}},
+      {type:'event_msg',timestamp:'2024-06-11T10:00:00.000Z',payload:{type:'user_message',message:'first current exec prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'custom_tool_call',name:'exec',call_id:'string-output',status:'completed',input:wrapper('node --test')}},
+      {type:'response_item',payload:{type:'custom_tool_call_output',call_id:'string-output',output:'Exit code: 0\n# pass 5\n# fail 0'}},
+      {type:'event_msg',timestamp:'2024-06-11T11:00:00.000Z',payload:{type:'user_message',message:'second current exec prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'custom_tool_call',name:'exec',call_id:'object-output',status:'completed',input:wrapper('npm test')}},
+      {type:'response_item',payload:{type:'custom_tool_call_output',call_id:'object-output',output:{content:[{type:'text',text:'Exit code: 0\n12 tests passed'}]}}},
+      {type:'event_msg',timestamp:'2024-06-11T12:00:00.000Z',payload:{type:'user_message',message:'third dynamic exec prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'custom_tool_call',name:'exec',call_id:'dynamic',status:'completed',input:'const command = "node --test"; const result = await tools.shell_command({command}); text(result);'}},
+      {type:'response_item',payload:{type:'custom_tool_call_output',call_id:'dynamic',output:'Exit code: 0\nPASS'}},
+      {type:'event_msg',timestamp:'2024-06-11T13:00:00.000Z',payload:{type:'user_message',message:'fourth ambiguous exec prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'custom_tool_call',name:'exec',call_id:'ambiguous',status:'completed',input:wrapper('node --test','await tools.shell_command({command:"git status"});')}},
+      {type:'response_item',payload:{type:'custom_tool_call_output',call_id:'ambiguous',output:'Exit code: 0\nPASS'}},
+      {type:'event_msg',timestamp:'2024-06-11T14:00:00.000Z',payload:{type:'user_message',message:'fifth duplicate exec prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'custom_tool_call',name:'exec',call_id:'duplicate',status:'completed',input:wrapper('node --test')}},
+      {type:'response_item',payload:{type:'custom_tool_call',name:'wait',call_id:'duplicate',status:'completed',input:'{}'}},
+      {type:'response_item',payload:{type:'custom_tool_call_output',call_id:'duplicate',output:'Exit code: 0\nPASS'}},
+      {type:'event_msg',timestamp:'2024-06-11T15:00:00.000Z',payload:{type:'user_message',message:'sixth command-boundary exec prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'custom_tool_call',name:'exec',call_id:'boundary',status:'completed',input:wrapper('node --test-reporter=tap')}},
+      {type:'response_item',payload:{type:'custom_tool_call_output',call_id:'boundary',output:'Exit code: 0\nPASS'}},
+      {type:'event_msg',timestamp:'2024-06-11T16:00:00.000Z',payload:{type:'user_message',message:'seventh fabricated output prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'custom_tool_call',name:'exec',call_id:'fabricated',status:'completed',input:'const result=await tools.shell_command({command:"node --test"}); text("Exit code: 0\\nPASS");'}},
+      {type:'response_item',payload:{type:'custom_tool_call_output',call_id:'fabricated',output:'Exit code: 0\nPASS'}},
+      {type:'event_msg',timestamp:'2024-06-11T17:00:00.000Z',payload:{type:'user_message',message:'eighth overridden command prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'custom_tool_call',name:'exec',call_id:'overridden',status:'completed',input:'const result=await tools.shell_command({command:"node --test","command":"echo PASS"}); text(result);'}},
+      {type:'response_item',payload:{type:'custom_tool_call_output',call_id:'overridden',output:'Exit code: 0\nPASS'}},
+      {type:'event_msg',timestamp:'2024-06-11T18:00:00.000Z',payload:{type:'user_message',message:'ninth spread command prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'custom_tool_call',name:'exec',call_id:'spread',status:'completed',input:'const result=await tools.shell_command({command:"node --test",...override}); text(result);'}},
+      {type:'response_item',payload:{type:'custom_tool_call_output',call_id:'spread',output:'Exit code: 0\nPASS'}},
+      {type:'event_msg',timestamp:'2024-06-11T19:00:00.000Z',payload:{type:'user_message',message:'tenth unreachable command prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'custom_tool_call',name:'exec',call_id:'unreachable',status:'completed',input:'if(false){const result=await tools.shell_command({command:"node --test"}); text(result);}'}},
+      {type:'response_item',payload:{type:'custom_tool_call_output',call_id:'unreachable',output:'Exit code: 0\nPASS'}},
+      {type:'event_msg',timestamp:'2024-06-11T20:00:00.000Z',payload:{type:'user_message',message:'eleventh cross protocol prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'custom_tool_call',name:'exec',call_id:'cross-protocol',status:'completed',input:wrapper('node --test')}},
+      {type:'response_item',payload:{type:'function_call_output',call_id:'cross-protocol',output:'Exit code: 0\nPASS'}},
+    ]);
+    const config=normalizeConfig({identity:{authorEmails:['you@example.com']},week:{timezone:'UTC'},repos:[{path:project,label:'your-project',role:'featured'}]},{configDir:root});
+    const got=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':join(root,'missing'),codex},now:new Date('2024-06-17T00:00:00Z')});
+    assert.deepEqual(got.prompts.map((prompt)=>prompt.observedVerification),[true,true,false,false,false,false,false,false,false,false,false]);
+    assert.doesNotMatch(JSON.stringify(got),/custom_tool_call|shell_command|string-output|object-output/);
+  }finally{rmSync(root,{recursive:true,force:true});}
+});
+
+test('Codex Voice metadata is discarded while transcribed session turns follow ordinary privacy and recurrence rules',async()=>{
+  const root=mkdtempSync(join(tmpdir(),'honestweek-codex-voice-'));
+  try{
+    const project=join(root,'project'),outside=join(root,'outside'),codex=join(root,'codex');
+    mkdirSync(project,{recursive:true});mkdirSync(outside,{recursive:true});
+    const message='review person@example.com in this neutral weekly workflow with enough words for bounded recurrence across independent sessions before any automatic draft selection';
+    const audio={audio:['raw-audio-must-not-persist'],local_audio:['local-audio-must-not-persist'],images:['image-must-not-persist'],local_images:['local-image-must-not-persist'],text_elements:[{text:'element-must-not-persist'}]};
+    jsonl(join(codex,'sessions','2024','voice-a.jsonl'),[
+      {type:'session_meta',payload:{id:'voice-a',cwd:project,originator:'desktop'}},
+      {type:'event_msg',timestamp:'2024-06-11T00:00:00.000Z',payload:{type:'user_message',message,...audio}},
+      {type:'response_item',payload:{type:'custom_tool_call',name:'exec',call_id:'voice-verify',status:'completed',input:'const result=await tools.shell_command({command:"node --test",workdir:"exec-wrapper-must-not-persist"}); text(result);'}},
+      {type:'response_item',payload:{type:'custom_tool_call_output',call_id:'voice-verify',output:'Exit code: 0\n# fail 0\nverification-output-must-not-persist'}},
+      {type:'response_item',payload:{type:'reasoning',summary:[{text:'reasoning-must-not-persist'}]}},
+    ]);
+    jsonl(join(codex,'archived_sessions','voice-b.jsonl'),[
+      {type:'session_meta',payload:{id:'voice-b',cwd:project,originator:'desktop'}},
+      {type:'event_msg',timestamp:'2024-06-12T00:00:00.000Z',payload:{type:'user_message',message,...audio}},
+    ]);
+    jsonl(join(codex,'sessions','2024','voice-private.jsonl'),[
+      {type:'session_meta',payload:{id:'voice-private',cwd:outside,originator:'desktop'}},
+      {type:'event_msg',timestamp:'2024-06-13T00:00:00.000Z',payload:{type:'user_message',message,...audio}},
+    ]);
+    const config=normalizeConfig({identity:{authorEmails:['you@example.com']},week:{timezone:'UTC'},repos:[{path:project,label:'your-project',role:'featured'}]},{configDir:root});
+    const got=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':join(root,'missing'),codex},now:new Date('2024-06-17T00:00:00Z')});
+    assert.equal(got.prompts.length,3);
+    const serialized=JSON.stringify(got);
+    for(const excluded of ['raw-audio-must-not-persist','local-audio-must-not-persist','image-must-not-persist','local-image-must-not-persist','element-must-not-persist','reasoning-must-not-persist','exec-wrapper-must-not-persist','verification-output-must-not-persist','voice-a','voice-b','voice-private',outside])assert.equal(serialized.includes(excluded),false,excluded);
+    assert.equal(got.prompts.every((prompt)=>prompt.text.includes('[redacted:email]')),true);
+    assert.deepEqual(got.prompts.map((prompt)=>prompt.observedVerification),[true,false,false]);
+    assert.equal(got.prompts.every((prompt)=>prompt.followOnCorrection===false),true);
+    const publicPrompts=got.prompts.filter((prompt)=>!prompt.isPrivate),privatePrompt=got.prompts.find((prompt)=>prompt.isPrivate);
+    assert.equal(publicPrompts.length,2);assert.ok(privatePrompt);
+    const publicRecurrence=evaluatePrompts({prompts:publicPrompts},config,{start:'2024-06-10',end:'2024-06-16'}).evaluated;
+    assert.equal(publicRecurrence.every((value)=>value.codes.includes('recurs')&&value.decision==='automatic-safe'),true,`complete assistant output is not required for public prompt recurrence: ${JSON.stringify(publicRecurrence.map((value)=>({codes:value.codes,decision:value.decision})))}`);
+    const privateCounterfactual=evaluatePrompts({prompts:[publicPrompts[1],privatePrompt]},config,{start:'2024-06-10',end:'2024-06-16'}).evaluated;
+    const publicResult=privateCounterfactual.find((value)=>value.p.ref===publicPrompts[1].ref);
+    assert.equal(publicResult.codes.includes('recurs'),false);
+    assert.equal(publicResult.decision,'below-automatic-floor');
+  }finally{rmSync(root,{recursive:true,force:true});}
+});
+
+test('follow-on correction signals require the next prompt to remain public and visible after controls merge',async()=>{
+  const root=mkdtempSync(join(tmpdir(),'honestweek-correction-'));
+  try{
+    const project=join(root,'project'),outside=join(root,'outside'),codex=join(root,'codex');
+    mkdirSync(project,{recursive:true});mkdirSync(outside,{recursive:true});
+    jsonl(join(codex,'sessions','private-next.jsonl'),[
+      {type:'session_meta',payload:{id:'private-next',cwd:project}},
+      {type:'event_msg',timestamp:'2024-06-11T10:00:00.000Z',payload:{type:'user_message',message:'review the public correction boundary with enough neutral words'}},
+      {type:'turn_context',payload:{cwd:outside}},
+      {type:'event_msg',timestamp:'2024-06-11T10:10:00.000Z',payload:{type:'user_message',message:'Actually keep this private follow-on wording out of public scoring'}},
+    ]);
+    jsonl(join(codex,'sessions','hidden-next.jsonl'),[
+      {type:'session_meta',payload:{id:'hidden-next',cwd:project}},
+      {type:'event_msg',timestamp:'2024-06-12T10:00:00.000Z',payload:{type:'user_message',message:'review the hidden correction boundary with enough neutral words'}},
+      {type:'event_msg',timestamp:'2024-06-12T10:10:00.000Z',payload:{type:'user_message',message:'Actually keep this hidden follow-on wording out of public scoring'}},
+    ]);
+    const config=normalizeConfig({identity:{authorEmails:['you@example.com']},week:{timezone:'UTC'},repos:[{path:project,label:'your-project',role:'featured'}]},{configDir:root});
+    const scanned=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':join(root,'missing'),codex},now:new Date('2024-06-17T00:00:00Z')});
+    const first=mergePromptStore(null,scanned,new Date('2024-06-17T00:00:00Z'));
+    const privatePrior=first.prompts.find((prompt)=>prompt.text.startsWith('review the public'));
+    const hiddenPrior=first.prompts.find((prompt)=>prompt.text.startsWith('review the hidden'));
+    const hiddenNext=first.prompts.find((prompt)=>prompt.text.startsWith('Actually keep this hidden'));
+    assert.equal(privatePrior.followOnCorrection,false);
+    assert.equal(hiddenPrior.followOnCorrection,true);
+    hiddenNext.state='hidden';
+    const merged=mergePromptStore(first,scanned,new Date('2024-06-17T00:01:00Z'));
+    assert.equal(merged.prompts.find((prompt)=>prompt.ref===hiddenPrior.ref).followOnCorrection,false);
+    assert.equal(merged.prompts.find((prompt)=>prompt.ref===hiddenNext.ref).state,'hidden');
   }finally{rmSync(root,{recursive:true,force:true});}
 });
 
@@ -300,6 +437,36 @@ test('malformed rows make a source unreadable instead of shifting receipt ordina
     const config=normalizeConfig({identity:{authorEmails:['you@example.com']},week:{timezone:'UTC'},repos:[{path:root,label:'your-project',role:'featured'}]},{configDir:root});
     const got=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':join(root,'missing'),codex},now:new Date('2024-06-17T00:00:00Z')});
     assert.equal(got.sourceStatus.codex.state,'unreadable');assert.equal(got.sourceStatus.codex.malformedLines,1);assert.equal(got.prompts.length,0);
+  }finally{rmSync(root,{recursive:true,force:true});}
+});
+
+test('an oversized JSONL record makes the primary source unreadable before parsing',async()=>{
+  const root=mkdtempSync(join(tmpdir(),'honestweek-oversized-'));
+  try{
+    const codex=join(root,'codex'),file=join(codex,'sessions','x.jsonl');
+    mkdirSync(join(file,'..'),{recursive:true});
+    writeFileSync(file,JSON.stringify({type:'padding',payload:'x'.repeat(8*1024*1024)})+'\n');
+    const config=normalizeConfig({identity:{authorEmails:['you@example.com']},week:{timezone:'UTC'},repos:[{path:root,label:'your-project',role:'featured'}]},{configDir:root});
+    const got=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':join(root,'missing'),codex},now:new Date('2024-06-17T00:00:00Z')});
+    assert.equal(got.sourceStatus.codex.state,'unreadable');
+    assert.equal(got.prompts.length,0);
+  }finally{rmSync(root,{recursive:true,force:true});}
+});
+
+test('bounded JSONL reads measure UTF-8 bytes consistently across LF and CRLF',async()=>{
+  const root=mkdtempSync(join(tmpdir(),'honestweek-bounded-jsonl-')),file=join(root,'records.jsonl');
+  try{
+    writeFileSync(file,'ab\r\nc\n');
+    const lines=[];for await(const line of readBoundedJsonlLines(file,{maxBytes:2}))lines.push(line);
+    assert.deepEqual(lines,['ab','c']);
+    writeFileSync(file,'é\n');
+    const unicode=[];for await(const line of readBoundedJsonlLines(file,{maxBytes:2}))unicode.push(line);
+    assert.deepEqual(unicode,['é']);
+    writeFileSync(file,'abc\n');
+    await assert.rejects(async()=>{for await(const line of readBoundedJsonlLines(file,{maxBytes:2}))void line;},/oversized record/);
+    const boundary='x'.repeat(65535);writeFileSync(file,`${boundary}\r\n`);
+    const split=[];for await(const line of readBoundedJsonlLines(file,{maxBytes:65535}))split.push(line);
+    assert.deepEqual(split,[boundary]);
   }finally{rmSync(root,{recursive:true,force:true});}
 });
 
