@@ -155,10 +155,13 @@ test('observed verification requires a recognized command and explicit success',
       {type:'event_msg',timestamp:'2024-06-12T14:00:00.000Z',payload:{type:'user_message',message:'seventh prompt with enough neutral words for review'}},
       {type:'response_item',payload:{type:'function_call',name:'shell_command',call_id:'masked',arguments:JSON.stringify({command:'npm test > test.log 2>&1 || echo PASS'})}},
       {type:'response_item',payload:{type:'function_call_output',call_id:'masked',output:'Exit code: 0\nPASS'}},
+      {type:'event_msg',timestamp:'2024-06-12T15:00:00.000Z',payload:{type:'user_message',message:'eighth prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'function_call',name:'shell_command',call_id:'test-option',arguments:JSON.stringify({command:"node --test-reporter=tap -e \"console.log('PASS')\""})}},
+      {type:'response_item',payload:{type:'function_call_output',call_id:'test-option',output:'Exit code: 0\nPASS'}},
     ]);
     const config=normalizeConfig({identity:{authorEmails:['you@example.com']},week:{timezone:'UTC'},repos:[{path:project,label:'your-project',role:'featured'}]},{configDir:root});
     const got=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':claude,codex},now:new Date('2024-06-17T00:00:00Z')});
-    assert.deepEqual(got.prompts.map((prompt)=>prompt.observedVerification),[false,true,false,true,false,false,false]);
+    assert.deepEqual(got.prompts.map((prompt)=>prompt.observedVerification),[false,true,false,true,false,false,false,false]);
   }finally{rmSync(root,{recursive:true,force:true});}
 });
 
