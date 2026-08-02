@@ -48,7 +48,7 @@
       { "changedPercent": 21, "decision": "needs-approval" },
       { "changedPercent": 20, "decision": "automatic-safe" }
     ],
-    "calibration": {
+    "automaticSafeShare": {
       "strongCandidatesEnteringTriage": 33,
       "automaticSafeStrongCandidates": 17,
       "reducedShare": "17/33"

@@ -4,12 +4,14 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CARRY_GITIGNORE } from '../lib/digest-carry.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 const README = readFileSync(resolve(ROOT, 'README.md'), 'utf8');
 const SKILL = readFileSync(resolve(ROOT, 'SKILL.md'), 'utf8');
 const BIN = readFileSync(resolve(ROOT, 'bin', 'honestweek.mjs'), 'utf8');
+const GITIGNORE = readFileSync(resolve(ROOT, '.gitignore'), 'utf8');
 const EXAMPLE = JSON.parse(readFileSync(resolve(ROOT, 'honestweek.config.example.json'), 'utf8'));
 const CONTRACT_VERIFIER = resolve(ROOT, '.claude', 'work', 'prompt-lanes', 'spec-v2', 'verify-contracts.mjs');
 
@@ -94,6 +96,11 @@ test('the sidecar section marks draft.json gitignored and items.json/output as t
   const sec = README.slice(README.indexOf('## Sidecars'));
   assert.match(sec, /honestweek\.draft\.json[\s\S]*?gitignored/i);
   assert.match(sec, /honestweek\.items\.json[\s\S]*?keep or ignore|keep/i);
+});
+
+test('the checked-in ignore template covers every private carry sidecar', () => {
+  const lines = new Set(GITIGNORE.split(/\r?\n/));
+  for (const entry of CARRY_GITIGNORE) assert.equal(lines.has(entry), true, `${entry} is ignored before runtime mutation`);
 });
 
 test('README and SKILL document all-category digest controls without weakening privacy', () => {

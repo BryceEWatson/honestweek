@@ -193,13 +193,13 @@ caps above, the exact weights below, 12, and 2. `weights` has exact keys
 `reversal-request`, and `next-step-request`, with defaults 3, 2, 2, 1, 1, 2, -2, 1, 1, and 1.
 The last three are prompt-request cues and cannot reach the automatic floor alone. `maxItems` is 1..50;
 `automaticMinScore` and each weight are integers -10..10; every category cap is 0..20;
-`retentionWeeks` is 1..52; `automaticCarryWeeks` is 0..8. Unknown categories, signals, or keys fail
+`retentionWeeks` is 1..12; `automaticCarryWeeks` is 0..2. Unknown categories, signals, or keys fail
 config validation rather than becoming silent policy.
 
 ## Retention and recurrence
 
 - Private prompt text is retained for 12 completed weeks by default; `kept` text is retained until
-  hidden or deleted. The range is configurable from 1 through 52 weeks.
+  hidden or deleted. The bounded retention range is configurable from 1 through 12 weeks.
 - Expired inbox/hidden text is removed and replaced with no-text tombstones. Tombstones prevent
   accidental regeneration and may be explicitly cleared only through a separate reset control.
 - An unresolved idea or next step may recur automatically for at most two following weekly digests.

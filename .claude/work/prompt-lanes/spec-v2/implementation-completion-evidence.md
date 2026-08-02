@@ -133,6 +133,11 @@ boundaries, disclosed caps and explicit keeps, individual and bulk deletion, res
 boilerplate suppression, duplicate replacement, two-week carry, one-digest renewal, terminal and
 automatic-limit retirement, configured site output, and 12-week pruning across 13 weeks.
 
+The proof's `automaticSafeShare` is the exact privacy-triage yield for this frozen fixture, not a
+statistical calibration estimate or a claim about population performance. The closed-cue reading is
+the predeclared acceptance and suppression coverage in `closedCueSuppression`; it makes no
+precision/recall inference beyond the clean-room corpus.
+
 The proof also injects failures at 17 pending, primary-output, phase-rewrite, carry, and final-remove
 boundaries. Each observed outcome is prior state, fully advanced state, or recognized blocking
 pending state. Separate negative controls cover mixed pending markers, path and policy rebinding,

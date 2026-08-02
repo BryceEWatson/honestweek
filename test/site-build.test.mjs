@@ -191,16 +191,15 @@ test('site mode ABORTS (exit 2) and writes nothing when authored prose states an
   }
 });
 
-test('site mode requires output.adapter (config validation)', () => {
+test('site mode requires output.adapter (config validation)', async () => {
   const work = mkdtempSync(join(tmpdir(), 'hw-site-noadapter-'));
   try {
     const config = { identity: { authorEmails: [ME] }, repos: [{ path: '/x', label: 'r', role: 'featured' }], output: { mode: 'site' } };
     writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify(config));
     // loadConfig is exercised through runBuild; the missing adapter fails config (exit 1).
     const io = makeIo();
-    return assert.rejects(runBuild({ cwd: work, io }), (e) => e instanceof ExitError && e.code === 1).then(() => {
-      assert.match(io.errBuf, /output\.adapter.*required|required.*adapter/i);
-    });
+    await assert.rejects(runBuild({ cwd: work, io }), (e) => e instanceof ExitError && e.code === 1);
+    assert.match(io.errBuf, /output\.adapter.*required|required.*adapter/i);
   } finally {
     cleanup(work);
   }

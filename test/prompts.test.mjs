@@ -43,6 +43,16 @@ test('prompt privacy covers the closed high-risk detector families',()=>{
   assert.equal(got.residualRisk,'low');assert.equal(replayRedactions(raw,got.redactionOps),got.text);
 });
 
+test('overlapping configured terms redact the complete sensitive span',()=>{
+  const cfg=normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}],redaction:{terms:['bob']}});
+  const raw=`please verify ${'neutral '.repeat(30)}bob@verylongcompanydomain.example before local review`;
+  const got=redactWithAudit(raw,cfg);
+  assert.equal(got.rawDetectors.includes('configured-term'),true);assert.equal(got.rawDetectors.includes('email'),true);
+  assert.doesNotMatch(got.text,/bob|verylongcompanydomain\.example/);assert.equal(replayRedactions(raw,got.redactionOps),got.text);
+  const evaluated=evaluatePrompts({prompts:[promptRecord(raw,cfg,{observedVerification:true})]},cfg,{start:'2024-06-10',end:'2024-06-16'}).evaluated[0];
+  assert.equal(evaluated.decision,'automatic-safe');assert.doesNotMatch(evaluated.p.text,/bob|verylongcompanydomain\.example/);
+});
+
 test('privacy boundaries reject ambiguity without partial IPv6 redaction',()=>{
   const cfg=normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}]});
   const twenty=redactWithAudit(`${'x'.repeat(24)} a@b.co`,cfg);
@@ -116,6 +126,33 @@ test('source wrappers are excluded while unknown user-authored XML remains eligi
   }finally{rmSync(root,{recursive:true,force:true});}
 });
 
+test('observed verification requires a recognized command and explicit success',async()=>{
+  const root=mkdtempSync(join(tmpdir(),'honestweek-verification-command-'));
+  try{
+    const project=join(root,'project'),claude=join(root,'claude'),codex=join(root,'codex');mkdirSync(project,{recursive:true});
+    jsonl(join(claude,'p','s.jsonl'),[
+      {type:'user',sessionId:'claude-session',timestamp:'2024-06-11T10:00:00.000Z',cwd:project,message:{content:'first prompt with enough neutral words for review'}},
+      {type:'assistant',sessionId:'claude-session',message:{content:[{type:'tool_use',name:'Bash',id:'noise',input:{command:'Write-Output PASS'}}]}},
+      {type:'user',sessionId:'claude-session',message:{content:[{type:'tool_result',tool_use_id:'noise',content:'PASS',is_error:false}]}},
+      {type:'user',sessionId:'claude-session',timestamp:'2024-06-11T11:00:00.000Z',cwd:project,message:{content:'second prompt with enough neutral words for review'}},
+      {type:'assistant',sessionId:'claude-session',message:{content:[{type:'tool_use',name:'Bash',id:'test',input:{command:'node --test'}}]}},
+      {type:'user',sessionId:'claude-session',message:{content:[{type:'tool_result',tool_use_id:'test',content:'# pass 4\n# fail 0',is_error:false}]}},
+    ]);
+    jsonl(join(codex,'sessions','x.jsonl'),[
+      {type:'session_meta',payload:{id:'codex-session',cwd:project}},
+      {type:'event_msg',timestamp:'2024-06-12T10:00:00.000Z',payload:{type:'user_message',message:'third prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'function_call',name:'shell_command',call_id:'noise',arguments:JSON.stringify({command:'git rev-parse HEAD'})}},
+      {type:'response_item',payload:{type:'function_call_output',call_id:'noise',output:`Exit code: 0\n${'a'.repeat(40)}`}},
+      {type:'event_msg',timestamp:'2024-06-12T11:00:00.000Z',payload:{type:'user_message',message:'fourth prompt with enough neutral words for review'}},
+      {type:'response_item',payload:{type:'function_call',name:'shell_command',call_id:'test',arguments:JSON.stringify({command:'node --test'})}},
+      {type:'response_item',payload:{type:'function_call_output',call_id:'test',output:'Exit code: 0\n# pass 5\n# fail 0'}},
+    ]);
+    const config=normalizeConfig({identity:{authorEmails:['you@example.com']},week:{timezone:'UTC'},repos:[{path:project,label:'your-project',role:'featured'}]},{configDir:root});
+    const got=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':claude,codex},now:new Date('2024-06-17T00:00:00Z')});
+    assert.deepEqual(got.prompts.map((prompt)=>prompt.observedVerification),[false,true,false,true]);
+  }finally{rmSync(root,{recursive:true,force:true});}
+});
+
 test('atomic writes preserve prior bytes at open, write, flush, and rename faults',()=>{
   for(const method of ['openSync','writeFileSync','fsyncSync','renameSync']){
     const root=mkdtempSync(join(tmpdir(),'honestweek-atomic-'));const file=join(root,'artifact.txt');writeFileSync(file,'prior');
@@ -165,8 +202,8 @@ test('dual-source prompt lane reaches validate and the existing standalone page'
       {type:'session_meta',payload:{id:'codex-session',cwd:project}},
       {type:'turn_context',payload:{cwd:project}},
       {type:'event_msg',timestamp:'2024-06-12T10:00:00.000Z',payload:{type:'user_message',message:prompt}},
-      {type:'response_item',payload:{type:'function_call',name:'shell_command',call_id:'c1'}},
-      {type:'response_item',payload:{type:'function_call_output',call_id:'c1',output:'# pass 4\n# fail 0'}},
+      {type:'response_item',payload:{type:'function_call',name:'shell_command',call_id:'c1',arguments:JSON.stringify({command:'node --test'})}},
+      {type:'response_item',payload:{type:'function_call_output',call_id:'c1',output:'Exit code: 0\n# pass 4\n# fail 0'}},
     ]);
     const config={identity:{authorEmails:['you@example.com']},week:{startsOn:'monday',timezone:'UTC'},repos:[{path:project,label:'your-project',role:'featured'}],redaction:{codenames:[],names:[],terms:[]},output:{mode:'page',file:join(root,'report.html')}};
     writeFileSync(join(root,'honestweek.config.json'),JSON.stringify(config));
@@ -266,12 +303,20 @@ test('stale prompt locks fail closed instead of racing automatic reclamation',as
   finally{rmSync(root,{recursive:true,force:true});}
 });
 
+test('prompt lock cleanup failure is reported instead of returning success',async()=>{
+  const root=mkdtempSync(join(tmpdir(),'honestweek-lock-cleanup-'));const lock=join(root,'honestweek.prompts.json.lock');
+  const fs={...nodeFs,unlinkSync(){const err=new Error('injected sharing violation');err.code='EBUSY';throw err;}};
+  try{await assert.rejects(()=>withPromptLock(root,async()=>42,{ensureIgnored:false,fs}),/could not remove its prompt lock/);assert.equal(existsSync(lock),true);}
+  finally{if(existsSync(lock))nodeFs.unlinkSync(lock);rmSync(root,{recursive:true,force:true});}
+});
+
 test('curation and privacy defaults are explicit and bounded',()=>{
   const cfg=normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}]});
   assert.equal(cfg.curation.automaticMinScore,2);assert.equal(cfg.curation.categoryCaps.prompts,2);
   assert.equal(cfg.privacy.publicRenditions.enabled,true);assert.equal(cfg.privacy.publicRenditions.maxAutomaticChangedPercent,20);
   assert.throws(()=>normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}],privacy:{publicRenditions:{generalizationMappings:{x:'y'}}}}),/not supported/);
   assert.throws(()=>normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}],curation:{categoryCaps:{prompts:21}}}),/0 to 20/);
-  assert.throws(()=>normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}],curation:{automaticCarryWeeks:9}}),/0 to 8/);
+  assert.throws(()=>normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}],curation:{automaticCarryWeeks:3}}),/0 to 2/);
+  assert.throws(()=>normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}],curation:{retentionWeeks:13}}),/1 to 12/);
   assert.throws(()=>normalizeConfig({identity:{authorEmails:['you@example.com']},repos:[{path:'.',label:'your-project',role:'featured'}],privacy:{publicRenditions:{maxAutomaticChangedPercent:21}}}),/0 to 20/);
 });

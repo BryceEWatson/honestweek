@@ -21,11 +21,11 @@
     },
     {
       "path": "product-roadmap.md",
-      "sha256": "25105a5d9b8bd9d50d2ab44e756fcb2822ef2333d13b6e2cc6a1e4ca2c4d7f56"
+      "sha256": "11f0ef5951a67cc27dcf48d373a55e3d09e1339cae9109db7bf824c1f68cdb8a"
     },
     {
       "path": "slice-1-end-to-end-prompts.md",
-      "sha256": "6110815ab03e030d21e5279be5427a1d01324c3fa470198c1820f73be3186b37"
+      "sha256": "a54e2f4e055e8d78b570e2d826e6916e9247b8e153855a1342ec525e86be5015"
     },
     {
       "path": "slice-2-balanced-weekly-digest.md",
@@ -49,11 +49,11 @@
     },
     {
       "path": "implementation-control-plan.md",
-      "sha256": "3eb52c64e420e5d5b4904e48215e9a87898cc3e47892779b5a1c52b7c2e1638b"
+      "sha256": "1ba2bf9941fa98fe5811c6c33a31f4f2d7f8b17d98f8bb3c376dc2429cf12111"
     },
     {
       "path": "implementation-completion-evidence.md",
-      "sha256": "52768e284f867b623560eac48e755ede11ec7d6efd0b4f635d04e035c0e0b624"
+      "sha256": "becba72a850f28b54d92c784690c2bb711c5176fb2225cdc392ca9272d927faf"
     },
     {
       "path": "phase-assignment.md",
@@ -97,7 +97,7 @@
     },
     {
       "path": "../../../../test/fixtures/representative-proof.expected.json",
-      "sha256": "d2490c16a8bb50f670fd1f2bfbbcec53e4102ed7c1e754f5621d09b6cf5d5ae4"
+      "sha256": "5e397fdf5b348cefb1edfac0e045cd3503844273e44926222b672e5fdeb2c57a"
     }
   ]
 }

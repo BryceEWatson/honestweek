@@ -250,14 +250,14 @@ at least 0.75. Recurrence is pairwise; it does not use a transitive cluster.
 For each accepted prompt, both adapters also derive two boolean follow-on signals without retaining
 assistant/tool text. `followOnCorrection` is true when the next accepted human turn in the same
 session begins, after whitespace, with `actually`, `correction`, `instead`, `rather`, or `no,`.
-`observedVerification` is true when a result from a linked shell tool named `Bash`, `shell_command`,
-or `exec_command` between this prompt and that next human turn (or session end) contains a complete
-40-hex commit token or matches `N passing|N passed|all tests passed|test(s) passed|PASS|# fail 0|✓`,
-case-insensitively, and does not match `build failed|compilation failed|test(s) failed|FAIL|# fail
-[1-9]`. Claude uses `tool_result` blocks linked to a preceding tool use. Codex uses paired
-`response_item/function_call` and `function_call_output` records by call id. Unpaired, malformed,
-failed, aborted, assistant prose, and reasoning records contribute false. Only the booleans enter the
-returned/persisted record.
+`observedVerification` is true only for a recognized test command (`node --test`, the supported
+package-runner test forms, Pytest, Cargo test, or Go test) or `git commit`. The linked result must
+carry explicit success (`is_error: false` for Claude or exit code 0 for Codex), contain the matching
+test-pass or commit-receipt evidence, and contain no failure marker. Claude uses `tool_result` blocks
+linked to a preceding tool use. Codex uses paired `response_item/function_call` and
+`function_call_output` records by call id. A generic `PASS`, full SHA, or zero exit from an unrelated
+shell command contributes false. Unpaired, malformed, failed, status-less, aborted, assistant prose,
+and reasoning records also contribute false. Only the boolean enters the returned/persisted record.
 
 Closed Slice 1 signals are:
 

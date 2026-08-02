@@ -50,8 +50,9 @@ unrun proof or review into `PASS`.
   invariant checks.
 - Product sensor: a clean-room completed-week fixture whose expected visible inclusions,
   exclusions, order, and maximum row counts are declared before the implementation is run.
-- Selection sensor: locally measured precision/recall evidence for the closed idea cues, recorded
-  only as aggregate numbers and clean-room examples. Private source text never enters the repo.
+- Selection sensor: exact acceptance and suppression counts against predeclared clean-room cue
+  labels. These fixture readings test the closed grammar; they are not population precision/recall
+  estimates and private source text never enters the repo.
 - Privacy-transformation sensor: exact private-source/rendition hashes, an ordered operation log,
   changed-span coverage, current-policy validation, the automatic or escalated decision record,
   approval identity only on escalated approvals, and negative controls where a transformation
@@ -175,7 +176,8 @@ The controller may advance only when all inputs for the next gate are observable
   the public-prompt triage decision table and its renderer, or an explicit deferral recorded as an
   incomplete public-surfacing outcome; one pre-authoring
   `build --explain-lanes` step;
-  selection inclusion/exclusion/order/volume rules; cue calibration or an explicitly narrow claim;
+  selection inclusion/exclusion/order/volume rules; exact clean-room cue acceptance and suppression
+  coverage with no population precision/recall claim;
   all Phase 1 and 2 contract tests; lane-absent byte identity; one clean-room reader-visible weekly
   scenario.
 - Stop if deleted private rows can reappear without the declared regeneration behavior, an identity is re-minted, a display repo is

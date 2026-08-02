@@ -51,8 +51,8 @@ function claudeWeek({ session, project, at, human, final }) {
   const base = new Date(at).getTime();
   return [
     { type: 'user', sessionId: session, timestamp: new Date(base).toISOString(), cwd: project, message: { content: human } },
-    { type: 'assistant', sessionId: session, timestamp: new Date(base + 1000).toISOString(), cwd: project, message: { content: [{ type: 'tool_use', name: 'Bash', id: `${session}-verify` }] } },
-    { type: 'user', sessionId: session, timestamp: new Date(base + 2000).toISOString(), cwd: project, message: { content: [{ type: 'tool_result', tool_use_id: `${session}-verify`, content: 'tests passed' }] } },
+    { type: 'assistant', sessionId: session, timestamp: new Date(base + 1000).toISOString(), cwd: project, message: { content: [{ type: 'tool_use', name: 'Bash', id: `${session}-verify`, input: { command: 'node --test' } }] } },
+    { type: 'user', sessionId: session, timestamp: new Date(base + 2000).toISOString(), cwd: project, message: { content: [{ type: 'tool_result', tool_use_id: `${session}-verify`, content: 'tests passed', is_error: false }] } },
     { type: 'assistant', sessionId: session, timestamp: new Date(base + 3000).toISOString(), cwd: project, message: { content: [{ type: 'text', text: final }] } },
   ];
 }
@@ -62,8 +62,8 @@ function codexWeek({ session, project, at, human, final }) {
     { type: 'session_meta', payload: { id: session, cwd: project } },
     { type: 'turn_context', payload: { cwd: project } },
     { type: 'event_msg', timestamp: at, payload: { type: 'user_message', message: human } },
-    { type: 'response_item', payload: { type: 'function_call', name: 'shell_command', call_id: `${session}-verify` } },
-    { type: 'response_item', payload: { type: 'function_call_output', call_id: `${session}-verify`, output: '# pass 4\n# fail 0' } },
+    { type: 'response_item', payload: { type: 'function_call', name: 'shell_command', call_id: `${session}-verify`, arguments: JSON.stringify({ command: 'node --test' }) } },
+    { type: 'response_item', payload: { type: 'function_call_output', call_id: `${session}-verify`, output: 'Exit code: 0\n# pass 4\n# fail 0' } },
     { type: 'event_msg', timestamp: new Date(new Date(at).getTime() + 3000).toISOString(), payload: { type: 'agent_message', message: final } },
   ];
 }

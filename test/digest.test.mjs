@@ -92,8 +92,8 @@ function claudeVerifiedTurn({ sessionId, cwd, prompt, final, at = '2024-06-13T10
   const base = new Date(at).getTime();
   return [
     { type:'user', sessionId, timestamp:new Date(base).toISOString(), cwd, message:{ content:prompt } },
-    { type:'assistant', sessionId, timestamp:new Date(base + 1000).toISOString(), cwd, message:{ content:[{ type:'tool_use', name:'Bash', id:`${sessionId}-verify` }] } },
-    { type:'user', sessionId, timestamp:new Date(base + 2000).toISOString(), cwd, message:{ content:[{ type:'tool_result', tool_use_id:`${sessionId}-verify`, content:'tests passed' }] } },
+    { type:'assistant', sessionId, timestamp:new Date(base + 1000).toISOString(), cwd, message:{ content:[{ type:'tool_use', name:'Bash', id:`${sessionId}-verify`, input:{ command:'node --test' } }] } },
+    { type:'user', sessionId, timestamp:new Date(base + 2000).toISOString(), cwd, message:{ content:[{ type:'tool_result', tool_use_id:`${sessionId}-verify`, content:'tests passed', is_error:false }] } },
     { type:'assistant', sessionId, timestamp:new Date(base + 3000).toISOString(), cwd, message:{ content:[{ type:'text', text:final }] } },
   ];
 }
@@ -108,16 +108,16 @@ function fixture() {
   const nextStep = `document the release gate after local verification ${suffix}`;
   jsonl(join(claude, 'projects', 'p', 'session.jsonl'), [
     { type:'user', sessionId:'claude-session', timestamp:'2024-06-11T10:00:00.000Z', cwd:project, message:{ content:`${commonPrompt}\nidea: ${idea}` } },
-    { type:'assistant', sessionId:'claude-session', timestamp:'2024-06-11T10:01:00.000Z', cwd:project, message:{ content:[{ type:'tool_use', name:'Bash', id:'verify-1' }] } },
-    { type:'user', sessionId:'claude-session', timestamp:'2024-06-11T10:02:00.000Z', cwd:project, message:{ content:[{ type:'tool_result', tool_use_id:'verify-1', content:'4 tests passed' }] } },
+    { type:'assistant', sessionId:'claude-session', timestamp:'2024-06-11T10:01:00.000Z', cwd:project, message:{ content:[{ type:'tool_use', name:'Bash', id:'verify-1', input:{ command:'node --test' } }] } },
+    { type:'user', sessionId:'claude-session', timestamp:'2024-06-11T10:02:00.000Z', cwd:project, message:{ content:[{ type:'tool_result', tool_use_id:'verify-1', content:'4 tests passed', is_error:false }] } },
     { type:'assistant', sessionId:'claude-session', timestamp:'2024-06-11T10:03:00.000Z', cwd:project, message:{ content:[{ type:'text', text:`Decision: use one validated digest lane ${suffix}\nTechnique: reconstruct the lane before every build ${suffix}\nNext step: ${nextStep}` }] } },
   ]);
   jsonl(join(codex, 'sessions', '2024', 'session.jsonl'), [
     { type:'session_meta', payload:{ id:'codex-session', cwd:project } },
     { type:'turn_context', payload:{ cwd:project } },
     { type:'event_msg', timestamp:'2024-06-12T10:00:00.000Z', payload:{ type:'user_message', message:commonPrompt } },
-    { type:'response_item', payload:{ type:'function_call', name:'shell_command', call_id:'verify-2' } },
-    { type:'response_item', payload:{ type:'function_call_output', call_id:'verify-2', output:'# pass 5\n# fail 0' } },
+    { type:'response_item', payload:{ type:'function_call', name:'shell_command', call_id:'verify-2', arguments:JSON.stringify({ command:'node --test' }) } },
+    { type:'response_item', payload:{ type:'function_call_output', call_id:'verify-2', output:'Exit code: 0\n# pass 5\n# fail 0' } },
     { type:'event_msg', timestamp:'2024-06-12T10:03:00.000Z', payload:{ type:'agent_message', message:`Ideas:\n- ${idea}\n\nReversal: replace the inferred category with an explicit cue ${suffix}\nNext steps:\n- ${nextStep}` } },
   ]);
   const config = {
@@ -1080,7 +1080,7 @@ test('all six categories apply unchanged, edited, private, and ambiguous privacy
       withheld: review.withheld.total,
       scanExcluded: review.withheld.scanExcluded,
       editBoundary: thresholdIdeas.map((item) => ({ changedPercent: item.changedPercent, decision: item.privacy.decision })),
-      calibration: (() => {
+      automaticSafeShare: (() => {
         const strong = review.candidates.filter((item) => item.state === 'kept' || item.score >= review.policy.automaticMinScore);
         const automaticSafe = strong.filter((item) => item.privacy.decision === 'automatic-safe');
         return {
