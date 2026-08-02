@@ -230,8 +230,10 @@ missing exact identity-index APIs, collision-count unit, and contradictory Phase
 ship-alone checks. Bounded re-review passed those corrections.
 
 The 2026-08-01 owner decision resolves the load-bearing product-policy findings without rewriting
-that historical verdict. Calibration, runtime acceptance, target compatibility, the A7
-representative proof, and a fresh independent review remain evidence gates. The controller may now
+that historical verdict. Exact predeclared clean-room cue acceptance and suppression coverage,
+automatic-safe fixture yield, runtime acceptance, target compatibility, the A7 representative
+proof, and a fresh independent review remain evidence gates; the fixture readings are not
+statistical calibration or population-performance estimates. The controller may now
 advance through reviewed slice contracts, but no affected slice is complete or releasable until its
 named evidence is green and the fresh review has zero unresolved load-bearing findings.
 

@@ -17,7 +17,7 @@
   "artifacts": [
     {
       "path": "owner-approval.md",
-      "sha256": "0fd6a43d2f212653537086d58fbb21bb0815ee32447540b10e131610292f4161"
+      "sha256": "8b10a0051741e39f861cf5509437d11e33ace068a9466ebe38f09ac22a33d7e1"
     },
     {
       "path": "product-roadmap.md",
@@ -37,7 +37,7 @@
     },
     {
       "path": "slice-3b-carry-recovery.md",
-      "sha256": "5659ec623426d48392a838136aea99350ab88fdbee6a9b2a15ac447b200488d7"
+      "sha256": "dbfa254aa5019d133af2ff051b8a68f72bbd0cb464e252674ffe55fb2814dd8c"
     },
     {
       "path": "implementation-brief.md",
@@ -49,11 +49,11 @@
     },
     {
       "path": "implementation-control-plan.md",
-      "sha256": "1ba2bf9941fa98fe5811c6c33a31f4f2d7f8b17d98f8bb3c376dc2429cf12111"
+      "sha256": "1d14c3370c349c695460a94fda28611b6f65442ff864a63453a189536e61c733"
     },
     {
       "path": "implementation-completion-evidence.md",
-      "sha256": "becba72a850f28b54d92c784690c2bb711c5176fb2225cdc392ca9272d927faf"
+      "sha256": "e79c9ec8a8810fc5483b187ba1e44bc502fc16580301784b379f6e91dfdf9c8a"
     },
     {
       "path": "phase-assignment.md",

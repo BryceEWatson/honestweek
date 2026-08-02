@@ -7,9 +7,10 @@ existing validate, build, and configured-site output authority. The implementati
 private by default, dependency free, and fail closed. It does not add a publisher, page shell,
 network path, or target-site write.
 
-The verified runtime checkpoint is `d0f8ca5`. Earlier focused checkpoints on this branch preserve
+The verified runtime checkpoint is `762f431`. Earlier focused checkpoints on this branch preserve
 the staged contracts, current-week controls, bounded carry, recovery protocol, and operator-facing
-documentation.
+documentation; this checkpoint also contains the review-loop privacy, receipt, lock, and bound
+hardening validated by the final sensor readings below.
 
 ## Control model
 
@@ -154,8 +155,8 @@ candidates from the canonical scanner itself.
 
 | Gate | Reading | Result |
 | --- | --- | --- |
-| Full suite | 429 tests passed, 0 failed | PASS |
-| Module syntax | 97 module files accepted by the current Node runtime | PASS |
+| Full suite | 433 tests passed, 0 failed | PASS |
+| Module syntax | 100 module files accepted by the current Node runtime | PASS |
 | Reference contracts | 202 paths, 124 claims, 66 citations | PASS |
 | Coverage contracts | 79 decisions, 123 revision inputs, 75 assignments, 4 declared exemptions | PASS |
 | Boundary contracts | 13 boundaries, 6 invariant diffs, 3 checksummed coverage inputs | PASS |

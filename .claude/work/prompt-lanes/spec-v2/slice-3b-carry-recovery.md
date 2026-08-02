@@ -96,9 +96,10 @@ Canonical carry has exactly:
 }
 ```
 
-Define `effectiveRetentionWeeks = Math.min(12, config.curation.retentionWeeks)`. Weeks have unique
-start/end keys, sort oldest to newest, and contain at most that many records. Configured values above
-12 cannot weaken the owner-approved maximum.
+Configuration accepts `curation.retentionWeeks` only from 1 through 12, and
+`effectiveRetentionWeeks = config.curation.retentionWeeks` after normalization. Weeks have unique
+start/end keys, sort oldest to newest, and contain at most that many records. Invalid values fail
+before state is read or written, so configuration cannot weaken the owner-approved maximum.
 Entries and retired rows sort by lineage ref, then item ref. Tombstones sort by week start, then
 item ref, persist until explicit reset, and are not history-pruned. A candidate's hashes, evidence refs,
 receipts, score, privacy audit, and item identity are revalidated before use. `lineageRef` is the
@@ -186,11 +187,11 @@ Only a currently public-safe selected unresolved idea or next step seeds automat
 step's existing explicit category is unresolved evidence. An idea is unresolved only when its source
 uses the new closed label `unresolved idea: <subject>`; that cue mints discriminator
 `unresolved-idea:<ordinal>`. Plain `idea:` cues remain current-week ideas but never seed automatic
-carry. Define
-`effectiveAutomaticCarryWeeks = Math.min(2, config.curation.automaticCarryWeeks)`. Zero creates no
-automatic entry. Otherwise its window is exactly that many following calendar reporting weeks and
-`automaticThroughWeek = firstSeenWeek + 7 * effectiveAutomaticCarryWeeks days`. Configured values
-above 2 cannot weaken the owner-approved maximum. Every field ending in `Week` is a reporting-week
+carry. Configuration accepts `curation.automaticCarryWeeks` only from 0 through 2, and defines
+`effectiveAutomaticCarryWeeks = config.curation.automaticCarryWeeks` after normalization. Zero
+creates no automatic entry. Otherwise its window is exactly that many following calendar reporting
+weeks and `automaticThroughWeek = firstSeenWeek + 7 * effectiveAutomaticCarryWeeks days`. Invalid
+values fail before state is read or written. Every field ending in `Week` is a reporting-week
 start date, and week arithmetic adds or subtracts exact seven-day UTC calendar intervals. Decisions,
 reversals, prompts, and techniques never recur automatically.
 

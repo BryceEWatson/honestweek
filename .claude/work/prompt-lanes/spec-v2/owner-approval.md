@@ -104,8 +104,10 @@ The proof must cover exact inclusions, exclusions, order, scores and reasons, ca
 counts, receipts, privacy edits, omissions, duplicate and boilerplate suppression, keep/hide/delete,
 two-week automatic recurrence, one-week renewal, terminal retirement, tombstones, 12-week pruning,
 lane-absent byte identity, display-role zero-Git behavior, no network or publish action, and every
-transaction recovery boundary. It records aggregate calibration for the closed cues without private
-source text. The full supported Node suite, clean-room checks, contract verifiers, target
+transaction recovery boundary. It records exact predeclared clean-room acceptance and suppression
+coverage for the closed cues, plus automatic-safe fixture yield, without private source text. These
+readings are not statistical calibration or population-performance estimates. The full supported
+Node suite, clean-room checks, contract verifiers, target
 compatibility, and an independent review-loop must finish with zero unresolved load-bearing
 findings. Contract closure or unit tests alone are insufficient.
 
