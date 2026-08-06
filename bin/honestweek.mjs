@@ -7,7 +7,7 @@
 // module that another issue has not built yet — `--help` works from a fresh
 // clone with zero modules present.
 
-const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview'];
+const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'mine'];
 
 const USAGE = `honestweek: honest, git-verified weekly summaries from your AI coding sessions.
 
@@ -26,6 +26,9 @@ Commands:
   preview     Render the built Markdown output as HTML and serve it on a
               local-only (127.0.0.1) server, then open your browser. Add
               --port <n> or --no-open. A local viewer; publishes nothing.
+  mine        Find sessions where software you did NOT write failed and you
+              worked out the fix, rank them, and keep a ledger of what is still
+              undecided. Add --draft to write the top one up as a post.
 
 Options:
   -h, --help  Show this help.

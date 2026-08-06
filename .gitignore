@@ -2,6 +2,16 @@
 honestweek.draft.json
 honestweek.items.json
 
+# `mine` writes unpublished post drafts here by default. They are working artifacts
+# with unverified claims in them; a destination that wants them tracked sets
+# mine.draft.dir to a path inside its own repo instead.
+honestweek.drafts/
+
+# NOTE: honestweek.findings.json — the `mine` decision ledger — is intentionally NOT
+# ignored. It is the only record of which findings you already declined, and losing it
+# means every past decision gets offered back to you as new. Everything in it is
+# de-identified and redacted before it is written.
+
 # The user's own config MAY contain private repo paths and redaction terms,
 # so it is ignored by default. To track it in git (e.g. a personal dotfiles
 # repo where that is acceptable), delete the line below or add a negation:

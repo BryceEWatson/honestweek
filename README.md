@@ -100,6 +100,87 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    node bin/honestweek.mjs preview              # add --no-open to just print the URL, or --port <n>
    ```
 
+## Mining solved problems worth publishing (`mine`)
+
+The weekly flow above answers "what did I ship". `mine` answers a different question:
+**did I solve a problem that a stranger is going to hit too?**
+
+Not every hard hour is worth writing up. When your own code breaks and you fix your own
+code, nobody else can use that. But when a tool *you did not write* fails in your
+environment and you work out why, someone else will hit the same wall and paste the same
+error into a search box. That second kind is rare, it is already sitting in your session
+logs, and it is almost never written down.
+
+`mine` finds those, ranks them, and — with `--draft` — writes one up.
+
+```bash
+node bin/honestweek.mjs mine              # report what is undecided
+node bin/honestweek.mjs mine --draft      # and write the top one up as a post
+```
+
+**What it reads.** Claude Code (`~/.claude/projects`), Codex (`~/.codex/sessions`) and
+Cowork session logs. Pick with `--corpus claude-code,codex,cowork`.
+
+**How it decides.** A session is a candidate only when all three hold:
+
+| Requirement | Why |
+| --- | --- |
+| A quotable error from software you did not write | It is what a stranger types into a search box. Errors from your own compiler, test runner or git are excluded. |
+| Diagnosis outside your working tree | Probing the machine, reading another program's install directory, or researching a third party's known behaviour. |
+| Evidence it was resolved | An unresolved failure is a bug report, not a guide. |
+
+A session that edited your repo far more than it investigated anything else is rejected
+however good it looks otherwise. That is ordinary work.
+
+**The ledger.** Findings land in `honestweek.findings.json` with a status. The number
+that matters is the **backlog** — findings you have not yet accepted or declined:
+
+```text
+ERROR SIGNAL — backlog 3 undecided; oldest waiting 12 day(s).
+```
+
+"Found 3 things this run" measures the tool. The backlog measures whether anything
+reached a reader, and it can only fall when **you** decide:
+
+```bash
+node bin/honestweek.mjs mine --decide "<finding key>=published"   # or =declined
+```
+
+**Drafts are honest by construction.** A draft asserts nothing about today. Its
+last-verified field is emitted **empty**, its publication date is left blank, and it
+carries a checklist where every item starts `UNVERIFIED`, plus a "What I could not
+check" section. Two things a session log can never establish are always listed there:
+whether anyone actually searches for this, and whether the fix still works on the
+current build. `mine` never publishes anything.
+
+**When it is blind, it says so.** Every run reports files found per corpus and the
+retention floor — the oldest session still on disk, since agents delete old logs. If a
+corpus resolves to a real directory holding zero logs, `mine` **exits `2`**: a zero from
+a blind sensor is not evidence of a quiet week.
+
+Configure the destination under `mine` in your config (all optional):
+
+```json
+{
+  "mine": {
+    "ledger": "honestweek.findings.json",
+    "ownRepos": ["you/your-repo"],
+    "publishedErrorStrings": ["an error you already wrote about"],
+    "draft": {
+      "dir": "src/content/blog",
+      "frontmatter": { "title": "", "description": "", "date": "", "tags": [], "lastVerified": "" }
+    }
+  }
+}
+```
+
+`draft.frontmatter` is your destination's schema, not honestweek's: keys it recognises
+are filled in, keys it does not are passed through empty for you. `ownRepos` stops
+issues on your own repositories counting as evidence that someone else's software broke.
+
+See [`docs/mining.md`](docs/mining.md) for the detector's signals, what is measured
+versus guessed at, and how the score bar was calibrated.
+
 ## Sample output
 
 A short, fabricated (clean-room) example. The distilled `honestweek.items.json`:
@@ -269,6 +350,7 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `honestweek.archive/` (opt-in) | The local weekly snapshots + `index.json` (the "/log" series). Only written when `output.archive` is true. **Yours to keep, ignore, or commit.** |
 | `honestweek.objectives.json` (opt-in) | The goal registry that turns `page` mode multi-page (emits `goals.html`). Absent → single-page. The publish gate for goals; commit it if you want the goals page. |
 | `honestweek.goal-changelog.json` (opt-in) | Optional append-only log of structural goal-set changes, rendered as the goals page's "what changed" band. |
+| `honestweek.findings.json` (opt-in) | The `mine` findings ledger: what was found, and what you accepted or declined. **Commit it** — it is the only record of what you already said no to, and everything in it is de-identified and redacted before it is written. |
 
 ## What it does NOT do / privacy model
 

@@ -66,6 +66,22 @@ Each item in `honestweek.items.json` carries:
 - **Verify or abort.** Every git-checkable claim is re-derived at `build`; an unresolved or non-authored commit **aborts the build (exit 2)**, writing nothing. There is no half-true output.
 - **Human gate: honestweek never auto-publishes.** `review` shows the build output and the emitted-items summary; **the USER is the publisher.** Nothing is posted in the user's voice automatically.
 - **Local-only preview.** The optional `preview` server binds to loopback (`127.0.0.1`) only, renders the built output in memory as a self-contained page (no external resources), and publishes nothing. It is a viewer, not a producer: it never re-runs `build`, calls git, or writes a file.
+- **A mined draft asserts nothing about today.** `mine --draft` writes a post from old session logs. Its last-verified field is emitted **empty**, its publication date is left blank, and every item on its verification checklist starts `UNVERIFIED`. Do not fill any of them in on the user's behalf: they record whether a human re-ran the checks, and pre-filling them would launder a past observation into a present-tense claim. If asked to help publish one, work the checklist first and say plainly which items you could not verify.
+
+## Mining solved problems (`mine`)
+
+A separate, optional flow from the weekly digest. It searches the user's agent session logs for moments where software they did **not** write failed and they worked out the fix — the kind of thing a stranger will hit and search for.
+
+```bash
+node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" mine            # report the undecided backlog
+node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" mine --draft    # write the top one up
+```
+
+- Findings live in `honestweek.findings.json`. The number to report is the **backlog** — findings not yet accepted or declined — not how many this run found. Only the user deciding can lower it: `mine --decide "<key>=published"` or `=declined`.
+- **Exit `2` means the sensor was blind:** a configured log corpus resolved to a real directory holding zero logs. Never report that as "nothing found this week"; say the corpus was empty and check the root.
+- Every run prints a retention floor — the oldest session still on disk. Nothing before it can ever be mined, because the agent deleted it.
+
+Full detector, ranker, and calibration notes: `docs/mining.md`.
 
 ## Clean-room
 
