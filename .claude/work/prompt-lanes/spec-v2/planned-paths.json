@@ -1,0 +1,15 @@
+[
+  "lib/lanes.mjs",
+  "test/lanes.test.mjs",
+  "test/golden-output.test.mjs",
+  "honestweek.prompts.json",
+  "honestweek.forward-index.json",
+  "honestweek.draft.json",
+  "honestweek.harvest.json",
+  "honestweek.items.json",
+  "test/fixtures/golden/draft-baseline.json",
+  "test/fixtures/golden/draft-baseline-reversals.json",
+  "test/fixtures/lane-corpus/copy-gate-corpus.json",
+  "test/fixtures/claude-projects/golden/",
+  "archive/index.json"
+]

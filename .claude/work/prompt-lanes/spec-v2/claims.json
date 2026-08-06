@@ -1,0 +1,244 @@
+[
+  {
+    "why": "D2: sessE fixture is the command-message-first shape",
+    "file": "test/fixtures/claude-projects/proj-automated/sessE.jsonl",
+    "contains": "<command-message>"
+  },
+  {
+    "why": "D2: sessE fixture carries a command-name block",
+    "file": "test/fixtures/claude-projects/proj-automated/sessE.jsonl",
+    "contains": "<command-name>"
+  },
+  {
+    "why": "D13: config.mjs rebuilds redaction as a three-key whitelist",
+    "file": "lib/config.mjs",
+    "contains": "codenames: normalizeStringArray"
+  },
+  {
+    "why": "D13: voice.denyMeta is the pattern to mirror",
+    "file": "lib/config.mjs",
+    "contains": "\"voice.denyMeta\" must be a boolean when present."
+  },
+  {
+    "why": "D5: handoffs emits reversals as bare redacted strings",
+    "file": "lib/handoffs.mjs",
+    "contains": "reversals: reversals.map("
+  },
+  {
+    "why": "D5/additivity: the handoff drop guard that must now count nextSteps",
+    "file": "lib/handoffs.mjs",
+    "contains": "if (claims.length === 0 && reversals.length === 0 && commits.length === 0) continue;"
+  },
+  {
+    "why": "D7: the free-floating reversal-line branch that stays draft-only",
+    "file": "lib/handoffs.mjs",
+    "contains": "REVERSAL_LINE_RE"
+  },
+  {
+    "why": "D11: the markdown branch redacts then emits",
+    "file": "lib/build.mjs",
+    "contains": "redactedForArchive = redactor.deepRedact(model);"
+  },
+  {
+    "why": "D11: emit is called with the redacted model",
+    "file": "lib/build.mjs",
+    "contains": "result = emit(redactedForArchive, config, { cwd });"
+  },
+  {
+    "why": "D8: README states the receipt-on-every-line promise",
+    "file": "README.md",
+    "contains": "a receipt (a pointer to its source commit or session) on every line"
+  },
+  {
+    "why": "D8: README invariant 1",
+    "file": "README.md",
+    "contains": "**A receipt on every line.**"
+  },
+  {
+    "why": "D8/D17: AGENTS.md invariant 1",
+    "file": "AGENTS.md",
+    "contains": "**A receipt on every line.**"
+  },
+  {
+    "why": "D17: AGENTS.md invariant 6",
+    "file": "AGENTS.md",
+    "contains": "**New output is additive.**"
+  },
+  {
+    "why": "D33: README already has a harvest sidecar row, so no requirement may add one",
+    "file": "README.md",
+    "contains": "honestweek.harvest.json"
+  },
+  {
+    "why": "D14: harvestNouns is already exported",
+    "file": "lib/harvest.mjs",
+    "contains": "export function harvestNouns"
+  },
+  {
+    "why": "D14: excludeSet exists and is module-private today",
+    "file": "lib/harvest.mjs",
+    "contains": "function excludeSet"
+  },
+  {
+    "why": "D16: the digest contract string",
+    "file": "lib/emit/digest.mjs",
+    "contains": "Every line carries a status badge and a receipt."
+  },
+  {
+    "why": "D25: the no-sessions line lives in digest",
+    "file": "lib/emit/digest.mjs",
+    "contains": "No interactive coding sessions"
+  },
+  {
+    "why": "D25: the no-sessions line lives in report too",
+    "file": "lib/emit/report.mjs",
+    "contains": "No interactive coding sessions"
+  },
+  {
+    "why": "D35: STATUSES is the work vocabulary",
+    "file": "lib/badges.mjs",
+    "contains": "STATUSES"
+  },
+  {
+    "why": "D20: init hardcodes the draft sidecar name",
+    "file": "lib/init.mjs",
+    "contains": "honestweek.draft.json"
+  },
+  {
+    "why": "D20: discover gitignores the draft only after writing it",
+    "file": "lib/discover.mjs",
+    "contains": "ensureDraftGitignored"
+  },
+  {
+    "why": "D23: adaptOneSession emits a repo label, not a path",
+    "file": "lib/claude-adapter.mjs",
+    "contains": "repo: repo.label"
+  },
+  {
+    "why": "D19: adaptSessions accepts a projectsRoot override",
+    "file": "lib/claude-adapter.mjs",
+    "contains": "projectsRoot"
+  },
+  {
+    "why": "D35: GIT_INSPECT_RE covers read-only git verbs too",
+    "file": "lib/claude-adapter.mjs",
+    "contains": "GIT_INSPECT_RE"
+  },
+  {
+    "why": "D39: the legacy flat-array cap block begins with MAX_STEERS",
+    "file": "lib/claude-adapter.mjs",
+    "contains": "const MAX_STEERS = 60;"
+  },
+  {
+    "why": "D39: the legacy flat-array cap block includes MAX_CANDIDATES",
+    "file": "lib/claude-adapter.mjs",
+    "contains": "const MAX_CANDIDATES = 40;"
+  },
+  {
+    "why": "D41: opensWithCorrection reuses the existing REDIRECT_RE",
+    "file": "lib/claude-adapter.mjs",
+    "contains": "const REDIRECT_RE ="
+  },
+  {
+    "why": "D41: opensWithCorrection also reuses the existing REDIRECT_BODY_RE",
+    "file": "lib/claude-adapter.mjs",
+    "contains": "const REDIRECT_BODY_RE ="
+  },
+  {
+    "why": "D40: the existing handoff shortHash is the FNV-1a implementation to match",
+    "file": "lib/handoffs.mjs",
+    "contains": "function shortHash(str)"
+  },
+  {
+    "why": "D42: MAX_NEXT_STEPS belongs beside the existing handoff bounds",
+    "file": "lib/handoffs.mjs",
+    "contains": "const MAX_REVERSALS = 20;"
+  },
+  {
+    "why": "D42: the existing heading block resets the reversal-section flag",
+    "file": "lib/handoffs.mjs",
+    "contains": "if (HEADING_RE.test(line)) inReversalSection = REVERSAL_HEADING_RE.test(line);"
+  },
+  {
+    "why": "D43: the current handoff extractor combines section-scoped and free-floating reversal origins at the split point",
+    "file": "lib/handoffs.mjs",
+    "line": 88,
+    "contains": "(inReversalSection && isBullet) || REVERSAL_LINE_RE.test(line)"
+  },
+  {
+    "why": "D44: the public session-entry assembly is where ideasDropped must be emitted",
+    "file": "lib/claude-adapter.mjs",
+    "line": 489,
+    "contains": "const entry = {"
+  },
+  {
+    "why": "D24: lookupCommit is the throwing path",
+    "file": "lib/git.mjs",
+    "contains": "lookupCommit"
+  },
+  {
+    "why": "D23/D35: verifyItems is the trusted resolution path",
+    "file": "lib/git.mjs",
+    "contains": "verifyItems"
+  },
+  {
+    "why": "D32: validate's display-role naming rule",
+    "file": "lib/validate.mjs",
+    "contains": "display"
+  },
+  {
+    "why": "D31: runValidate takes no now",
+    "file": "lib/validate.mjs",
+    "contains": "runValidate"
+  },
+  {
+    "why": "D25: emit index counts work items",
+    "file": "lib/emit/index.mjs",
+    "contains": "itemCount"
+  },
+  {
+    "why": "D29: archive writes a fixed-shape index entry",
+    "file": "lib/archive.mjs",
+    "contains": "writeArchive"
+  },
+  {
+    "why": "D12/D5: archive serializes the model wholesale",
+    "file": "lib/archive.mjs",
+    "contains": "countItems"
+  },
+  {
+    "why": "D35: page.mjs has a LEGEND to be parameterized",
+    "file": "lib/emit/page.mjs",
+    "contains": "LEGEND"
+  },
+  {
+    "why": "D35: page.mjs has a BADGE_CLASS map to be parameterized",
+    "file": "lib/emit/page.mjs",
+    "contains": "BADGE_CLASS"
+  },
+  {
+    "why": "D35: badge() is the work-lane primitive that is never widened",
+    "file": "lib/emit/_shared.mjs",
+    "contains": "badge"
+  },
+  {
+    "why": "D19: refuses-to-lie is the hermetic-repo pattern to copy",
+    "file": "test/refuses-to-lie.test.mjs",
+    "contains": "git"
+  },
+  {
+    "why": "D22: discover has a byte-identical-rerun determinism test",
+    "file": "test/discover.test.mjs",
+    "contains": "identical"
+  },
+  {
+    "why": "D18: skill.test asserts the receipt contract string",
+    "file": "test/skill.test.mjs",
+    "contains": "receipt"
+  },
+  {
+    "why": "D19: the clean-room forbidden-token scan to extend",
+    "file": "test/site-cleanroom.test.mjs",
+    "contains": "FORBIDDEN"
+  }
+]

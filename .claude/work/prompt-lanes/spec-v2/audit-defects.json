@@ -1,0 +1,19 @@
+{
+  "audit": "adversarial-defect",
+  "freshAfter": "D73-D79",
+  "status": "pass",
+  "blockers": 0,
+  "majorBoundaryGaps": 0,
+  "attacks": [
+    { "id": "forged-ref-canonical", "result": "rejected-before-join", "positive": "matching pair reaches precedence", "negative": "mismatched pair drops loudly; validated collision aborts", "sources": ["phase-4.md:A24b", "decisions.md:D73"] },
+    { "id": "identity-remint", "result": "unreachable-by-contract", "positive": "five carrier origins cross Phase 1 to Phase 2", "negative": "Phase 2 refFor spy stays zero", "sources": ["phase-1.md:A57", "phase-2.md:R8"] },
+    { "id": "diagnostic-loss", "result": "rejected-by-exact-result", "positive": "all four arrays populated", "negative": "missing/extra result key rejected", "sources": ["phase-3.md:A39/A44", "phase-4.md:A35"] },
+    { "id": "stdout-final-presence-substitution", "result": "rejected", "positive": "dropped authored row retains extended stdout", "negative": "empty raw arrays retain legacy stdout", "sources": ["phase-3.md:A29b", "decisions.md:D75"] },
+    { "id": "display-git-receipt", "result": "rejected", "positive": "Git-checkable work uses commit", "negative": "display/session work uses transcript and zero Git", "sources": ["phase-2.md:A71", "decisions.md:D76"] },
+    { "id": "pointer-copy-fork", "result": "rejected", "positive": "Phase 2 formatter renders resolved pointer", "negative": "absent pointer changes zero bytes and malformed receipt throws", "sources": ["phase-2.md:A72", "decisions.md:D77"] },
+    { "id": "raw-corpus-leak", "result": "rejected", "positive": "copy-run Map detects a known run", "negative": "recursive result scan contains no source string", "sources": ["phase-2.md:A64", "decisions.md:D78"] },
+    { "id": "must-may-collapse", "result": "rejected", "positive": "please-only pair stays equal", "negative": "must/may pair differs and is non-null", "sources": ["phase-1.md:A56", "phase-2.md:A70", "decisions.md:D79"] },
+    { "id": "coverage-input-omission", "result": "rejected", "positive": "manifest loads 55+42+26 inputs", "negative": "self-test removes round 3 and fails", "sources": ["verification-manifest.json", "verify-coverage.mjs", "verify-contracts.mjs"] }
+  ],
+  "remainingDefects": []
+}
