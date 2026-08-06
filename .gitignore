@@ -1,5 +1,18 @@
 # honestweek sidecars (intermediate working artifacts — never published)
 honestweek.draft.json
+honestweek.prompts.json
+honestweek.prompts.json.tmp-*
+honestweek.prompts.json.lock
+honestweek.prompt-items.json
+honestweek.prompt-items.json.tmp-*
+honestweek.curated.json
+honestweek.curated.json.tmp-*
+honestweek.digest.pending.json
+honestweek.digest.pending.json.tmp-*
+honestweek.carry.json
+honestweek.carry.json.tmp-*
+honestweek.carry.pending.json
+honestweek.carry.pending.json.tmp-*
 honestweek.items.json
 
 # The user's own config MAY contain private repo paths and redaction terms,

@@ -1,15 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CARRY_GITIGNORE } from '../lib/digest-carry.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 const README = readFileSync(resolve(ROOT, 'README.md'), 'utf8');
 const SKILL = readFileSync(resolve(ROOT, 'SKILL.md'), 'utf8');
 const BIN = readFileSync(resolve(ROOT, 'bin', 'honestweek.mjs'), 'utf8');
+const GITIGNORE = readFileSync(resolve(ROOT, '.gitignore'), 'utf8');
 const EXAMPLE = JSON.parse(readFileSync(resolve(ROOT, 'honestweek.config.example.json'), 'utf8'));
+const CONTRACT_VERIFIER = resolve(ROOT, '.claude', 'work', 'prompt-lanes', 'spec-v2', 'verify-contracts.mjs');
 
 /** The subcommands the dispatcher actually accepts. */
 function actualSubcommands() {
@@ -94,6 +98,23 @@ test('the sidecar section marks draft.json gitignored and items.json/output as t
   assert.match(sec, /honestweek\.items\.json[\s\S]*?keep or ignore|keep/i);
 });
 
+test('the checked-in ignore template covers every private carry sidecar', () => {
+  const lines = new Set(GITIGNORE.split(/\r?\n/));
+  for (const entry of CARRY_GITIGNORE) assert.equal(lines.has(entry), true, `${entry} is ignored before runtime mutation`);
+});
+
+test('README and SKILL document all-category digest controls without weakening privacy', () => {
+  for (const doc of [README, SKILL]) {
+    assert.match(doc, /digest keep/);
+    assert.match(doc, /hide/);
+    assert.match(doc, /delete/);
+    assert.match(doc, /no-text tombstone/);
+    assert.match(doc, /never bypass|cannot bypass/i);
+    assert.match(doc, /receipt or privacy gates/i);
+  }
+  assert.match(README, /cannot recall an output you've already built/i);
+});
+
 test('the sample output snippets show a status badge and a receipt on every rendered line', () => {
   const sec = README.slice(README.indexOf('## Sample output'), README.indexOf('## Config reference'));
   for (const status of ['shipped', 'designed, not proven']) assert.ok(sec.includes(status), `sample shows ${status}`);
@@ -105,7 +126,7 @@ test('the sample output snippets show a status badge and a receipt on every rend
 
 test('DOCS-CONSISTENCY: documented subcommands match the dispatcher, with no phantom commands', () => {
   const subs = actualSubcommands();
-  assert.deepEqual(subs.sort(), ['build', 'discover', 'harvest', 'init', 'preview', 'validate']);
+  assert.deepEqual(subs.sort(), ['build', 'digest', 'discover', 'harvest', 'init', 'preview', 'prompts', 'validate']);
   for (const s of subs) assert.ok(README.includes(`honestweek.mjs ${s}`) || README.includes(`honestweek ${s}`), `README documents the ${s} command`);
   // there is no distil/verify/emit SUBCOMMAND — the docs must not invent one
   for (const phantom of ['distil', 'verify', 'emit']) {
@@ -130,4 +151,9 @@ test('README and SKILL.md describe the same flow and invariants without contradi
 test('clean-room: README contains no real personal data', () => {
   assert.doesNotMatch(README, /@(?:gmail|outlook|yahoo|proton|icloud)\.com/i);
   assert.doesNotMatch(README, /\/home\/[a-z]+\/|C:\\Users\\[A-Za-z]+\\/);
+});
+
+test('the contract verifier resolves its own default spec directory cross-platform', () => {
+  const output = execFileSync(process.execPath, [CONTRACT_VERIFIER], { cwd:ROOT, encoding:'utf8' });
+  assert.match(output, /verify-contracts: OK/);
 });
