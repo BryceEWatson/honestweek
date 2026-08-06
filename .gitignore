@@ -23,7 +23,9 @@ honestweek.drafts/
 # NOTE: honestweek.findings.json — the `mine` decision ledger — is intentionally NOT
 # ignored. It is the only record of which findings you already declined, and losing it
 # means every past decision gets offered back to you as new. Everything in it is
-# de-identified and redacted before it is written.
+# de-identified and redacted before it is written. Its atomic-write temp files ARE
+# ignored, like every sidecar's above.
+honestweek.findings.json.tmp-*
 
 # The user's own config MAY contain private repo paths and redaction terms,
 # so it is ignored by default. To track it in git (e.g. a personal dotfiles

@@ -197,6 +197,26 @@ test('subagent transcripts are never enumerated as sessions', () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
+test('codex archived sessions are part of the corpus', () => {
+  // An archived thread is still a session; skipping archived_sessions silently
+  // shrank the corpus (lib/prompt-adapters.mjs has always scanned both).
+  const dir = tmp();
+  mkdirSync(join(dir, 'archived_sessions'), { recursive: true });
+  writeFileSync(
+    join(dir, 'archived_sessions', 'rollout-a.jsonl'),
+    jsonl(
+      { timestamp: '2026-08-01T00:00:00.000Z', type: 'session_meta', payload: { cwd: 'C:/repo' } },
+      { timestamp: '2026-08-01T00:00:01.000Z', type: 'event_msg', payload: { type: 'user_message', message: 'why does the tool crash' } },
+    ),
+  );
+  const { sessions, diagnostics } = enumerateSessions({ corpora: ['codex'], env: { ...process.env, CODEX_HOME: dir } });
+  assert.equal(sessions.length, 1);
+  assert.equal(sessions[0].firstPrompt, 'why does the tool crash');
+  assert.equal(diagnostics.corpora.length, 1, 'only roots that exist produce rows (plus one when none do)');
+  assert.equal(diagnostics.corpora[0].accepted, 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test('resolveCorpora rejects an unknown kind instead of silently scanning nothing', () => {
   // An unknown kind used to fall out of the if/else chain producing NO row, so a
   // typo resolved to zero corpora and zero diagnostics — invisible to the caller's

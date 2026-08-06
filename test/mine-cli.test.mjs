@@ -283,6 +283,48 @@ test('a mistyped --corpus fails loudly instead of scanning nothing', () => {
   rmSync(fx.dir, { recursive: true, force: true });
 });
 
+test('garbage values for value-taking flags fail loudly instead of degrading', () => {
+  // --threshold abc became NaN, so every finding failed `score >= NaN` and the run
+  // exited 0 reporting a quiet week; --since abc became an Invalid Date whose
+  // comparisons are all false, silently disabling the filter. Same class as an
+  // unknown option: bad invocation, exit 1.
+  const fx = fixture();
+  const th = runMine(fx, ['--threshold', 'abc']);
+  assert.equal(th.code, 1);
+  assert.match(String(th.stderr), /--threshold expects a number/);
+  const since = runMine(fx, ['--since', 'not-a-date']);
+  assert.equal(since.code, 1);
+  assert.match(String(since.stderr), /--since expects an ISO date/);
+  const bare = runMine(fx, ['--decide']);
+  assert.equal(bare.code, 1, 'a value-taking flag with no value is a mistake, not a default');
+  assert.match(String(bare.stderr), /--decide expects a value/);
+  rmSync(fx.dir, { recursive: true, force: true });
+});
+
+test('a corpus whose files cannot be probed is blind, not quiet', () => {
+  // An upstream log-format change makes every probe fail while filesFound stays
+  // high. That used to exit 0 with zero sessions — a sensor that no longer
+  // understands the dialect, reporting a quiet week.
+  const fx = fixture();
+  writeFileSync(join(fx.projects, 'C--repo', 'session.jsonl'), 'not json at all\n');
+  const { code, json } = runMine(fx);
+  assert.equal(code, 2);
+  assert.deepEqual(json.blindCorpora, ['claude-code']);
+  rmSync(fx.dir, { recursive: true, force: true });
+});
+
+test('a probed-but-date-filtered window is quiet, not blind', () => {
+  // The inverse guard: files probed fine but skipped by --since must stay exit 0.
+  // Only probe FAILURES mean blindness; a filtered window is a legitimate zero.
+  const fx = fixture();
+  const since = new Date(Date.now() + 3600 * 1000).toISOString();
+  const { code, json } = runMine(fx, ['--since', since]);
+  assert.equal(code, 0, JSON.stringify(json?.blindCorpora));
+  assert.equal(json.sensorOk, true);
+  assert.equal(json.diagnostics.corpora[0].filesProbed, 1, 'the file must actually have been probed');
+  rmSync(fx.dir, { recursive: true, force: true });
+});
+
 test('an explicit --config that is unusable fails loudly, never a silent downgrade', () => {
   // Continuing without the named config would disable mine.ownRepos (own-repo issues
   // would rank as third-party evidence) and the redaction denylist — in a run whose

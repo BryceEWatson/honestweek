@@ -69,9 +69,12 @@ queue", and that actuator has a bad track record.
 
 **Silent-failure handling.** Every run records what it *saw*, not just what it found:
 files enumerated per corpus, sessions accepted, the date range covered, the retention
-floor. If a corpus resolves to a directory that exists but holds no logs, the command
-**exits 2**. "I looked at 1,893 sessions and found nothing" and "I looked at nothing"
-must never print the same way.
+floor. The command **exits 2** when a corpus is blind in any of three ways: its
+directory exists but holds no logs; it was requested by name and no directory exists;
+or its files are present but not one of them yields a session identity — the signature
+of an upstream log-format change, which would otherwise read as a quiet week. "I looked
+at 1,893 sessions and found nothing" and "I looked at nothing" must never print the
+same way.
 
 ## The detector
 
@@ -203,7 +206,9 @@ schedule — weekly is well inside any agent's log-retention window, so nothing 
 between runs — and have the scheduled job do three things:
 
 1. Run `mine --draft` in a fresh worktree of the destination repository, off its default
-   branch. Never in a checkout someone might be using.
+   branch. Never in a checkout someone might be using. Run it from the worktree's root:
+   a relative ledger path resolves against the working directory, and the committed
+   ledger — the only record of past decisions — lives at the repo root.
 2. **Read the exit code before the output.** Exit `2` means a corpus was empty, which is
    a broken sensor, not a quiet week. Raise it as a fault; do not report zero findings.
    Exit `1` means the run never scanned at all — a mistyped `--corpus` name, or a config
@@ -289,14 +294,18 @@ Everything below this line is code-level and can be skipped.
 | `lib/mine.mjs` | The `honestweek mine` subcommand. |
 
 Log locations: `$CLAUDE_CONFIG_DIR/projects` (else `~/.claude/projects`);
-`$CODEX_HOME/sessions` (else `~/.codex/sessions`);
+`$CODEX_HOME/sessions` **and** `$CODEX_HOME/archived_sessions` (else the same under
+`~/.codex` — an archived thread is still a session, and skipping the directory would
+silently shrink the corpus);
 `%APPDATA%/Claude/local-agent-mode-sessions` and `%APPDATA%/Claude/claude-code-sessions`.
 A tool mid-rename has both directories present and one of them empty, which is why the
 blind-sensor check groups by corpus kind rather than by directory.
 
 Reading is streamed line by line and capped per session (`MAX_SESSION_BYTES`, 8 MB), so a
 very large transcript cannot stall a scan; truncated sessions are counted and disclosed
-in any draft they produce. A full scan of ~4,700 files takes about 25 seconds.
+in any draft they produce. The cap's cost is directional: a session is cut at its END,
+where resolution evidence lives, so truncation can only miss a candidate, never invent
+one. A full scan of ~4,700 files takes about 25 seconds.
 
 De-identification (`deidentify` in `detect.mjs`) runs before the configured redactor,
 never instead of it. It removes home directories in every path spelling, UNC shares,
