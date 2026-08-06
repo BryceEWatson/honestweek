@@ -1,0 +1,224 @@
+[
+  {
+    "why": "R2: STATUSES is the current work vocabulary and must remain byte-identical",
+    "file": "lib/badges.mjs",
+    "line": 12,
+    "contains": "export const STATUSES"
+  },
+  {
+    "why": "R6: lookupCommit is the existing single-commit resolution path",
+    "file": "lib/git.mjs",
+    "line": 71,
+    "contains": "export function lookupCommit"
+  },
+  {
+    "why": "D49: lookupCommit documents throws as an unusable-repository outcome",
+    "file": "lib/git.mjs",
+    "line": 68,
+    "contains": "Throws only when"
+  },
+  {
+    "why": "D49: an unresolved SHA already returns a non-throwing resolved-false result",
+    "file": "lib/git.mjs",
+    "line": 79,
+    "contains": "return { resolved: false"
+  },
+  {
+    "why": "R6: work verification guards display repos before lookup",
+    "file": "lib/git.mjs",
+    "line": 264,
+    "contains": "display-role repo"
+  },
+  {
+    "why": "R8: adaptSessions is the current transcript re-derivation entry point",
+    "file": "lib/claude-adapter.mjs",
+    "line": 524,
+    "contains": "export async function adaptSessions"
+  },
+  {
+    "why": "R8: discoverHandoffs is the current handoff re-derivation entry point",
+    "file": "lib/handoffs.mjs",
+    "line": 103,
+    "contains": "export function discoverHandoffs"
+  },
+  {
+    "why": "R9: lane gates must run before the emit try block",
+    "file": "lib/build.mjs",
+    "line": 420,
+    "contains": "try {"
+  },
+  {
+    "why": "R13: harvestNouns is already a public pure helper",
+    "file": "lib/harvest.mjs",
+    "line": 55,
+    "contains": "export function harvestNouns"
+  },
+  {
+    "why": "R13: excludeSet is module-private before Phase 2",
+    "file": "lib/harvest.mjs",
+    "line": 74,
+    "contains": "function excludeSet"
+  },
+  {
+    "why": "R14: current work validation's display discipline is field-based",
+    "file": "lib/validate.mjs",
+    "line": 122,
+    "contains": "display discipline"
+  },
+  {
+    "why": "R14: current work private-term matching is case-insensitive",
+    "file": "lib/validate.mjs",
+    "line": 132,
+    "contains": "const lower = text.toLowerCase();"
+  },
+  {
+    "why": "R15: current work-item voice collection is a separate build call",
+    "file": "lib/build.mjs",
+    "line": 366,
+    "contains": "const violations = checkVoice"
+  },
+  {
+    "why": "R16: validate currently extracts only the work items array",
+    "file": "lib/validate.mjs",
+    "line": 198,
+    "contains": "let items ="
+  },
+  {
+    "why": "R17: the base report model is assembled before mode dispatch",
+    "file": "lib/build.mjs",
+    "line": 353,
+    "contains": "assembleReportModel"
+  },
+  {
+    "why": "R17: site augmentation currently receives the base model",
+    "file": "lib/build.mjs",
+    "line": 424,
+    "contains": "augmentSiteModel(model"
+  },
+  {
+    "why": "R17: page mode currently builds a page model before redaction",
+    "file": "lib/build.mjs",
+    "line": 454,
+    "contains": "const pageModel = buildPageModel"
+  },
+  {
+    "why": "R17: page mode deep-redacts the page model",
+    "file": "lib/build.mjs",
+    "line": 455,
+    "contains": "redactor.deepRedact(pageModel)"
+  },
+  {
+    "why": "R17: markdown modes deep-redact the assembled model before emit",
+    "file": "lib/build.mjs",
+    "line": 458,
+    "contains": "redactor.deepRedact(model)"
+  },
+  {
+    "why": "R17 and R24: archive snapshots serialize the supplied model wholesale",
+    "file": "lib/archive.mjs",
+    "line": 51,
+    "contains": "report: model"
+  },
+  {
+    "why": "R18: current work receipt pointer prefers git then session fields",
+    "file": "lib/emit/_shared.mjs",
+    "line": 47,
+    "contains": "r.shortSha || r.sha || r.sessionId"
+  },
+  {
+    "why": "R19: badge is the work-only hard stop",
+    "file": "lib/emit/_shared.mjs",
+    "line": 28,
+    "contains": "export function badge"
+  },
+  {
+    "why": "R19: allItems currently collects only work items",
+    "file": "lib/emit/_shared.mjs",
+    "line": 89,
+    "contains": "export function allItems"
+  },
+  {
+    "why": "R20: page's existing work legend begins here",
+    "file": "lib/emit/page.mjs",
+    "line": 33,
+    "contains": "const LEGEND"
+  },
+  {
+    "why": "R20: page's existing work badge class map is separate",
+    "file": "lib/emit/page.mjs",
+    "line": 38,
+    "contains": "const BADGE_CLASS"
+  },
+  {
+    "why": "R21: digest's lane-absent contract bytes",
+    "file": "lib/emit/digest.mjs",
+    "line": 25,
+    "contains": "Every line carries a status badge and a receipt."
+  },
+  {
+    "why": "R21: page's lane-absent foot bytes",
+    "file": "lib/emit/page.mjs",
+    "line": 410,
+    "contains": "Every line carries a status badge and a git receipt"
+  },
+  {
+    "why": "R21: README's current sample-output contract bytes",
+    "file": "README.md",
+    "line": 132,
+    "contains": "Every line carries a status badge and a receipt"
+  },
+  {
+    "why": "R22: digest's current lane-absent empty state",
+    "file": "lib/emit/digest.mjs",
+    "line": 49,
+    "contains": "No interactive coding sessions"
+  },
+  {
+    "why": "R22: report's current lane-absent empty state",
+    "file": "lib/emit/report.mjs",
+    "line": 47,
+    "contains": "No interactive coding sessions"
+  },
+  {
+    "why": "R22: post's current lane-absent empty state",
+    "file": "lib/emit/post.mjs",
+    "line": 16,
+    "contains": "No reportable work"
+  },
+  {
+    "why": "R22: page's current lane-absent empty state",
+    "file": "lib/emit/page.mjs",
+    "line": 388,
+    "contains": "No interactive coding sessions"
+  },
+  {
+    "why": "R25: the current SKILL test is explicitly six rules",
+    "file": "test/skill.test.mjs",
+    "line": 42,
+    "contains": "all six distillation-contract rules"
+  },
+  {
+    "why": "R26: AGENTS currently states the receipt invariant to strengthen",
+    "file": "AGENTS.md",
+    "line": 40,
+    "contains": "A receipt on every line."
+  },
+  {
+    "why": "R26: README currently states the launch receipt invariant",
+    "file": "README.md",
+    "line": 300,
+    "contains": "A receipt on every line."
+  },
+  {
+    "why": "R27: the hermetic repo pattern pins author and committer identity and dates",
+    "file": "test/refuses-to-lie.test.mjs",
+    "line": 40,
+    "contains": "GIT_AUTHOR_DATE"
+  },
+  {
+    "why": "R23: lane-absent builds preserve the existing successful-build stdout format",
+    "file": "lib/build.mjs",
+    "line": 563,
+    "contains": "build: wrote"
+  }
+]

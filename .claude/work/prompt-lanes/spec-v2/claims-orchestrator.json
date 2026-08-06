@@ -1,0 +1,50 @@
+[
+  {
+    "why": "D69: shortHash is a 32-bit FNV-1a rendered as 8 hex, so distinct inputs can collide",
+    "file": "lib/claude-adapter.mjs",
+    "line": 417,
+    "contains": "function shortHash(str) {"
+  },
+  {
+    "why": "D69: the same 32-bit FNV-1a construction is duplicated in the handoff reader",
+    "file": "lib/handoffs.mjs",
+    "line": 40,
+    "contains": "function shortHash(str) {"
+  },
+  {
+    "why": "D61 issue: truncate collapses whitespace and cuts, so it is not commutative with redaction",
+    "file": "lib/claude-adapter.mjs",
+    "line": 306,
+    "contains": "function truncate(s, max) {"
+  },
+  {
+    "why": "D61 issue: mining site 1 of 4, steers, truncates the raw string before any redaction",
+    "file": "lib/claude-adapter.mjs",
+    "line": 340,
+    "contains": "acc.steers.push(truncate(content, MAX_STEER_LEN))"
+  },
+  {
+    "why": "D61 issue: mining site 2 of 4, redirects, bound 160",
+    "file": "lib/claude-adapter.mjs",
+    "line": 342,
+    "contains": "acc.redirects.push(truncate(content, 160))"
+  },
+  {
+    "why": "D61 issue: mining site 3 of 4, notes from a thinking block",
+    "file": "lib/claude-adapter.mjs",
+    "line": 365,
+    "contains": "acc.notes.push(truncate(block.thinking, MAX_NOTE_LEN))"
+  },
+  {
+    "why": "D61 issue: mining site 4 of 4, notes from a text block",
+    "file": "lib/claude-adapter.mjs",
+    "line": 367,
+    "contains": "acc.notes.push(truncate(block.text, MAX_NOTE_LEN))"
+  },
+  {
+    "why": "D61 issue: redaction runs once, later, over the assembled entry, after truncation already cut",
+    "file": "lib/claude-adapter.mjs",
+    "line": 513,
+    "contains": "return redactor.deepRedact(entry);"
+  }
+]

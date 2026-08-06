@@ -1,0 +1,208 @@
+{
+  "note": "Round-3 inputs: consistency audit + closure residual + adversarial defect hunt. COMPLETE, all three audits are in. Note item severity: the defect hunt returned 7 blockers, so this round is NOT zero-blocker despite the consistency audit finding none.",
+  "items": [
+    {
+      "source": "consistency",
+      "severity": "major",
+      "defect": "Phase 1's no-prose turn-window contract leaves assistantTurns completely untyped, so the draft boundary can carry an arbitrary representation while its structural privacy acceptance criterion remains green.",
+      "requiredFix": "Settle assistantTurns to one exact non-prose type and value semantics in the authoritative decisions and Phase 1 requirement, then make A13 assert that type and include a negative probe that fails if prose or an unbounded object/array is stored there.",
+      "where": "phase-1.md:85-102 requires every non-stub window to have D37's 15 keys, and phase-1.md:249-253 says A13 applies the remaining D4 value rules. D4 lists rules for ref, shapeKey, kind, correctionObserved, signal arrays, SHA arrays, and toolsUsed, but no rule for assistantTurns: decisions.md:110-127. Th"
+    },
+    {
+      "source": "consistency",
+      "severity": "major",
+      "defect": "Phase 2 still promises the cross-phase transcript-receipt helper without the D55 function contract that Phase 3 consumes.",
+      "requiredFix": "Give the helper one export name, an exact receipt input union, an exact mode or renderer input, and an exact return shape in Phase 2. Make Phase 2 acceptance test that export directly, including malformed input, and have Phase 3 consume that named contract.",
+      "where": "D55 says, \"Every cross-phase export has a specified shape\" and that \"A named function with an unspecified return is not a contract\" at decisions.md:1026-1037. Phase 2 R18 only says, \"Add one transcript-receipt renderer\" and specifies visible strings and a CSS class at phase-2.md:347-353; it provides"
+    },
+    {
+      "source": "consistency",
+      "severity": "major",
+      "defect": "Phase 3 is assigned sole ownership of SKILL rule 8 and the authored Forward item shape, but its requirement never states the body or the exact item schema.",
+      "requiredFix": "Put the exact rule 8 prose and exact Forward JSONC member shape in Phase 3, including required versus optional authored keys, types, allowed extras, and the closedBy form. Acceptance must compare the shipped SKILL body and exercise every permitted and rejected authored field.",
+      "where": "D54 requires, \"Phase 3 authors rule 8's body and the forward item shape\" at decisions.md:1018-1022. Phase 3 R13 merely repeats that assignment and says the body should \"implement the R3 authored contract\" at phase-3.md:205-209. R3 says to \"validate the Phase 3 rule-8 shape authored by R13\" and discu"
+    },
+    {
+      "source": "consistency",
+      "severity": "major",
+      "defect": "Phase 3's D55 boundary specifies finalPrivateRows but leaves the second tuple member, engineForwardRows, without an element shape even though Phase 4 consumes its engine-presence result.",
+      "requiredFix": "Specify the exact engineForwardRows member keys and types at the Phase 3 boundary, or replace that tuple member with the exact boolean/count Phase 4 actually needs and update D55/R1/A33 consistently.",
+      "where": "D55 explicitly says, \"The same rule binds Phase 3 for anything Phase 4 consumes\" at decisions.md:1037. Phase 3 R16 returns \"[finalPrivateRows, engineForwardRows]\" and fully enumerates finalPrivateRows, but describes engineForwardRows only as \"the original D6 engine collection\" at phase-3.md:225-237."
+    },
+    {
+      "source": "consistency",
+      "severity": "major",
+      "defect": "Phase 4 requires a D69 canonical identity in each persisted carry entry but never specifies its JSON property name or representation, so independent implementations can write mutually unreadable version-1 indexes.",
+      "requiredFix": "Amend the authoritative version-1 entry schema and Phase 4 R2/R6/R11 with one exact property name and JSON type/encoding for the canonical tuple, plus exact unknown/malformed handling and a round-trip golden.",
+      "where": "D12's version-1 example enumerates ref, id, text, origin, receipt, disposition, dispositionAsOf, firstSeenWeek, and repo, with no canonical field: decisions.md:329-346. D69 settles an in-memory canonical tuple (kind, sessionId ?? handoffId, index) at decisions.md:1191-1195. Phase 4 R2 requires \"ref "
+    },
+    {
+      "source": "consistency",
+      "severity": "minor",
+      "defect": "Phase 4 invents the exact public carry phrase \"first seen ...; as of ...\" without an authoritative decision assigning or settling that wording.",
+      "requiredFix": "Settle the carry-only phrase in an authoritative decision and assign its implementation to Phase 4, or move ownership of the exact formatting into the Phase 2 renderer contract with a defined carry-provenance input.",
+      "where": "D12's acceptance requires only that the shown originating week equal week 1's start at decisions.md:361-362. Phase 4 R7 newly requires the literal replacement \"first seen <firstSeenWeek>; as of <dispositionAsOf>\" at phase-4.md:185-196. No cited decision supplies those words or punctuation, while the"
+    },
+    {
+      "source": "consistency:flow",
+      "severity": "major",
+      "ref": "sessions[].turns[] 15-key non-stub window",
+      "defect": "Cross-phase identifier crosses a phase boundary without a complete producer contract: The key set is exact, but one member, assistantTurns, has no specified value type or shape. The downstream draft reader therefore does not receive a complete no-prose contract.",
+      "requiredFix": "Specify the exact shape of sessions[].turns[] 15-key non-stub window in phase 1 (R4), per D55, and pin it in that phase's tests before phase 2/phase 3 consumes it.",
+      "where": "phase 1 (R4) -> phase 2, phase 3"
+    },
+    {
+      "source": "consistency:flow",
+      "severity": "major",
+      "ref": "turns[].assistantTurns",
+      "defect": "Cross-phase identifier crosses a phase boundary without a complete producer contract: Neither D4 nor Phase 1 specifies whether this is a count, an array, or prose, and A13 applies no type assertion to it.",
+      "requiredFix": "Specify the exact shape of turns[].assistantTurns in phase 1 (R4), per D55, and pin it in that phase's tests before phase 2/phase 3 consumes it.",
+      "where": "phase 1 (R4) -> phase 2, phase 3"
+    },
+    {
+      "source": "consistency:flow",
+      "severity": "major",
+      "ref": "honestweek.draft.json lane additions",
+      "defect": "Cross-phase identifier crosses a phase boundary without a complete producer contract: The draft file and most added shapes are settled, but its non-stub turn contract remains incomplete because assistantTurns has no value shape.",
+      "requiredFix": "Specify the exact shape of honestweek.draft.json lane additions in phase 1 (R4-R7), per D55, and pin it in that phase's tests before phase 2/phase 3/phase 4 consumes it.",
+      "where": "phase 1 (R4-R7) -> phase 2, phase 3, phase 4"
+    },
+    {
+      "source": "consistency:flow",
+      "severity": "major",
+      "ref": "transcript-receipt renderer export",
+      "defect": "Cross-phase identifier crosses a phase boundary without a complete producer contract: R18 specifies visible forms but gives the shared helper no export name, signature, or return shape, contrary to D55.",
+      "requiredFix": "Specify the exact shape of transcript-receipt renderer export in phase 2 (R18), per D55, and pin it in that phase's tests before phase 3/phase 4 consumes it.",
+      "where": "phase 2 (R18) -> phase 3, phase 4"
+    },
+    {
+      "source": "consistency:flow",
+      "severity": "major",
+      "ref": "top-level forward[] authored input",
+      "defect": "Cross-phase identifier crosses a phase boundary without a complete producer contract: The prose says Phase 3 authors and validates a rule-8 shape, but never enumerates that shape's required and optional keys or their types.",
+      "requiredFix": "Specify the exact shape of top-level forward[] authored input in phase 3 (R3, R13), per D55, and pin it in that phase's tests before phase 4 consumes it.",
+      "where": "phase 3 (R3, R13) -> phase 4"
+    },
+    {
+      "source": "consistency:flow",
+      "severity": "major",
+      "ref": "SKILL.md rule 8 body and Forward item shape",
+      "defect": "Cross-phase identifier crosses a phase boundary without a complete producer contract: The producer is correctly assigned after D54, but the body and JSONC contract are not actually specified.",
+      "requiredFix": "Specify the exact shape of SKILL.md rule 8 body and Forward item shape in phase 3 (R13), per D55, and pin it in that phase's tests before phase 4 consumes it.",
+      "where": "phase 3 (R13) -> phase 4"
+    },
+    {
+      "source": "consistency:flow",
+      "severity": "major",
+      "ref": "deriveCurrentForwardRows(authoredForwardRows, laneCorpus, config, week, resolveLaneCommit)",
+      "defect": "Cross-phase identifier crosses a phase boundary without a complete producer contract: The signature and two-element tuple are named, and finalPrivateRows is exact, but engineForwardRows has no member schema.",
+      "requiredFix": "Specify the exact shape of deriveCurrentForwardRows(authoredForwardRows, laneCorpus, config, week, resolveLaneCommit) in phase 3 (R16), per D55, and pin it in that phase's tests before phase 4 consumes it.",
+      "where": "phase 3 (R16) -> phase 4"
+    },
+    {
+      "source": "consistency:flow",
+      "severity": "major",
+      "ref": "deriveCurrentForwardRows result.engineForwardRows[]",
+      "defect": "Cross-phase identifier crosses a phase boundary without a complete producer contract: It is described only as the original D6 engine collection. D6 defines eligibility and suppression, not the exact element keys and types that cross the boundary.",
+      "requiredFix": "Specify the exact shape of deriveCurrentForwardRows result.engineForwardRows[] in phase 3 (R16), per D55, and pin it in that phase's tests before phase 4 consumes it.",
+      "where": "phase 3 (R16) -> phase 4"
+    },
+    {
+      "source": "closure-residual",
+      "severity": "major",
+      "ref": "round-2 item 14",
+      "defect": "The Phase 1 author can still choose both the source sessions and their prompt prose so the ten known A29 names have no overlap; pin an already-existing immutable source corpus or list the exact normalized prompt strings in the spec, because the current checksum proves only later immutability, not untailored provenance.",
+      "requiredFix": "The Phase 1 author can still choose both the source sessions and their prompt prose so the ten known A29 names have no overlap; pin an already-existing immutable source corpus or list the exact normalized prompt strings in the spec, because the current checksum proves only later immutability, not untailored provenance.",
+      "where": "D70; Phase 1 R15, A51; Phase 2 R12, A29",
+      "status": "ADDRESSED AFTER THE AUDIT RAN. D70 was rewritten so the corpus is derived by a specified procedure from README.md, SKILL.md and the committed fixture transcripts, not authored. phase-1 R15/A51 and phase-2 A29 were updated to match. Re-verify in the next closure audit rather than treating this as open."
+    },
+    {
+      "source": "defect-hunt:class3",
+      "severity": "blocker",
+      "ref": "phase 2",
+      "defect": "Phase 2 consumes canonical identity and source text that Phase 1 never exposes through a cross-phase contract. Phase 1 says, \"Retain D69's normalized six-word canonical phrase in local index state without adding it to D37's enumerable window shape\" and requires the exact text-free idea and handoff sibling shapes, while Phase 2 requires every `ensureLaneCorpus().identities[]` member to contain `refCanonical`, `shapeCanonical`, and source `text`. Phase 2 then says its collision builders \"receive each R8 `{ ref, refCanonical }` pair\", so the builders cannot be the source of the canonical values they are being handed.",
+      "requiredFix": "Amend D69 and Phase 1 with one exact exported carrier contract. For example, define a named canonical-aware index/sink object, pass that same object into both `adaptSessions` and `discoverHandoffs`, register turn, idea, next-step, reversal, and shape records during extraction, and make `ensureLaneCorpus` return that exact object or its exact records. Specify function names, argument and return shapes, lifetime, and collision result. Add an end-to-end producer/consumer test proving Phase 2 receives idea and handoff canonicals without re-minting refs or reconstructing ordinals.",
+      "where": "`phase-1.md:88-95` keeps the turn canonical outside the exact 15-key window, `phase-1.md:104-115` keeps ideas at D4's text-free shape, and `phase-1.md:127-139` fixes handoff rows as `{ ref, text }` or `{ ref, text, sectioned }` without a canonical or source-line index. `phase-1.md:148-149` also preserves the adapter return value, and R17 at `phase-1.md:204-210` names no exported index accessor or "
+    },
+    {
+      "source": "defect-hunt:class4",
+      "severity": "major",
+      "ref": "phase 2",
+      "defect": "Phase 2 contradicts D20's build-side privacy representation. D20 says build \"indexes normalized n-grams rather than holding text\", but Phase 2's exact `ensureLaneCorpus()` result contains `corpusStrings`, described as \"the array of complete, re-derived prompt and idea strings\", and passes those strings to `sharesRun`.",
+      "requiredFix": "Replace `corpusStrings` in Phase 2's build contract with a named opaque normalized-run index whose exact key/value shape contains no recoverable source prose, and change the build form of `sharesRun` to consume that index. Keep validate's sidecar-backed string path separate and partial. Pin the new return shape with a recursive no-prose assertion.",
+      "where": "The authoritative rule is `decisions.md:521-523`. The conflicting exact return key and description are at `phase-2.md:220` and `phase-2.md:233-234`; the raw-string consumer is required again at `phase-2.md:292-301`. The current repository has no pre-existing lane corpus implementation that could resolve this discrepancy, so the revision itself gives the implementer two different representations."
+    },
+    {
+      "source": "defect-hunt:class6",
+      "severity": "major",
+      "ref": "phase 1",
+      "defect": "D70 still leaves its measurement input construction-dependent. Phase 1 says, \"capture the exact normalized prompt strings for a fixed multi-session corpus\" and A51 says, \"Re-extracting R15's fixed source corpus ... deep-equals the committed `prompts` array\", but no requirement supplies the source corpus path, transcript bytes, file selection, or extraction order. The implementer who knows the ten names and D30 algorithm still chooses the corpus that determines whether the floor is 4 or 5.",
+      "requiredFix": "Name an immutable input before Phase 1 implementation: either enumerate exact existing transcript fixture files and their order, or commit a dedicated clean-room source tree with exact bytes. Add that source tree to `filesTouched`, pin a checksum of the source manifest and bytes as well as the derived prompt array, and make A51 invoke the real extractor over that named tree. The Phase 2 floor must then be stated from that fixed result.",
+      "where": "`decisions.md:1214-1231` fixes the output artifact and checksum but not the source input. `phase-1.md:188-193` names only the generated `test/fixtures/lane-corpus/copy-gate-corpus.json`; `phase-1.md:407-411` depends on re-extracting an unnamed source. The Phase 1 files-touched list at `phase-1.md:480-490` adds the generated JSON but no copy-gate source tree. The real repository currently has no `t"
+    },
+    {
+      "source": "defect-hunt:class10",
+      "severity": "blocker",
+      "ref": "phase decisions",
+      "defect": "D72 puts meaning-bearing modal verbs in `FILLER`, then falsely claims that every member can be removed without changing the request. Its exact list removes `should`, `can`, `could`, `may`, `might`, and `must`, even though permission, possibility, advice, and obligation are different instructions. Because `shapeKey` drives `repeated without correction`, this can merge unlike prompts and manufacture recurrence evidence.",
+      "requiredFix": "Remove every meaning-bearing modal from `FILLER` before Phase 1. At minimum retain `will`, `would`, `shall`, `should`, `can`, `could`, `may`, `might`, and `must` as content tokens. Extend D72 and Phase 1 acceptance with exact six-content-word pairs for permission versus obligation and advice versus possibility that must produce different keys, then re-evaluate pronouns and possessives under the same semantic test.",
+      "where": "`decisions.md:1267-1270` includes the modal verbs in the frozen 84-token list, while `decisions.md:1300-1304` says every member is a word \"whose presence or absence does not change what a prompt asks for.\" Applying D59/D72's exact order gives all four inputs `you may delete cached files after review completes`, `you must delete cached files after review completes`, `you can delete cached files aft"
+    },
+    {
+      "source": "defect-hunt:class3",
+      "severity": "blocker",
+      "ref": "phase 3",
+      "defect": "Phase 3 consumes a settled `closedBy` rendering policy that Phase 2 never mints. Phase 2 declares its three Lane B Markdown forms \"final\" and none has a `closed by` pointer slot. Phase 3 is forbidden to reword any row form, yet it must render \"`closed by` with handoff\" and test exact pointer placement.",
+      "requiredFix": "Move the optional pointer formatting into Phase 2, its authoritative owner. Add an exact optional `closed by <handoff receipt>` slot to all three final Markdown forms and the HTML visible-part policy, including punctuation and placement, while keeping the no-pointer bytes unchanged. Pin both pointer-present and pointer-absent pure formatting cases in Phase 2. Phase 3 should then supply only the resolved receipt value.",
+      "where": "Phase 2's final templates and statement that Phase 3 changes no row form are at `phase-2.md:370-395`. D16 gives final rendering-policy ownership to Phase 2 at `decisions.md:425-435`. Phase 3's out-of-scope rule at `phase-3.md:69-70` forbids rewording a row form, while `phase-3.md:165-174`, A17 at `phase-3.md:335-340`, and A25 at `phase-3.md:378-381` require a visible pointer and exact placement. D"
+    },
+    {
+      "source": "defect-hunt:class2",
+      "severity": "blocker",
+      "ref": "phase 3",
+      "defect": "Phase 3 requires exact diagnostics that its exact derivation result cannot produce. R4 requires a failed optional commit-resolution count by affected row, and R6 requires drop, noun, and truncation diagnostics, but R16 fixes `deriveCurrentForwardRows` to the two-element tuple `[finalPrivateRows, engineForwardRows]` with an exact row key set and no diagnostics payload.",
+      "requiredFix": "Change the Phase 3 producer contract before implementation. Return an exact object or three-element tuple that includes a pure diagnostics payload, with exact fields for structural drops, failed-commit row ids/count, idea truncation counts, noun hits, and positive abort hits. Keep final rows and `engineForwardRows` separately typed. Make build format messages from that payload, and make Phase 4 consume only the named row collections without wrapping or recomputing diagnostics.",
+      "where": "The required failed-resolution accounting is at `phase-3.md:122-132`, and the other required diagnostic outputs are at `phase-3.md:139-149`. The exact exported signature, two-element return, and exact final-row fields are at `phase-3.md:225-238`. Phase 2's gate functions are pure and explicitly do not print at `phase-2.md:103-120`; `resolveLaneCommit` returns only `{ state, sha, repoLabel }` at `p"
+    },
+    {
+      "source": "defect-hunt:class4",
+      "severity": "blocker",
+      "ref": "phase 4",
+      "defect": "Phase 4 changes D63's stdout presence rule from input presence to final rendered presence. Phase 2 explicitly requires the extended summary for \"a non-empty authored array whose rows later under-claim to zero\", while Phase 4 says the old stdout is used whenever \"both final lane collections are absent\". An authored non-empty lane whose rows all drop satisfies both conditions, so the two rules demand different bytes.",
+      "requiredFix": "Edit Phase 4 R8 and its stdout tests to keep two separate facts: raw lane input/engine presence chooses the existing versus extended stdout branch, while final row counts populate `T` and `F` and final forward presence controls rendering and `forwardUnactioned`. Add a Phase 4 acceptance case with a non-empty authored array whose only row is dropped and require the extended summary with zero final rows.",
+      "where": "D63's authoritative condition is that both lane arrays and all engine rows are absent at `decisions.md:1121-1127`. Phase 2 follows it at `phase-2.md:438-446`, including the all-rows-under-claim case. Phase 3 preserves the same input-presence condition at `phase-3.md:181-187`. Phase 4 R8 instead switches to final-union presence at `phase-4.md:198-208`. No later decision amends D63, so the Phase 4 w"
+    },
+    {
+      "source": "defect-hunt:class10",
+      "severity": "blocker",
+      "ref": "phase decisions",
+      "defect": "D8 rewrites the work-line receipt invariant to a false git-only promise: \"A git receipt on every work line; a transcript receipt on every lane line.\" The existing product deliberately permits session-only work receipts, especially for private and display sessions that are forbidden to cite commits, and no phase removes that path. Phase 2 would therefore publish contract copy that its unchanged work renderer cannot satisfy.",
+      "requiredFix": "Amend D8 before Phase 2. Use an exact stronger statement such as: `A source receipt on every work line; a transcript receipt on every lane line. Git-checkable work uses a git receipt; session-only work uses a transcript receipt.` Update the four-way contract matrix, README, SKILL, and AGENTS to that distinction, and add a session-only private/display work-row acceptance case for every rendering surface.",
+      "where": "The authoritative but incorrect rewrite is at `decisions.md:238-250` and is repeated by Phase 2 R26 at `phase-2.md:494-499`. The real source resolves a work item with no commit to `{ kind: 'session', sessionId, ref }` at `lib/build.mjs:150-165`. The current public sample includes a session-only receipt at `README.md:121`, and existing SKILL rule 6 requires private/display items to have no commit S"
+    },
+    {
+      "source": "defect-hunt:class4",
+      "severity": "major",
+      "ref": "phase 2",
+      "defect": "D69's shape-collision unit is a canonical group, but Phase 2 routes its count through a diagnostic that labels the count as rows. R30 requires \"the exact two-group row-level count under R9\" while R9's only row-level template says `dropped <count> row(s)`. Group count and dropped-row count are not generally equal, and a collision can merely remove a recurrence grade while a row receives another grade.",
+      "requiredFix": "Choose and settle one honest unit. Prefer a dedicated count-bearing diagnostic such as `recurrence grading unavailable for <G> shape group(s): hash collision`, without saying rows were dropped. Alternatively count the actual authored rows whose final result was removed, after fallback grades, and label that row count. Amend D69, R9/R30, and add a fixture with unequal group and authored-row counts plus a group that falls back to another grade.",
+      "where": "D69 says both colliding groups lose recurrence and reports under the row-level rule at `decisions.md:1196-1205`. Phase 2's fixed diagnostic text is at `phase-2.md:257-265`; the conflicting two-group instruction is at `phase-2.md:536-542`. A69 at `phase-2.md:834-842` deliberately constructs one authored technique per colliding group and no fallback single-window grade, so two groups happen to equal"
+    },
+    {
+      "source": "defect-hunt:class9",
+      "severity": "minor",
+      "ref": "phase 2",
+      "defect": "A55 is vacuous for three of the five origins it claims to protect. It asserts that pre-turn idea, in-turn idea, handoff next-step, and handoff reversal refs are absent from Phase 2 artifacts, but Lane A input has no `ref` field and Phase 2 is forbidden to consume `forward[]` or render a handoff row. Those values cannot reach a Phase 2 model even if the actual Phase 3 stripping path is broken.",
+      "requiredFix": "Restrict Phase 2 A55 to a ref/canonical value that actually traverses Lane A derivation, or inject a deliberately contaminated pre-gated Lane A object to exercise R24. Remove idea and handoff refs from this criterion and keep their capable publication-boundary assertions in Phase 3 A23.",
+      "where": "Phase 2's authored technique shape is only `{ id, text, repo?, receipt: { sessionId, turn } }` at `phase-2.md:124-131`. Its out-of-scope section forbids reading or producing `forward[]` and rendering handoff rows at `phase-2.md:68-77`. A55 nevertheless claims all five origin refs are proved absent at `phase-2.md:758-760`. Phase 3 A23 at `phase-3.md:367-372` is the first capable test for idea and h"
+    },
+    {
+      "source": "defect-hunt:class7",
+      "severity": "blocker",
+      "ref": "phase 4",
+      "defect": "The untrusted carry index can forge the canonical companion that D69 relies on. Phase 4 requires `ref` and its canonical identity to be treated as opaque and never reconstructed, and rejects an entry when the canonical is absent, but never requires that hashing the supplied canonical with the shipped FNV-1a actually equals the supplied `ref`. A parseable edited entry can therefore copy a current row's canonical string beside unrelated carried text and the same 8-hex ref, making the collision guard see a same-canonical identity and allowing the wrong carry or zombie join.",
+      "requiredFix": "Amend D69 and the version-1 index schema with one shared `validateRefIdentity(ref, canonicalTuple)` operation owned by Phase 1's minter. On every carry entry, recompute the shipped FNV-1a from the exact canonical tuple and reject the entry unless it equals `ref`, before collision, zombie, duplicate, or D47 logic. Clarify that validation is permitted and is not a second ref minter. Add a capable Phase 4 test with a syntactically valid canonical whose hash does not equal the stored ref, and require an exact loud row-level rejection with no render or join.",
+      "where": "D12 says the engine-written index is \"still untrusted on read\" at `decisions.md:350-359`. Phase 4 R2 says to treat both values as opaque and \"never reconstruct either\" at `phase-4.md:93-103`; R11 checks presence and broad shape but states no hash-to-canonical equality at `phase-4.md:227-239`. D69's builders only specify detecting a same-hash/different-canonical pair at `decisions.md:1191-1209`, an"
+    }
+  ]
+}

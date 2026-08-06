@@ -9,7 +9,7 @@ honestweek is a locally-run, Claude-Code-native tool, shipped as a skill that or
 
 ## Why
 
-Your commits show what shipped. Your sessions show what you *figured out*: the dead ends you ruled out and the work that's designed but not yet proven. honestweek surfaces that honestly, with a status badge on every item (`shipped` / `in progress` / `designed, not proven`) and a receipt (a pointer to its source commit or session) on every line.
+Your commits show what shipped. Your sessions show what you *figured out*: the dead ends you ruled out and the work that's designed but not yet proven. honestweek surfaces that honestly, with a receipt (a pointer to its source commit or session) on every line. Distilled work items also carry a status badge (`shipped` / `in progress` / `designed, not proven`); automatic session-derived digest items state why they surfaced without claiming work status.
 
 ## Requirements
 
@@ -68,7 +68,7 @@ node bin/honestweek.mjs --help
 
 Once it's published to npm (**not yet**; see [Releasing](#releasing-maintainers)), `npx honestweek` and `npm i -g honestweek` will work too.
 
-The CLI surface is six subcommands: `init`, `discover`, `validate`, `build`, `harvest`, and `preview`. The `harvest` command (`node bin/honestweek.mjs harvest`) proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review). The `preview` command (`node bin/honestweek.mjs preview`) renders the built output as HTML and serves it on a local-only (`127.0.0.1`) server for you to read in your browser.
+The CLI surface is eight subcommands: `init`, `discover`, `prompts`, `digest`, `validate`, `build`, `harvest`, and `preview`. The `digest` command (`node bin/honestweek.mjs digest --help`) prepares one receipt-bearing review across prompts, ideas, techniques, decisions, reversals, and next steps for `page` or `site` output. The `prompts` command (`node bin/honestweek.mjs prompts --help`) remains the private prompt inbox and prompt-only compatibility path. The `harvest` command (`node bin/honestweek.mjs harvest`) proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review). The `preview` command (`node bin/honestweek.mjs preview`) renders the built output as HTML and serves it on a local-only (`127.0.0.1`) server for you to read in your browser.
 
 ## The flow
 
@@ -85,6 +85,11 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    node bin/honestweek.mjs discover          # or: discover --week 2024-W23
    ```
 3. **`/honestweek`** (the skill) → **distils** the draft into the human-reviewable `honestweek.items.json`, with a status badge **and** a receipt on every item. This is the one model-judgment step; see [`SKILL.md`](SKILL.md) for the distillation contract.
+   For `page` or `site` output without the opt-in goals registry, run `node bin/honestweek.mjs digest prepare`. It scans the completed week from Claude Code and Codex, updates the gitignored private prompt inbox and balanced review model, and writes the public-safe `honestweek.prompt-items.json` lane. Use `digest candidates` and `digest explain <item-ref>` to inspect the exact score, selection reason, privacy result, and transcript receipts. Use `digest keep`, `hide`, `delete <item-ref> --yes`, or confirmed `delete --all --yes` to control current items in any category, then run `validate` and `build`. Keep changes selection only and never bypasses receipt or privacy gates. Delete removes private review text and leaves a no-text tombstone so preparation cannot regenerate the item; it cannot recall an output you've already built. `digest reset-tombstones <item-ref>|--week <YYYY-Www>|--all --yes` is the explicit regeneration control. The balanced digest lane and the goals page are not yet compatible; use the existing distillation path when the goals registry is present.
+
+   Selected next steps and cues labelled `unresolved idea: <subject>` carry automatically for at most the next two reporting weeks. They must still pass the current privacy gate, automatic floor, target, and category cap. `digest carry-forward <item-ref>` schedules one current public-safe candidate for exactly the next digest and does not extend automatic carry. A human turn labelled `picked up: <subject>` or `ruled out: <subject>` retires one unambiguous matching carry. Every carried or renewed item discloses why it appeared and its first-seen and current week. Carry history is private, redacted, and limited to 12 week records.
+
+   A lifecycle build binds the exact configured output bytes and next carry state with hashes. If an interrupted build leaves `honestweek.carry.pending.json`, the next `prepare`, `validate`, or `build` recovers only a recognized hash combination. Use `digest recover --discard-pending` only when the output differs and carry is still at its prior hash. Unknown states fail closed. Use `prompts list`, `source`, `keep`, `hide`, and `delete` when you want the prompt inbox controls directly. Automatic selection discloses its floor, overall target, category caps, omitted counts, and uncertainty. Privacy edits are deterministic redactions; ambiguous or residual high-risk material stays private. `prompts curate` remains available when you intentionally want the prompt-only lane.
    > Optional but recommended: gate the distilled items before building:
    > ```bash
    > node bin/honestweek.mjs validate          # add --no-dashes for the voice rule
@@ -94,7 +99,7 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    ```bash
    node bin/honestweek.mjs build
    ```
-5. **emit** → on success, `build` renders the final **local** output in the configured `output.mode` (`post` / `changelog` / `digest` / `report` / `page`) to `output.file`. The `digest` carries a git-derived **Activity** summary (commits and active days for `featured`/`reference` repos; `display` repos are never git-read, so they get no metrics, and an unreadable repo gets no fabricated `0`). `page` renders a self-contained, interactive HTML **standalone site** (see below). You review it and publish it yourself.
+5. **emit** → on success, `build` renders the final **local** output in the configured `output.mode` (`post` / `changelog` / `digest` / `report` / `page` / `site`) to `output.file`. The `digest` carries a git-derived **Activity** summary (commits and active days for `featured`/`reference` repos; `display` repos are never git-read, so they get no metrics, and an unreadable repo gets no fabricated `0`). `page` renders a self-contained, interactive HTML **standalone site** (see below). You review it and publish it yourself.
 6. **`preview`** (optional) → serves the built `output.file` on a local-only `127.0.0.1` server, then opens your browser. A Markdown output is converted to a locked-down HTML page; the `page` output is already HTML and is served verbatim (with its inline interactivity). It is a viewer: it reads the file `build` wrote, publishes nothing, and needs no internet. Press Ctrl+C to stop.
    ```bash
    node bin/honestweek.mjs preview              # add --no-open to just print the URL, or --port <n>
@@ -229,6 +234,8 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
     { "path": "~/code/a-client-repo", "label": "a-private-project", "role": "display" }
   ],
   "redaction": { "codenames": [], "names": [], "terms": [] },  // optional; default-empty private term-lists, scrubbed case-insensitively
+  "curation": { "maxItems": 12, "automaticMinScore": 2, "retentionWeeks": 12, "automaticCarryWeeks": 2, "categoryCaps": { "prompts": 2, "ideas": 2, "techniques": 3, "decisions": 2, "reversals": 1, "nextSteps": 2 } }, // disclosed digest target, floor, bounded carry, and category caps
+  "privacy": { "publicRenditions": { "enabled": true, "maxAutomaticChangedPercent": 20, "generalizationMappings": {}, "neverPublicTerms": [] } }, // deterministic public-rendition gate
   "output": { "mode": "digest", "file": "honestweek.digest.md" },  // optional; mode ∈ post|changelog|digest|report|page|site, default digest
   "voice": { "denyMeta": false }                               // optional; OFF by default. true = lint authored prose for withholding/honesty-meta (see below)
 }
@@ -243,6 +250,8 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `repos[].label` | The short name items reference and outputs display. |
 | `repos[].role` | One of the three trust levels below. |
 | `redaction.codenames` / `names` / `terms` | Private tokens scrubbed from all output. Default empty (clean-room). |
+| `curation.*` | Local weekly-selection policy. Defaults target 12 items with caps of 2 prompts, 2 ideas, 3 techniques, 2 decisions, 1 reversal, and 2 next steps. The automatic floor is 2. `automaticCarryWeeks` defaults to 2 and is hard-limited to 2. `retentionWeeks` defaults to 12 and is hard-limited to 12. Explicit keeps and one-week renewals are never silently dropped, but they never bypass receipt or privacy gates. |
+| `privacy.publicRenditions.*` | Public-rendition gate. `enabled` defaults true for the local artifact, `maxAutomaticChangedPercent` defaults to and cannot exceed 20, and `neverPublicTerms` extends hard redaction. `generalizationMappings` remains empty in this slice. Ambiguous or residual high-risk material in every category stays private. |
 | `output.mode` | `post` (build-in-public update), `changelog` (in-repo `CHANGELOG.md` section), `digest` (the private, local-only weekly file; the default and trust anchor), `report` (grouped by project, each headed by its git-derived metrics; the structured weekly-work-log shape, still a local file you publish yourself), or `site` (integrate the verified report into a target website's data artifact via a committed adapter — advanced; see [docs/site-integration.md](docs/site-integration.md)). |
 | `output.file` | Where the output is written. Defaults per mode when unset. (Not used by `site`, whose write path comes from the adapter.) |
 | `output.adapter` | **Required for `site` mode only**: path to the committed adapter (resolved like a repo path) — a `.json` *static* field-map, or a `.mjs` *transform* (`transform(model, ctx)`) for artifacts needing grouping/sorting/joins. It maps the verified model onto the site's data artifact; the artifact's own write path lives in the adapter. |
@@ -262,6 +271,12 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | File | Status |
 | --- | --- |
 | `honestweek.draft.json` | The redacted weekly digest from `discover`. **Gitignored.** An intermediate working artifact, never published. |
+| `honestweek.prompts.json` | The private, redacted Claude Code and Codex prompt inbox plus no-text deletion tombstones. **Gitignored.** Never read by a renderer. |
+| `honestweek.curated.json` | The private, redacted six-category review model from `digest prepare`. **Gitignored.** It contains exact selection and privacy decisions. A deleted current-week item leaves only a no-text tombstone. |
+| `honestweek.digest.pending.json` | A no-text transaction marker used only to recover an interrupted `digest prepare`. **Gitignored.** Other commands fail closed while it exists. |
+| `honestweek.prompt-items.json` | The public-safe lane. Version 1 is prompt-only; version 2 is the balanced digest. **Gitignored.** `validate` and `build` reconstruct it from local sources before use. |
+| `honestweek.carry.json` | The private, redacted carry history, bounded to 12 week records. **Gitignored.** Only a successful lifecycle build advances it. |
+| `honestweek.carry.pending.json` | The hash-bound output/carry recovery envelope for an interrupted lifecycle build. **Gitignored.** Unknown output and carry combinations fail closed. |
 | `honestweek.items.json` | The distilled, human-reviewable items. **Yours to keep or ignore** (gitignored by default; safe to delete). |
 | `honestweek.harvest.json` | Proposed redaction-denylist candidates from `harvest`. **Gitignored.** Only the count is printed; the raw nouns stay local for you to review. |
 | `output.file` (e.g. `honestweek.digest.md`) | The final rendered output. **Yours to keep or ignore.** |
@@ -299,3 +314,9 @@ Publishing to npm and cutting a GitHub Release are the only steps that go public
 ## License
 
 [MIT](LICENSE)
+
+## Codex Voice and session logs
+
+honestweek reads regular JSONL files under `$CODEX_HOME/sessions` and `$CODEX_HOME/archived_sessions`, excluding `subagents`. It does not read `history.jsonl`, plaintext logs, or other app state. A Voice or dictated turn is ingested only when Codex records its transcript as a standard `event_msg` / `user_message` string in those directories. The `audio`, `local_audio`, image, reasoning, tool-output, and other non-message fields are never retained as prompt text. A paired shell record sets only the observed-verification boolean when it contains one literal recognized test or commit command, an explicit zero exit, and matching positive evidence. Current Codex `exec` wrappers qualify only in a closed form that forwards the unchanged shell result; they are parsed without evaluation, and their source and output text are discarded. Raw session ids and working paths become hashes or private attribution; the redacted prompt, privacy audit, timestamp, source, turn, and receipt hashes remain in the current gitignored review store. Raw transcript retention remains Codex's responsibility and is not changed by honestweek.
+
+A valid Codex session record does not need a final assistant message. Its public-safe human prompt can contribute to cross-session lexical recurrence and automatic draft selection, but it cannot supply assistant-final cues or observed verification unless those records exist. A missing, unconfigured, or `display`-role working directory makes the turn private. Private or hidden turns cannot supply recurrence evidence or enter automatic output. An ambiguous or high-risk human prompt is withheld from prompt recurrence and prompt output. A labelled cue in that human prompt retains the prompt receipt and conservative prompt audit; an assistant-final cue is gated separately on its own redacted rendition and exact receipt. A malformed record or missing Codex session identity makes that source unreadable and preserves the prior store. The private prompt store is regenerated for the completed week. Its no-text deletion tombstones persist until explicit reset, and redacted lifecycle carry persists only within the limits described above.

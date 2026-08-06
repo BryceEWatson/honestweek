@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "tests": [
+    {
+      "id": "receipt-private-display-session",
+      "sources": ["AGENTS.md", "README.md", "SKILL.md", "lib/build.mjs", "lib/emit/_shared.mjs"],
+      "mustContain": ["A receipt on every line", "commit SHA or a session turn", "Private/display sessions get a generalized one-line entry", "if (repo.role === 'display') continue", "A display pointer for an item's receipt"],
+      "specMustContain": ["Private, display-role, and session-only work may use a transcript receipt", "source receipt"],
+      "specOccurrenceLimit": { "text": "git receipt on every work line", "max": 3 },
+      "positive": "private/display/session-only rows retain transcript receipts",
+      "negative": "display rows never receive SHA and invoke no git"
+    },
+    {
+      "id": "display-no-git",
+      "sources": ["AGENTS.md", "lib/build.mjs"],
+      "mustContain": ["display`-role repos are never git-read", "if (repo.role === 'display') continue"],
+      "specMustContain": ["display case records zero git calls", "display-role case makes zero git calls"],
+      "positive": "featured/reference path may resolve commit",
+      "negative": "display path records zero lookup invocations"
+    },
+    {
+      "id": "redact-before-disk",
+      "sources": ["AGENTS.md", "lib/build.mjs", "lib/archive.mjs"],
+      "mustContain": ["Redact before disk", "deepRedact", "writeArchive"],
+      "specMustContain": ["already-redacted source values", "deep-redacted values"],
+      "positive": "redacted payload reaches artifact and carry index",
+      "negative": "configured token is absent from both"
+    },
+    {
+      "id": "additive-output-and-stdout",
+      "sources": ["AGENTS.md", "lib/build.mjs"],
+      "mustContain": ["New output is additive", "build: wrote"],
+      "specMustContain": ["raw source authority", "later drops to a zero final count", "byte-identical legacy stdout"],
+      "positive": "nonempty authored input selects extended stdout",
+      "negative": "all raw sources absent selects legacy stdout"
+    },
+    {
+      "id": "verify-or-abort-and-under-claim",
+      "sources": ["AGENTS.md", "lib/build.mjs"],
+      "mustContain": ["Verify or abort", "Under-claim by default", "io.exit"],
+      "specMustContain": ["hash mismatch", "not started", "writes nothing"],
+      "positive": "resolved-authored supports pickup",
+      "negative": "unresolved optional evidence under-claims while forged identity fails"
+    },
+    {
+      "id": "runtime-boundary",
+      "sources": ["AGENTS.md", "package.json"],
+      "mustContain": ["Zero runtime dependencies", "Node >= 18", "Cross-platform", "No network egress"],
+      "specMustContain": ["Node 18 APIs", "Node built-ins", "cross-platform", "without a dependency"],
+      "positive": "verification uses node built-ins",
+      "negative": "manifest rejects an undeclared runtime dependency"
+    }
+  ]
+}

@@ -1,0 +1,340 @@
+{
+  "items": [
+    {
+      "source": "closure-residual",
+      "ref": "item 17",
+      "severity": "minor",
+      "defect": "Phase 2 raises the adaptive floor only to four and measures just three names against the deliberately small frozen corpus, one of which has fewer than four words and therefore cannot exercise the gate.",
+      "requiredFix": "A realistic multi-session false-positive criterion over roughly ten ordinary technique names is still missing, or the adaptive floor must be raised to at least five so common four-word overlap cannot make short honest names impractical.",
+      "where": "D30; phase-2 R12, A28-A29"
+    },
+    {
+      "source": "closure-residual",
+      "ref": "item 31",
+      "severity": "major",
+      "defect": "The phases now carry repoKey and describe similar lookup behavior, but no phase owns one shared resolveCommit function or requires Lane A and Lane B to consume the same injected resolver.",
+      "requiredFix": "A single shared resolver contract and implementation is still required, including one return shape and identical missing or out-of-range repoKey, display-role, throw, unresolved, and wrong-author behavior consumed by both lane graders.",
+      "where": "D23; phase-1 R4, A13; phase-2 R6, A12; phase-3 R4, A13-A14"
+    },
+    {
+      "source": "closure-residual",
+      "ref": "item 48",
+      "severity": "medium",
+      "defect": "Phase 2 collapses noun findings into one warning but still prints residual token names and seeds only ten baseline nouns, omitting routine tool names such as Bash, Edit, Read, Write, Grep, Glob, and Task.",
+      "requiredFix": "The default diagnostic must be count-only, the ambient tool vocabulary must be excluded, and an end-to-end lane build over the full fixture corpus must assert zero default noun warnings.",
+      "where": "D14; phase-2 R13, A34-A35"
+    },
+    {
+      "source": "closure-residual",
+      "ref": "item 49",
+      "severity": "medium",
+      "defect": "The revision adds both bands to post but leaves changelog gate-only and phase-2 R11 explicitly requires no ignored-row warning.",
+      "requiredFix": "Changelog still needs either a rendered lane section or the specified runtime notice that names the mode and ignored row count, because documentation alone does not prevent a lane-bearing changelog build from paying the gate and producing no lane output.",
+      "where": "D15; phase-2 R11, R26, A27; phase-3 R9, A22"
+    },
+    {
+      "source": "defect-hunt:class1",
+      "ref": "phase 2",
+      "severity": "blocker",
+      "defect": "R21 says, \"The \\\"neither\\\" branch stays byte-identical to the current ... README sample line at `README.md:127`\", but its exact Neither cell is \"Rendered to the default digest output. Every line carries a status badge and a receipt:\". A46 requires the test to deep-equal that exact cell. The current byte string contains Markdown backticks around `digest`, so the exact-cell assertion and the byte-identity assertion cannot both hold.",
+      "requiredFix": "Change the R21 README Neither value to include the literal backticks around `digest` and represent it with a fence or escaping that preserves those bytes; keep A46 pinned to the corrected exact value.",
+      "evidence": "`README.md:127` is `Rendered to the default `digest` output. Every line carries a status badge and a receipt:`. The two backtick bytes are absent from the Phase 2 R21 table at `phase-2.md:325`, while A46 at `phase-2.md:594-595` requires all twelve table strings exactly."
+    },
+    {
+      "source": "defect-hunt:class1",
+      "ref": "phase 1",
+      "severity": "minor",
+      "defect": "A14 supplies five ref inputs and five expected outputs, but A15 says, \"Passing an otherwise identical extra prose property to each A14 input leaves all four ref values unchanged.\" The same referenced set cannot simultaneously contain five values and \"all four\" values.",
+      "requiredFix": "Replace \"all four ref values\" with \"all five ref values\", or say \"all four ref kinds\" and explicitly require both idea cases to remain unchanged.",
+      "evidence": "`phase-1.md:232-236` lists turn, two idea, handoff-next-step, and handoff-reversal refs, for five total. `phase-1.md:238-239` calls those same A14 inputs \"all four ref values.\""
+    },
+    {
+      "source": "defect-hunt:class2",
+      "ref": "phase decisions",
+      "severity": "major",
+      "defect": "D33 depends on a verifier capability that nothing creates. It says, \"`verify-refs.mjs` parses every `path:line` and `path` reference out of the phase specs and this file, and asserts each path exists and each cited line contains the quoted token.\" The checked-in verifier does not parse inline `path:line` references at all, and no phase requires changing that script.",
+      "requiredFix": "Add the verifier itself and a verifier test to the spec-tooling scope. Parse every inline `path:line` citation from all five required Markdown files, verify the cited line semantically against an adjacent quoted token, and add a negative fixture proving an uncatalogued stale citation makes the command fail.",
+      "evidence": "`.claude/work/prompt-lanes/spec-v2/verify-refs.mjs:27` defines `PATH_RE` for backticked paths without `:line`; lines 34-45 only check those paths. Lines 47-85 validate hand-authored `claims*.json` entries, not every citation in the Markdown. Therefore A40/A34/A29 can exit 0 while an uncatalogued inline citation is stale."
+    },
+    {
+      "source": "defect-hunt:class2",
+      "ref": "phase 4",
+      "severity": "major",
+      "defect": "A7 and A8 depend on an archive that A6 explicitly prevents from being created. A6 begins, \"With `output.archive: false`\", while A7 says, \"Replacing week 1's archive snapshot text ... before the A6 week-2 build\" and A8 says, \"Deleting week 1's archive directory before the A6 week-2 build\". No requirement in that scenario creates the snapshot or directory to replace or delete.",
+      "requiredFix": "Keep A6 as the archive-off proof, but make A7 and A8 separate two-week controls with `output.archive: true` for week 1 and an exact snapshot path/content before mutation, or explicitly require construction of the decoy archive before those assertions.",
+      "evidence": "`phase-4.md:227-232` fixes the A6 two-week scenario to archive-off. In the real source, `lib/build.mjs:422-435` calls `writeArchive` only when `config.output.archive` is truthy, so that scenario creates neither the snapshot nor its archive directory."
+    },
+    {
+      "source": "defect-hunt:class3",
+      "ref": "phase 4",
+      "severity": "blocker",
+      "defect": "Phase 4 consumes authored-versus-engine provenance that Phase 3 never mints. R3 requires, \"A current authored row wins\" but later says, \"a selected prior nonterminal entry wins over ... a nonterminal current engine row\". The final D34 row schema has no provenance field, and Phase 4 R1 accepts only those final rows, so its pure transition cannot distinguish the two precedence branches.",
+      "requiredFix": "Amend D34/D47 and Phase 3 to mint explicit local-only provenance, such as `sourceKind: 'authored' | 'engine'`, or pass two separately typed candidate collections into the Phase 4 transition. Require stripping that provenance before any renderer or archive snapshot and test both same-ref branches through the actual cross-phase interface.",
+      "evidence": "`phase-2.md:392-409` gives the final forward shape as id, text, origin, receipt, ref, and optional repo/closedBy. `phase-3.md:83-102` constructs and merges authored and engine candidates but defines no retained provenance value in the final private row. `phase-4.md:62-73` accepts those rows, while `phase-4.md:93-99` requires different results based on provenance. Origin cannot substitute: authored rows may legitimately copy either handoff origin."
+    },
+    {
+      "source": "defect-hunt:class3",
+      "ref": "phase 3",
+      "severity": "major",
+      "defect": "Phase 3 consumes `ideasTruncatedAtTurn` as a truncation signal, but Phase 1 cannot mint a distinct signal when the first dropped idea is pre-boundary. Phase 1 requires pre-boundary ideas to have `turn: null` and also uses `ideasTruncatedAtTurn: number | null`, with `null` already meaning no truncation. A session-level cap can therefore drop a pre-boundary idea while emitting the same turn value as the no-drop state.",
+      "requiredFix": "Define truncation presence as `ideasDropped > 0` in D39/D44 and Phase 3, using `ideasTruncatedAtTurn` only as optional location context. Add a pre-boundary session-cap acceptance case that reports the exact dropped count even though the first dropped idea has no numeric turn.",
+      "evidence": "`decisions.md:605-610` and `phase-1.md:101-104` require pre-boundary ideas to use null turns. `phase-1.md:96-101` records the first dropped idea in a number-or-null `ideasTruncatedAtTurn`. `phase-3.md:79-80` calls that field \"the D39 truncation signal\", while `phase-3.md:135` relies on it for the diagnostic. D44's `ideasDropped` count exists, but the Phase 3 signal rule does not use `ideasDropped > 0`."
+    },
+    {
+      "source": "defect-hunt:class4",
+      "ref": "phase 4",
+      "severity": "blocker",
+      "defect": "The no-input corpus rule is stated incompatibly in Phase 3 and Phase 4. Phase 3 says build must use the shared operation to discover engine rows even when both authored arrays are absent; Phase 4 A2 says that with no current D34 rows and no index, \"no ... corpus reader is called.\" The absence of current engine rows cannot be known without the Phase 3 scan, so Phase 4's zero-call rule disables D6 engine discovery.",
+      "requiredFix": "Change Phase 4 R1/A2 to require no additional corpus scan beyond Phase 3's one mandatory engine-presence derivation. It may skip the carry reader and index writer, but it must reuse the already-derived empty corpus result.",
+      "evidence": "`phase-3.md:139-146` says engine presence is determined independently of authored keys, and A2 at `phase-3.md:211-213` requires exactly one shared-corpus call for `undefined`, `null`, and `[]`. `phase-4.md:69-72` says to skip the lane corpus in the empty result, and A2 at `phase-4.md:212-214` requires no corpus reader call. D6 at `decisions.md:190-197` makes engine-only handoff rows mandatory."
+    },
+    {
+      "source": "defect-hunt:class5",
+      "ref": "phase 4",
+      "severity": "minor",
+      "defect": "R3 cites the wrong source line for the canonical week start: \"the normalized current `week.start` produced at `lib/build.mjs:214`.\" That line is only the explicit-week branch and does not run for the fallback week used when the items envelope has no week.",
+      "requiredFix": "Replace the line-214 citation with `lib/build.mjs:253`, or cite the complete `normalizeWeek` range and state that both explicit and fallback branches are covered.",
+      "evidence": "`lib/build.mjs:211-220` shows line 214 returns only inside `if (week && ...)`, while the fallback is returned at line 220. The canonical value used by every build is assigned at `lib/build.mjs:253`, which Phase 3 already cites correctly."
+    },
+    {
+      "source": "defect-hunt:class6",
+      "ref": "phase 1",
+      "severity": "minor",
+      "defect": "A6 labels its fenced literal \"this exact 300-character input\", but the supplied input is 295 characters. An implementer cannot know whether the literal or the stated construction is authoritative.",
+      "requiredFix": "Change \"300-character\" to \"295-character\", or supply an actual 300-character literal and recompute and pin both expected transformed lengths.",
+      "evidence": "Counting the single line in `phase-1.md:192` exactly, excluding the Markdown newline, yields 295 characters. The existing truncation implementation at `lib/claude-adapter.mjs:311-314` makes exact source length relevant to the asserted post-transform lengths."
+    },
+    {
+      "source": "defect-hunt:class6",
+      "ref": "phase 2",
+      "severity": "major",
+      "defect": "A29's expected zero-copy-hit result depends on a corpus whose exact contents the spec never supplies: \"The three ordinary D30 technique names produce zero copy hits against the frozen corpus.\" Phase 1 tells the implementer to create that corpus, so the same implementer can make A29 pass merely by choosing fixture prose that lacks the phrases.",
+      "requiredFix": "Provide and checksum the exact pre-change prompt corpus used for the false-positive measurement, or list the exact normalized corpus strings in the criterion. Capture that artifact before copy-gate implementation and prohibit tailoring it after seeing the result.",
+      "evidence": "`phase-1.md:152-160` specifies properties of a new golden corpus but no exact transcript bytes or prompt strings. The real repository currently has no `test/fixtures/claude-projects/golden/` directory. D30 at `decisions.md:659-666` calls the check \"measured\", but the expected value is not tied to a pre-existing or exact input."
+    },
+    {
+      "source": "defect-hunt:class6",
+      "ref": "phase 3",
+      "severity": "major",
+      "defect": "A6 expects three forward origins from \"one transcript idea, one handoff next step, and one distinct `sectioned: true` handoff reversal\", but it never supplies the authored forward row required to turn the transcript idea into a candidate. Under D6, only handoff next steps and reversals are engine rows; a raw idea alone produces no forward row.",
+      "requiredFix": "Rewrite A6 to include one exact authored `forward` row whose ref resolves to the transcript idea, including its id, text, origin, and receipt, then retain the two engine handoff records as the other inputs.",
+      "evidence": "`decisions.md:181-185` defines engine rows as handoff next steps plus handoff reversals. `phase-3.md:83-91` forms the union from resolved authored rows plus those two engine sources. The A6 input at `phase-3.md:227-229` names no authored row or copied idea ref, so its stated construction deterministically yields at most the two handoff origins."
+    },
+    {
+      "source": "defect-hunt:class6",
+      "ref": "phase 4",
+      "severity": "blocker",
+      "defect": "A4 requires \"a numeric drop count\" when the carry index is absent or JSON-invalid, but no exact or honest numeric value exists. An absent file reveals no prior row count, and a file-level JSON parse failure cannot reveal how many valid entries it would have contained. The D10 template therefore forces a fabricated number.",
+      "requiredFix": "Amend D10 for file-level absent/unparseable state to report an unknown count or a count-free band diagnostic. Keep numeric counts only for parseable row-level drops, where the number is actually derived.",
+      "evidence": "`phase-4.md:75-84` classifies both states at file level before entries can be read, while A4 at `phase-4.md:220-222` still demands a number. The real archive reader pattern at `lib/archive.mjs:25-35` illustrates the information limit: absence/corruption yields an empty fallback, not a knowable count of lost records."
+    },
+    {
+      "source": "defect-hunt:class7",
+      "ref": "phase decisions",
+      "severity": "blocker",
+      "defect": "D14 weakens the existing privacy boundary by requiring the warning to name \"the top few tokens\" that survived redaction. Those residual proper-noun-shaped tokens are precisely the candidate codenames, client names, or vendors that the current product keeps out of stdout/stderr and writes only to a gitignored sidecar.",
+      "requiredFix": "Make lane noun diagnostics count-only and identify affected row ids, never token values. If token review is required, write it only to the already-gitignored harvest sidecar after redaction and document that local review path.",
+      "evidence": "`decisions.md:393-397` and Phase 2 R13 require raw residual tokens in a summary warning. The real source states the opposite at `lib/harvest.mjs:4-12`: raw candidate nouns go only to `honestweek.harvest.json`, and \"only the COUNT is printed to stdout\" because a log/transcript could leak them. `lib/harvest.mjs:149-152` implements that count-only boundary."
+    },
+    {
+      "source": "defect-hunt:class7",
+      "ref": "phase 4",
+      "severity": "blocker",
+      "defect": "Carry re-gating can be bypassed because source-repo provenance is optional and author-controlled. Phase 2 says \"`repo` ... [is] optional\"; Phase 3 lets the resolved source override only origin and receipt; Phase 4 preserves an \"optional `repo`\" and tests a role change only when it happens to be present. A row may therefore be persisted without its real source repo, or with a different featured label, and later survive when the source repo becomes `display`.",
+      "requiredFix": "Require Phase 3 to derive `repo` from the resolved session or handoff for every private forward row, reject any conflicting authored repo value, persist the derived label in every carry entry, and make the Phase 4 display-role gate fail closed when required provenance is absent.",
+      "evidence": "The real sources already know the authoritative labels: session entries set `repo: repo.label` at `lib/claude-adapter.mjs:497-499`, and handoffs set it at `lib/handoffs.mjs:138-145`. But `phase-3.md:73-81` does not retain that label, `phase-3.md:93-102` derives only origin/receipt from the source, and `phase-4.md:101-103` preserves only an optional repo. A15 at `phase-4.md:265-269` covers only a populated optional field, not omission or falsification."
+    },
+    {
+      "source": "defect-hunt:class8",
+      "ref": "phase 2",
+      "severity": "major",
+      "defect": "Phase 2 invents a new public identity vocabulary not settled in decisions.md: R4 requires technique ids matching `/^technique-[a-z0-9-]+$/`. Decisions.md defines forward-row ids in D34 but never defines a technique id prefix, pattern, collision rule, or whether the id is published.",
+      "requiredFix": "Add an authoritative decision for technique-row identity, including pattern, uniqueness scope, publication/stripping behavior, and collision handling, then have Phase 2 cite it. Alternatively, remove the invented id and use a settled receipt-derived diagnostic key.",
+      "evidence": "`phase-2.md:88-93` introduces the `technique-*` pattern and uniqueness rule. Searching all of `decisions.md` finds no `technique-` id rule; D34 at `decisions.md:713-720` is explicitly limited to forward-row ids. The invented id is load-bearing in diagnostics and voice-gate attribution at `phase-2.md:234-237`."
+    },
+    {
+      "source": "defect-hunt:class9",
+      "ref": "phase 1",
+      "severity": "major",
+      "defect": "A21's reversal-preservation assertion is vacuous. It says, \"a handoff's pre-existing `reversals` value matches the committed draft baseline after `reversalRefs` is added\", but the only handoff required in that baseline is explicitly tagged-claim-only and the frozen corpus is required to contain no reversals. The test therefore deep-equals `[]` and cannot detect any change to actual reversal extraction or bytes.",
+      "requiredFix": "Create a separate pre-change draft-baseline fixture, outside the rendered-byte golden corpus, containing at least one exact reversal string. Pin its nonempty bare-string array before implementation and compare that value after adding `reversalRefs`.",
+      "evidence": "`phase-1.md:152-160` requires the frozen corpus to contain no handoff reversals and materializes \"one generic tagged-claim-only handoff\" with no reversal. A21 is at `phase-1.md:257-258`. The live extractor's nonempty behavior is at `lib/handoffs.mjs:85-94` and is not exercised by that baseline."
+    },
+    {
+      "source": "defect-hunt:class9",
+      "ref": "phase 2",
+      "severity": "minor",
+      "defect": "A53's \"produces no prompt-sidecar lookup\" assertion is vacuous. Build never reads the prompts sidecar for any row, and a D38 stub is forbidden from having a sidecar row, so there is no real branch in which a stub could trigger that lookup.",
+      "requiredFix": "Remove the prompt-sidecar clause. Instrument the actual current-week ref resolver and git lookup, then assert the stub is rejected before either operation; cover validate's separate sidecar behavior in a validate-specific criterion.",
+      "evidence": "D20 says \"`build` does not read the sidecar\" at `decisions.md:521-523`; Phase 2 R8 repeats that at `phase-2.md:164-166`. D38 says stubs produce no sidecar row at `decisions.md:792-797`. A53 at `phase-2.md:617-618` therefore asserts an absence guaranteed by architecture rather than stub rejection behavior."
+    },
+    {
+      "source": "defect-hunt:class10",
+      "ref": "phase 1",
+      "severity": "blocker",
+      "defect": "R1/R2 require breaking AGENTS invariant 6 and then rewriting the invariant to excuse the break. R2 changes existing legacy steering, redirect, assistant-thinking, and assistant-text bytes from truncate-then-redact to redact-then-truncate even when none of the new lane inputs is present. R1 says to update AGENTS with a named exception, but AGENTS calls byte additivity an invariant that \"must not break.\"",
+      "requiredFix": "Do not weaken AGENTS to make this feature pass. Preserve legacy field bytes in the prompt-lanes revision and apply redaction-first only to new fields, or split the legacy privacy migration into a separately authorized invariant change with its own version/migration contract before this phase begins.",
+      "evidence": "`AGENTS.md:49-50` says, \"Absent its new inputs, existing output stays byte-identical.\" `phase-1.md:61-70` requires both the invariant rewrite and the legacy reorder. The live adapter truncates first at `lib/claude-adapter.mjs:311-314` and redacts legacy values later at `lib/claude-adapter.mjs:500-518`, so R2 necessarily changes existing local-state bytes for boundary cases; A6 itself pins such a change."
+    },
+    {
+      "source": "defect-hunt:class10",
+      "ref": "phase 2",
+      "severity": "blocker",
+      "defect": "R23 changes the existing successful-build stdout for every build, even when both lanes are absent: \"Use this final build summary from Phase 2 onward: `build: wrote <path> ... <T> technique row(s), <F> carried-forward row(s) ...`.\" That violates AGENTS invariant 6's absent-input byte identity, and unlike the Phase 1 local-state reorder it is not even named as an exception.",
+      "requiredFix": "Preserve the existing summary byte-for-byte when both lane arrays and engine rows are absent. Use the extended T/F summary only when at least one lane is present, and add an exact stdout additivity assertion to the lane-absent golden harness.",
+      "evidence": "The current summary at `lib/build.mjs:437-443` is `build: wrote ... (<mode>, <N> item(s), <bytes> bytes).` `phase-2.md:342-347` unconditionally inserts two zero-count clauses from Phase 2 onward. The lane-absent acceptance criteria compare artifacts, not stdout, so this invariant break is untested."
+    },
+    {
+      "source": "defect-hunt:class10",
+      "ref": "phase 2",
+      "severity": "blocker",
+      "defect": "The `closedBy` rule permits an unsupported outcome. It explicitly says, \"`build` verifies that the cited reversal exists, not that it is semantically related\", yet Phase 3 turns that weak check into the disposition `ruled out` for the authored idea. The output therefore asserts that one idea was ruled out when the log may contain only an unrelated reversal.",
+      "requiredFix": "Remove `closedBy` as `ruled out` evidence unless the source format carries an explicit machine-verifiable relation to the same ref. Until such a relation is minted, only a row directly resolved to the cited reversal ref may derive `ruled out`; all other authored rows must stay `not started`.",
+      "evidence": "`phase-2.md:369-375` defines the weak `closedBy` verification; `phase-3.md:105-120` and A17 at lines 280-282 derive `ruled out` from it. `AGENTS.md:44-45` requires under-claiming and says, \"Never assert a motive, cause, or outcome the log does not contain.\" Mere co-location in a handoff does not establish the relationship the disposition claims."
+    },
+    {
+      "source": "defect-hunt:class10",
+      "ref": "phase decisions",
+      "severity": "blocker",
+      "defect": "D5 treats an 8-hex FNV-1a hash as collision-free identity: \"Collisions across kinds are prevented by `kind` being in the canonical string.\" Including kind prevents identical canonical strings across kinds, but a 32-bit hash still collides. D39 then uses the same 8-hex construction as the sole grouping key for the `repeated without correction` honesty claim. No decision requires detecting collisions before ref joins or shape grouping.",
+      "requiredFix": "Keep the compact hash only as a display/local lookup token if desired, but retain the canonical identity tuple and normalized six-word shape internally. Detect any same-hash/different-canonical collision before a join or grade and abort/drop loudly; add the concrete collision pairs as acceptance fixtures.",
+      "evidence": "The actual FNV-1a implementation is 32-bit at `lib/handoffs.mjs:39-46`. Applying that exact algorithm gives a cross-kind ref collision: `turn|6666018e|80888` and `handoff-reversal|dd8b4025|143711` both hash to `40adc0a2`. It also gives a shape collision between `mvwovw mdhcrz oxtqfa nbudte ufxhqs frynja` and `crnqqs biirkm oqhrsx hytals fnldcq jtyhun`, both `6d566ca3`. D5's claim is at `decisions.md:159-160`; D39/D36 group solely by the 8-hex shape key at `decisions.md:813-820` and `decisions.md:756-762`."
+    },
+    {
+      "source": "consistency",
+      "ref": "cross-phase",
+      "severity": "blocker",
+      "defect": "Phase 4's no-input fast path is circular and can suppress legitimate Phase 3 engine rows.",
+      "requiredFix": "Keep Phase 3's one corpus scan whenever lanes are enabled so engine presence can be determined. Phase 4 may skip only the carry-index reader/writer after that scan proves there are no current rows and the index is absent. Rewrite Phase 4 R1 and A2 accordingly.",
+      "evidence": "Phase 3 R7 (phase-3.md:139-146) requires the shared corpus operation even when both authored lane arrays are absent because handoff next steps and sectioned reversals independently activate Lane B. Phase 4 R1 (phase-4.md:62-73) and A2 (phase-4.md:212-214) instead require no corpus call when there is no current D34 row and no carry index. The build cannot know that there is no current D34 engine row until it has performed the Phase 3 handoff scan. The real build has no pre-existing handoff presence index; it currently reads only items at lib/build.mjs:252 and assembles the model at lib/build.mjs:285."
+    },
+    {
+      "source": "consistency",
+      "ref": "cross-phase",
+      "severity": "blocker",
+      "defect": "SKILL.md rule 8's body has two producer phases, directly violating D16 and phase-assignment.md.",
+      "requiredFix": "Make Phase 2 add rule 7 and reserve only rule 8's final number/title, with no actionable forward authoring body or Forward item shape. Make Phase 3 author the one settled rule 8 body and shape block. Update the Phase 2 and Phase 3 skill tests to pin that exact handoff.",
+      "evidence": "D16 at decisions.md:433-435 and phase-assignment.md:23-25 require Phase 2 to reserve the number/title and Phase 3 to fill rule 8's body without renumbering. Phase 2 R25 at phase-2.md:369-411 writes the complete body, Forward item shape, and field notes and calls them final. Phase 3 R13 at phase-3.md:188-192 is still assigned to fill the body, then declares the work a no-op if Phase 2 already did it. The current repository has exactly six rules at SKILL.md:40-45, so there is a clean place to reserve 7 and 8 once; the conflict is entirely in the new decomposition."
+    },
+    {
+      "source": "consistency",
+      "ref": "cross-phase",
+      "severity": "blocker",
+      "defect": "Phase 2 cannot ship alone coherently because it teaches users to author forward[] while Phase 2 build and validate are forbidden to consume it.",
+      "requiredFix": "Keep Phase 2's rule 8 reservation explicitly non-actionable and do not publish the forward item shape until Phase 3 lands the consumer. Alternatively move the forward consumer into Phase 2, but that would undo D1 and is not the preferred fix.",
+      "evidence": "Phase 2 out-of-scope at phase-2.md:51-54 says not to read or produce forward[] or wire a forward row into a model. The same phase's R25 at phase-2.md:369-409 tells DISTIL exactly how to author forward rows. The real build extracts only parsed.items at lib/build.mjs:252, and Phase 2's scoped implementation adds techniques only. Therefore a user following the Phase 2 SKILL produces reviewable data that validate/build silently ignore until a later PR, which is not a coherent standalone product state."
+    },
+    {
+      "source": "consistency",
+      "ref": "cross-phase",
+      "severity": "blocker",
+      "defect": "Phase 4 consumes authored-versus-engine provenance that Phase 3 never mints on its private current-row boundary.",
+      "requiredFix": "Add an explicit private-only Phase 3 field such as sourceKind: authored|engine to the final D34 row contract, preserve it until Phase 4's merge is complete, and strip it before render/archive snapshots and from the D12 index schema. Add a Phase 3 producer test and Phase 4 consumer tests.",
+      "evidence": "Phase 3 R2/R3 at phase-3.md:83-103 distinguish authored and engine candidates while building the union, but Phase 3's published cross-phase row fields are id, ref, text, origin, receipt, optional repo, disposition, and dispositionAsOf. Phase 4 R3 at phase-4.md:93-108 must distinguish a current authored row from a current engine row to implement different D47 precedence outcomes. The id cannot be used: authored ids may match the same forward-* language, and Phase 4 explicitly forbids using id as the carry join at phase-4.md:111-112."
+    },
+    {
+      "source": "consistency",
+      "ref": "cross-phase",
+      "severity": "major",
+      "defect": "The closedBy cross-phase field has a name but no representation.",
+      "requiredFix": "Settle one exact closedBy shape in decisions.md and Phase 2's Forward item shape, including type, allowed keys, and malformed/missing-target behavior. Make Phase 3 consume only that shape.",
+      "evidence": "Phase 2 R25 at phase-2.md:369-375 and 406-409 says closedBy is optional and may cite a handoff id, but the exact JSONC example omits it and no line defines whether it is a string, { handoffId }, { ref }, or another object. Decisions.md only calls it a link at lines 929 and 936. Phase 3 R4 and A17 must dereference and validate it to derive ruled out, so the consumer cannot implement the producer contract deterministically."
+    },
+    {
+      "source": "consistency",
+      "ref": "cross-phase",
+      "severity": "major",
+      "defect": "Several Phase 2 helper APIs are promised for later reuse without stable cross-phase contracts.",
+      "requiredFix": "Name every cross-phase export and specify exact input/output shapes. At minimum define the ensureLaneCorpus result, the four text-gate results, the contract/empty-copy helper results, and renderPillSet's returned renderer or selected-value argument. Pin those interfaces in Phase 2 tests before Phase 3 consumes them.",
+      "evidence": "Phase 2 R3 at phase-2.md:80-84 requires reusable configured-term, display, noun, and voice functions but gives no names, signatures, or return shapes. Phase 2 R8 at lines 160-167 names ensureLaneCorpus() but not the returned object's keys. R21 at lines 316-321 requires an unnamed contract-copy function. Phase 3 R1, R6, and R10 consume those exact helpers and object data. The pill function is named at phase-2.md:309-314, but neither D35 nor R20 defines its return contract or how an individual selected value reaches the single wl-badge template; the real page path currently has separate legend filtering at lib/emit/page.mjs:160-168 and a per-row badge template at lib/emit/page.mjs:352-354."
+    },
+    {
+      "source": "consistency",
+      "ref": "cross-phase",
+      "severity": "major",
+      "defect": "The shapeKey producer semantics are not fully specified even though Phase 2 treats the value as authoritative grading identity.",
+      "requiredFix": "Define normalizePhrase step by step and publish the exact closed FILLER token list in D39/Phase 1, then add table tests that pin punctuation, case, repeated words, digits, filler removal, and Unicode handling.",
+      "evidence": "D39 at decisions.md:813-815 says shapeKeyFor uses normalizePhrase and FILLER removal but never defines the normalization algorithm or the FILLER token set. Phase 1 R3 repeats only 'generic FILLER'. Phase 2 R5 groups rows and assigns repeated-without-correction from shapeKey without recomputation. Phase 1 A42 pins a few synthetic strings but does not close the vocabulary or normalization behavior, so two conforming Phase 1 implementations can produce different Phase 2 grades."
+    },
+    {
+      "source": "consistency",
+      "ref": "cross-phase",
+      "severity": "minor",
+      "defect": "Phase 2's README 'neither lane' string changes a byte sequence it explicitly claims is unchanged.",
+      "requiredFix": "Put the backticks around `digest` in the Phase 2 neither-cell exact string and its tests, or stop claiming byte identity and explicitly authorize the documentation change.",
+      "evidence": "Phase 2 R21 at phase-2.md:319-325 says the README.md:127 neither branch stays byte-identical, but its table says 'default digest output' while the real source at README.md:127 says 'default `digest` output.' The backticks are missing from the planned exact string."
+    },
+    {
+      "source": "consistency:flow",
+      "ref": "turns[].shapeKey",
+      "severity": "major",
+      "defect": "The field is early enough, but the producer contract is incomplete: normalizePhrase and FILLER are not defined, so Phase 2 grouping is not reproducible from the spec.",
+      "requiredFix": "Specify the producer contract for turns[].shapeKey in phase-1.",
+      "evidence": "produced=phase-1 consumed=[\"phase-2\"]"
+    },
+    {
+      "source": "consistency:flow",
+      "ref": "ensureLaneCorpus()",
+      "severity": "major",
+      "defect": "The function is named, but Phase 2 never specifies the returned object's keys or types even though Phase 3 R1 consumes a concrete object containing sessions, handoffs, file-count state, and identity lookups.",
+      "requiredFix": "Specify the producer contract for ensureLaneCorpus() in phase-2.",
+      "evidence": "produced=phase-2 consumed=[\"phase-3\",\"phase-4\"]"
+    },
+    {
+      "source": "consistency:flow",
+      "ref": "shared configured-private-term, display-label, noun, and voice gate functions",
+      "severity": "major",
+      "defect": "Ownership is early enough, but the producer spec gives no function names, signatures, or result/diagnostic shapes for functions Phase 3 and Phase 4 are required to reuse.",
+      "requiredFix": "Specify the producer contract for shared configured-private-term, display-label, noun, and voice gate functions in phase-2.",
+      "evidence": "produced=phase-2 consumed=[\"phase-3\",\"phase-4\"]"
+    },
+    {
+      "source": "consistency:flow",
+      "ref": "renderPillSet({ vocab, classMap, legendEntries, present })",
+      "severity": "major",
+      "defect": "It has one owner as required, but its return contract and the way an individual selected value reaches the one wl-badge template are not specified for the Phase 3 instantiation.",
+      "requiredFix": "Specify the producer contract for renderPillSet({ vocab, classMap, legendEntries, present }) in phase-2.",
+      "evidence": "produced=phase-2 consumed=[\"phase-3\",\"phase-4\"]"
+    },
+    {
+      "source": "consistency:flow",
+      "ref": "README sample-output four-way contract string matrix",
+      "severity": "major",
+      "defect": "Ownership is unique, but the Phase 2 neither cell drops the backticks around digest that exist at README.md:127 while claiming byte identity.",
+      "requiredFix": "Specify the producer contract for README sample-output four-way contract string matrix in phase-2.",
+      "evidence": "produced=phase-2 consumed=[\"phase-3\",\"phase-4\"]"
+    },
+    {
+      "source": "consistency:flow",
+      "ref": "SKILL.md rule 8 body and Forward item shape block",
+      "severity": "major",
+      "defect": "Phase 2 R25 writes the complete body and shape and calls them final, while Phase 3 R13 is also assigned to fill the reserved body and attempts to make that assignment a no-op.",
+      "requiredFix": "Specify the producer contract for SKILL.md rule 8 body and Forward item shape block in phase-2 and phase-3.",
+      "evidence": "produced=phase-2 and phase-3 consumed=[\"phase-3\",\"phase-4\"]"
+    },
+    {
+      "source": "consistency:flow",
+      "ref": "forward[].closedBy",
+      "severity": "major",
+      "defect": "Phase 2 says the field is optional and may cite a handoff id but gives no JSON type or exact shape; Phase 3 must validate and dereference it.",
+      "requiredFix": "Specify the producer contract for forward[].closedBy in phase-2 (name only).",
+      "evidence": "produced=phase-2 (name only) consumed=[\"phase-3\"]"
+    },
+    {
+      "source": "consistency:flow",
+      "ref": "current private D34 row authored-versus-engine provenance",
+      "severity": "major",
+      "defect": "Phase 4 branches on current authored versus current engine rows for D47, but Phase 3's final private row contract names no sourceKind/authored field and authored ids cannot safely encode provenance.",
+      "requiredFix": "Specify the producer contract for current private D34 row authored-versus-engine provenance in not produced.",
+      "evidence": "produced=not produced consumed=[\"phase-4\"]"
+    },
+    {
+      "source": "consistency:flow",
+      "ref": "engineForwardRows existence fact",
+      "severity": "major",
+      "defect": "The fact exists only after ensureLaneCorpus scans handoffs, but Phase 4 R1/A2 use no current D34 rows as a precondition for skipping that corpus scan.",
+      "requiredFix": "Specify the producer contract for engineForwardRows existence fact in phase-3.",
+      "evidence": "produced=phase-3 consumed=[\"phase-4\"]"
+    }
+  ]
+}

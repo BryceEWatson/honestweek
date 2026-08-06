@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { resolveWorkTrees, clearWorkTreeCache } from '../lib/worktrees.mjs';
-import { matchRepo } from '../lib/claude-adapter.mjs';
+import { matchConfiguredRepo, matchRepo } from '../lib/claude-adapter.mjs';
 
 function norm(p) {
   return String(p).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
@@ -119,4 +119,10 @@ test('matchRepo: longest matched root still wins across repos', () => {
   assert.equal(matchRepo('/work/outer/packages/inner/src', config)?.label, 'inner');
   assert.equal(matchRepo('/work/outer/src', config)?.label, 'outer');
   assert.equal(matchRepo('/work/outer-parity/src', config), null);
+});
+
+test('matchConfiguredRepo resolves dot segments before containment',()=>{
+  const base=join(tmpdir(),'honestweek-configured-root');
+  const config={repos:[{resolvedPath:join(base,'repo'),path:join(base,'repo'),label:'your-project',role:'featured'}]};
+  assert.equal(matchConfiguredRepo(`${join(base,'repo')}/../private`,config),null);
 });

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { resolveWeek, localDateInTimezone, WeekResolutionError } from '../lib/resolve-week.mjs';
+import { resolveWeek, localDateInTimezone, localMidnightInstant, WeekResolutionError } from '../lib/resolve-week.mjs';
 
 const DAY_MS = 86400000;
 
@@ -100,4 +100,10 @@ test('localDateInTimezone is deterministic and returns a UTC-midnight Date', () 
   const d = localDateInTimezone(new Date('2024-06-17T01:30:00Z'), 'Asia/Tokyo');
   assert.equal(ymd(d), '2024-06-17');
   assert.equal(d.getUTCHours(), 0);
+});
+
+test('localMidnightInstant returns real timezone boundaries across DST',()=>{
+  assert.equal(localMidnightInstant('2024-03-11','America/Los_Angeles').toISOString(),'2024-03-11T07:00:00.000Z');
+  assert.equal(localMidnightInstant('2024-01-15','America/Los_Angeles').toISOString(),'2024-01-15T08:00:00.000Z');
+  assert.equal(localMidnightInstant('2024-06-10','Australia/Sydney').toISOString(),'2024-06-09T14:00:00.000Z');
 });

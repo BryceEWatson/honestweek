@@ -28,6 +28,28 @@
     "names": [],
     "terms": []
   },
+  "curation": {
+    "maxItems": 12,
+    "automaticMinScore": 2,
+    "retentionWeeks": 12,
+    "automaticCarryWeeks": 2,
+    "categoryCaps": {
+      "prompts": 2,
+      "ideas": 2,
+      "techniques": 3,
+      "decisions": 2,
+      "reversals": 1,
+      "nextSteps": 2
+    }
+  },
+  "privacy": {
+    "publicRenditions": {
+      "enabled": true,
+      "maxAutomaticChangedPercent": 20,
+      "generalizationMappings": {},
+      "neverPublicTerms": []
+    }
+  },
   "output": {
     "mode": "digest",
     "file": "honestweek.digest.md"
