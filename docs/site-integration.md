@@ -91,7 +91,7 @@ verified, redacted model (augmented with the derived sections below). Keys are
 GENERIC (the adapter maps a site's field names onto these), e.g.:
 
 - `week.start`, `week.end`
-- `provenance.itemsTotal`, `provenance.itemsVerified`, `provenance.commitsVerified`, `provenance.redactions` — **all week-scoped** (see `deriveProvenance` below)
+- `provenance.itemsTotal`, `provenance.itemsVerified`, `provenance.commitsVerified` — **week-scoped** (see `deriveProvenance` below); `provenance.redactions` — **NOT week-scoped**, it counts the whole write's scrubs
 - `groups`, `group[<label>].metrics.commits|activeDays|entries`
 - `chart.days` (collection), `chart.max`
 - `sessions.total`, `sessions.days` (collection), `sessions.<field>` — **session-derived, labeled NOT git-verified**
@@ -145,8 +145,9 @@ from the shared `week-grid.mjs`, so a chart day and a session day never disagree
   `repoTotals`, from `commitsInWindow` per readable repo over the window. A
   display-role repo is NEVER git-read; an unreadable repo contributes nothing
   (never a fake zero-for-real). `chart.max` is the peak day total.
-- `deriveProvenance` — `{ itemsTotal, itemsVerified, commitsVerified, redactions }`,
-  **all scoped to the week being reported**, because this block ships inside a
+- `deriveProvenance` — `{ itemsTotal, itemsVerified, commitsVerified, redactions }`.
+  The three **counts of content** (`itemsTotal`, `itemsVerified`, `commitsVerified`)
+  are **scoped to the week being reported**, because this block ships inside a
   per-week artifact next to `weekOf`/`weekStart`/`weekEnd`. It takes `richItems`
   (dates already derived) plus `weekStartKey`/`weekEndKey`, and filters through the
   same in-week test the feed groups by, so the counts cannot disagree with the
@@ -155,7 +156,13 @@ from the shared `week-grid.mjs`, so a chart day and a session day never disagree
   (every item across every week), so a report whose page showed 23 entries carried
   `itemsTotal: 304`, and one showing 15 carried `226`. A consumer that stored the
   old value was storing a running corpus total, not that week's count.
-  `redactions` is filled by `build` AFTER the redaction pass (`redactor.count`).
+  `redactions` is filled by `build` AFTER the redaction pass (`redactor.count`), and
+  is the **one field here that is NOT week-scoped**. The redactor runs once over the
+  whole emitted bundle, which carries the full `richItems` corpus, so a scrub caused
+  by an out-of-week item still lands in this count. That is the honest reading: it
+  says how much this write scrubbed, not how much the week contained. Week-scoping the
+  number would report a redaction pass that never ran, so an adapter must cite it as a
+  property of the write and never as a fact about the week.
   Note `itemsVerified == itemsTotal` BY CONSTRUCTION: `build` aborts before this
   runs unless every cited commit resolved, so the equality honestly asserts "0
   items failed verification" — it is NOT an independently-measured ratio, and an
