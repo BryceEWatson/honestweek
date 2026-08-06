@@ -41,6 +41,32 @@ test('deidentify strips a UNC share', () => {
   assert.doesNotMatch(deidentify('\\\\fileserver\\share\\secret.txt'), /fileserver/);
 });
 
+test('deidentify survives a spaced account name and doubled separators', () => {
+  // Both of these reached output with the account name intact during review.
+  // A "First Last" Windows account published the surname, because the segment
+  // pattern stopped at the space; and the ordinary JSON-escaped `C://Users//name//`
+  // form skipped the home rule entirely, because separator collapsing ran after it.
+  const spaced = deidentify('C:/Users/Alex Jordan/AppData/Local/Foo/bar.log');
+  assert.doesNotMatch(spaced, /Jordan/, `surname survived: ${spaced}`);
+  assert.match(spaced, /^<home>\//);
+
+  const doubled = deidentify('C://Users//alice//Projects//AcmeClient//app.js');
+  assert.doesNotMatch(doubled, /alice/, `username survived: ${doubled}`);
+  assert.match(doubled, /^<home>\//);
+});
+
+test('deidentify leaves an ordinary sentence mentioning a directory alone', () => {
+  const s = 'The service reads its config from the Users directory at startup';
+  assert.equal(deidentify(s), s);
+});
+
+test('deidentify does not mangle a URL', () => {
+  // The separator-collapsing pass has to tell a one-letter drive from the tail of a
+  // scheme. Issue URLs are quoted in drafts, so `https:/host` would be a visible bug.
+  const s = 'see https://github.com/acmeco/app/issues/12 for details';
+  assert.equal(deidentify(s), s);
+});
+
 test('deidentify keeps a non-home absolute path readable', () => {
   assert.equal(deidentify('C:\\Program Files\\Acme\\app.exe'), '<drive>/Program Files/Acme/app.exe');
 });

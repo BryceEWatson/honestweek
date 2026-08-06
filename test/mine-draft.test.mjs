@@ -35,22 +35,57 @@ test('a last-verified field is emitted EMPTY, never filled in', () => {
 });
 
 test('every last-verified spelling a destination might use is recognised', () => {
-  for (const key of ['lastVerified', 'last_verified', 'verifiedOn', 'checked']) {
+  // Matched by pattern, not an exact list. An exact list of four spellings let
+  // `lastVerifiedAt: "2026-01-01"` through with its value intact, into a document
+  // whose whole premise is that nothing in it has been checked.
+  for (const key of ['lastVerified', 'last_verified', 'verifiedOn', 'checked', 'lastVerifiedAt', 'verified', 'dateChecked', 'validatedOn']) {
     const { body } = renderDraft(finding(), { config: { mine: { draft: { frontmatter: { [key]: '2026-01-01' } } } } });
     assert.match(body, new RegExp(`^${key}: "" #`, 'm'), `${key} should have been emitted empty`);
   }
+});
+
+test('a publish-state key can never say the draft is live', () => {
+  const { body } = renderDraft(finding(), {
+    config: { mine: { draft: { frontmatter: { draft: false, published: true, public: true } } } },
+  });
+  assert.match(body, /^draft: true /m);
+  assert.match(body, /^published: false /m);
+  assert.match(body, /^public: false /m);
+});
+
+test('a destination with no publish-state field still gets an explicit draft marker', () => {
+  const { body } = renderDraft(finding(), { config: { mine: { draft: { frontmatter: { title: '', date: '' } } } } });
+  assert.match(body, /^draft: true /m, 'a mined file in a content directory must not read as publishable');
+});
+
+test('an unknown destination field is emitted EMPTY, never with its configured value', () => {
+  // The config frontmatter block is a SCHEMA — which fields this destination has —
+  // not content. Copying its placeholder values in would put unexamined assertions
+  // into the draft, and the README promises they arrive empty.
+  const { body } = renderDraft(finding(), {
+    config: { mine: { draft: { frontmatter: { series: 'cowork', seriesOrder: 5, authors: ['someone'] } } } },
+  });
+  assert.match(body, /^series: "" /m);
+  assert.match(body, /^seriesOrder: "" /m);
+  assert.match(body, /^authors: \[\] /m);
+  assert.doesNotMatch(body, /cowork|someone/);
+});
+
+test('the draft filename is scrubbed, because it becomes the published URL', () => {
+  const redactor = { redact: (s) => String(s).replaceAll('Acme', '[redacted:term]') };
+  const { path, slug } = renderDraft(finding(), { redactor });
+  assert.ok(!/acme/i.test(path), `a redacted term survived into the filename: ${path}`);
+  assert.ok(!/redacted/i.test(slug), `the redaction marker itself leaked into the slug: ${slug}`);
+});
+
+test('a slug never keeps a token that only survived a stripped redaction marker', () => {
+  assert.equal(slugFor({ primaryError: '<home>/<project> is missing' }), 'is-missing');
 });
 
 test('the publish date is left for the day it is published', () => {
   const { body } = renderDraft(finding(), { config: { mine: { draft: { frontmatter: { date: '' } } } } });
   assert.match(body, /^date: "" #/m);
   assert.doesNotMatch(body, /^date: "2026-06-25"/m, 'the mining date is not the publication date');
-});
-
-test('an unknown destination field is passed through, not guessed at', () => {
-  const { body } = renderDraft(finding(), { config: { mine: { draft: { frontmatter: { series: 'cowork', seriesOrder: 5 } } } } });
-  assert.match(body, /^series: "cowork"$/m);
-  assert.match(body, /^seriesOrder: 5$/m);
 });
 
 test('every verification item starts UNVERIFIED', () => {

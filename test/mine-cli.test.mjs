@@ -77,7 +77,8 @@ function fixture() {
 }
 
 function runMine(fx, extra = [], { env = {} } = {}) {
-  const args = [CLI, 'mine', '--config', fx.configPath, '--ledger', fx.ledger, '--json', '--corpus', 'claude-code', ...extra];
+  const corpus = extra.includes('--corpus') ? [] : ['--corpus', 'claude-code'];
+  const args = [CLI, 'mine', '--config', fx.configPath, '--ledger', fx.ledger, '--json', ...corpus, ...extra];
   try {
     const stdout = execFileSync(process.execPath, args, {
       encoding: 'utf8',
@@ -164,6 +165,99 @@ test('the run record says what was seen, not just what was found', () => {
   assert.equal(run.sessionsScanned, 1);
   assert.ok(run.corpusFloor, 'the retention floor bounds what could ever be found');
   assert.ok(Array.isArray(run.corpora) && run.corpora[0].filesFound >= 1);
+  rmSync(fx.dir, { recursive: true, force: true });
+});
+
+test('the ledger is written through the configured redactor, not just de-identified', () => {
+  // The redactor was built inside the --draft branch at first, so a plain run wrote the
+  // ledger with de-identification alone. de-identify handles paths and this machine's
+  // account name; it knows nothing about the user's own denylist. Three places tell the
+  // user to COMMIT this file because it was redacted, so the gap was a published leak.
+  const fx = fixture();
+  const cfg = JSON.parse(readFileSync(fx.configPath, 'utf8'));
+  cfg.redaction = { codenames: ['Acme'], names: [], terms: [] };
+  writeFileSync(fx.configPath, JSON.stringify(cfg, null, 2));
+
+  runMine(fx);
+  const raw = readFileSync(fx.ledger, 'utf8');
+  // honestweek's redactor matches whole words, by design — a longer identifier that
+  // merely contains the term (`AcmeVMService`) is not a leak of the configured term
+  // and is left alone. What must not survive is the term itself.
+  assert.ok(!/\bAcme\b/.test(raw), 'a configured codename reached the ledger unredacted');
+  assert.match(raw, /\[redacted/, 'expected the redactor to have visibly run');
+  rmSync(fx.dir, { recursive: true, force: true });
+});
+
+test('--decide works on a key containing an equals sign', () => {
+  // Finding keys are normalized error strings and routinely contain "=". Splitting on
+  // the FIRST "=" made those findings undecidable, which disables the only mechanism
+  // that can lower the backlog.
+  const fx = fixture();
+  runMine(fx);
+  const ledger = JSON.parse(readFileSync(fx.ledger, 'utf8'));
+  ledger.findings[0].key = 'error: bind failed code=#';
+  writeFileSync(fx.ledger, JSON.stringify(ledger, null, 2));
+
+  execFileSync(process.execPath, [CLI, 'mine', '--config', fx.configPath, '--ledger', fx.ledger, '--decide', 'error: bind failed code=#=declined'], {
+    encoding: 'utf8',
+    env: { ...process.env, CLAUDE_CONFIG_DIR: fx.dir },
+  });
+  const after = JSON.parse(readFileSync(fx.ledger, 'utf8'));
+  assert.equal(after.findings[0].status, 'declined');
+  rmSync(fx.dir, { recursive: true, force: true });
+});
+
+test('--decide rejects a bad status by name instead of throwing', () => {
+  const fx = fixture();
+  runMine(fx);
+  const key = JSON.parse(readFileSync(fx.ledger, 'utf8')).findings[0].key;
+  let stderr = '';
+  try {
+    execFileSync(process.execPath, [CLI, 'mine', '--config', fx.configPath, '--ledger', fx.ledger, '--decide', `${key}=maybe`], {
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_CONFIG_DIR: fx.dir },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    assert.fail('should have exited non-zero');
+  } catch (err) {
+    stderr = String(err.stderr);
+  }
+  assert.match(stderr, /unknown finding status/);
+  assert.match(stderr, /published/, 'the error should name the valid statuses');
+  rmSync(fx.dir, { recursive: true, force: true });
+});
+
+test('an explicitly requested corpus with no root at all is blind, not quiet', () => {
+  // A corpus whose roots do not exist used to produce NO diagnostics row, so the
+  // blind check could not see it: `--corpus cowork` on a machine without cowork
+  // printed an empty table and exited 0 — a zero from a sensor that never looked.
+  const fx = fixture();
+  const args = [CLI, 'mine', '--config', fx.configPath, '--ledger', fx.ledger, '--json', '--corpus', 'cowork'];
+  let out;
+  let code = 0;
+  try {
+    out = execFileSync(process.execPath, args, {
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_CONFIG_DIR: fx.dir, APPDATA: join(fx.dir, 'no-such-appdata') },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (err) {
+    code = err.status;
+    out = err.stdout;
+  }
+  const json = JSON.parse(out);
+  assert.equal(code, 2, 'asking for a corpus and getting nothing back is a fault');
+  assert.deepEqual(json.blindCorpora, ['cowork']);
+  assert.ok(json.diagnostics.corpora.length >= 1, 'a requested corpus must always appear in diagnostics');
+  rmSync(fx.dir, { recursive: true, force: true });
+});
+
+test('a corpus merely absent from the default sweep is not a fault', () => {
+  // The inverse of the case above: not having a tool installed is normal.
+  const fx = fixture();
+  const { code, json } = runMine(fx, [], { env: { APPDATA: join(fx.dir, 'no-such-appdata'), CODEX_HOME: join(fx.dir, 'no-such-codex') } });
+  assert.equal(code, 0);
+  assert.equal(json.sensorOk, true);
   rmSync(fx.dir, { recursive: true, force: true });
 });
 
