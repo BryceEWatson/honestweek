@@ -268,3 +268,63 @@ test('an unknown option fails loudly instead of being ignored', () => {
   assert.match(String(r.stderr), /unknown option/);
   rmSync(fx.dir, { recursive: true, force: true });
 });
+
+test('a mistyped --corpus fails loudly instead of scanning nothing', () => {
+  // `--corpus claud-code` used to resolve to zero corpora and zero diagnostics rows,
+  // so sensorOk stayed true and the command exited 0 — a sensor that never looked,
+  // reporting a quiet week.
+  const fx = fixture();
+  const r = runMine(fx, ['--corpus', 'claud-code']);
+  assert.equal(r.code, 1);
+  assert.match(String(r.stderr), /unknown corpus "claud-code"/);
+  assert.match(String(r.stderr), /claude-code, codex, cowork/, 'the error must name the valid list');
+  const empty = runMine(fx, ['--corpus', '']);
+  assert.equal(empty.code, 1, 'an empty --corpus value is a mistake, not "all"');
+  rmSync(fx.dir, { recursive: true, force: true });
+});
+
+test('an explicit --config that is unusable fails loudly, never a silent downgrade', () => {
+  // Continuing without the named config would disable mine.ownRepos (own-repo issues
+  // would rank as third-party evidence) and the redaction denylist — in a run whose
+  // ledger the docs say to commit BECAUSE it was redacted.
+  const fx = fixture();
+  writeFileSync(fx.configPath, '{ not json');
+  const malformed = runMine(fx);
+  assert.equal(malformed.code, 1);
+  assert.match(String(malformed.stderr), /unusable config/);
+
+  writeFileSync(fx.configPath, JSON.stringify({ identity: {} }));
+  const invalid = runMine(fx);
+  assert.equal(invalid.code, 1, 'schema-invalid is as unusable as malformed');
+  assert.match(String(invalid.stderr), /unusable config/);
+
+  rmSync(fx.configPath);
+  const missing = runMine(fx);
+  assert.equal(missing.code, 1, 'a --config that names a missing file is a fault');
+  assert.match(String(missing.stderr), /unusable config/);
+  rmSync(fx.dir, { recursive: true, force: true });
+});
+
+test('an absent DEFAULT config downgrades with a note; a broken one fails', () => {
+  const fx = fixture();
+  const cwd = join(fx.dir, 'elsewhere');
+  mkdirSync(cwd, { recursive: true });
+  const args = [CLI, 'mine', '--ledger', fx.ledger, '--json', '--corpus', 'claude-code'];
+  const opts = { encoding: 'utf8', cwd, env: { ...process.env, CLAUDE_CONFIG_DIR: fx.dir }, stdio: ['ignore', 'pipe', 'pipe'] };
+
+  // No file at the default path: mining still runs, and says what it lost.
+  const out = execFileSync(process.execPath, args, opts);
+  assert.equal(JSON.parse(out).sensorOk, true);
+
+  // A file that EXISTS at the default path but cannot be loaded is a fault: the user
+  // wrote a config and this run would silently ignore it.
+  writeFileSync(join(cwd, 'honestweek.config.json'), '{ not json');
+  try {
+    execFileSync(process.execPath, args, opts);
+    assert.fail('should have exited non-zero');
+  } catch (err) {
+    assert.equal(err.status, 1);
+    assert.match(String(err.stderr), /unusable config/);
+  }
+  rmSync(fx.dir, { recursive: true, force: true });
+});

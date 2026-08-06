@@ -11,7 +11,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { enumerateSessions, humanText, isHumanText, probeSession, sessionKey, streamSession } from '../lib/mine/corpus.mjs';
+import { enumerateSessions, humanText, isHumanText, probeSession, resolveCorpora, sessionKey, streamSession } from '../lib/mine/corpus.mjs';
 
 function tmp() {
   return mkdtempSync(join(tmpdir(), 'hw-corpus-'));
@@ -195,4 +195,12 @@ test('subagent transcripts are never enumerated as sessions', () => {
   assert.equal(sessions.length, 1);
   assert.equal(sessions[0].firstPrompt, 'the real prompt');
   rmSync(dir, { recursive: true, force: true });
+});
+
+test('resolveCorpora rejects an unknown kind instead of silently scanning nothing', () => {
+  // An unknown kind used to fall out of the if/else chain producing NO row, so a
+  // typo resolved to zero corpora and zero diagnostics — invisible to the caller's
+  // blind-sensor check, which only judges rows that exist.
+  assert.throws(() => resolveCorpora({ corpora: ['claud-code'] }), /unknown corpus "claud-code".*claude-code, codex, cowork/);
+  assert.throws(() => resolveCorpora({ corpora: ['claude-code', 'kodex'] }), /unknown corpus "kodex"/);
 });

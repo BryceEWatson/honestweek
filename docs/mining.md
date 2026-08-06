@@ -206,6 +206,12 @@ between runs — and have the scheduled job do three things:
    branch. Never in a checkout someone might be using.
 2. **Read the exit code before the output.** Exit `2` means a corpus was empty, which is
    a broken sensor, not a quiet week. Raise it as a fault; do not report zero findings.
+   Exit `1` means the run never scanned at all — a mistyped `--corpus` name, or a config
+   file that exists (or was named with `--config`) but cannot be loaded. Both fail loudly
+   by design: continuing without the config would silently turn off the redaction
+   denylist and the own-repo list, and a mistyped corpus would scan nothing and report a
+   quiet week. Only a *missing* file at the default config path downgrades (with a
+   stderr note), because that is the documented run-without-config mode.
 3. If a draft was written, work as much of its verification checklist as can be done
    safely, mark only what was actually confirmed, and open **one** pull request. If
    nothing new was found, stay silent — an unattended job that reports every week

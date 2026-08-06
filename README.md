@@ -124,7 +124,8 @@ node bin/honestweek.mjs mine --draft      # and write the top one up as a post
 ```
 
 **What it reads.** Claude Code (`~/.claude/projects`), Codex (`~/.codex/sessions`) and
-Cowork session logs. Pick with `--corpus claude-code,codex,cowork`.
+Cowork session logs. Pick with `--corpus claude-code,codex,cowork`. A name outside that
+list is an error (exit 1), not an empty scan — a typo must never read as a quiet week.
 
 **How it decides.** A session is a candidate only when all three hold:
 
