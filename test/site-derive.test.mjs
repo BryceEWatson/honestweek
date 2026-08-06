@@ -91,8 +91,45 @@ test('deriveChart contributes nothing for an unreadable repo (never a fake zero-
 });
 
 test('deriveProvenance counts items + verified commits (redactions filled later)', () => {
-  const p = deriveProvenance({ items: [{ id: '1' }, { id: '2' }], verified: [{ sha: 'a' }] });
+  const p = deriveProvenance({
+    items: [{ id: '1', date: '2024-06-11' }, { id: '2', date: '2024-06-12' }],
+    verified: [{ sha: 'a', dateISO: '2024-06-11T10:00:00Z' }],
+    weekStartKey: WEEK.start,
+    weekEndKey: WEEK.end,
+  });
   assert.deepEqual(p, { itemsTotal: 2, itemsVerified: 2, commitsVerified: 1, redactions: 0 });
+});
+
+// The defect: provenance sits inside a PER-WEEK artifact but counted the whole authored
+// corpus, so a report showing 23 entries carried itemsTotal 304 and commitsVerified 114
+// beside a week holding 43 commits. Both counts must be week-scoped.
+test('deriveProvenance counts only the week being reported, not the whole corpus', () => {
+  const p = deriveProvenance({
+    items: [
+      { id: 'before', date: '2024-06-09' },   // the Sunday before the week
+      { id: 'in-1', date: '2024-06-10' },     // the Monday it starts
+      { id: 'in-2', date: '2024-06-16' },     // the Sunday it ends
+      { id: 'after', date: '2024-06-17' },    // the Monday after
+      { id: 'undated', date: null },          // never counted: no week to place it in
+    ],
+    verified: [
+      { sha: 'a', dateISO: '2024-06-09T23:59:59Z' },
+      { sha: 'b', dateISO: '2024-06-10T00:00:00Z' },
+      { sha: 'c', dateISO: '2024-06-16T23:59:59Z' },
+      { sha: 'd', dateISO: '2024-06-17T00:00:00Z' },
+    ],
+    weekStartKey: WEEK.start,
+    weekEndKey: WEEK.end,
+  });
+  assert.deepEqual(p, { itemsTotal: 2, itemsVerified: 2, commitsVerified: 2, redactions: 0 });
+});
+
+test('deriveProvenance is inclusive of both week boundaries and excludes undated items', () => {
+  const only = (date) => deriveProvenance({ items: [{ id: 'x', date }], verified: [], weekStartKey: WEEK.start, weekEndKey: WEEK.end }).itemsTotal;
+  assert.equal(only(WEEK.start), 1, 'the first day of the week counts');
+  assert.equal(only(WEEK.end), 1, 'the last day of the week counts');
+  assert.equal(only(undefined), 0, 'an item with no derived date is not attributed to the week');
+  assert.equal(only(''), 0, 'an empty date is not attributed to the week');
 });
 
 test('deriveChart charts FEATURED repos only (reference repos are verify-only, not charted)', () => {
