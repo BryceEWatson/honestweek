@@ -56,5 +56,20 @@
   },
   "voice": {
     "denyMeta": false
+  },
+  "mine": {
+    "ledger": "honestweek.findings.json",
+    "ownRepos": ["your-org/your-repo"],
+    "publishedErrorStrings": [],
+    "draft": {
+      "dir": "honestweek.drafts",
+      "frontmatter": {
+        "title": "",
+        "description": "",
+        "date": "",
+        "tags": [],
+        "lastVerified": ""
+      }
+    }
   }
 }
