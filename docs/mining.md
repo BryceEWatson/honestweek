@@ -196,6 +196,32 @@ So every draft carries, structurally:
   a form worth publishing. Inventing one would be the worst output this system could
   produce.
 
+## Running it unattended
+
+A mechanism whose trigger is "you remember to run it" has no trigger. Put `mine` on a
+schedule — weekly is well inside any agent's log-retention window, so nothing is lost
+between runs — and have the scheduled job do three things:
+
+1. Run `mine --draft` in a fresh worktree of the destination repository, off its default
+   branch. Never in a checkout someone might be using.
+2. **Read the exit code before the output.** Exit `2` means a corpus was empty, which is
+   a broken sensor, not a quiet week. Raise it as a fault; do not report zero findings.
+3. If a draft was written, work as much of its verification checklist as can be done
+   safely, mark only what was actually confirmed, and open **one** pull request. If
+   nothing new was found, stay silent — an unattended job that reports every week
+   teaches its reader to ignore it.
+
+Two things are worth alarming on, and neither is "how many findings were produced":
+
+- **The backlog is not falling.** Findings are being produced and never decided. That is
+  the failure this design exists to make visible.
+- **The oldest undecided finding keeps ageing.** Something is drafted and stuck.
+
+The job must never merge, deploy, or publish, and must never tick a verification item it
+did not actually check. A draft that reads as verified when it was not is worse than no
+draft: it converts an unchecked claim into a published one, with the reader's trust
+attached.
+
 ## Corpus hazards
 
 These are properties of the logs themselves. Each one silently corrupts counts, and each
