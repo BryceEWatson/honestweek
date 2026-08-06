@@ -69,10 +69,11 @@ queue", and that actuator has a bad track record.
 
 **Silent-failure handling.** Every run records what it *saw*, not just what it found:
 files enumerated per corpus, sessions accepted, the date range covered, the retention
-floor. The command **exits 2** when a corpus is blind in any of three ways: its
-directory exists but holds no logs; it was requested by name and no directory exists;
-or its files are present but not one of them yields a session identity — the signature
-of an upstream log-format change, which would otherwise read as a quiet week. "I looked
+floor. The command **exits 2** when the sensor is blind in any of four ways: a corpus
+directory exists but holds no logs; a corpus was requested by name and no directory
+exists; files are present but not one of them yields a session identity; or every
+scanned session fails inside the detector. The last two are the signature of an
+upstream log-format change, which would otherwise read as a quiet week. "I looked
 at 1,893 sessions and found nothing" and "I looked at nothing" must never print the
 same way.
 
@@ -303,9 +304,11 @@ blind-sensor check groups by corpus kind rather than by directory.
 
 Reading is streamed line by line and capped per session (`MAX_SESSION_BYTES`, 8 MB), so a
 very large transcript cannot stall a scan; truncated sessions are counted and disclosed
-in any draft they produce. The cap's cost is directional: a session is cut at its END,
-where resolution evidence lives, so truncation can only miss a candidate, never invent
-one. A full scan of ~4,700 files takes about 25 seconds.
+in any draft they produce. The cap's cost is mostly
+misses: a session is cut at its END, where resolution evidence lives. It is not
+perfectly one-sided — disqualifying tail evidence can be cut too — which is one reason
+a truncated session is disclosed in any draft it produces. A full scan of ~4,700 files
+takes about 25 seconds.
 
 De-identification (`deidentify` in `detect.mjs`) runs before the configured redactor,
 never instead of it. It removes home directories in every path spelling, UNC shares,
