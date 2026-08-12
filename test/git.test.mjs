@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { lookupCommit, commitsInWindow, verifyItems, emailInList } from '../lib/git.mjs';
+import { defaultBranchRefs, lookupCommit, commitsInWindow, verifyItems, emailInList } from '../lib/git.mjs';
 
 const ME = 'me@example.com';
 const OTHER = 'someone@else.test';
@@ -246,6 +246,156 @@ test('verifyItems never calls process.exit (returns a verdict object)', () => {
     assert.equal(typeof result.ok, 'boolean');
     assert.ok(Array.isArray(result.problems));
     assert.ok(Array.isArray(result.verified));
+  } finally {
+    cleanup(dir);
+  }
+});
+
+// --- the landed gate: offline default-branch reachability --------------------
+
+/** Rename the current branch to `name` (deterministic across machines whose
+ *  `git init` default branch differs). */
+function normalizeBranch(dir, name) {
+  const current = git(dir, ['rev-parse', '--abbrev-ref', 'HEAD']).trim();
+  if (current !== name) git(dir, ['branch', '-m', name]);
+}
+
+test('defaultBranchRefs — a conventional local main is the default branch', () => {
+  const dir = initRepo();
+  try {
+    commit(dir, { email: ME, message: 'first', dateISO: '2024-06-12T10:00:00Z' });
+    normalizeBranch(dir, 'main');
+    assert.deepEqual(defaultBranchRefs(dir), ['refs/heads/main']);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('defaultBranchRefs — a single local branch of ANY name is the default branch', () => {
+  const dir = initRepo();
+  try {
+    commit(dir, { email: ME, message: 'first', dateISO: '2024-06-12T10:00:00Z' });
+    normalizeBranch(dir, 'trunk');
+    assert.deepEqual(defaultBranchRefs(dir), ['refs/heads/trunk']);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('defaultBranchRefs — multiple non-conventional branches with no origin -> [] (undeterminable)', () => {
+  const dir = initRepo();
+  try {
+    commit(dir, { email: ME, message: 'first', dateISO: '2024-06-12T10:00:00Z' });
+    normalizeBranch(dir, 'trunk');
+    git(dir, ['branch', 'scratch']);
+    assert.deepEqual(defaultBranchRefs(dir), []);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('defaultBranchRefs — origin/HEAD recorded at clone wins, remote-tracking + local refs both returned', () => {
+  const src = initRepo();
+  const dst = mkdtempSync(join(tmpdir(), 'hw-git-clone-'));
+  try {
+    commit(src, { email: ME, message: 'first', dateISO: '2024-06-12T10:00:00Z' });
+    normalizeBranch(src, 'trunk');
+    git(src, ['clone', '-q', src, join(dst, 'clone')]);
+    const clone = join(dst, 'clone');
+    // A second local branch, so neither the main/master fallback nor the
+    // single-branch fallback could explain the result — only origin/HEAD can.
+    git(clone, ['branch', 'scratch']);
+    assert.deepEqual(defaultBranchRefs(clone), ['refs/remotes/origin/trunk', 'refs/heads/trunk']);
+  } finally {
+    cleanup(src, dst);
+  }
+});
+
+test('defaultBranchRefs — a DANGLING origin/HEAD falls through to the main fallback', () => {
+  // After a remote default-branch rename plus a pruning fetch, refs/remotes/origin/HEAD
+  // can still name the old branch: `git symbolic-ref` reports that target happily even
+  // though nothing resolves it. Trusting the name would skip the main/master fallback
+  // and strand a repo whose main is present, aborting an honest shipped build.
+  const dir = initRepo();
+  try {
+    commit(dir, { email: ME, message: 'first', dateISO: '2024-06-12T10:00:00Z' });
+    normalizeBranch(dir, 'main');
+    git(dir, ['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+    git(dir, ['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/master']);
+    assert.equal(
+      git(dir, ['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD']).trim(),
+      'refs/remotes/origin/master',
+      'precondition: the dangling symbolic ref still reports its missing target'
+    );
+    assert.deepEqual(defaultBranchRefs(dir), ['refs/remotes/origin/main', 'refs/heads/main']);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('verifyItems — a default-branch commit verifies landed: true', () => {
+  const dir = initRepo();
+  try {
+    const sha = commit(dir, { email: ME, message: 'landed work', dateISO: '2024-06-12T10:00:00Z' });
+    normalizeBranch(dir, 'main');
+    const { ok, verified } = verifyItems([{ id: 'i1', repo: 'r', primaryCommit: sha }], featuredConfig(dir));
+    assert.equal(ok, true);
+    assert.equal(verified[0].landed, true);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('verifyItems — an authored commit only on an unmerged branch is landed: false but still a verified receipt', () => {
+  const dir = initRepo();
+  try {
+    commit(dir, { email: ME, message: 'base', dateISO: '2024-06-12T10:00:00Z' });
+    normalizeBranch(dir, 'main');
+    git(dir, ['checkout', '-q', '-b', 'feat']);
+    const stranded = commit(dir, { email: ME, message: 'real, unmerged', dateISO: '2024-06-12T11:00:00Z' });
+    git(dir, ['checkout', '-q', 'main']);
+    const { ok, problems, verified } = verifyItems([{ id: 'i1', repo: 'r', primaryCommit: stranded }], featuredConfig(dir));
+    // NOT a problem (the commit is real and yours) — the honest state is
+    // landed: false, and the receipt survives for the downgraded item.
+    assert.equal(ok, true);
+    assert.equal(problems.length, 0);
+    assert.equal(verified[0].landed, false);
+    assert.equal(verified[0].sha, stranded);
+    assert.ok(verified[0].shortSha, 'receipt metadata survives the unlanded verdict');
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('verifyItems — a commit on the remote-tracking default branch is landed even when the local head is behind', () => {
+  // The everyday PR state: merged remotely, fetched, local default branch not
+  // yet fast-forwarded. Reachability from EITHER ref of the default branch counts.
+  const src = initRepo();
+  const dst = mkdtempSync(join(tmpdir(), 'hw-git-behind-'));
+  try {
+    commit(src, { email: ME, message: 'base', dateISO: '2024-06-12T10:00:00Z' });
+    normalizeBranch(src, 'main');
+    git(src, ['clone', '-q', src, join(dst, 'clone')]);
+    const clone = join(dst, 'clone');
+    const merged = commit(src, { email: ME, message: 'merged upstream', dateISO: '2024-06-12T11:00:00Z' });
+    git(clone, ['fetch', '-q', 'origin']); // local file fetch — no network
+    const { ok, verified } = verifyItems([{ id: 'i1', repo: 'r', primaryCommit: merged }], featuredConfig(clone));
+    assert.equal(ok, true);
+    assert.equal(verified[0].landed, true);
+  } finally {
+    cleanup(src, dst);
+  }
+});
+
+test('verifyItems — landed is null (unverifiable) when no default branch is determinable', () => {
+  const dir = initRepo();
+  try {
+    const sha = commit(dir, { email: ME, message: 'work', dateISO: '2024-06-12T10:00:00Z' });
+    normalizeBranch(dir, 'trunk');
+    git(dir, ['branch', 'scratch']);
+    const { ok, verified } = verifyItems([{ id: 'i1', repo: 'r', primaryCommit: sha }], featuredConfig(dir));
+    assert.equal(ok, true, 'verifyItems reports the fact; the caller owns any abort');
+    assert.equal(verified[0].landed, null);
   } finally {
     cleanup(dir);
   }

@@ -95,7 +95,7 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    > node bin/honestweek.mjs validate          # add --no-dashes for the voice rule
    > ```
    > `validate` exits `2` if any item lacks a valid badge or a receipt, **names a `display`-role repo or cites a commit against one**, or lets a configured redaction term survive into the prose. It catches an authoring leak at the source instead of relying on build-time scrubbing.
-4. **`build`** → re-derives and **git-verifies every cited commit**. It **aborts with exit code `2`** if any cited commit is unresolved or its `authorEmail` is not in `identity.authorEmails`, writing nothing rather than emit a half-true summary.
+4. **`build`** → re-derives and **git-verifies every cited commit**. It **aborts with exit code `2`** if any cited commit is unresolved or its `authorEmail` is not in `identity.authorEmails`, writing nothing rather than emit a half-true summary. A `shipped` badge additionally requires every cited commit to have **landed**: reachable from the repo's default branch (origin/HEAD as recorded locally, else `main`/`master`, else the repo's only branch), checked offline from local refs, never a fetch. Real work still on an unmerged branch keeps its receipt and is downgraded to `in progress`, announced on stderr; if the repo has no determinable default branch, the `shipped` claim is unverifiable and the build aborts (exit `2`).
    ```bash
    node bin/honestweek.mjs build
    ```
@@ -381,7 +381,7 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 honestweek's two non-negotiable promises:
 
 1. **A receipt on every line.** Every emitted item points to its source: a commit SHA or a session turn. An item that reaches the renderer without a receipt is a build error, not a receipt-less line.
-2. **It never asserts a motive the log does not contain.** honestweek defaults to **under-claiming**: verified/measured work reads as `shipped`; anything weaker reads as `designed, not proven`. It never narrates intent the transcript doesn't support.
+2. **It never asserts a motive the log does not contain.** honestweek defaults to **under-claiming**: verified/measured work that has landed on the repo's default branch reads as `shipped`; real work still on an unmerged branch reads as `in progress`; anything weaker reads as `designed, not proven`. It never narrates intent the transcript doesn't support.
 
 ## Releasing (maintainers)
 
