@@ -9,7 +9,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, existsSync, rmSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
@@ -43,14 +43,12 @@ function commit(dir, email, message) {
   return git(dir, ['rev-parse', 'HEAD']).trim();
 }
 
-/** Run `node bin/honestweek.mjs build` in workDir; return { code, stderr }. */
+/** Run `node bin/honestweek.mjs build` in workDir; return { code, stderr }.
+ *  spawnSync (not execFileSync) so stderr is captured on success too — the
+ *  landed-gate downgrade note arrives on stderr of an exit-0 build. */
 function runBuildCli(workDir) {
-  try {
-    execFileSync(process.execPath, [BIN, 'build'], { cwd: workDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-    return { code: 0, stderr: '' };
-  } catch (err) {
-    return { code: err.status ?? 1, stderr: err.stderr?.toString() ?? '' };
-  }
+  const res = spawnSync(process.execPath, [BIN, 'build'], { cwd: workDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  return { code: res.status ?? 1, stderr: res.stderr ?? '' };
 }
 
 function scenario({ repoDir, citedSha }) {
@@ -121,6 +119,34 @@ test('CONTROL: build SUCCEEDS (exit 0) and writes output when the cited commit r
     const out = readFileSync(outFile, 'utf8');
     assert.match(out, /\*\*shipped\*\*/, 'item carries its status badge');
     assert.match(out, new RegExp(mySha.slice(0, 7)), 'receipt carries the git-derived short sha');
+  } finally {
+    cleanup(repoDir, work);
+  }
+});
+
+test('DEMO: a real authored commit stranded on an unmerged branch NEVER renders `shipped` — build downgrades it to `in progress`', () => {
+  // The landed gate: `shipped` claims the work is on the default branch. A
+  // commit that only exists on an unmerged feature branch is real work (it
+  // resolves, it is yours) but it has NOT landed — so the build reports it
+  // honestly instead of aborting, and refuses the `shipped` badge. Verified
+  // offline from local refs; no fetch, no network.
+  const repoDir = initRepo();
+  commit(repoDir, ME, 'landed base work'); // the default branch has history
+  const defaultBranch = git(repoDir, ['rev-parse', '--abbrev-ref', 'HEAD']).trim();
+  git(repoDir, ['checkout', '-q', '-b', 'feat']);
+  const strandedSha = commit(repoDir, ME, 'real work, never merged');
+  git(repoDir, ['checkout', '-q', defaultBranch]);
+  const { work, outFile } = scenario({ repoDir, citedSha: strandedSha });
+  try {
+    const { code, stderr } = runBuildCli(work);
+    assert.equal(code, 0, 'real-but-unlanded work reports honestly; only fabricated claims abort');
+    assert.ok(existsSync(outFile), 'output is written (with the honest badge)');
+    const out = readFileSync(outFile, 'utf8');
+    const line = out.split('\n').find((l) => l.includes('Shipped the weekly summary build.'));
+    assert.match(line, /\*\*in progress\*\*/, 'the stranded item carries the honest badge');
+    assert.doesNotMatch(line, /shipped/, 'the stranded item never reads `shipped`');
+    assert.match(out, new RegExp(strandedSha.slice(0, 7)), 'the real receipt survives the downgrade');
+    assert.match(stderr, /not landed on the default branch/, 'the downgrade is announced, never silent');
   } finally {
     cleanup(repoDir, work);
   }
