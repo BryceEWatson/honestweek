@@ -311,6 +311,28 @@ test('defaultBranchRefs — origin/HEAD recorded at clone wins, remote-tracking 
   }
 });
 
+test('defaultBranchRefs — a DANGLING origin/HEAD falls through to the main fallback', () => {
+  // After a remote default-branch rename plus a pruning fetch, refs/remotes/origin/HEAD
+  // can still name the old branch: `git symbolic-ref` reports that target happily even
+  // though nothing resolves it. Trusting the name would skip the main/master fallback
+  // and strand a repo whose main is present, aborting an honest shipped build.
+  const dir = initRepo();
+  try {
+    commit(dir, { email: ME, message: 'first', dateISO: '2024-06-12T10:00:00Z' });
+    normalizeBranch(dir, 'main');
+    git(dir, ['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+    git(dir, ['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/master']);
+    assert.equal(
+      git(dir, ['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD']).trim(),
+      'refs/remotes/origin/master',
+      'precondition: the dangling symbolic ref still reports its missing target'
+    );
+    assert.deepEqual(defaultBranchRefs(dir), ['refs/remotes/origin/main', 'refs/heads/main']);
+  } finally {
+    cleanup(dir);
+  }
+});
+
 test('verifyItems — a default-branch commit verifies landed: true', () => {
   const dir = initRepo();
   try {

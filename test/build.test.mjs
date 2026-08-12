@@ -486,6 +486,55 @@ test('landed gate: site mode artifact carries the downgraded status (same items 
   }
 });
 
+test('landed gate: the SAME sha in two repos is judged per repo, not last-verdict-wins', async () => {
+  // A fork and its upstream (or a stale second clone) hold the same commit object,
+  // landed in one and stranded in the other. Keyed by sha alone, the landed repo's
+  // verdict overwrites the stranded one and the unlanded item keeps `shipped` — the
+  // exact lie the gate exists to stop. The unlanded item is listed FIRST so the
+  // overwrite would happen if the key were not per repo.
+  const stranded = landedAndStrandedRepo();  // `shared` lives only on `feat` here
+  const shared = stranded.strandedSha;
+  const clone = mkdtempSync(join(tmpdir(), 'hw-build-clone-'));
+  const work = mkdtempSync(join(tmpdir(), 'hw-build-work-'));
+  const outPath = join(work, 'out.md');
+  try {
+    execFileSync('git', ['clone', '-q', stranded.dir, clone], { stdio: ['ignore', 'pipe', 'pipe'] });
+    git(clone, ['fetch', '-q', 'origin', 'feat:refs/heads/feat']);
+    git(clone, ['merge', '-q', '--ff-only', shared]);  // same object, landed on main here
+    assert.equal(git(clone, ['rev-parse', shared]).trim(), shared, 'precondition: one shared commit object');
+
+    writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify({
+      identity: { authorEmails: [ME] },
+      week: { startsOn: 'monday', timezone: 'UTC' },
+      repos: [
+        { path: stranded.dir, label: 'a', role: 'featured' },
+        { path: clone, label: 'b', role: 'featured' },
+      ],
+      redaction: { codenames: [], names: [], terms: [] },
+      output: { mode: 'post', file: outPath },
+    }));
+    writeFileSync(join(work, 'honestweek.items.json'), JSON.stringify({
+      week: { start: '2024-06-10', end: '2024-06-16' },
+      items: [
+        { id: 'iu', repo: 'a', text: 'Stranded in repo A.', status: 'shipped', primaryCommit: shared },
+        { id: 'il', repo: 'b', text: 'Landed in repo B.', status: 'shipped', primaryCommit: shared },
+      ],
+    }));
+    const io = makeIo();
+    const code = await runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io });
+    assert.equal(code, 0);
+    const lines = readFileSync(outPath, 'utf8').split('\n');
+    const unlanded = lines.find((l) => l.includes('Stranded in repo A.'));
+    const landed = lines.find((l) => l.includes('Landed in repo B.'));
+    assert.match(unlanded, /\*\*in progress\*\*/, 'the repo where it never landed is downgraded');
+    assert.doesNotMatch(unlanded, /shipped/, 'a sibling repo\'s landing never launders this claim');
+    assert.match(landed, /\*\*shipped\*\*/, 'the repo where it did land keeps shipped');
+    assert.match(io.errBuf, /repo "a"/, 'the downgrade names the repo it applies to');
+  } finally {
+    cleanup(stranded.dir, clone, work);
+  }
+});
+
 test('landed gate: the tag-mapped path (`tag: verified`, no explicit status) is downgraded too', async () => {
   const { dir, strandedSha } = landedAndStrandedRepo();
   const { work, outPath } = landedGateSetup({
