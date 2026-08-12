@@ -344,3 +344,220 @@ test('voice-fence (opt-in): clean prose builds normally, and a snippet word does
     cleanup(repoDir, work);
   }
 });
+
+// --- the landed gate: `shipped` requires default-branch reachability ---------
+
+/** A repo whose default branch (`main`) holds `landedSha` and whose unmerged
+ *  `feat` branch holds `strandedSha`; HEAD is left on main. */
+function landedAndStrandedRepo() {
+  const dir = initRepo();
+  const landedSha = commit(dir, { message: 'landed work' });
+  const current = git(dir, ['rev-parse', '--abbrev-ref', 'HEAD']).trim();
+  if (current !== 'main') git(dir, ['branch', '-m', 'main']);
+  git(dir, ['checkout', '-q', '-b', 'feat']);
+  const strandedSha = commit(dir, { message: 'real work, not merged', dateISO: '2024-06-12T11:00:00Z' });
+  git(dir, ['checkout', '-q', 'main']);
+  return { dir, landedSha, strandedSha };
+}
+
+/** Write a minimal config + items pair for the landed-gate scenarios. */
+function landedGateSetup({ dir, mode, outFile, items, adapter }) {
+  const work = mkdtempSync(join(tmpdir(), 'hw-build-work-'));
+  writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify({
+    identity: { authorEmails: [ME] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: dir, label: 'r', role: 'featured' }],
+    redaction: { codenames: [], names: [], terms: [] },
+    output: adapter ? { mode, adapter } : { mode, file: join(work, outFile) },
+  }));
+  writeFileSync(join(work, 'honestweek.items.json'), JSON.stringify({
+    week: { start: '2024-06-10', end: '2024-06-16' },
+    items,
+  }));
+  return { work, outPath: join(work, outFile) };
+}
+
+test('landed gate: every markdown mode downgrades an unlanded "shipped" to "in progress" (landed sibling keeps shipped)', async () => {
+  for (const mode of ['post', 'changelog', 'digest', 'report']) {
+    const { dir, landedSha, strandedSha } = landedAndStrandedRepo();
+    const { work, outPath } = landedGateSetup({
+      dir, mode, outFile: mode === 'changelog' ? 'CHANGELOG.md' : 'out.md',
+      items: [
+        { id: 'iu', repo: 'r', text: 'Stranded-branch work item.', status: 'shipped', primaryCommit: strandedSha },
+        { id: 'il', repo: 'r', text: 'Landed work item.', status: 'shipped', primaryCommit: landedSha },
+      ],
+    });
+    const io = makeIo();
+    try {
+      const code = await runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io });
+      assert.equal(code, 0, `${mode}: real-but-unlanded work reports honestly, never aborts`);
+      const out = readFileSync(outPath, 'utf8');
+      const strandedLine = out.split('\n').find((l) => l.includes('Stranded-branch work item.'));
+      const landedLine = out.split('\n').find((l) => l.includes('Landed work item.'));
+      assert.ok(strandedLine, `${mode}: the unlanded item still renders (with its real receipt)`);
+      assert.match(strandedLine, /\*\*in progress\*\*/, `${mode}: unlanded item is downgraded`);
+      assert.doesNotMatch(strandedLine, /shipped/, `${mode}: unlanded item never reads shipped`);
+      assert.match(landedLine, /\*\*shipped\*\*/, `${mode}: landed item keeps shipped`);
+      assert.match(io.errBuf, /not landed on the default branch/, `${mode}: the downgrade is loud`);
+      assert.ok(io.errBuf.includes(strandedSha.slice(0, 7)), `${mode}: the note names the commit`);
+    } finally {
+      cleanup(dir, work);
+    }
+  }
+});
+
+test('landed gate: page mode renders the unlanded item as in-progress and the legend claims landing, not merging', async () => {
+  const { dir, landedSha, strandedSha } = landedAndStrandedRepo();
+  const { work, outPath } = landedGateSetup({
+    dir, mode: 'page', outFile: 'honestweek.report.html',
+    items: [
+      { id: 'iu', repo: 'r', status: 'shipped', title: 'Stranded entry', summary: 'Real work on an unmerged branch.', primaryCommit: strandedSha },
+      { id: 'il', repo: 'r', status: 'shipped', title: 'Landed entry', summary: 'Work on the default branch.', primaryCommit: landedSha },
+    ],
+  });
+  const io = makeIo();
+  try {
+    const code = await runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io });
+    assert.equal(code, 0);
+    const html = readFileSync(outPath, 'utf8');
+    const stranded = html.slice(Math.max(0, html.indexOf('Stranded entry') - 600), html.indexOf('Stranded entry'));
+    const landed = html.slice(Math.max(0, html.indexOf('Landed entry') - 600), html.indexOf('Landed entry'));
+    assert.match(stranded, /is-progress/, 'unlanded item carries the in-progress badge class');
+    assert.doesNotMatch(stranded, /is-shipped/, 'unlanded item never carries the shipped class');
+    assert.match(landed, /is-shipped/, 'landed item keeps the shipped class');
+    assert.ok(!html.includes('built, merged, verified'), 'the legend no longer claims "merged" ambiguously');
+    assert.ok(html.includes('landed on the default branch'), 'the legend states the enforced landing gate');
+  } finally {
+    cleanup(dir, work);
+  }
+});
+
+test('landed gate: site mode artifact carries the downgraded status (same items chokepoint)', async () => {
+  const { dir, landedSha, strandedSha } = landedAndStrandedRepo();
+  const work = mkdtempSync(join(tmpdir(), 'hw-build-work-'));
+  const artifact = join(work, 'artifact.json');
+  writeFileSync(join(work, 'adapter.json'), JSON.stringify({
+    artifact,
+    tree: {
+      type: 'object',
+      props: {
+        groups: {
+          type: 'array', over: 'groups',
+          item: {
+            type: 'object',
+            props: {
+              items: {
+                type: 'array', over: 'items',
+                item: { type: 'object', props: {
+                  status: { source: 'model', key: 'status' },
+                  text: { source: 'model', key: 'text' },
+                } },
+              },
+            },
+          },
+        },
+      },
+    },
+  }));
+  writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify({
+    identity: { authorEmails: [ME] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: dir, label: 'r', role: 'featured' }],
+    redaction: { codenames: [], names: [], terms: [] },
+    output: { mode: 'site', adapter: join(work, 'adapter.json') },
+  }));
+  writeFileSync(join(work, 'honestweek.items.json'), JSON.stringify({
+    week: { start: '2024-06-10', end: '2024-06-16' },
+    items: [
+      { id: 'iu', repo: 'r', text: 'Stranded-branch work item.', status: 'shipped', primaryCommit: strandedSha },
+      { id: 'il', repo: 'r', text: 'Landed work item.', status: 'shipped', primaryCommit: landedSha },
+    ],
+  }));
+  const io = makeIo();
+  try {
+    const code = await runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io });
+    assert.equal(code, 0);
+    const art = JSON.parse(readFileSync(artifact, 'utf8'));
+    const flat = (art.groups ?? []).flatMap((g) => g.items ?? []);
+    assert.equal(flat.find((it) => it.text.includes('Stranded')).status, 'in progress');
+    assert.equal(flat.find((it) => it.text.includes('Landed')).status, 'shipped');
+  } finally {
+    cleanup(dir, work);
+  }
+});
+
+test('landed gate: the tag-mapped path (`tag: verified`, no explicit status) is downgraded too', async () => {
+  const { dir, strandedSha } = landedAndStrandedRepo();
+  const { work, outPath } = landedGateSetup({
+    dir, mode: 'digest', outFile: 'out.md',
+    items: [{ id: 'iu', repo: 'r', text: 'Tag-verified stranded item.', tag: 'verified', primaryCommit: strandedSha }],
+  });
+  const io = makeIo();
+  try {
+    const code = await runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io });
+    assert.equal(code, 0);
+    const line = readFileSync(outPath, 'utf8').split('\n').find((l) => l.includes('Tag-verified stranded item.'));
+    assert.match(line, /\*\*in progress\*\*/);
+  } finally {
+    cleanup(dir, work);
+  }
+});
+
+test('landed gate: ANY unlanded cited commit (candidateCommits included) breaks the shipped claim', async () => {
+  const { dir, landedSha, strandedSha } = landedAndStrandedRepo();
+  const { work, outPath } = landedGateSetup({
+    dir, mode: 'digest', outFile: 'out.md',
+    items: [{ id: 'iu', repo: 'r', text: 'Mixed-receipt item.', status: 'shipped', candidateCommits: [landedSha, strandedSha] }],
+  });
+  const io = makeIo();
+  try {
+    const code = await runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io });
+    assert.equal(code, 0);
+    const line = readFileSync(outPath, 'utf8').split('\n').find((l) => l.includes('Mixed-receipt item.'));
+    assert.match(line, /\*\*in progress\*\*/, 'shipped requires EVERY cited commit landed');
+  } finally {
+    cleanup(dir, work);
+  }
+});
+
+test('landed gate: a non-shipped item citing an unlanded commit is untouched (the gate guards only shipped)', async () => {
+  const { dir, strandedSha } = landedAndStrandedRepo();
+  const { work, outPath } = landedGateSetup({
+    dir, mode: 'digest', outFile: 'out.md',
+    items: [{ id: 'ip', repo: 'r', text: 'Openly in-flight item.', status: 'in progress', primaryCommit: strandedSha }],
+  });
+  const io = makeIo();
+  try {
+    const code = await runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io });
+    assert.equal(code, 0);
+    const line = readFileSync(outPath, 'utf8').split('\n').find((l) => l.includes('Openly in-flight item.'));
+    assert.match(line, /\*\*in progress\*\*/);
+    assert.doesNotMatch(io.errBuf, /downgraded/, 'no downgrade note for an already-honest badge');
+  } finally {
+    cleanup(dir, work);
+  }
+});
+
+test('landed gate: a shipped claim is UNVERIFIABLE (abort exit 2, write nothing) when no default branch is determinable', async () => {
+  const dir = initRepo();
+  const sha = commit(dir, { message: 'work' });
+  const current = git(dir, ['rev-parse', '--abbrev-ref', 'HEAD']).trim();
+  if (current !== 'trunk') git(dir, ['branch', '-m', 'trunk']);
+  git(dir, ['branch', 'scratch']); // two non-conventional branches, no origin
+  const { work, outPath } = landedGateSetup({
+    dir, mode: 'digest', outFile: 'out.md',
+    items: [{ id: 'iu', repo: 'r', text: 'Unverifiable shipped claim.', status: 'shipped', primaryCommit: sha }],
+  });
+  const io = makeIo();
+  try {
+    await assert.rejects(
+      () => runBuild({ cwd: work, now: new Date('2024-06-19T12:00:00Z'), io }),
+      (err) => err.code === 2
+    );
+    assert.equal(io.exitCode, 2);
+    assert.ok(!existsSync(outPath), 'nothing is written on the unverifiable-claim abort');
+    assert.match(io.errBuf, /no determinable default branch/);
+  } finally {
+    cleanup(dir, work);
+  }
+});
