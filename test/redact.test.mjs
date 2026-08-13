@@ -85,6 +85,20 @@ test('home paths are redacted for POSIX, macOS, Windows, and git-bash forms', ()
   assert.match(red.redact('at /c/Users/dave/proj/x'), /\[redacted:path\]/);
 });
 
+test('tilde home paths are redacted; a bare ~ in prose is not', () => {
+  const red = r();
+  // Session logs are full of `~/…`, and the segment after it routinely names a
+  // client or a private project — as revealing as the absolute form.
+  const tilde = red.redact('see ~/clients/acme-corp/notes.md');
+  assert.match(tilde, /\[redacted:path\]/);
+  assert.doesNotMatch(tilde, /clients/);
+  assert.doesNotMatch(tilde, /acme-corp/);
+  assert.match(red.redact('cd ~\\Projects\\private-app'), /\[redacted:path\]/);
+  // A tilde that is not a path stays put — no over-redaction of ordinary prose.
+  assert.equal(red.redact('a bare ~ tilde in prose'), 'a bare ~ tilde in prose');
+  assert.equal(red.redact('took ~5 minutes'), 'took ~5 minutes');
+});
+
 test('SPARE: a lowercase 40-hex git SHA passes through unchanged', () => {
   const red = r();
   assert.equal(red.redact(`commit ${SHA40} landed`), `commit ${SHA40} landed`);

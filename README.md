@@ -68,7 +68,7 @@ node bin/honestweek.mjs --help
 
 Once it's published to npm (**not yet**; see [Releasing](#releasing-maintainers)), `npx honestweek` and `npm i -g honestweek` will work too.
 
-The CLI surface is eight subcommands: `init`, `discover`, `prompts`, `digest`, `validate`, `build`, `harvest`, and `preview`. The `digest` command (`node bin/honestweek.mjs digest --help`) prepares one receipt-bearing review across prompts, ideas, techniques, decisions, reversals, and next steps for `page` or `site` output. The `prompts` command (`node bin/honestweek.mjs prompts --help`) remains the private prompt inbox and prompt-only compatibility path. The `harvest` command (`node bin/honestweek.mjs harvest`) proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review). The `preview` command (`node bin/honestweek.mjs preview`) renders the built output as HTML and serves it on a local-only (`127.0.0.1`) server for you to read in your browser.
+The CLI surface is nine subcommands: `init`, `discover`, `prompts`, `digest`, `validate`, `build`, `harvest`, `preview`, and `mine`. Every one answers `--help` without touching your files. The `mine` command (`node bin/honestweek.mjs mine --help`) is the separate "solved problems worth publishing" pass described under [Mining solved problems](#mining-solved-problems-worth-publishing-mine). The `digest` command (`node bin/honestweek.mjs digest --help`) prepares one receipt-bearing review across prompts, ideas, techniques, decisions, reversals, and next steps for `page` or `site` output. The `prompts` command (`node bin/honestweek.mjs prompts --help`) remains the private prompt inbox and prompt-only compatibility path. The `harvest` command (`node bin/honestweek.mjs harvest`) proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review). The `preview` command (`node bin/honestweek.mjs preview`) renders the built output as HTML and serves it on a local-only (`127.0.0.1`) server for you to read in your browser.
 
 ## The flow
 
@@ -80,6 +80,11 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    ```bash
    node bin/honestweek.mjs init
    ```
+   Those two confirmations need a terminal. In a script, in CI, or from an agent's shell there is no TTY, so `init` exits `2` and tells you to accept the inferred defaults instead:
+   ```bash
+   node bin/honestweek.mjs init --yes
+   ```
+   `--yes` leaves an existing `honestweek.config.json` untouched; add `--force` to overwrite it.
 2. **`discover`** → scans the **last completed week's** sessions **and session-end handoffs** (`.claude/handoffs/*.md`, for `featured`/`reference` repos; `display` repos are never read) from your allowlisted repos and writes the gitignored, **redacted** `honestweek.draft.json`. Handoffs contribute their tagged claims, reversals, and cited commits as additional, bounded material. Deterministic: no model call.
    ```bash
    node bin/honestweek.mjs discover          # or: discover --week 2024-W23
@@ -376,6 +381,19 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 - **No telemetry, no network egress.** The optional `preview` server is loopback-only (`127.0.0.1`): it serves your already-built output to your own browser, and nothing leaves your machine.
 - **Nothing is auto-published.** honestweek produces a draft; *you* are the publisher.
 
+### What the scrubber catches, and what it doesn't
+
+Redaction is pattern-based and deliberately over-redacts when a pattern is ambiguous. It reliably removes email addresses, home and user paths (including `~/…`), prefixed API keys and JWTs, `KEY=VALUE` secrets under a sensitive key name, high-entropy tokens of 32+ characters, UUIDs, bare 9+ digit runs, currency amounts, and every term you list under `redaction`.
+
+It is a safety net, not a guarantee. Known gaps, so you can decide rather than assume:
+
+- **Short, low-entropy secrets.** A hand-picked password under 32 characters with no `KEY=` prefix (`password: hunter2`, YAML- or JSON-style `key: value`) is indistinguishable from prose and survives. The `KEY=VALUE` rule keys on `=`, not `:`.
+- **Unlisted spellings of a listed term.** Adding `AcmeCorp` does not cover `Acme Corp`, `Acme-Corp`, or `Doe, Jane` for `Jane Doe`. List the variants you care about; `harvest` proposes candidates from your own draft.
+- **Structured personal data.** Phone numbers, SSNs, and space- or hyphen-separated card numbers are not matched. Only unbroken 9+ digit runs are.
+- **UNC paths.** `\\server\Users\you\…` is not matched; drive-letter and POSIX forms are.
+
+Read the built output before you publish it. That review is part of the design, not a formality, and `preview` exists to make it easy.
+
 ### The launch invariant
 
 honestweek's two non-negotiable promises:
@@ -388,9 +406,10 @@ honestweek's two non-negotiable promises:
 honestweek is publish-ready but not yet on npm. To cut a release so `npx honestweek` / `npm i -g honestweek` work:
 
 1. Bump the version in `package.json` (and `.claude-plugin/plugin.json` to match), commit, and tag: `git tag v0.1.0 && git push --tags`.
-2. **Automated:** add an `NPM_TOKEN` repository secret (an npm automation token), then publish a GitHub Release for the tag. The [`release` workflow](.github/workflows/release.yml) runs the tests and `npm publish --provenance --access public`.
+2. **Add the `NPM_TOKEN` repository secret first** (an npm automation token). Do this *before* step 3, not after. The release workflow triggers on a Release being **published**, and publishing a GitHub Release is not reversible in any quiet way: without the token the workflow reaches `npm publish` and fails on authentication, leaving a public Release announcing a version that is not on npm. Confirm with `gh secret list` that `NPM_TOKEN` is listed.
+3. **Automated:** publish a GitHub Release for the tag. The [`release` workflow](.github/workflows/release.yml) runs the tests and `npm publish --provenance --access public`.
    **Manual alternative:** `npm publish --access public` from a clean checkout after `npm login`.
-3. The `files` allowlist in `package.json` controls what ships to npm (`bin/`, `lib/`, `SKILL.md`, the example config, the plugin manifests). Tests and fixtures are excluded.
+4. The `files` allowlist in `package.json` controls what ships to npm (`bin/`, `lib/`, `SKILL.md`, the example config, the plugin manifests). Tests and fixtures are excluded.
 
 Publishing to npm and cutting a GitHub Release are the only steps that go public; everything else in this repo is local.
 
