@@ -134,6 +134,30 @@ test('DOCS-CONSISTENCY: documented subcommands match the dispatcher, with no pha
   }
 });
 
+test('DOCS-CONSISTENCY: every subcommand has a help path, so none can fall through and run', () => {
+  // The dispatcher serves help for anything not in SELF_HELP; a command in
+  // neither set makes `wantsHelp(rest) && COMMAND_HELP[command]` falsy and
+  // falls straight through to the handler, silently reintroducing the
+  // side-effecting-help bug. Bind both sets to SUBCOMMANDS so a tenth
+  // subcommand cannot be added without picking one.
+  const selfHelp = [...(BIN.match(/const SELF_HELP = new Set\(\[([^\]]*)\]/)?.[1] ?? '').matchAll(/'([^']+)'/g)].map((x) => x[1]);
+  const commandHelp = [...(BIN.match(/const COMMAND_HELP = \{([\s\S]*?)\n\};/)?.[1] ?? '').matchAll(/^ {2}([a-z]+): `/gm)].map((x) => x[1]);
+  assert.ok(selfHelp.length > 0, 'bin declares a SELF_HELP set');
+  assert.ok(commandHelp.length > 0, 'bin declares a COMMAND_HELP map');
+
+  const covered = new Set([...selfHelp, ...commandHelp]);
+  assert.deepEqual(
+    actualSubcommands().filter((s) => !covered.has(s)),
+    [],
+    'every subcommand is in SELF_HELP or COMMAND_HELP'
+  );
+  // and neither set invents a command the dispatcher does not accept
+  const subs = new Set(actualSubcommands());
+  assert.deepEqual([...covered].filter((s) => !subs.has(s)), [], 'no help entry for a phantom command');
+  // a command cannot be in both: SELF_HELP means the handler owns its help
+  assert.deepEqual(selfHelp.filter((s) => commandHelp.includes(s)), [], 'no command is in both sets');
+});
+
 test('DOCS-CONSISTENCY: documented config keys match honestweek.config.example.json', () => {
   for (const key of Object.keys(EXAMPLE)) assert.ok(README.includes(key), `README documents top-level key ${key}`);
   // the example itself is clean-room
