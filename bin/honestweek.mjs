@@ -69,8 +69,13 @@ Usage:
 
 Re-derives every cited commit against your real git history. Aborts with exit 2,
 writing nothing, if a cited commit is unresolved, its author is outside
-identity.authorEmails, or a 'shipped' badge cites work that has not landed on
-the default branch. On success, renders output.mode to output.file.
+identity.authorEmails, or the repo has no determinable default branch (so
+whether a commit landed cannot be checked). On success, renders output.mode to
+output.file.
+
+A 'shipped' item whose commits are real but have not landed on the default
+branch is not an abort: it keeps its receipt and is downgraded to 'in progress',
+announced on stderr.
 
 The week comes from honestweek.items.json, which discover stamped. To build a
 different week, re-run discover with --week and redo the distillation.
