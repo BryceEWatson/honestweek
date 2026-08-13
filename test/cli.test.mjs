@@ -75,6 +75,25 @@ test('every subcommand answers --help with help, exit 0, and no side effects', (
   }
 });
 
+test('--help after a sub-subcommand prints help instead of doing the work', (t) => {
+  // `prompts sync --help` ran a live sync and wrote .gitignore; `digest prepare
+  // --help` ran prepare. Both checked argv[0] only, so help in any later
+  // position fell through to the real command.
+  const dir = scratchCwd(t);
+
+  for (const args of [
+    ['prompts', 'sync', '--help'],
+    ['prompts', 'curate', '--help'],
+    ['digest', 'prepare', '--help'],
+    ['digest', 'candidates', '--help'],
+  ]) {
+    const res = runCli(args, dir);
+    assert.equal(res.code, 0, `${args.join(' ')} should exit 0`);
+    assert.match(res.stdout, /Usage/, `${args.join(' ')} should print usage`);
+    assert.equal(readdirSync(dir).length, 0, `${args.join(' ')} must not write files`);
+  }
+});
+
 test('init on a stdin that ends fails loudly instead of silently writing nothing', (t) => {
   // readline's question callback never fires at EOF, so the old behaviour was
   // to fall out of the event loop and exit 0 having written no config: a

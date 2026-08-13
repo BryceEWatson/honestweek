@@ -26,8 +26,10 @@ honestweek.config.example.json if absent, and adds honestweek's generated files
 to .gitignore.
 
 Options:
-  -y, --yes   Accept the inferred defaults without prompting. Required when
-              stdin is not a terminal (scripts, CI, or an agent shell).
+  -y, --yes   Accept the inferred defaults without prompting. Use this when no
+              one is there to answer (scripts, CI, or an agent shell): if stdin
+              ends before the confirmations are answered, init exits 2 and
+              writes nothing. On its own --yes leaves an existing config alone.
       --force With --yes, overwrite an existing honestweek.config.json.
   -h, --help  Show this help.
 `,
@@ -63,16 +65,18 @@ Options:
   build: `honestweek build: verify every git-checkable claim, then emit.
 
 Usage:
-  honestweek build [--week <YYYY-Www>]
+  honestweek build
 
 Re-derives every cited commit against your real git history. Aborts with exit 2,
 writing nothing, if a cited commit is unresolved, its author is outside
 identity.authorEmails, or a 'shipped' badge cites work that has not landed on
 the default branch. On success, renders output.mode to output.file.
 
+The week comes from honestweek.items.json, which discover stamped. To build a
+different week, re-run discover with --week and redo the distillation.
+
 Options:
-      --week <YYYY-Www>  Build a specific ISO week.
-  -h, --help             Show this help.
+  -h, --help  Show this help.
 `,
   harvest: `honestweek harvest: propose redaction-denylist candidates.
 

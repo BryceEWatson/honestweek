@@ -80,7 +80,7 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    ```bash
    node bin/honestweek.mjs init
    ```
-   Those two confirmations need a terminal. In a script, in CI, or from an agent's shell there is no TTY, so `init` exits `2` and tells you to accept the inferred defaults instead:
+   Those two confirmations need someone to answer them. In a script, in CI, or from an agent's shell nobody does, so `init` exits `2` rather than writing a config you never approved, and tells you to accept the inferred defaults instead:
    ```bash
    node bin/honestweek.mjs init --yes
    ```
