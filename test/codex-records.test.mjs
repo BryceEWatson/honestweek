@@ -37,6 +37,16 @@ test('context blocks are dropped and the person text beside them is kept', () =>
   assert.equal(codexUserText(userMsg(['# AGENTS.md instructions for C:/repo\n\nrules', '<recommended_plugins>list</recommended_plugins>'])), null);
 });
 
+test('the IDE extension wrapper keeps only the request, and a wrapper with no request is context', () => {
+  const wrapped = '# Context from my IDE setup:\n\n## Active file: src/app.ts\n\n## Open tabs:\n- app.ts\n\n## My request for Codex:\nwhy does the build fail\n';
+  assert.equal(codexUserText(userMsg([wrapped])), 'why does the build fail');
+  const mentioned = '# Files mentioned by the user:\n\n## notes.md: /path/to/your/repo/notes.md\n\n## My request for Codex:\nsummarize these';
+  assert.equal(codexUserText(userMsg([mentioned])), 'summarize these');
+  assert.equal(codexUserText(userMsg(['# Context from my IDE setup:\n\n## Active file: src/app.ts'])), null);
+  // A person's own markdown heading is not the IDE wrapper.
+  assert.equal(codexUserText(userMsg(['# Plan\nship it'])), '# Plan\nship it');
+});
+
 test('a machine-authored block rejects the whole message', () => {
   for (const marker of [
     '<codex_delegation>\n<source_thread_id>t</source_thread_id>',

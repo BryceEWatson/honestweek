@@ -306,7 +306,7 @@ Codex changed how it writes a person's turn, and the miner was blind to every Co
 until this was fixed (issue #60). Current logs carry the turn as a `response_item`
 message with `role: "user"`, surrounded by harness context and other agents' hand-offs
 in the same slot; older logs used an `event_msg` / `user_message` string.
-`lib/codex-records.mjs` reads both, drops context blocks, rejects messages written by
+`lib/codex-records.mjs` reads both, drops context blocks (keeping only the request from the IDE extension's wrapper), rejects messages written by
 another agent or an automation, and counts a turn written in both shapes once. The
 first person-typed turn now sits well past the start of the file (past 76 KB in half
 the files measured on 2026-09-23, past 247 KB in 1%), so the Codex probe widens its
