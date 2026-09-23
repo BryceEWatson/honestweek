@@ -302,6 +302,18 @@ silently shrink the corpus);
 A tool mid-rename has both directories present and one of them empty, which is why the
 blind-sensor check groups by corpus kind rather than by directory.
 
+Codex changed how it writes a person's turn, and the miner was blind to every Codex log
+until this was fixed (issue #60). Current logs carry the turn as a `response_item`
+message with `role: "user"`, surrounded by harness context and other agents' hand-offs
+in the same slot; older logs used an `event_msg` / `user_message` string.
+`lib/codex-records.mjs` reads both, drops context blocks, rejects messages written by
+another agent or an automation, and counts a turn written in both shapes once. The
+first person-typed turn now sits well past the start of the file (past 76 KB in half
+the files measured on 2026-09-23, past 247 KB in 1%), so the Codex probe widens its
+head from 64 KB to 256 KB to 1 MB until it finds one. An archived Codex thread that
+only holds heartbeats, delegations, or a fork's inherited history has no person-typed
+turn and yields no session, which is correct rather than blind.
+
 Reading is streamed line by line and capped per session (`MAX_SESSION_BYTES`, 8 MB), so a
 very large transcript cannot stall a scan; truncated sessions are counted and disclosed
 in any draft they produce. The cap's cost is mostly
