@@ -7,7 +7,7 @@
 // module that another issue has not built yet — `--help` works from a fresh
 // clone with zero modules present.
 
-const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts', 'digest', 'mine'];
+const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts', 'digest', 'mine', 'history'];
 
 // Subcommands that parse `--help` themselves and print their own richer text.
 // Everything else is served by COMMAND_HELP below, BEFORE the handler is
@@ -78,10 +78,30 @@ branch is not an abort: it keeps its receipt and is downgraded to 'in progress',
 announced on stderr.
 
 The week comes from honestweek.items.json, which discover stamped. To build a
-different week, re-run discover with --week and redo the distillation.
+different week, re-run discover with --week and redo the distillation. Mode
+"client" instead reports on the items file's "period", any length you name.
 
 Options:
   -h, --help  Show this help.
+`,
+  history: `honestweek history: list what reached the default branch in a period.
+
+Usage:
+  honestweek history --from <YYYY-MM-DD> --to <YYYY-MM-DD>
+
+The raw material for a client report (output.mode "client"). For each featured
+and reference repo, lists every pull request you authored that landed on the
+default branch in the period, plus commits that landed without one, and writes
+them to the gitignored honestweek.history.json. Only counts are printed.
+'display'-role repos are never read.
+
+Group those into items in honestweek.items.json, each citing its commits, set
+"period" to the same dates, then run validate and build.
+
+Options:
+      --from <YYYY-MM-DD>  First day of the period.
+      --to <YYYY-MM-DD>    Last day of the period (inclusive).
+  -h, --help               Show this help.
 `,
   harvest: `honestweek harvest: propose redaction-denylist candidates.
 
@@ -123,6 +143,8 @@ Commands:
   mine        Find sessions where software you did NOT write failed and you
               worked out the fix, rank them, and keep a ledger of what is still
               undecided. Add --draft to write the top one up as a post.
+  history     List the pull requests you landed in a period (--from, --to), the
+              raw material for a client report. Writes a gitignored sidecar.
 
 Options:
   -h, --help  Show this help.
