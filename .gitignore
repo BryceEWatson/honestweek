@@ -14,6 +14,8 @@ honestweek.carry.json.tmp-*
 honestweek.carry.pending.json
 honestweek.carry.pending.json.tmp-*
 honestweek.items.json
+honestweek.history.json
+honestweek.history.json.tmp-*
 
 # `mine` writes unpublished post drafts here by default. They are working artifacts
 # with unverified claims in them; a destination that wants them tracked sets

@@ -307,6 +307,24 @@ node bin/honestweek.mjs build     # writes report.html + goals.html (when the re
 node bin/honestweek.mjs preview   # serves both at 127.0.0.1 (/ and /goals.html)
 ```
 
+## A report for a client (`client` mode)
+
+A weekly log is for you. A client report is for the person paying for the work: what you did for them over a period you choose (a sprint, a month, the contract so far), in their words, with the evidence attached. It's one light, printable HTML file (`honestweek.client.html` by default) they can read in a browser or save as a PDF.
+
+It keeps every guarantee the weekly modes have. Every change in it names the pull requests it came from, every cited commit is verify-or-abort'd and has to be yours and on the default branch to count as merged, and a cited commit dated outside the period aborts the build. The numbers at the top (pull requests merged, commits on the main branch, days with work landed) and the activity chart are read from git, and an unreadable repo leaves them blank rather than too low. An appendix lists every pull request of yours that landed in the period, marking which ones the report describes, so nothing is quietly left out.
+
+The source is what reached the default branch, not a week of session logs:
+
+1. Add a `client` block to the config (it names the client, and optionally who it's for and from, plus link prefixes so PR numbers become links), and set `"output": { "mode": "client" }`. Use a separate folder and config for each client.
+2. List what landed in the period. This writes the gitignored `honestweek.history.json` and prints only counts:
+   ```bash
+   node bin/honestweek.mjs history --from 2026-04-01 --to 2026-06-30
+   ```
+3. Distil it into `honestweek.items.json` (the skill does this): a `period` with the same dates, `content` (a `title`, a one-sentence `headline`, `summary` paragraphs, the `themes` the work falls into, and optional `next` steps, which are shown as planned and never counted), and one item per meaningful change with a `theme`, a `title` and `summary` written for the client, a status, and `commits` citing the squash-merge commits it came from. Mark the few that matter most with `"highlight": true`.
+4. `validate`, `build`, and `preview` as usual. Put anything the client must never see (billing, other clients) in `redaction.terms` so `validate` stops it at the source.
+
+In a client report, `shipped` reads as **Merged**: on the main branch and checked against git. It doesn't claim the change has been released to production, and the report says so.
+
 ## Config reference
 
 You commit your own `honestweek.config.json`. It mirrors `honestweek.config.example.json`:
@@ -323,7 +341,8 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
   "redaction": { "codenames": [], "names": [], "terms": [] },  // optional; default-empty private term-lists, scrubbed case-insensitively
   "curation": { "maxItems": 12, "automaticMinScore": 2, "retentionWeeks": 12, "automaticCarryWeeks": 2, "categoryCaps": { "prompts": 2, "ideas": 2, "techniques": 3, "decisions": 2, "reversals": 1, "nextSteps": 2 } }, // disclosed digest target, floor, bounded carry, and category caps
   "privacy": { "publicRenditions": { "enabled": true, "maxAutomaticChangedPercent": 20, "generalizationMappings": {}, "neverPublicTerms": [] } }, // deterministic public-rendition gate
-  "output": { "mode": "digest", "file": "honestweek.digest.md" },  // optional; mode ∈ post|changelog|digest|report|page|site, default digest
+  "output": { "mode": "digest", "file": "honestweek.digest.md" },  // optional; mode ∈ post|changelog|digest|report|page|site|client, default digest
+  "client": { "name": "your-client", "preparedFor": "Their name", "preparedBy": "Your name", "organization": "Your business", "prLinks": { "your-project": "https://github.com/your-org/your-project/pull/" } }, // required for mode client only
   "voice": { "denyMeta": false }                               // optional; OFF by default. true = lint authored prose for withholding/honesty-meta (see below)
 }
 ```
@@ -339,11 +358,14 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `redaction.codenames` / `names` / `terms` | Private tokens scrubbed from all output. Default empty (clean-room). |
 | `curation.*` | Local weekly-selection policy. Defaults target 12 items with caps of 2 prompts, 2 ideas, 3 techniques, 2 decisions, 1 reversal, and 2 next steps. The automatic floor is 2. `automaticCarryWeeks` defaults to 2 and is hard-limited to 2. `retentionWeeks` defaults to 12 and is hard-limited to 12. Explicit keeps and one-week renewals are never silently dropped, but they never bypass receipt or privacy gates. |
 | `privacy.publicRenditions.*` | Public-rendition gate. `enabled` defaults true for the local artifact, `maxAutomaticChangedPercent` defaults to and cannot exceed 20, and `neverPublicTerms` extends hard redaction. `generalizationMappings` remains empty in this slice. Ambiguous or residual high-risk material in every category stays private. |
-| `output.mode` | `post` (build-in-public update), `changelog` (in-repo `CHANGELOG.md` section), `digest` (the private, local-only weekly file; the default and trust anchor), `report` (grouped by project, each headed by its git-derived metrics; the structured weekly-work-log shape, still a local file you publish yourself), or `site` (integrate the verified report into a target website's data artifact via a committed adapter — advanced; see [docs/site-integration.md](docs/site-integration.md)). |
+| `output.mode` | `post` (build-in-public update), `changelog` (in-repo `CHANGELOG.md` section), `digest` (the private, local-only weekly file; the default and trust anchor), `report` (grouped by project, each headed by its git-derived metrics; the structured weekly-work-log shape, still a local file you publish yourself), `site` (integrate the verified report into a target website's data artifact via a committed adapter — advanced; see [docs/site-integration.md](docs/site-integration.md)), or `client` (a printable report of the work done for one client over the items file's `period`; see [A report for a client](#a-report-for-a-client-client-mode)). |
 | `output.file` | Where the output is written. Defaults per mode when unset. (Not used by `site`, whose write path comes from the adapter.) |
 | `output.adapter` | **Required for `site` mode only**: path to the committed adapter (resolved like a repo path) — a `.json` *static* field-map, or a `.mjs` *transform* (`transform(model, ctx)`) for artifacts needing grouping/sorting/joins. It maps the verified model onto the site's data artifact; the artifact's own write path lives in the adapter. |
 | `output.redact` | Default `true` (honestweek scrubs every byte). For `site` mode only, `false` delegates string redaction to the committed transform (so a target with its own redactor gets exact placeholder parity) — permitted **only with a transform adapter**; verify-or-abort and the numeric fact-fence always run. See [docs/site-integration.md](docs/site-integration.md). |
 | `output.archive` / `output.archiveDir` | Opt-in local weekly archive. With `archive: true`, `build` also snapshots each week to `<archiveDir>/<weekStart>.json` and maintains `<archiveDir>/index.json` (the "/log" series; default dir `honestweek.archive`). Local files only, never pushed. |
+| `client.name` | **Required for `client` mode.** The client or product the report covers. |
+| `client.preparedFor` / `preparedBy` / `organization` | Optional lines for the report's header: who it's for, who wrote it, and the business it comes from. |
+| `client.prLinks` | Optional map of repo label to an https prefix (`https://github.com/your-org/your-project/pull/`), so a PR number derived from a verified commit becomes a link. Every key must be a configured repo label. |
 | `voice.denyMeta` | Opt-in authored-prose honesty lint, **OFF by default**. When `true`, `build` aborts (exit 2, writes nothing) if an authored-prose field (item `title`/`summary`/`text`, or curated `content`/`projects` prose) *narrates its own withholding* ("keeping the specifics sealed", "kept generic here", "not public-facing") or *announces the page's own honesty* ("show the work honestly, receipts and retractions included", "belongs in an honest log"). That's what an honest log should show through its badges and receipts, not say about itself. It's the prose analogue of the numeric fact-fence, names each offending field plus matched phrase plus rule, and is **never** applied to verified evidence snippets/receipts (where a word like "sealed" can legitimately appear); conversely, keep authored prose out of evidence-named keys (`commits`, `receipt`, `snippet`, ...), which are treated as evidence and skipped. Absent, nothing changes. |
 | `voice.denyPhrases` / `voice.allowPhrases` | Optional string lists (default empty). `denyPhrases` **extends** the built-in denylist with your own phrases (literal, case-insensitive). `allowPhrases` is the false-positive **off-ramp**: it exempts a legitimate phrase a built-in pattern would otherwise flag (surgical to the matched text), so one over-eager match doesn't force you to disable the whole lint. |
 
@@ -365,6 +387,7 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `honestweek.carry.json` | The private, redacted carry history, bounded to 12 week records. **Gitignored.** Only a successful lifecycle build advances it. |
 | `honestweek.carry.pending.json` | The hash-bound output/carry recovery envelope for an interrupted lifecycle build. **Gitignored.** Unknown output and carry combinations fail closed. |
 | `honestweek.items.json` | The distilled, human-reviewable items. **Yours to keep or ignore** (gitignored by default; safe to delete). |
+| `honestweek.history.json` | What landed on the default branch in a period, from `history`: the raw material for a client report. **Gitignored.** Redacted before it's written; only counts are printed. |
 | `honestweek.harvest.json` | Proposed redaction-denylist candidates from `harvest`. **Gitignored.** Only the count is printed; the raw nouns stay local for you to review. |
 | `output.file` (e.g. `honestweek.digest.md`) | The final rendered output. **Yours to keep or ignore.** |
 | `honestweek.config.json` | Your config. Gitignored by default (it can hold private repo paths/terms); un-ignore it if you want it tracked. |
