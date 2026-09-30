@@ -114,6 +114,13 @@ function goodItems(shas, overrides = {}) {
 
 test.after(() => { for (const d of dirs) try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } });
 
+test('appendix titles read like titles', async () => {
+  const { readableTitle } = await import('../lib/client.mjs');
+  assert.equal(readableTitle('fix(auth): keep sign-in working (#12)'), 'Keep sign-in working');
+  assert.equal(readableTitle('docs: write it down'), 'Write it down');
+  assert.equal(readableTitle('Answers cite sources (#15)'), 'Answers cite sources');
+});
+
 test('prNumberFromSubject reads squash and merge-commit subjects, and nothing else', () => {
   assert.equal(prNumberFromSubject('Fix the thing (#42)'), 42);
   assert.equal(prNumberFromSubject('Merge pull request #7 from someone/branch'), 7);
@@ -152,7 +159,8 @@ test('client mode builds a report whose numbers all come from git', async () => 
   assert.match(html, /href="https:\/\/example\.com\/app\/pull\/12">PR #12</);
   // The appendix lists every PR in the period, including the one no item describes.
   assert.match(html, /Show a clear message when the library is empty/);
-  assert.match(html, /2 of them are described in the areas above/);
+  assert.match(html, /2 of them are described in the areas above; the rest are listed here without a description/);
+  assert.doesNotMatch(html, /smaller fixes/);
   assert.match(html, /1 commit landed without a pull request/);
   assert.doesNotMatch(html, /Half-finished idea|Teammate change|Early setup/);
   // Header, highlights, next steps, legend wording.
