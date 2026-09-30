@@ -293,3 +293,38 @@ test('failure path: history refuses a missing or backwards period', async () => 
     assert.equal(existsSync(join(work, 'honestweek.history.json')), false);
   }
 });
+
+test('commits brought in by a merge commit count under that pull request, and merging is not authoring', () => {
+  const repo = initRepo();
+  commit(repo, { message: 'Start (#1)', dateISO: '2024-04-02T10:00:00Z' });
+  // My pull request, merged by a teammate with a merge commit.
+  git(repo, ['checkout', '-q', '-b', 'mine']);
+  const m1 = commit(repo, { message: 'First part', dateISO: '2024-04-05T10:00:00Z' });
+  const m2 = commit(repo, { message: 'Second part', dateISO: '2024-04-06T10:00:00Z' });
+  git(repo, ['checkout', '-q', 'main']);
+  const envOther = { ...process.env, GIT_AUTHOR_EMAIL: OTHER, GIT_COMMITTER_EMAIL: OTHER, GIT_AUTHOR_NAME: 'T', GIT_COMMITTER_NAME: 'T', GIT_AUTHOR_DATE: '2024-04-07T10:00:00Z', GIT_COMMITTER_DATE: '2024-04-07T10:00:00Z' };
+  git(repo, ['merge', '--no-ff', '-q', '-m', 'Merge pull request #30 from team/mine', 'mine'], envOther);
+  // A teammate's pull request that I merged: the merge commit is mine, the work is not.
+  git(repo, ['checkout', '-q', '-b', 'theirs']);
+  commit(repo, { email: OTHER, message: 'Their work', dateISO: '2024-04-08T10:00:00Z' });
+  git(repo, ['checkout', '-q', 'main']);
+  const envMe = { ...process.env, GIT_AUTHOR_EMAIL: ME, GIT_COMMITTER_EMAIL: ME, GIT_AUTHOR_NAME: 'Dev', GIT_COMMITTER_NAME: 'Dev', GIT_AUTHOR_DATE: '2024-04-09T10:00:00Z', GIT_COMMITTER_DATE: '2024-04-09T10:00:00Z' };
+  git(repo, ['merge', '--no-ff', '-q', '-m', 'Merge pull request #31 from team/theirs', 'theirs'], envMe);
+
+  const got = landedCommitsInWindow(repo, [ME], '2024-04-03T00:00:00Z', '2024-04-30T23:59:59Z');
+  const byPr = Object.fromEntries(got.commits.filter((c) => !c.isMerge).map((c) => [c.sha, c.pr]));
+  assert.equal(byPr[m1], 30);
+  assert.equal(byPr[m2], 30);
+
+  const config = normalizeConfig({ identity: { authorEmails: [ME] }, repos: [{ path: repo, label: 'app', role: 'featured' }], output: { mode: 'client' }, client: { name: 'X' } });
+  const stats = deriveClientStats({ config, period: { start: '2024-04-03', end: '2024-04-30' } });
+  assert.deepEqual(stats.prs.map((p) => p.pr), [30], 'the PR I only merged is not credited to me');
+  assert.equal(stats.totals.commits, 2);
+  assert.equal(stats.totals.directCommits, 0, 'merged-in commits are not "without a pull request"');
+  const model = buildClientModel({
+    items: [{ id: 'x', repo: 'app', title: 'Two-part change', status: 'shipped', commits: [m1, m2] }],
+    config, verified: [m1, m2].map((sha) => ({ sha, shortSha: sha.slice(0, 7), subject: 'part', dateISO: '2024-04-05T10:00:00Z', repoLabel: 'app', landed: true })),
+    period: { start: '2024-04-03', end: '2024-04-30' }, stats,
+  });
+  assert.deepEqual(model.themes[0].items[0].prs.map((p) => p.n), [30], 'a cited merged-in commit links to its pull request');
+});
