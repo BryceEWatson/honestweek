@@ -76,6 +76,20 @@ Each item in `honestweek.items.json` carries:
 - **Local-only preview.** The optional `preview` server binds to loopback (`127.0.0.1`) only, renders the built output in memory as a self-contained page (no external resources), and publishes nothing. It is a viewer, not a producer: it never re-runs `build`, calls git, or writes a file.
 - **A mined draft asserts nothing about today.** `mine --draft` writes a post from old session logs. Its last-verified field is emitted **empty**, its publication date is left blank, and every item on its verification checklist starts `UNVERIFIED`. Do not fill any of them in on the user's behalf: they record whether a human re-ran the checks, and pre-filling them would launder a past observation into a present-tense claim. If asked to help publish one, work the checklist first and say plainly which items you could not verify.
 
+## A report for a client (`client` mode)
+
+A separate flow for work you did for someone else: a light, printable report of one period (a sprint, a month, the contract to date) that you hand to the client. Run it from a folder that holds that client's own `honestweek.config.json` (with a `client` block and `"output": { "mode": "client" }`), never from the weekly one.
+
+1. **`history`** *(output: the gitignored `honestweek.history.json`)*: `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" history --from <YYYY-MM-DD> --to <YYYY-MM-DD>` lists every pull request the user authored that landed on each featured/reference repo's default branch in the period. Read the pull requests' own descriptions when you need more than the title.
+2. **DISTIL for a client** *(output: `honestweek.items.json`)*: `{ "period": {start,end}, "content": {...}, "items": [...] }`.
+   - `content.title`, a one-sentence `content.headline` (the outcome, in the client's terms), two or three `content.summary` paragraphs, `content.themes` (`[{ "id", "title", "summary" }]`, the five to ten areas the work falls into, each summary saying why the area matters to them), and optional `content.next` (planned work; the page labels it planned and counts none of it).
+   - One item per meaningful change, usually one to three related pull requests: `repo` (the config label), `theme` (a theme id), `title` (what changed, not how), `summary` (what it means for the people using or running the product), `status`, `commits` (the squash-merge SHAs from the history file), and `receipt: { "primaryCommit": <one of them> }`. Mark the three to six that matter most `"highlight": true`.
+   - Write for the client, not for engineers: no internal jargon, file names, or tool names. Every rule of the distillation contract still holds: under-claim, cite what landed, never assert an outcome the evidence doesn't show. "Merged" means on the main branch, not released; say "released" only where a release is on record.
+   - Leave out anything that isn't the client's business: billing, rates, invoices, other clients, personal matters. Add those words to `redaction.terms` so `validate` stops a leak at the source.
+3. **`validate`**, **`build`**, then **`preview`**. `build` verify-or-aborts every cited commit, aborts on a cited commit dated outside the period, and derives every number on the page from git. The appendix lists every pull request in the period and marks the ones your items describe, so check that the uncited ones really are minor.
+
+The user reads the report and sends it themselves.
+
 ## Mining solved problems (`mine`)
 
 A separate, optional flow from the weekly digest. It searches the user's agent session logs for moments where software they did **not** write failed and they worked out the fix — the kind of thing a stranger will hit and search for.

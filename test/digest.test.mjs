@@ -261,7 +261,7 @@ test('a missing lane and a canonical empty version 1 lane produce identical byte
     process.env.CLAUDE_CONFIG_DIR = f.claude; process.env.CODEX_HOME = f.codex;
     verifiedCommit(f.project);
     for (const mode of OUTPUT_MODES) {
-      const outputFile = join(f.root, `without-lane-${mode}.${mode === 'page' ? 'html' : 'md'}`);
+      const outputFile = join(f.root, `without-lane-${mode}.${mode === 'page' || mode === 'client' ? 'html' : 'md'}`);
       const siteArtifact = join(f.root, `without-lane-${mode}.json`);
       let outputConfig;
       if (mode === 'site') {
@@ -269,7 +269,7 @@ test('a missing lane and a canonical empty version 1 lane produce identical byte
         writeFileSync(adapter, `export const artifact=${JSON.stringify(siteArtifact)}; export function transform(model){return {items:model.items};}\n`);
         outputConfig = { mode, adapter };
       } else outputConfig = { mode, file:outputFile };
-      writeFileSync(join(f.root, 'honestweek.config.json'), JSON.stringify({ ...f.config, output:outputConfig }));
+      writeFileSync(join(f.root, 'honestweek.config.json'), JSON.stringify({ ...f.config, output:outputConfig, ...(mode === 'client' ? { client:{ name:'Example client' } } : {}) }));
       const target = mode === 'site' ? siteArtifact : outputFile;
 
       let output = io();
