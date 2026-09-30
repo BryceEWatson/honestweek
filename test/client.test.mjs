@@ -336,3 +336,73 @@ test('commits brought in by a merge commit count under that pull request, and me
   });
   assert.deepEqual(model.themes[0].items[0].prs.map((p) => p.n), [30], 'a cited merged-in commit links to its pull request');
 });
+
+test('the period is decided by when work landed, not when it was written', () => {
+  const repo = initRepo();
+  commit(repo, { message: 'Start (#1)', dateISO: '2024-03-01T10:00:00Z' });
+  // Written in March, merged with a merge commit in April: it landed in the period.
+  git(repo, ['checkout', '-q', '-b', 'early']);
+  const early = commit(repo, { message: 'Written early', dateISO: '2024-03-20T10:00:00Z' });
+  git(repo, ['checkout', '-q', 'main']);
+  const mergeEnv = { ...process.env, GIT_AUTHOR_EMAIL: OTHER, GIT_COMMITTER_EMAIL: OTHER, GIT_AUTHOR_NAME: 'T', GIT_COMMITTER_NAME: 'T', GIT_AUTHOR_DATE: '2024-04-10T10:00:00Z', GIT_COMMITTER_DATE: '2024-04-10T10:00:00Z' };
+  git(repo, ['merge', '--no-ff', '-q', '-m', 'Merge pull request #40 from team/early', 'early'], mergeEnv);
+  // Written in April, but only landed (squash-committed) in June: outside the period.
+  counter += 1;
+  writeFileSync(join(repo, `late${counter}.txt`), 'x');
+  const lateEnv = { ...process.env, GIT_AUTHOR_EMAIL: ME, GIT_COMMITTER_EMAIL: ME, GIT_AUTHOR_NAME: 'Dev', GIT_COMMITTER_NAME: 'Dev', GIT_AUTHOR_DATE: '2024-04-20T10:00:00Z', GIT_COMMITTER_DATE: '2024-06-05T10:00:00Z' };
+  git(repo, ['add', '-A'], lateEnv);
+  git(repo, ['commit', '-q', '-m', 'Written in April, landed in June (#41)'], lateEnv);
+  const late = git(repo, ['rev-parse', 'HEAD']).trim();
+
+  const got = landedCommitsInWindow(repo, [ME], '2024-04-01T00:00:00Z', '2024-04-30T23:59:59Z');
+  const shas = got.commits.map((c) => c.sha);
+  assert.ok(shas.includes(early), 'written before, landed inside: counted');
+  assert.ok(!shas.includes(late), 'written inside, landed after: not counted');
+  assert.equal(got.commits.find((c) => c.sha === early).landedISO.slice(0, 10), '2024-04-10');
+
+  const config = normalizeConfig({ identity: { authorEmails: [ME] }, repos: [{ path: repo, label: 'app', role: 'featured' }], output: { mode: 'client' }, client: { name: 'X' } });
+  const period = { start: '2024-04-01', end: '2024-04-30' };
+  const stats = deriveClientStats({ config, period });
+  assert.deepEqual(stats.prs.map((p) => p.pr), [40]);
+  assert.equal(stats.prs[0].dateISO.slice(0, 10), '2024-04-10', 'the appendix dates a PR by when it merged');
+  const v = (sha, dateISO) => ({ sha, shortSha: sha.slice(0, 7), subject: 's', dateISO, repoLabel: 'app', landed: true });
+  const ok = buildClientModel({ items: [{ id: 'e', repo: 'app', title: 'Early', status: 'shipped', commits: [early] }], config, verified: [v(early, '2024-03-20T10:00:00Z')], period, stats });
+  assert.equal(ok.themes[0].items[0].date, '2024-04-10');
+  assert.throws(
+    () => buildClientModel({ items: [{ id: 'l', repo: 'app', title: 'Late', status: 'shipped', commits: [late] }], config, verified: [v(late, '2024-04-20T10:00:00Z')], period, stats }),
+    /landed on the default branch outside the report period/,
+  );
+});
+
+test('every rendered item shows a verified commit, even when it cites pull requests', async () => {
+  const { repo, shas } = clientRepo();
+  const { work, out } = clientWorkspace({ repo, items: goodItems(shas) });
+  assert.equal((await build(work)).code, 0);
+  const html = readFileSync(out, 'utf8');
+  for (const article of html.match(/<article class="item"[\s\S]*?<\/article>/g)) {
+    assert.match(article, /<span class="sha mono"[^>]*>[0-9a-f]{7,}<\/span>/, 'item carries a commit receipt');
+  }
+  assert.match(html, new RegExp(`PR #12</a><span class="sha mono" title="Verified commit">${shas.a.slice(0, 7)}`));
+});
+
+test('the same commit in two configured repos keeps each repo\'s own evidence', () => {
+  const { repo, shas } = clientRepo();
+  const clone = tmp('hw-client-clone-');
+  execFileSync('git', ['clone', '-q', repo, clone]);
+  const config = normalizeConfig({
+    identity: { authorEmails: [ME] },
+    repos: [{ path: repo, label: 'upstream', role: 'featured' }, { path: clone, label: 'fork', role: 'featured' }],
+    output: { mode: 'client' },
+    client: { name: 'X', prLinks: { upstream: 'https://example.com/up/pull/', fork: 'https://example.com/fork/pull/' } },
+  });
+  const period = { start: '2024-04-01', end: '2024-05-31' };
+  const stats = deriveClientStats({ config, period });
+  const v = (repoLabel) => ({ sha: shas.a, shortSha: shas.a.slice(0, 7), subject: 'Let people sign in with their school account (#12)', dateISO: '2024-04-03T10:00:00Z', repoLabel, landed: true });
+  const model = buildClientModel({
+    items: [{ id: 'u', repo: 'upstream', title: 'U', status: 'shipped', commits: [shas.a] }, { id: 'f', repo: 'fork', title: 'F', status: 'shipped', commits: [shas.a] }],
+    config, verified: [v('upstream'), v('fork')], period, stats,
+  });
+  const byId = Object.fromEntries(model.themes[0].items.map((it) => [it.id, it]));
+  assert.equal(byId.u.prs[0].url, 'https://example.com/up/pull/12');
+  assert.equal(byId.f.prs[0].url, 'https://example.com/fork/pull/12');
+});
