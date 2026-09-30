@@ -76,7 +76,7 @@ test('lib/mine contains no target-specific tokens (clean-room)', () => {
 });
 
 test('the shipped docs and example config are clean-room too', () => {
-  assertCleanRoom([join(HERE, '..', 'docs', 'mining.md'), join(HERE, '..', 'honestweek.config.example.json')], 'docs + example config');
+  assertCleanRoom([join(HERE, '..', 'docs', 'mining.md'), join(HERE, '..', 'docs', 'reader-profiles.md'), join(HERE, '..', 'honestweek.config.example.json')], 'docs + example config');
 });
 
 // The client report is generic too: it must not carry any real client, product or
