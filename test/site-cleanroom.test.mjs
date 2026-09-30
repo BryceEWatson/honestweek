@@ -82,6 +82,6 @@ test('the shipped docs and example config are clean-room too', () => {
 // The client report is generic too: it must not carry any real client, product or
 // person, because every client's name comes from their own config.
 test('the client report modules are clean-room (clean-room)', () => {
-  const files = ['client.mjs', 'history.mjs', join('emit', 'client.mjs')].map((f) => join(HERE, '..', 'lib', f));
+  const files = ['client.mjs', 'history.mjs', 'reader.mjs', join('emit', 'client.mjs'), join('readers', 'default.json'), join('readers', 'client.json')].map((f) => join(HERE, '..', 'lib', f));
   assertCleanRoom(files, 'client report');
 });

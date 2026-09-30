@@ -325,6 +325,17 @@ The source is what reached the default branch, not a week of session logs:
 
 In a client report, `shipped` reads as **Merged**: on the main branch and checked against git. It doesn't claim the change has been released to production, and the report says so.
 
+### Shaping it for the reader (reader profiles)
+
+Different readers want different things from the same report. An optional `honestweek.reader.json` beside the config describes the one this report is for: which sections come first, extra sections that gather the changes they care about, areas to leave out, and whether to also write a short note for wherever they read updates. It never changes a fact: every view shows the same entries, statuses and counts, an area it leaves out is counted on the page, and the full record and "how this report was made" are always there.
+
+- An extra section picks its changes either **by git**, from the issue numbers the commits' messages name (`"select": { "issues": [12, 14] }`), or **by hand**, from tags on items (`"select": { "tags": ["requested"] }`). The page says which.
+- Every section and every line of writing guidance says where it came from: `their-words`, `your-notes` (both with a `ref`), or `guess`. If everything in the file is a guess, `build` tells you the view is unconfirmed.
+- `"format": { "note": true }` also writes `<report>.note.md`: the headline, the reader's sections, what you need from them and what's next, in a few lines, pointing to the full report.
+- Anything a profile can't honestly do fails the build instead: redefining "done", unknown keys, a missing source, excluding an area that doesn't exist, an item tag no section picks.
+
+Without the file, the report uses the shipped default and client layers. The design and its rules are in [docs/reader-profiles.md](docs/reader-profiles.md).
+
 ## Config reference
 
 You commit your own `honestweek.config.json`. It mirrors `honestweek.config.example.json`:
@@ -387,6 +398,8 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `honestweek.carry.json` | The private, redacted carry history, bounded to 12 week records. **Gitignored.** Only a successful lifecycle build advances it. |
 | `honestweek.carry.pending.json` | The hash-bound output/carry recovery envelope for an interrupted lifecycle build. **Gitignored.** Unknown output and carry combinations fail closed. |
 | `honestweek.items.json` | The distilled, human-reviewable items. **Yours to keep or ignore** (gitignored by default; safe to delete). |
+| `honestweek.reader.json` (opt-in) | The reader profile for a client report: who it's for, what they see first, and where each line of that came from. Holds a real person's preferences, so keep it private with the report. |
+| `<report>.note.md` (opt-in) | The short note a reader profile asks for with `format.note`, written beside the client report. Yours to share. |
 | `honestweek.history.json` | What landed on the default branch in a period, from `history`: the raw material for a client report. **Gitignored.** Redacted before it's written; only counts are printed. |
 | `honestweek.harvest.json` | Proposed redaction-denylist candidates from `harvest`. **Gitignored.** Only the count is printed; the raw nouns stay local for you to review. |
 | `output.file` (e.g. `honestweek.digest.md`) | The final rendered output. **Yours to keep or ignore.** |

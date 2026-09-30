@@ -1,6 +1,6 @@
 # Reader profiles: one set of checked facts, many readers
 
-Status: design only. Nothing here is built yet. The first real test is described under [Build order](#build-order).
+Status: step 2 is built, inside the client report (`output.mode: "client"`). Reader types beyond the default and the client still wait for a second real reader. See [Build order](#build-order).
 
 ## In plain terms
 
@@ -87,7 +87,7 @@ Every question or guidance line in a personal add-on carries one of three source
 - **Your notes**: your own record of what they asked for.
 - **A guess**: your inference, not yet confirmed.
 
-A profile made only of guesses is shown on the page as unconfirmed, and the cheapest fix is to ask the reader. A profile should get more accurate each time it's used, not be re-guessed each time.
+When everything in a personal add-on is a guess, `build` says so on the command line: this view of the reader is unconfirmed. It doesn't say so on the reader's page, because the note is for the person writing the report, not for the reader. A profile should get more accurate each time it's used, not be re-guessed each time: when the reader says something that confirms or corrects a line, change its source.
 
 ## What git can and can't answer
 
@@ -99,45 +99,43 @@ Today honestweek has an output mode for each kind of report: post, changelog, di
 
 ## Build order
 
-The general version waits for evidence. Right now there is one client report and its reader hasn't seen it.
+1. **Model the first reader from the evidence, without asking.** The plan was to ask four questions first. The owner decided instead to build from what the record already shows (2026-09-30): the reader's own bug reports and requests, what they said in meetings, and how they reacted to past updates. Every line of that personal add-on carries its source, so what's a guess stays visible to the author.
+2. **Build the smallest useful piece (built).** The default profile, the client add-on and a personal add-on file, inside the client report: extra sections picked by git (issue numbers named in commit messages) or by hand (tags), areas left out and counted, a "what I need from you" section, a "not finished" list, and a short note for readers who read updates in a shared document. The first reader's evidence called for the personal file and the note, so they came into step 2 rather than waiting.
+3. **Wait for a second, different reader.** Reader types beyond default and client (manager, public log, team handoff) are designed from two real cases, not one guess. A prospect reading the public weekly log is the likely second.
 
-1. **Ask the first reader.** Four questions: do they want a periodic report at all, and how often; who else reads it; whether hours belong in it or only on the invoice; and whether writing it counts against the agreed hours. Their answers become the first lines of their personal add-on, sourced as their words.
-2. **Build the smallest useful piece.** The default profile plus the client add-on, inside the existing client report: sections chosen by tag, hidden items counted, and the six rules enforced by `build`. Nothing else.
-3. **Wait for a second, different reader.** A prospect reading the public weekly log is the likely one. Only when two real profiles exist do the reader-type add-ons, the personal-add-on file and the short-note format become general features, designed from two real cases instead of one guess.
-
-What would change this plan: if the first reader says they don't want a report, step 2 shrinks to the short-note format alone. If no second reader type appears, the general layer isn't built.
+What would change this plan: if the first reader shows no use for the full report, the short note becomes the main output for them. If no second reader type appears, the general layer isn't built.
 
 ## Open questions
 
-- Should tags for extra questions ("requested by this reader") live on items, or be derived from issue references in commit messages, which git can check?
+- Settled: an extra section can pick items either way. Issue numbers named in commit messages are preferred, because git can check them; hand tags on items cover work no issue names.
 - How does a personal add-on travel between machines, given it's private and holds a real person's preferences?
 - Is one plain-language description per item enough for every reader, or does a technical reader (a handoff) need a second, more detailed field? The current bet is that plain descriptions plus links to the pull requests are enough.
 
 ## Implementation detail
 
-Nothing below exists yet. It's a sketch for step 2.
-
-A profile file, `honestweek.reader.json`, beside the report's `honestweek.config.json`:
+What's built (step 2). A profile file, `honestweek.reader.json`, sits beside the report's `honestweek.config.json`:
 
 ```jsonc
 {
-  "extends": ["client"],                // reader-type add-ons, applied in order after the default
-  "reader": "Their role, not their name", // shown nowhere; for your own reference
+  "extends": ["client"],                  // shipped reader types, applied in order after the default
+  "reader": "Their role, not their name",   // for your own reference; shown nowhere
   "sections": [
-    { "id": "requests", "title": "Your requests", "select": { "tag": "requested" },
-      "source": { "kind": "their-words", "ref": "meeting 2026-08-21" } }
+    { "id": "requests", "title": "Your requests", "summary": "Things you reported or asked for.",
+      "select": { "issues": [12, 14] },       // picked by git; or { "tags": ["requested"] }, picked by hand
+      "source": { "kind": "your-notes", "ref": "review notes, April" } }
   ],
-  "order": ["requests", "done", "not-finished", "next", "needs-you", "record"],
-  "done": "merged",                     // or "released"; may only get stricter than the layers below
+  "order": ["requests", "needs-you", "highlights", "done", "not-finished", "next", "record", "how"],
   "exclude": { "themes": ["internal-tooling"] },
-  "format": { "maxItems": 12, "note": true },
+  "format": { "note": true },               // also write <report>.note.md, a few lines for a shared document
   "guidance": [
     { "text": "Plain language; thinks in terms of testers and rollout stages", "source": { "kind": "guess" } }
   ]
 }
 ```
 
-- Shipped add-ons would live under `lib/readers/` as JSON (default, client, manager, public, handoff), validated by the same config loader, with no executable content.
-- `lib/client.mjs` would gain an `applyView(model, profile)` step after `buildClientModel`: select and order sections, count hidden items into the model, and fail with `ClientReportError` when a rule in "Rules no add-on can break" would be broken.
-- Items would gain an optional `tags` array. `validate` would reject a tag no profile section uses, so a typo can't silently drop an item from a view.
-- Tests needed: same badges and numbers across two views of one report; hidden counts match; a looser `done` in a later layer is refused; an unconfirmed-only profile renders the unconfirmed notice; existing modes stay byte-identical without a profile file (the same all-modes loop as `test/digest.test.mjs`).
+- `lib/reader.mjs` loads and validates the layers (`lib/readers/default.json`, `lib/readers/client.json`, then the personal file) and resolves them: later layers win on order and format, sections replace by id, exclusions and guidance add up, and `record` and `how` are appended if an order leaves them out. Unknown keys, a `done` key, a missing or wrong `source`, a section id that shadows a built-in, and an `order` naming an unknown section all fail with `ReaderProfileError` (build exits 2 and writes nothing). A `shipped` source is reserved for honestweek's own add-ons.
+- `lib/client.mjs` `applyView` runs inside `buildClientModel`. It never edits an item. It refuses an exclusion that names no area and an item tag no section picks, counts hidden items into the model, and marks a pull request "described above" only when an item on this view cites it. Issue numbers come from each cited commit's full message (`commitMessage` in `lib/git.mjs`, `issueRefs`), minus the commit's own pull-request number.
+- `lib/emit/client.mjs` renders sections in the profile's order and writes the note (`renderNote`); `lib/build.mjs` writes it beside the report and prints the unconfirmed notice.
+- The items file gains optional `content.needs` (shown under "What I need from you", never counted) and optional item `tags`.
+- Not built: `format.maxItems`, a stricter `done` (honestweek can't see releases), and reader types other than default and client.
+- Tests: `test/reader.test.mjs` (same entries, numbers and statuses across two views; git-picked section; counted exclusion; record and method kept; nine refused profiles; tag typo; unconfirmed notice; the note; other modes byte-identical with a profile present).
