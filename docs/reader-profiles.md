@@ -16,7 +16,7 @@ Nothing in the report was wrong. It answered the wrong reader's questions. A rep
 
 honestweek already separates two things:
 
-- **Items**: the individual pieces of work in a report. Each one has a *status badge* (shipped, in progress, or designed but not proven) and a *receipt*, which points to the commit or session it came from. `build` checks every receipt against git and refuses to write anything if one doesn't hold up.
+- **Items**: the individual pieces of work in a report. Each one has a *status badge* (shipped, in progress, or designed but not proven) and a *receipt*, which points to the commit or session it came from. `build` checks every commit an item cites against git (it has to exist, be yours, and be on the main branch to count as shipped) and refuses to write anything if one doesn't hold up. A receipt that points to a session is carried along as a pointer to its source; it isn't checked against git.
 - **Output**: how those items get rendered, as a post, a changelog, a weekly page, or a client report.
 
 A *view* is a third thing that sits between them: for one reader, which items are shown, under which headings, in what order, and at what length. A reader profile describes a view. It never touches the items themselves, so every view of a report is built from the same checked items with the same badges and the same numbers.
@@ -29,7 +29,7 @@ Every report starts from the default. It answers the questions nearly every read
 2. **What isn't finished.** Work in progress, and work that's designed but not proven, labelled as such.
 3. **What's next.** Planned work, marked as planned and never counted in any number.
 4. **What's needed from you.** Decisions or approvals the work is waiting on.
-5. **The full record.** Every pull request in the period, with the ones described above marked, plus the counts read from git.
+5. **The full record.** Everything of yours that landed in the period, with the parts described above marked, plus the counts read from git. Where commit messages name their pull requests (squash and merge commits on GitHub do), the record is a list of pull requests; where they don't, it's a list of commits, because honestweek reads only local git and can't ask a hosting service.
 
 The default also fixes the rules every view keeps (see [Rules no add-on can break](#rules-no-add-on-can-break)).
 
@@ -91,7 +91,7 @@ A profile made only of guesses is shown on the page as unconfirmed, and the chea
 
 ## What git can and can't answer
 
-Some reader questions can be answered straight from git: what landed, when, and in which pull request. Others can't: whether the product is ready for more users, what it costs to run, whether a request came from this reader. Those sections are written by a person from items that still carry receipts, and each one says it was written, not counted. honestweek will not present a written answer as a measured one.
+Some reader questions can be answered straight from git: what landed and when, and which pull request it came in with when the commit message names one. Others can't: whether the product is ready for more users, what it costs to run, whether a request came from this reader. Those sections are written by a person from items that still carry receipts, and each one says it was written, not counted. honestweek will not present a written answer as a measured one.
 
 ## What this could replace later
 
