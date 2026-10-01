@@ -188,7 +188,7 @@ test('the short note: a few lines beside the report, only when the profile asks 
   assert.equal(code, 0, io.errBuf);
   const note = readFileSync(out.replace(/\.html$/, '.note.md'), 'utf8');
   assert.match(note, /^\*\*Example Co report, April 1 to May 31, 2024\*\*/);
-  assert.match(note, /- Your requests: 2 changes, including Unread badge clears; Choose on first sign-in\./);
+  assert.match(note, /- Your requests: 2 changes, including Unread badge clears \(PR #31, [0-9a-f]{7}\); Choose on first sign-in \(PR #30, [0-9a-f]{7}\)\./);
   assert.doesNotMatch(note, /Needs you/);
   assert.match(note, /- Next: Next release\./);
   assert.match(note, /Full report, with every change and the pull requests behind it: report\.html/);
@@ -236,4 +236,55 @@ test('failure path: a report carries no asks, so content.needs is refused and no
   assert.equal(code, 2);
   assert.match(io.errBuf, /content\.needs isn't supported/);
   assert.equal(existsSync(out), false);
+});
+
+test('rows in reader sections carry their receipts, and so does every change the note lists', async () => {
+  const { work, out, s } = fixture();
+  profile(work, { extends: ['client'], sections: [REQUESTS], format: { note: true } });
+  const { code, io } = await build(work);
+  assert.equal(code, 0, io.errBuf);
+  const html = readFileSync(out, 'utf8');
+  const sec = html.slice(html.indexOf('id="sec-requests"'), html.indexOf('</section>', html.indexOf('id="sec-requests"')));
+  for (const row of sec.match(/<li>[\s\S]*?<\/ul><\/li>/g)) assert.match(row, /<span class="sha mono"[^>]*>[0-9a-f]{7,}<\/span>/, 'row carries a commit');
+  const note = readFileSync(out.replace(/\.html$/, '.note.md'), 'utf8');
+  assert.ok(note.includes(`Unread badge clears (PR #31, ${s.badge.slice(0, 7)}); Choose on first sign-in (PR #30, ${s.signup.slice(0, 7)})`), note);
+});
+
+test('an excluded area is left out of every section of the view, and still counted', async () => {
+  const { work, out } = fixture();
+  profile(work, { extends: ['client'], sections: [REQUESTS], exclude: { themes: ['people'] } });
+  assert.equal((await build(work)).code, 0);
+  const html = readFileSync(out, 'utf8');
+  const sec = html.slice(html.indexOf('id="sec-requests"'), html.indexOf('</section>', html.indexOf('id="sec-requests"')));
+  assert.match(sec, /None of these landed in this period\./);
+  assert.match(html, /2 changes in For the people using it aren&#39;t described in this view; their pull requests are listed here\./);
+});
+
+test('the hidden count survives an order without the areas, and a view that excludes every area', async () => {
+  const { work, out } = fixture();
+  profile(work, { extends: ['client'], exclude: { themes: ['people'] }, order: ['highlights', 'record', 'how'] });
+  assert.equal((await build(work)).code, 0);
+  assert.match(readFileSync(out, 'utf8'), /2 changes in For the people using it aren&#39;t described in this view/);
+  profile(work, { extends: ['client'], exclude: { themes: ['people', 'ops'] } });
+  assert.equal((await build(work)).code, 0);
+  const all = readFileSync(out, 'utf8');
+  assert.doesNotMatch(all, /No work was recorded/);
+  assert.match(all, /id="areas"[\s\S]*3 changes in For the people using it, Running it aren&#39;t shown in this view/);
+});
+
+test('failure path: a misspelled key anywhere in a profile is refused, not ignored', async () => {
+  const cases = [
+    { sections: [{ ...REQUESTS, summmary: 'x' }] },
+    { sections: [{ ...REQUESTS, select: { issues: [12], extra: 1 } }] },
+    { sections: [{ ...REQUESTS, source: { kind: 'your-notes', ref: 'n', when: 'today' } }] },
+    { guidance: [{ text: 'x', source: { kind: 'guess' }, weight: 2 }] },
+  ];
+  for (const p of cases) {
+    const { work, out } = fixture();
+    profile(work, p);
+    const { code, io } = await build(work);
+    assert.equal(code, 2, JSON.stringify(p));
+    assert.match(io.errBuf, /unknown key/, JSON.stringify(p));
+    assert.equal(existsSync(out), false);
+  }
 });
