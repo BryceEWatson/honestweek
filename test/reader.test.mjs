@@ -288,3 +288,17 @@ test('failure path: a misspelled key anywhere in a profile is refused, not ignor
     assert.equal(existsSync(out), false);
   }
 });
+
+test('a change citing several pull requests leads with the one its primary receipt names', async () => {
+  const { work, out, s } = fixture();
+  const items = JSON.parse(readFileSync(join(work, 'honestweek.items.json'), 'utf8'));
+  items.items[1].commits = [s.signup, s.badge];
+  items.items[1].receipt = { primaryCommit: s.badge };
+  items.items.splice(0, 1);
+  writeFileSync(join(work, 'honestweek.items.json'), JSON.stringify(items));
+  profile(work, { extends: ['client'], sections: [REQUESTS], format: { note: true } });
+  const { code, io } = await build(work);
+  assert.equal(code, 0, io.errBuf);
+  const note = readFileSync(out.replace(/\.html$/, '.note.md'), 'utf8');
+  assert.ok(note.includes(`Unread badge clears (PR #31, ${s.badge.slice(0, 7)})`), note);
+});
