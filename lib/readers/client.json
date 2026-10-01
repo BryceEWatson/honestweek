@@ -1,0 +1,9 @@
+{
+  "name": "client",
+  "about": "For the person paying for the work: the changes that matter to them first, what they need to decide, then the detail.",
+  "order": ["highlights", "activity", "done", "not-finished", "next", "record", "how"],
+  "guidance": [
+    { "text": "Write for the person paying for the work: what changed for the people who use or run the product, not how it was built.", "source": { "kind": "shipped" } },
+    { "text": "Leave out anything that isn't their business: billing, rates, other clients, personal matters.", "source": { "kind": "shipped" } }
+  ]
+}
