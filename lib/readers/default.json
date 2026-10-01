@@ -1,5 +1,5 @@
 {
   "name": "default",
-  "about": "What every reader needs: what got done, what isn't finished, what's next, what's needed from them, and the full record.",
-  "order": ["highlights", "needs-you", "activity", "done", "not-finished", "next", "record", "how"]
+  "about": "What every reader needs: what got done, what isn't finished, what's planned next, and the full record.",
+  "order": ["highlights", "activity", "done", "not-finished", "next", "record", "how"]
 }

@@ -28,10 +28,13 @@ Every report starts from the default. It answers the questions nearly every read
 1. **What got done.** Work that's merged, grouped by area, each change naming the pull requests and commits it came from.
 2. **What isn't finished.** Work in progress, and work that's designed but not proven, labelled as such.
 3. **What's next.** Planned work, marked as planned and never counted in any number.
-4. **What's needed from you.** Decisions or approvals the work is waiting on.
-5. **The full record.** Everything of yours that landed in the period, with the parts described above marked, plus the counts read from git. Where commit messages name their pull requests (squash and merge commits on GitHub do), the record is a list of pull requests; where they don't, it's a list of commits, because honestweek reads only local git and can't ask a hosting service.
+4. **The full record.** Everything of yours that landed in the period, with the parts described above marked, plus the counts read from git. Where commit messages name their pull requests (squash and merge commits on GitHub do), the record is a list of pull requests; where they don't, it's a list of commits, because honestweek reads only local git and can't ask a hosting service.
 
 The default also fixes the rules every view keeps (see [Rules no add-on can break](#rules-no-add-on-can-break)).
+
+### What a report doesn't carry
+
+Asks. "What I need from you", a decision you want, an approval, a proposal to agree: none of these has evidence behind it, and putting them in the report turns a record of work into a negotiation. They belong in the message you send with the report. The client report refuses an items file that tries to carry them (`content.needs`). An earlier version of step 2 had a "What I need from you" section; it was taken out for this reason before it merged.
 
 ## Add-ons
 
@@ -100,7 +103,7 @@ Today honestweek has an output mode for each kind of report: post, changelog, di
 ## Build order
 
 1. **Model the first reader from the evidence, without asking.** The plan was to ask four questions first. The owner decided instead to build from what the record already shows (2026-09-30): the reader's own bug reports and requests, what they said in meetings, and how they reacted to past updates. Every line of that personal add-on carries its source, so what's a guess stays visible to the author.
-2. **Build the smallest useful piece (built).** The default profile, the client add-on and a personal add-on file, inside the client report: extra sections picked by git (issue numbers named in commit messages) or by hand (tags), areas left out and counted, a "what I need from you" section, a "not finished" list, and a short note for readers who read updates in a shared document. The first reader's evidence called for the personal file and the note, so they came into step 2 rather than waiting.
+2. **Build the smallest useful piece (built).** The default profile, the client add-on and a personal add-on file, inside the client report: extra sections picked by git (issue numbers named in commit messages) or by hand (tags), areas left out and counted, a "not finished" list, and a short note for readers who read updates in a shared document. The first reader's evidence called for the personal file and the note, so they came into step 2 rather than waiting.
 3. **Wait for a second, different reader.** Reader types beyond default and client (manager, public log, team handoff) are designed from two real cases, not one guess. A prospect reading the public weekly log is the likely second.
 
 What would change this plan: if the first reader shows no use for the full report, the short note becomes the main output for them. If no second reader type appears, the general layer isn't built.
@@ -124,7 +127,7 @@ What's built (step 2). A profile file, `honestweek.reader.json`, sits beside the
       "select": { "issues": [12, 14] },       // picked by git; or { "tags": ["requested"] }, picked by hand
       "source": { "kind": "your-notes", "ref": "review notes, April" } }
   ],
-  "order": ["requests", "needs-you", "highlights", "done", "not-finished", "next", "record", "how"],
+  "order": ["requests", "highlights", "done", "not-finished", "next", "record", "how"],
   "exclude": { "themes": ["internal-tooling"] },
   "format": { "note": true },               // also write <report>.note.md, a few lines for a shared document
   "guidance": [
@@ -136,6 +139,6 @@ What's built (step 2). A profile file, `honestweek.reader.json`, sits beside the
 - `lib/reader.mjs` loads and validates the layers (`lib/readers/default.json`, `lib/readers/client.json`, then the personal file) and resolves them: later layers win on order and format, sections replace by id, exclusions and guidance add up, and `record` and `how` are appended if an order leaves them out. Unknown keys, a `done` key, a missing or wrong `source`, a section id that shadows a built-in, and an `order` naming an unknown section all fail with `ReaderProfileError` (build exits 2 and writes nothing). A `shipped` source is reserved for honestweek's own add-ons.
 - `lib/client.mjs` `applyView` runs inside `buildClientModel`. It never edits an item. It refuses an exclusion that names no area and an item tag no section picks, counts hidden items into the model, and marks a pull request "described above" only when an item on this view cites it. Issue numbers come from each cited commit's full message (`commitMessage` in `lib/git.mjs`, `issueRefs`), minus the commit's own pull-request number.
 - `lib/emit/client.mjs` renders sections in the profile's order and writes the note (`renderNote`); `lib/build.mjs` writes it beside the report and prints the unconfirmed notice.
-- The items file gains optional `content.needs` (shown under "What I need from you", never counted) and optional item `tags`.
+- Items gain optional `tags`. `content.needs` is refused: a report carries no asks.
 - Not built: `format.maxItems`, a stricter `done` (honestweek can't see releases), and reader types other than default and client.
 - Tests: `test/reader.test.mjs` (same entries, numbers and statuses across two views; git-picked section; counted exclusion; record and method kept; nine refused profiles; tag typo; unconfirmed notice; the note; other modes byte-identical with a profile present).

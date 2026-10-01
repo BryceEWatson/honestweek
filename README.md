@@ -331,7 +331,7 @@ Different readers want different things from the same report. An optional `hones
 
 - An extra section picks its changes either **by git**, from the issue numbers the commits' messages name (`"select": { "issues": [12, 14] }`), or **by hand**, from tags on items (`"select": { "tags": ["requested"] }`). The page says which.
 - Every section and every line of writing guidance says where it came from: `their-words`, `your-notes` (both with a `ref`), or `guess`. If everything in the file is a guess, `build` tells you the view is unconfirmed.
-- `"format": { "note": true }` also writes `<report>.note.md`: the headline, the reader's sections, what you need from them and what's next, in a few lines, pointing to the full report.
+- `"format": { "note": true }` also writes `<report>.note.md`: the headline, the reader's sections and what's next, in a few lines, pointing to the full report.
 - Anything a profile can't honestly do fails the build instead: redefining "done", unknown keys, a missing source, excluding an area that doesn't exist, an item tag no section picks.
 
 Without the file, the report uses the shipped default and client layers. The design and its rules are in [docs/reader-profiles.md](docs/reader-profiles.md).

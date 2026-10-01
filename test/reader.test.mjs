@@ -65,7 +65,7 @@ function fixture({ mode = 'client' } = {}) {
     content: {
       title: 'Example Co report', headline: 'The requests you raised are in.',
       themes: [{ id: 'people', title: 'For the people using it' }, { id: 'ops', title: 'Running it' }],
-      needs: ['Pick what next month covers.'], next: ['Next release.'],
+      next: ['Next release.'],
     },
     items: [
       { id: 'signup', repo: 'app', theme: 'people', title: 'Choose on first sign-in', summary: 'New users choose.', status: 'shipped', highlight: true, commits: [s.signup], receipt: { primaryCommit: s.signup } },
@@ -82,7 +82,7 @@ const REQUESTS = { id: 'requests', title: 'Your requests', select: { issues: [12
 
 test('a section picked by git lists the changes whose commits name the reader\'s issues', async () => {
   const { work, out } = fixture();
-  profile(work, { extends: ['client'], sections: [REQUESTS], order: ['requests', 'needs-you', 'done', 'record', 'how'] });
+  profile(work, { extends: ['client'], sections: [REQUESTS], order: ['requests', 'done', 'record', 'how'] });
   const { code, io } = await build(work);
   assert.equal(code, 0, io.errBuf);
   const html = readFileSync(out, 'utf8');
@@ -92,9 +92,8 @@ test('a section picked by git lists the changes whose commits name the reader\'s
   assert.match(sec, /href="#badge">Unread badge clears<\/a>.*#14/);
   assert.doesNotMatch(sec, /One-run releases/, 'a change that names none of the issues is not picked');
   // Order follows the profile, and the record and method are kept even though...
-  assert.ok(html.indexOf('id="sec-requests"') < html.indexOf('id="needs"'));
-  assert.ok(html.indexOf('id="needs"') < html.indexOf('id="areas"'));
-  assert.match(html, /What I need from you[\s\S]*Pick what next month covers\./);
+  assert.ok(html.indexOf('id="sec-requests"') < html.indexOf('id="areas"'));
+  assert.doesNotMatch(html, /What I need from you/, 'a report carries no asks');
   // ...the order left out activity, highlights, next: those simply aren't shown.
   assert.doesNotMatch(html, /id="activity"|id="highlights"|id="next"/);
 });
@@ -145,6 +144,7 @@ test('failure paths: a profile that could mislead or hides a typo writes nothing
     [{ sections: [{ ...REQUESTS, id: 'done' }] }, /built-in section/],
     [{ order: ['done', 'nowhere'] }, /neither a built-in section/],
     [{ exclude: { themes: ['opps'] } }, /excludes area "opps"/],
+    [{ order: ['needs-you', 'done'] }, /neither a built-in section/],
   ];
   for (const [p, re] of cases) {
     const { work, out } = fixture();
@@ -189,7 +189,7 @@ test('the short note: a few lines beside the report, only when the profile asks 
   const note = readFileSync(out.replace(/\.html$/, '.note.md'), 'utf8');
   assert.match(note, /^\*\*Example Co report, April 1 to May 31, 2024\*\*/);
   assert.match(note, /- Your requests: 2 changes, including Unread badge clears; Choose on first sign-in\./);
-  assert.match(note, /- Needs you: Pick what next month covers\./);
+  assert.doesNotMatch(note, /Needs you/);
   assert.match(note, /- Next: Next release\./);
   assert.match(note, /Full report, with every change and the pull requests behind it: report\.html/);
   assert.ok(note.split('\n').filter(Boolean).length <= 8, 'it stays short');
@@ -223,6 +223,17 @@ test('layers: later wins on order and format, exclusions and guidance add up, se
 test('without a profile file the client report uses the shipped default and client layers', () => {
   const p = loadReaderProfile(tmp('hw-reader-empty-'));
   assert.deepEqual(p.layers, ['reader type "default"', 'reader type "client"']);
-  assert.deepEqual(p.order, ['highlights', 'needs-you', 'activity', 'done', 'not-finished', 'next', 'record', 'how']);
+  assert.deepEqual(p.order, ['highlights', 'activity', 'done', 'not-finished', 'next', 'record', 'how']);
   assert.equal(p.unconfirmed, false);
+});
+
+test('failure path: a report carries no asks, so content.needs is refused and nothing is written', async () => {
+  const { work, out } = fixture();
+  const items = JSON.parse(readFileSync(join(work, 'honestweek.items.json'), 'utf8'));
+  items.content.needs = ['Approve next month.'];
+  writeFileSync(join(work, 'honestweek.items.json'), JSON.stringify(items));
+  const { code, io } = await build(work);
+  assert.equal(code, 2);
+  assert.match(io.errBuf, /content\.needs isn't supported/);
+  assert.equal(existsSync(out), false);
 });
