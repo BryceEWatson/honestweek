@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Example Co report: April 1 to May 31, 2024</title>
+<style>:root{--ink:#17191c;--ink2:#3d4248;--mute:#6b7178;--rule:#e3e1dc;--rule2:#efede8;--paper:#fbfaf7;--card:#ffffff;--accent:#1d5c55;--accent2:#e7f0ee;--merged:#1f6b45;--mergedbg:#e6f2ea;--progress:#8a5a00;--progressbg:#fbf1dc;--designed:#4d5866;--designedbg:#eceff3;color-scheme:light}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink2);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--accent)}
+.doc{max-width:880px;margin:0 auto;padding:40px 24px 64px}
+.serif{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);border-bottom:1px solid var(--rule);padding-bottom:12px}
+.print{font:inherit;letter-spacing:.04em;text-transform:none;font-size:13px;color:var(--accent);background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:5px 12px;cursor:pointer}
+.print:hover{border-color:var(--accent)}
+h1{margin:28px 0 10px;font-size:40px;line-height:1.1;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 24px;margin:18px 0 0;padding:0}
+.meta div{margin:0}
+.meta dt{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.meta dd{margin:2px 0 0;color:var(--ink);font-size:14px}
+.lede{margin:34px 0 0;padding:26px 0 0;border-top:1px solid var(--rule)}
+.headline{margin:0 0 14px;font-size:25px;line-height:1.3;font-weight:500;color:var(--ink)}
+.lede p{margin:0 0 12px;max-width:68ch}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:30px 0 0}
+.stat{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:16px 16px 14px}
+.stat b{display:block;font-size:30px;line-height:1.1;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.stat span{display:block;margin-top:6px;font-size:13px;color:var(--mute);line-height:1.35}
+.note{margin:10px 0 0;font-size:12.5px;color:var(--mute)}
+section{margin:46px 0 0}
+h2{margin:0 0 6px;font-size:26px;line-height:1.2;font-weight:600;color:var(--ink)}
+.sub{margin:0 0 18px;color:var(--mute);font-size:14px}
+.chart{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:18px 18px 10px}
+.chart svg{display:block;width:100%;height:auto}
+.chart .readout{margin:6px 0 0;font-size:12.5px;color:var(--mute);min-height:1.6em}
+.chart rect.b{fill:var(--accent);opacity:.82}
+.chart rect.b.zero{opacity:.18}
+.chart g.col:hover rect.b,.chart g.col:focus rect.b{opacity:1}
+.chart g.col:focus{outline:none}
+.chart text{font-size:11px;fill:var(--mute)}
+.highlights{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.hl{background:var(--card);border:1px solid var(--rule);border-top:3px solid var(--accent);border-radius:10px;padding:16px 18px}
+.hl .area{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.hl h3{margin:6px 0 6px;font-size:18px;line-height:1.3;color:var(--ink)}
+.hl p{margin:0;font-size:14px}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 6px;padding:0;list-style:none}
+.toc a{display:inline-block;font-size:13px;text-decoration:none;color:var(--ink2);background:var(--card);border:1px solid var(--rule);border-radius:999px;padding:4px 12px}
+.toc a:hover{border-color:var(--accent);color:var(--accent)}
+.area{scroll-margin-top:16px}
+.area-block{margin:34px 0 0;padding:24px 0 0;border-top:1px solid var(--rule)}
+.area-block h3.t{margin:0 0 4px;font-size:21px;color:var(--ink);font-weight:600}
+.area-block .why{margin:0 0 6px;max-width:68ch}
+.area-block .count{margin:0 0 14px;font-size:12.5px;color:var(--mute)}
+.item{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px 18px 14px;margin:0 0 10px;break-inside:avoid}
+.item-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.item h4{margin:0;flex:1 1 320px;font-size:16.5px;line-height:1.35;color:var(--ink);font-weight:600}
+.pill{font-size:11.5px;font-weight:600;border-radius:999px;padding:2px 10px;white-space:nowrap}
+.pill.merged{color:var(--merged);background:var(--mergedbg)}
+.pill.progress{color:var(--progress);background:var(--progressbg)}
+.pill.designed{color:var(--designed);background:var(--designedbg)}
+.date{font-size:12.5px;color:var(--mute);white-space:nowrap}
+.item p{margin:8px 0 0;max-width:72ch}
+.refs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;padding:0;list-style:none}
+.refs li{font-size:12px}
+.refs li{display:inline-flex;border-radius:5px;overflow:hidden}
+.refs a,.refs span{display:inline-block;text-decoration:none;color:var(--accent);background:var(--accent2);padding:1px 7px}
+.refs span.sha{color:var(--mute);background:var(--rule2);font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 18px;padding:0;list-style:none;font-size:13px;color:var(--mute)}
+.legend li{display:flex;align-items:center;gap:8px}
+.next{margin:0;padding:0 0 0 20px}
+.next li{margin:0 0 8px;max-width:70ch}
+table{width:100%;border-collapse:collapse;font-size:13px;background:var(--card);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+th{text-align:left;font-weight:600;color:var(--mute);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:9px 12px;border-bottom:1px solid var(--rule)}
+td{padding:7px 12px;border-bottom:1px solid var(--rule2);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.n{white-space:nowrap}
+td.d{white-space:nowrap;color:var(--mute)}
+td.c{white-space:nowrap;color:var(--mute);font-size:12px}
+.how p{max-width:72ch;margin:0 0 10px}
+footer{margin:46px 0 0;padding:16px 0 0;border-top:1px solid var(--rule);font-size:12.5px;color:var(--mute)}
+@media (max-width:640px){h1{font-size:31px}.stats{grid-template-columns:repeat(2,1fr)}.doc{padding:24px 16px 48px}td.c{display:none}}
+@media print{body{background:#fff;font-size:11pt}.doc{max-width:none;padding:0}.print,.toc{display:none}.stat,.chart,.item,.hl,table{border-color:#ccc}section{break-before:auto}.area-block,.hl,tr{break-inside:avoid}h2,h3{break-after:avoid}a{color:inherit;text-decoration:none}@page{margin:16mm 15mm}}</style>
+</head>
+<body>
+<main class="doc">
+<div class="bar"><span>Example Co · work report</span><button type="button" class="print">Print or save as PDF</button></div>
+<h1 class="serif">Example Co report</h1>
+<dl class="meta"><div><dt>Prepared for</dt><dd>A. Reader</dd></div><div><dt>Prepared by</dt><dd>Dev</dd></div><div><dt>Period</dt><dd>April 1 to May 31, 2024</dd></div><div><dt>Report date</dt><dd>July 1, 2024</dd></div></dl>
+<div class="lede"><p class="headline serif">Sign-in and answers improved.</p><p>One paragraph.</p></div>
+<div class="stats"><div class="stat"><b>3</b><span>pull requests merged</span></div><div class="stat"><b>3</b><span>commits on the main branch</span></div><div class="stat"><b>3</b><span>days with work landed</span></div><div class="stat"><b>2</b><span>areas of work</span></div></div><p class="note">Counted from git on the report date: my commits that reached the main branch during the period, and the pull requests they came in with.</p>
+<section aria-labelledby="highlights"><h2 id="highlights" class="serif">Highlights</h2><p class="sub">The changes with the most effect on how Example Co is used or run.</p><div class="highlights"><a class="hl" href="#sso" style="text-decoration:none;color:inherit"><div class="area">Access</div><h3 class="serif">School sign-in</h3><p>Sign in with the school account.</p></a></div></section>
+<section aria-labelledby="activity"><h2 id="activity" class="serif">Activity over the period</h2><p class="sub">Commits that reached the main branch, per week. Hover a bar for the count.</p><div class="chart"><svg viewBox="0 0 800 170" role="group" aria-label="Commits on the main branch per week"><line x1="0" x2="800" y1="138.5" y2="138.5" stroke="#d9d6cf"></line><g class="col" tabindex="0" role="img" aria-label="Week of Apr 1: 1 commit" data-label="Week of Apr 1: 1 commit"><rect class="b" x="16.9" y="8" width="55.1" height="130" rx="2"></rect><rect x="0.0" y="8" width="88.9" height="130" fill="transparent"></rect><text x="16.9" y="156">Apr</text></g><g class="col" tabindex="0" role="img" aria-label="Week of Apr 8: 0 commits" data-label="Week of Apr 8: 0 commits"><rect class="b zero" x="105.8" y="136" width="55.1" height="2" rx="2"></rect><rect x="88.9" y="8" width="88.9" height="130" fill="transparent"></rect></g><g class="col" tabindex="0" role="img" aria-label="Week of Apr 15: 1 commit" data-label="Week of Apr 15: 1 commit"><rect class="b" x="194.7" y="8" width="55.1" height="130" rx="2"></rect><rect x="177.8" y="8" width="88.9" height="130" fill="transparent"></rect></g><g class="col" tabindex="0" role="img" aria-label="Week of Apr 22: 0 commits" data-label="Week of Apr 22: 0 commits"><rect class="b zero" x="283.6" y="136" width="55.1" height="2" rx="2"></rect><rect x="266.7" y="8" width="88.9" height="130" fill="transparent"></rect></g><g class="col" tabindex="0" role="img" aria-label="Week of Apr 29: 1 commit" data-label="Week of Apr 29: 1 commit"><rect class="b" x="372.4" y="8" width="55.1" height="130" rx="2"></rect><rect x="355.6" y="8" width="88.9" height="130" fill="transparent"></rect></g><g class="col" tabindex="0" role="img" aria-label="Week of May 6: 0 commits" data-label="Week of May 6: 0 commits"><rect class="b zero" x="461.3" y="136" width="55.1" height="2" rx="2"></rect><rect x="444.4" y="8" width="88.9" height="130" fill="transparent"></rect><text x="461.3" y="156">May</text></g><g class="col" tabindex="0" role="img" aria-label="Week of May 13: 0 commits" data-label="Week of May 13: 0 commits"><rect class="b zero" x="550.2" y="136" width="55.1" height="2" rx="2"></rect><rect x="533.3" y="8" width="88.9" height="130" fill="transparent"></rect></g><g class="col" tabindex="0" role="img" aria-label="Week of May 20: 0 commits" data-label="Week of May 20: 0 commits"><rect class="b zero" x="639.1" y="136" width="55.1" height="2" rx="2"></rect><rect x="622.2" y="8" width="88.9" height="130" fill="transparent"></rect></g><g class="col" tabindex="0" role="img" aria-label="Week of May 27: 0 commits" data-label="Week of May 27: 0 commits"><rect class="b zero" x="728.0" y="136" width="55.1" height="2" rx="2"></rect><rect x="711.1" y="8" width="88.9" height="130" fill="transparent"></rect></g></svg><p class="readout">Busiest week: 1 commit</p></div></section>
+<section aria-labelledby="areas"><h2 id="areas" class="serif">The work, by area</h2><p class="sub">2 changes in 2 areas, newest first within each area.</p><ul class="legend"><li><span class="pill merged">Merged</span><span>on the main branch; every cited commit checked against git</span></li></ul><ul class="toc"><li><a href="#area-access">Access</a></li><li><a href="#area-answers">Answers</a></li></ul><div class="area area-block" id="area-access"><h3 class="t serif">Access</h3><p class="count">1 change · 1 pull request</p><article class="item" id="sso"><div class="item-top"><h4>School sign-in</h4><span class="pill merged">Merged</span><span class="date">Apr 3</span></div><p>Sign in with the school account.</p><ul class="refs" aria-label="Evidence"><li><a href="https://example.com/app/pull/12">PR #12</a><span class="sha mono" title="Verified commit">bf3ff48</span></li></ul></article></div><div class="area area-block" id="area-answers"><h3 class="t serif">Answers</h3><p class="count">1 change · 1 pull request</p><article class="item" id="cite"><div class="item-top"><h4>Answers cite sources</h4><span class="pill merged">Merged</span><span class="date">Apr 17</span></div><p>Every answer names its sources.</p><ul class="refs" aria-label="Evidence"><li><a href="https://example.com/app/pull/15">PR #15</a><span class="sha mono" title="Verified commit">b9bc1ee</span></li></ul></article></div></section>
+<section aria-labelledby="next"><h2 id="next" class="serif">What's next</h2><p class="sub">Planned, not done. Nothing here is counted above.</p><ul class="next"><li>Next release.</li></ul></section>
+<section aria-labelledby="appendix"><h2 id="appendix" class="serif">Every pull request in the period</h2><p class="sub">All 3 pull requests with my commits in them that reached the main branch from April 1 to May 31, 2024. 2 of them are described in the areas above; the rest are listed here without a description.</p><table><thead><tr><th>Merged</th><th>PR</th><th>Title</th><th></th></tr></thead><tbody><tr><td class="d">Apr 3</td><td class="n mono"><a href="https://example.com/app/pull/12">#12</a></td><td>Let people sign in with their school account</td><td class="c">described above</td></tr><tr><td class="d">Apr 17</td><td class="n mono"><a href="https://example.com/app/pull/15">#15</a></td><td>Answers cite their sources</td><td class="c">described above</td></tr><tr><td class="d">May 2</td><td class="n mono"><a href="https://example.com/app/pull/18">#18</a></td><td>Show a clear message when the library is empty</td><td class="c"></td></tr></tbody></table></section>
+<section class="how" aria-labelledby="how"><h2 id="how" class="serif">How this report was made</h2><p>Every change above names the pull requests it came from. Before this page was written, each cited commit was looked up in the repository: if one didn&#39;t exist or wasn&#39;t mine, no report would have been produced. A change is marked Merged only when every commit it cites is on the main branch. The counts at the top, the activity chart and the list of pull requests were read from git on July 1, 2024, not typed by hand.</p><p>The descriptions were written for this report, and they are the one part a person chose rather than counted. &quot;Merged&quot; means the change is on the main branch; it doesn&#39;t by itself mean it has been released to production.</p></section>
+<footer>Generated with honestweek, a local tool that checks every claim against git. Private: this file was made on my machine and is shared only by me.</footer>
+</main>
+<script>(function(){
+var b=document.querySelector(".print");if(b)b.addEventListener("click",function(){window.print();});
+var r=document.querySelector(".chart .readout");if(!r)return;var d=r.textContent;
+document.querySelectorAll(".chart g.col").forEach(function(g){
+function s(){r.textContent=g.getAttribute("data-label");}
+g.addEventListener("mouseenter",s);g.addEventListener("focus",s);g.addEventListener("mouseleave",function(){r.textContent=d;});g.addEventListener("blur",function(){r.textContent=d;});});
+})();</script>
+</body>
+</html>

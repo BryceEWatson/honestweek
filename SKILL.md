@@ -88,6 +88,8 @@ A separate flow for work you did for someone else: a light, printable report of 
    - Leave out anything that isn't the client's business: billing, rates, invoices, other clients, personal matters. Add those words to `redaction.terms` so `validate` stops a leak at the source.
 3. **`validate`**, **`build`**, then **`preview`**. `build` verify-or-aborts every cited commit, aborts on a cited commit dated outside the period, and derives every number on the page from git. The appendix lists every pull request in the period and marks the ones your items describe, so check that the uncited ones really are minor.
 
+4. **Shape it for the reader** *(optional; `honestweek.reader.json`)*: when you know who the report is for, write their profile from evidence, never from a hunch dressed as fact. Put their questions first as sections (prefer `"select": { "issues": [...] }` with the issue numbers they filed or asked for, which git can check against commit messages) and set `"format": { "note": true }` if they read updates in a shared document. Give every section and guidance line a `source`: `their-words` or `your-notes` with a `ref` saying where, or `guess`. Follow the profile's `guidance` when writing items, and never change a status, date or number to suit a reader. See `docs/reader-profiles.md`.
+
 The user reads the report and sends it themselves.
 
 ## Mining solved problems (`mine`)
