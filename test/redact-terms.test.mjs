@@ -49,9 +49,30 @@ test('a short name never takes ordinary file names or code with it', () => {
   assert.equal(red.redact('Ion and Eve met Ada and Al.'), '[redacted:term] and [redacted:term] met [redacted:term] and [redacted:term].');
 });
 
+test('a person\'s name is found in web addresses but leaves ordinary file names alone', () => {
+  const people = { redaction: { names: ['Bill', 'Mark', 'John'] } };
+  const red = createRedactor(people);
+  const files = 'Edited billing.ts, BillingService.java, markdown.ts, marked.min.js and johnson.pdf today.';
+  assert.equal(red.redact(files), files);
+  assert.equal(redactWithAudit(`Please check: ${files}`, people).text, `Please check: ${files}`);
+  assert.equal(red.redact('see billhq.com, http://markbox/x and www.johnco.net'), 'see [redacted:term].com, http://[redacted:term]/x and www.[redacted:term].net');
+  // A codename or term still takes a file name that starts with it.
+  assert.equal(createRedactor({ redaction: { codenames: ['Bill'] } }).redact('billing.ts'), '[redacted:term].ts');
+});
+
+test('a web address with no dots is found in brackets, quotes and at a sentence end', () => {
+  const red = createRedactor(config);
+  for (const wrap of ['(x)', '<x>', '"x"', "'x'", 'x.', 'x,', '[docs](x)', 'x]']) {
+    const input = `see ${wrap.replace('x', 'http://acmehq')} today`;
+    assert.ok(!/acmehq/i.test(red.redact(input)), `${input} -> ${red.redact(input)}`);
+    assert.equal(`Note: ${red.redact(input)} ok`, redactWithAudit(`Note: ${input} ok`, config).text, input);
+  }
+  for (const kept of ['http://xacmehq/', 'http://academy/', 'http://localhost:3000']) assert.equal(red.redact(kept), kept);
+});
+
 test('overlapping terms and odd letters: the redactor and the audit agree', () => {
-  const both = { redaction: { terms: ['acme', 'acme.io'], names: ['ǅemal'] } };
-  for (const input of ['see www.acme.io/path today', 'mail ǅemal and DŽEMAL']) {
+  const both = { redaction: { terms: ['acme', 'acme.io', 'Doe Industries', 'Acme Cloud'], names: ['ǅemal', 'Jane Doe'] } };
+  for (const input of ['see www.acme.io/path today', 'mail ǅemal and DŽEMAL', 'Jane Doe Industries signed', 'mail jane.doe_janedoe.com', 'see xyz-acme.Cloud now']) {
     assert.equal(`Note: ${createRedactor(both).redact(input)} ok`, redactWithAudit(`Note: ${input} ok`, both).text, input);
   }
   assert.doesNotMatch(createRedactor(both).redact('mail ǅemal today'), /ǅemal/);
