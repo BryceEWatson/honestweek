@@ -204,6 +204,10 @@ test('secrets-only: the second review round: run-together keys, ===, typed value
   assert.equal(r.redact(joined), 'services: db: environment: POSTGRES_PASSWORD: [redacted:secret] STRIPE_WEBHOOK_SECRET: "[redacted:secret]" ports: 5432');
   assert.equal(r.redact("password: hunter2 token: 'Xk9mP2qRz7abcd'"), "password: [redacted:secret] token: '[redacted:secret]'");
   assert.equal(r.redact('Authorization: Bearer abcdefgh12345678 Accept: application/json'), 'Authorization: [redacted:secret] Accept: application/json');
+  for (const h of ['Authorization: AWS AKIAIOSFODNN7EXAMPLE:frJIUN8DYpKDtOLCwo//yllqDzg=', 'Authorization: HMAC alice:Xk9mP2qRz7abcd']) assert.equal(r.redact(h), 'Authorization: [redacted:secret]');
+  // An unclosed quote earlier on a joined line doesn't pair with the next secret's quote.
+  assert.ok(!r.redact('Cookie: sid=1 token: "Ab3dEf, api_key: "Xk9mP2qRz7abcd"').includes('Xk9mP2qRz7abcd'));
+  assert.ok(!r.redact("dbPassword: M0)x api_key: 'Ab3dEf, api_key == 'Xk9mP2qRz7abcd'").includes('Xk9mP2qRz7abcd'));
   assert.ok(r.redact('await repo.SaveAsync(order, cancellationToken: ct).ConfigureAwait(false);').includes(').ConfigureAwait(false);'));
   for (const p of ['tools/scripts/build-release-notes-2024', 'feature/branch-protection-rules-v2']) assert.equal(r.redact(p), p);
   assert.ok(!r.redact('id 3395-5191-8521-3ff0-5460-db45-9207-3574').includes('db45'));
