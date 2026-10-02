@@ -364,7 +364,7 @@ node tools/replay-inspect.mjs --demo lookup '#7'
 node tools/replay-inspect.mjs --config honestweek.config.json --from 2024-06-10 --to 2024-06-16 --goals goals.json goals
 ```
 
-Both only read. Nothing is published, sessions outside your configured repos and in display-role ones are never searched, and display-role repos are never read by git. The join types, their rules, and what lookup can't find are in [docs/work-history-engine.md](docs/work-history-engine.md#goals-and-lookup-reading-the-history-backwards).
+Both only read. Nothing is published, sessions outside your configured repos and in display-role ones are never searched, and display-role repos are never read by git. For a page on your own machine, the engine can also show your private text (names, folders, addresses, ids) from memory with secrets still hidden; nothing built that way can be written or published. The join types, their rules, and what lookup can't find are in [docs/work-history-engine.md](docs/work-history-engine.md#goals-and-lookup-reading-the-history-backwards).
 
 ## Config reference
 
