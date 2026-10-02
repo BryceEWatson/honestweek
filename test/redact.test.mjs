@@ -14,6 +14,20 @@ function r(config = {}) {
   return createRedactor(config);
 }
 
+test('Windows user paths inside JSON-encoded text are redacted too', () => {
+  // A Codex tool call's arguments are JSON text, so its working folder arrives with doubled backslashes.
+  const args = JSON.stringify({ cmd: ['git', 'status'], workdir: 'C:\\Users\\Alex Jordan\\code\\client-app' });
+  assert.ok(args.includes('C:\\\\Users\\\\Alex Jordan'), 'the fixture really holds doubled backslashes');
+  const out = r().redact(args);
+  assert.doesNotMatch(out, /Alex Jordan|client-app/);
+  assert.match(out, /\[redacted:path\]/);
+  // The surrounding JSON keeps its shape: only the path value is replaced.
+  assert.match(out, /^\{"cmd":\["git","status"\],"workdir":"/);
+  // deepRedact reaches the same string nested inside a record.
+  const nested = r().deepRedact({ payload: { arguments: args } });
+  assert.doesNotMatch(JSON.stringify(nested), /Alex Jordan/);
+});
+
 test('shape: returns exactly { redact, deepRedact, count }, count starts at 0', () => {
   const red = r();
   assert.deepEqual(Object.keys(red).sort(), ['count', 'deepRedact', 'redact']);
