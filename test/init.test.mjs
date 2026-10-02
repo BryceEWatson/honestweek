@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import {
   runInit,
   discoverRepos,
+  existingDisplayRepos,
   buildConfig,
   ensureGitignore,
   inferAuthorEmail,
@@ -77,6 +78,36 @@ test('discoverRepos finds parent-sibling + current git repos, not non-git dirs, 
     assert.equal(byLabel.myproj.role, 'featured', 'cwd defaults to featured');
     assert.equal(byLabel.sibA.role, 'reference', 'a repo with no commit by the author defaults to reference');
     assert.ok(!labels.includes('plaindir'), 'non-git dir is not discovered');
+  } finally {
+    cleanup(t.parent);
+  }
+});
+
+test('discoverRepos keeps a display-only repo as display and never asks git about it', () => {
+  const t = setupTree();
+  try {
+    const asked = [];
+    const repos = discoverRepos(t.cwd, ME, { displayPaths: [t.sibA], hasCommits: (p) => (asked.push(p), true) });
+    const byLabel = Object.fromEntries(repos.map((r) => [r.label, r]));
+    assert.equal(byLabel.sibA.role, 'display');
+    assert.ok(!asked.some((p) => p.toLowerCase() === t.sibA.toLowerCase()), 'git is never asked about a display-only repo');
+    // Failing-path partner: without the display list, the same repo is asked about.
+    const asked2 = [];
+    discoverRepos(t.cwd, ME, { hasCommits: (p) => (asked2.push(p), false) });
+    assert.ok(asked2.some((p) => p.toLowerCase() === t.sibA.toLowerCase()));
+  } finally {
+    cleanup(t.parent);
+  }
+});
+
+test('existingDisplayRepos reads display paths from an existing config, and none from a missing or broken one', () => {
+  const t = setupTree();
+  try {
+    assert.deepEqual(existingDisplayRepos(t.cwd), []);
+    writeFileSync(join(t.cwd, 'honestweek.config.json'), JSON.stringify({ repos: [{ path: '../sibA', role: 'display' }, { path: '.', role: 'featured' }] }));
+    assert.deepEqual(existingDisplayRepos(t.cwd).map((p) => p.toLowerCase()), [t.sibA.toLowerCase()]);
+    writeFileSync(join(t.cwd, 'honestweek.config.json'), '{ not json');
+    assert.deepEqual(existingDisplayRepos(t.cwd), []);
   } finally {
     cleanup(t.parent);
   }
