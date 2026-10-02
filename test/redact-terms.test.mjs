@@ -23,6 +23,10 @@ const HIDDEN = [
   ['jane_doe, JaneDoe, jane.doe, jane-doe and Jane  Doe', '[redacted:term], [redacted:term], [redacted:term], [redacted:term] and [redacted:term]'],
   ['janedoe.example.com', '[redacted:term].example.com'],
   ['Project7 and Project 7', '[redacted:term] and [redacted:term]'],
+  ['XMLAcmeThing, IAcmeClient and HTTPAcmeAdapter', 'XML[redacted:term]Thing, I[redacted:term]Client and HTTP[redacted:term]Adapter'],
+  ['http://acmehq:3000/status and http://user@acmebox/', 'http://[redacted:term]:3000/status and http://user@[redacted:term]/'],
+  ['acmelogo.3f9a2b1c.png and acmelogo.mp4', '[redacted:term].3f9a2b1c.png and [redacted:term].mp4'],
+  ['Falconry.pdf', '[redacted:term].pdf'],
 ];
 const KEPT = ['Falconry', 'academy', 'acmes', 'Janet Doe', 'Project 70', 'We met acmecorp. Then we left.'];
 
@@ -34,6 +38,23 @@ test('the redactor finds a term inside underscores, digits, camel case, web addr
 test('words that only share letters with a term are kept', () => {
   const red = createRedactor(config);
   for (const input of KEPT) assert.equal(red.redact(input), input, input);
+});
+
+test('a short name never takes ordinary file names or code with it', () => {
+  const short = { redaction: { names: ['Ion', 'Eve', 'Ada', 'Al'] } };
+  const red = createRedactor(short);
+  const prose = 'Updated session.ts, version.json, events.ts, metadata.json and local.json; read window.location.href.';
+  assert.equal(red.redact(prose), prose);
+  assert.equal(redactWithAudit(`Please check: ${prose}`, short).text, `Please check: ${prose}`);
+  assert.equal(red.redact('Ion and Eve met Ada and Al.'), '[redacted:term] and [redacted:term] met [redacted:term] and [redacted:term].');
+});
+
+test('overlapping terms and odd letters: the redactor and the audit agree', () => {
+  const both = { redaction: { terms: ['acme', 'acme.io'], names: ['ǅemal'] } };
+  for (const input of ['see www.acme.io/path today', 'mail ǅemal and DŽEMAL']) {
+    assert.equal(`Note: ${createRedactor(both).redact(input)} ok`, redactWithAudit(`Note: ${input} ok`, both).text, input);
+  }
+  assert.doesNotMatch(createRedactor(both).redact('mail ǅemal today'), /ǅemal/);
 });
 
 test('the prompt-privacy audit flags and replaces the same spans', () => {
