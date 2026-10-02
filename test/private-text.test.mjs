@@ -198,6 +198,15 @@ test('secrets-only: the second review round: run-together keys, ===, typed value
     [`{\\"password\\": \\"${H} and the excerpt was cut`, H],
   ]) assert.ok(!r.redact(input).includes(secret), `${input} -> ${r.redact(input)}`);
   assert.deepEqual(r.deepRedact({ password: 12345678, pin: 4321, port: 8080, count: 3 }), { password: '[redacted:secret]', pin: '[redacted:secret]', port: 8080, count: 3 });
+  // Lines the engine joined into one excerpt: a password line stops at the next key, so the
+  // secret after it is read on its own.
+  const joined = 'services: db: environment: POSTGRES_PASSWORD: example STRIPE_WEBHOOK_SECRET: "Xk9mP2qRz7abcd" ports: 5432';
+  assert.equal(r.redact(joined), 'services: db: environment: POSTGRES_PASSWORD: [redacted:secret] STRIPE_WEBHOOK_SECRET: "[redacted:secret]" ports: 5432');
+  assert.equal(r.redact("password: hunter2 token: 'Xk9mP2qRz7abcd'"), "password: [redacted:secret] token: '[redacted:secret]'");
+  assert.equal(r.redact('Authorization: Bearer abcdefgh12345678 Accept: application/json'), 'Authorization: [redacted:secret] Accept: application/json');
+  assert.ok(r.redact('await repo.SaveAsync(order, cancellationToken: ct).ConfigureAwait(false);').includes(').ConfigureAwait(false);'));
+  for (const p of ['tools/scripts/build-release-notes-2024', 'feature/branch-protection-rules-v2']) assert.equal(r.redact(p), p);
+  assert.ok(!r.redact('id 3395-5191-8521-3ff0-5460-db45-9207-3574').includes('db45'));
   // A ")" inside a value doesn't end it; one that closes the code around it does.
   for (const [input, secret] of [['client_secret: Xk9)mP2qRz7', 'mP2qRz7'], ['api_key: ab)cd9xyz', 'cd9xyz']]) assert.ok(!r.redact(input).includes(secret), input);
   assert.ok(r.redact('await repo.SaveAsync(order, cancellationToken: ct); return Ok(order);').includes('); return Ok(order);'));
