@@ -336,6 +336,16 @@ Different readers want different things from the same report. An optional `hones
 
 Without the file, the report uses the shipped default and client layers. The design and its rules are in [docs/reader-profiles.md](docs/reader-profiles.md).
 
+## Replaying how the work happened (developer preview)
+
+The reports above say what landed. The work-history engine in `lib/replay/` rebuilds how it got there from the same local logs: prompts, the sub-agents an agent started, each command and its recorded result, tests, interruptions, what git says happened to each commit, and which pull requests a default-branch commit names. I can replay it to any moment and drill from a week down to the log line behind a step, and every step says whether a record shows it, it was computed from records, a named rule inferred it, or the evidence is missing. It never invents working time or reasons. It doesn't change any existing output, no honestweek command uses it yet (so its interface may change), and it has no screen yet; a developer tool prints each level, from a clone of this repository (the tool isn't in the published package):
+
+```bash
+node tools/replay-inspect.mjs --config honestweek.config.json --from 2024-06-10 --to 2024-06-16 walk
+```
+
+[docs/work-history-engine.md](docs/work-history-engine.md) has the event model, the measured source coverage, and what it can't reconstruct yet.
+
 ## Config reference
 
 You commit your own `honestweek.config.json`. It mirrors `honestweek.config.example.json`:
