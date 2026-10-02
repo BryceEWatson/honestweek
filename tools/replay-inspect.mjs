@@ -181,9 +181,13 @@ export async function main(argv, io = { out: (s) => process.stdout.write(s), err
   }
 }
 
-const joinLabel = (j) => `${j.type}${j.detail?.via ? ` via ${j.detail.via}` : ''}${j.count > 1 ? ` x${j.count}` : ''} (${j.evidence}${j.rule ? `, ${j.rule}` : ''}${j.ambiguous?.candidates ? `, ambiguous: one of ${j.ambiguous.candidates} candidate sessions` : ''}${j.ambiguous?.owners ? `, ambiguous: the matches name ${j.ambiguous.owners} owners` : ''})`;
-const refLabel = (x) => `${x.via}${x.count > 1 ? ` x${x.count}` : ''} (${x.evidence}${x.rule ? `, ${x.rule}` : ''}${x.ambiguous?.owners ? `, ambiguous: ${x.ambiguous.owners} owners` : ''})${x.pr != null ? ` -> pull request ${x.pr}` : ''}`;
-const joinDetail = (d = {}) => [d.ref && `cites ${d.ref}`, d.where && `at ${d.where}`, d.entry && `entry ${d.entry}${d.entryType ? ` (${d.entryType})` : ''}`, d.at && `accepted ${d.at}`].filter(Boolean).join(', ');
+/** Why a join or pointer is ambiguous, in words. */
+const ambiguity = (a) => (!a ? '' : a.candidates ? `, ambiguous: one of ${a.candidates} candidate sessions` : a.owners ? `, ambiguous: the matches name ${a.owners} owners` : a.ownerUnknown ? ", ambiguous: this one doesn't name the owner" : ', ambiguous');
+/** The repository a pull-request pointer is in, or that it's unknown. */
+const repositoryText = (r) => (!r ? '' : r.name ? `in ${r.owner ? `${r.owner}/${r.name}` : `${r.name} (owner unknown)`}` : 'repository unknown');
+const joinLabel = (j) => `${j.type}${j.detail?.via ? ` via ${j.detail.via}` : ''}${j.count > 1 ? ` x${j.count}` : ''} (${j.evidence}${j.rule ? `, ${j.rule}` : ''}${ambiguity(j.ambiguous)})`;
+const refLabel = (x) => `${x.via}${x.count > 1 ? ` x${x.count}` : ''} (${x.evidence}${x.rule ? `, ${x.rule}` : ''}${ambiguity(x.ambiguous)})${x.pr != null ? ` -> pull request ${x.pr}` : ''}${x.repository ? ` ${repositoryText(x.repository)}` : ''}`;
+const joinDetail = (d = {}) => [d.ref && `cites ${d.ref}`, d.where && `at ${d.where}`, d.repository && `matched a pointer ${repositoryText(d.repository)}`, d.entry && `entry ${d.entry}${d.entryType ? ` (${d.entryType})` : ''}`, d.at && `accepted ${d.at}`].filter(Boolean).join(', ');
 
 function describeQuery(q) {
   if (q.kind === 'pr') return `pull request #${q.number} in ${q.repo ? `${q.owner ? `${q.owner}/` : ''}${q.repo}` : 'any repository'}`;

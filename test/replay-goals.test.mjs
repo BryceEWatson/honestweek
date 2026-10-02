@@ -92,6 +92,13 @@ test('a call whose result came before the record accepted the entry wrote nothin
   assert.match(g.unmatched.find((u) => u.ref === 'ev-0008').why, /1 call\(s\) carried this id, but none/);
 });
 
+test('an interrupted call never writes an entry or acts on a pull request', () => {
+  const g = goalOf('g-widget');
+  assert.ok(!allEntries(g).includes('ev-0010'), 'the record accepted ev-0010 while the interrupted call ran');
+  assert.match(g.unmatched.find((u) => u.ref === 'ev-0010').why, /1 call\(s\) carried this id, but none/);
+  assert.deepEqual(h.lookup('your-project#33').sessions, [], 'an interrupted gh pr view 33');
+});
+
 test('a refused call never writes an entry, even when the record accepted it during the call', () => {
   const g = goalOf('g-widget');
   assert.ok(!allEntries(g).includes('ev-0009'));
@@ -302,6 +309,19 @@ test('pr.gh-command reads a pull request only where a command acts on it', () =>
   assert.deepEqual(refs('git commit -m "follow-up to https://github.com/o/r/pull/5"'), [], 'quoted free text is not read');
 });
 
+test("pr.gh-command honors PowerShell's $env:GH_REPO the way it honors GH_REPO=", () => {
+  const refs = (c) => prRefsInCommand(c).map((r) => `${r.repo ?? '-'}#${r.number}${r.repoKnown ? '' : '?'}`);
+  assert.deepEqual(refs('$env:GH_REPO="a/b"; gh pr view 7'), ['a/b#7']);
+  assert.deepEqual(refs("$env:GH_REPO = 'a/b'; gh pr view 7"), ['a/b#7']);
+  assert.deepEqual(refs('$Env:gh_repo=a/b; gh pr checks 8'), ['a/b#8'], 'PowerShell variable names ignore case');
+  assert.deepEqual(refs('$env:GH_REPO=""; gh pr view 7'), ['-#7?'], 'a blank repository names none');
+});
+
+test('the pr.gh-command rule says a cd in an earlier call is not followed', () => {
+  assert.match(LOOKUP_RULES.get('pr.gh-command'), /cd in an earlier, separate call isn't followed/);
+  assert.match(h.lookup('#7').rules['pr.gh-command'], /earlier, separate call/);
+});
+
 test('pr.gh-command honors GH_REPO and --repo, and reads a link only as a gh argument', () => {
   const refs = (c) => prRefsInCommand(c).map((r) => `${r.repo ?? '-'}#${r.number}${r.repoKnown ? '' : '?'}`);
   assert.deepEqual(refs('GH_REPO=o/r gh pr view 7'), ['o/r#7']);
@@ -341,7 +361,7 @@ test('lookup of a pull request: link and git facts are recorded, its landing and
   assert.equal(a.evidence, 'recorded');
   assert.deepEqual(a.refs.map((x) => `${x.via}/${x.evidence}`), ['harness-git-pr/recorded', 'pr-link/recorded', 'pr-landed/inferred']);
   assert.match(a.refs.find((x) => x.via === 'pr-landed').rule, /git\.pr-number-from-subject/);
-  assert.deepEqual(r.sessions[1].refs.map((x) => [x.via, x.rule]), [['gh-pr-command', 'pr.gh-command']]);
+  assert.deepEqual(r.sessions[1].refs.map((x) => [x.via, x.rule ?? null]), [['pr-link', null], ['gh-pr-command', 'pr.gh-command']]);
   assert.deepEqual(r.goals, ['g-widget']);
   assert.ok(r.notes.some((n) => n.kind === 'any-repository'));
   assert.deepEqual(sessionsOf(h.lookup('your-project#7')), [k.A, k.Y]);
@@ -377,6 +397,42 @@ test('a name with no owner whose matches disagree on the owner is ambiguous, in 
   assert.deepEqual(sessionsOf(exact), [k.T1]);
   assert.equal(exact.sessions[0].ambiguous, undefined);
   assert.ok(!exact.notes.some((n) => n.kind === 'owners-disagree'));
+});
+
+test('every pull-request pointer names its repository, so two pull requests 7 are told apart', async () => {
+  const r = h.lookup('#7');
+  const rows = r.sessions.flatMap((s) => s.refs.map((x) => ({ session: s.session, ...x })));
+  assert.ok(rows.length > 0 && rows.every((x) => x.repository && 'owner' in x.repository && 'name' in x.repository), 'every row names a repository, or says which part is unknown');
+  const y = rows.filter((x) => x.session === k.Y).map((x) => `${x.via}:${x.repository.owner}/${x.repository.name}`).sort();
+  assert.deepEqual(y, ['gh-pr-command:example/your-project', 'pr-link:acme/widget']);
+  assert.ok(rows.filter((x) => x.session === k.A).every((x) => x.repository.owner === 'example' && x.repository.name === 'your-project'));
+  const text = (await tool(...corpusArgs(), 'lookup', '#7')).out;
+  assert.match(text, /pr-link \(recorded\) in acme\/widget/);
+  assert.match(text, /gh-pr-command \(inferred, pr\.gh-command\) in example\/your-project/);
+  // A pull request found through a commit names its repository too.
+  const landed = h.lookup(fx.repo.squashSha.slice(0, 12)).sessions.flatMap((s) => s.refs).filter((x) => x.pr != null);
+  assert.ok(landed.length && landed.every((x) => x.repository?.name === 'your-project'));
+});
+
+test('a pointer that names no owner is ambiguous for a citation or query that names one', async () => {
+  // Without git, a session's repository is named by its configured label, with no owner.
+  const noGit = await build({ goals: fx.goalRecord, git: false });
+  const r = noGit.lookup('example/your-project#7');
+  const by = Object.fromEntries(r.sessions.map((s) => [s.session, s]));
+  assert.equal(by[k.A].ambiguous, undefined, "A's own link names the owner");
+  assert.deepEqual(by[k.Y].refs.map((x) => x.ambiguous), [{ ownerUnknown: true }]);
+  assert.equal(by[k.Y].ambiguous, true);
+  assert.ok(r.notes.some((n) => n.kind === 'owner-unknown'));
+  const y = noGit.goals.find((g) => g.id === 'g-widget').members.find((m) => m.session === k.Y);
+  assert.deepEqual(y.joins.map((j) => [j.type, j.ambiguous]), [['command-on-pr', { ownerUnknown: true }]]);
+  assert.equal(y.ambiguous, true);
+});
+
+test("worktrees are read from the repository's own files when git isn't run", async () => {
+  const noGit = await build({ git: false });
+  const group = noGit.lookup('lib/widget.mjs').repositories.find((g) => g.repo === 'your-project');
+  assert.ok(group.roots >= 2, 'the configured folder and the worktree');
+  assert.ok(group.sessions.some((s) => s.session === k.V), 'the edit made in the worktree is found');
 });
 
 test('commands that never ran, ran after a cd, or only echo a link never point at a pull request', () => {

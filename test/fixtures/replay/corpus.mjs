@@ -300,7 +300,8 @@ ${repo.featureSha.slice(0, 7)} Add a widget parser` }] }),
  *      recorded result; and later searches the record for ev-0001, ev-0002 and ev-0007
  *      (a read is not a write). The goal record cites W by its session id.
  *   X  only mentions pull request 7, a commit, and a longer id containing the goal id.
- *   Y  runs gh pr view 7 (and gh pr list --limit 7, which acts on no pull request).
+ *   Y  runs gh pr view 7 (and gh pr list --limit 7, which acts on no pull request), and
+ *      records a link to acme/widget#7, a different pull request 7.
  *   Z  names the goal id after character 600 of a long prompt, and carries ev-0003.
  *   V  works in a second worktree of the same repository: edits lib/widget.mjs, records
  *      its worktree branch, and pushes it.
@@ -316,7 +317,8 @@ ${repo.featureSha.slice(0, 7)} Add a widget parser` }] }),
  *      a cd, a pull-request link after echo, a commit id printed for a commit git can't
  *      find, ev-0009 carried by a refused call while the record accepted it, ev-0008
  *      carried by a call whose result came before the record accepted it, and
- *      GH_REPO=someone-else/other-tool gh pr view 31.
+ *      GH_REPO=someone-else/other-tool gh pr view 31, and two interrupted calls: one
+ *      carrying ev-0010 while the record accepted it, and gh pr view 33.
  */
 function addGoalSessions({ root, repo, displayDir, elsewhere, claudeRoot, codexRoot, ids }) {
   // A second working tree of the featured repository, on its own branch.
@@ -377,6 +379,7 @@ function addGoalSessions({ root, repo, displayDir, elsewhere, claudeRoot, codexR
   y.result(at(426, 500), 'tu-y1', '{"reviews":[]}', ok('{"reviews":[]}'));
   y.say(at(427), [{ type: 'tool_use', id: 'tu-y2', name: 'Bash', input: { command: 'gh pr list --limit 7 && gh pr comment 12 --body "relates to #7"' } }]);
   y.result(at(427, 500), 'tu-y2', '', ok(''));
+  y.push({ type: 'pr-link', sessionId: Y, prNumber: 7, prUrl: 'https://github.com/acme/widget/pull/7', prRepository: 'acme/widget', timestamp: at(428) });
   write(join(claudeRoot, 'proj-g', `${Y}.jsonl`), y.lines);
 
   const z = claudeRecords(Z, repo.dir);
@@ -453,6 +456,10 @@ function addGoalSessions({ root, repo, displayDir, elsewhere, claudeRoot, codexR
   u.result(at(483, 500), 'tu-u6', 'dry run', ok('dry run'));
   u.say(at(484), [{ type: 'tool_use', id: 'tu-u7', name: 'Bash', input: { command: 'GH_REPO=someone-else/other-tool gh pr view 31' } }]);
   u.result(at(484, 500), 'tu-u7', 'open', ok('open'));
+  u.say(at(485), [{ type: 'tool_use', id: 'tu-u8', name: 'Bash', input: { command: 'node tools/goals.mjs observe --event ev-0010' } }]);
+  u.result(at(486), 'tu-u8', '[Request interrupted by user for tool use]', { isError: true, denial: 'interrupted' });
+  u.say(at(487), [{ type: 'tool_use', id: 'tu-u9', name: 'Bash', input: { command: 'gh pr view 33' } }]);
+  u.result(at(487, 500), 'tu-u9', '[Request interrupted by user for tool use]', { isError: true, denial: 'interrupted' });
   write(join(claudeRoot, 'proj-t', `${U}.jsonl`), u.lines);
 
   const goalRecord = {
@@ -484,6 +491,7 @@ function addGoalSessions({ root, repo, displayDir, elsewhere, claudeRoot, codexR
       { eventId: 'ev-0007', goalId: 'g-widget', type: 'observation.add', at: at(408) },
       { eventId: 'ev-0008', goalId: 'g-widget', type: 'observation.add', at: at(484, 200) },
       { eventId: 'ev-0009', goalId: 'g-widget', type: 'observation.add', at: at(481, 30000) },
+      { eventId: 'ev-0010', goalId: 'g-widget', type: 'observation.add', at: at(485, 30000) },
       { eventId: 'ev-0101', goalId: 'g-docs', type: 'goal.create', at: at(450) },
       { eventId: 'ev-0999', goalId: 'g-not-in-the-record', type: 'goal.create', at: at(401, 30000) },
     ],
