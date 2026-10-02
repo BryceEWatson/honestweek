@@ -519,8 +519,8 @@ test('the log after a quiet commit is not read through a pipe, a parent format, 
 test('the log after a quiet commit is read only in a format that prints the commit id first', () => {
   const sha = '9f8e7d6a1b2c';
   const head = (cmd) => headShaAfterCommit(cmd, `${sha} x`);
-  for (const ok of ['git commit -qm "x" && git log -1 --pretty=oneline', 'git commit -qm "x" && git log -1 --format=%h', 'git commit -qm "x" && git log -1 --format=tformat:%H']) assert.equal(head(ok), sha, ok);
-  for (const cmd of ['git commit -qm "x" && git log -1 --format=%B', 'git commit -qm "x" && git log -1 --format=%s', 'git commit -qm "x" && git log -1 --format=%ct', 'git commit -qm "x" && git log -1 --pretty=email']) assert.equal(head(cmd), null, cmd);
+  for (const ok of ['git commit -qm "x" && git log -1 --pretty=oneline', 'git commit -qm "x" && git log -1 --format=%h', 'git commit -qm "x" && git log -1 --format=tformat:%H', 'git commit -qm "x" && git log -1 --format=%h%x09%s', 'git commit -qm "x" && git log -1 --format=%H%n']) assert.equal(head(ok), sha, ok);
+  for (const cmd of ['git commit -qm "x" && git log -1 --format=%B', 'git commit -qm "x" && git log -1 --format=%s', 'git commit -qm "x" && git log -1 --format=%ct', 'git commit -qm "x" && git log -1 --pretty=email', 'git commit -qm "x" && git log -1 --format=%s%n%h', 'git commit -qm "x" && git log -1 --format=%an%x09%H', 'git commit -qm "x" && git log -1 --pretty=format:%s%n%H', 'git commit -qm "x" && git log -1 --format=%h%s', 'git commit -qm "x" && git log -1 --format=%h%p']) assert.equal(head(cmd), null, cmd);
 });
 
 test('an unclear run never claims the command failed when its exit status was not recorded', () => {
@@ -534,6 +534,8 @@ test("the timeline's event count is labelled by the weakest event it counts", ()
   const label = (events) => buildTimeline(events, { agents: h.agents, sessions: h.sessions }).stateAt(Date.parse('2030-01-01T00:00:00.000Z')).countEvidence.events;
   assert.equal(label(base), 'recorded');
   assert.equal(label([...base, quiet]), 'derived');
+  const tied = { ...at0, id: 'q.commit.1', kind: 'outcome', evidence: 'recorded', refs: [{ src: 'git-x', sha: 'abc1234' }], facts: { outcome: 'commit-exists' }, inferred: [{ key: 'sessionAttribution', value: at0.id, rule: 'shell.git-commit-output' }], missing: [] };
+  assert.equal(label([...base, tied]), 'inferred', 'a commit tied to its session by a rule');
   assert.equal(label([...base, quiet, { ...quiet, id: 'q.outcome.1', kind: 'outcome', evidence: 'inferred', refs: [{ src: 'git-x', sha: 'abc1234' }], end: undefined, facts: { outcome: 'pr-landed' } }]), 'inferred');
 });
 
