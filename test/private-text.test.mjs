@@ -80,11 +80,11 @@ test('secrets-only: sensitive fields in their common spellings', () => {
     ['export DB_PASS=xyz FOO=1', 'export DB_PASS=[redacted:secret] FOO=1'],
     ['$env:API_KEY = "abc"', '$env:API_KEY = "[redacted:secret]"'],
     ["password='a b'", "password='[redacted:secret]'"],
-    ['client_secret: s3cr3t, then more', 'client_secret: [redacted:secret]'],
+    ['client_secret: s3cr3t, then more', 'client_secret: [redacted:secret], then more'],
     [JSON.stringify(JSON.stringify({ password: 'hunter 2', note: 'ok' })), JSON.stringify(JSON.stringify({ password: '[redacted:secret]', note: 'ok' }))],
     [JSON.stringify({ password: 'hun"ter2', note: 'ok' }), JSON.stringify({ password: '[redacted:secret]', note: 'ok' })],
     ['Cookie: sid=abc123; theme=dark', 'Cookie: [redacted:secret]'],
-    ['{"token":12345,"x":1}', '{"token":[redacted:secret]"x":1}'],
+    ['{"token":12345,"x":1}', '{"token":[redacted:secret],"x":1}'],
   ];
   for (const [input, expected] of cases) assert.equal(r.redact(input), expected);
 });
@@ -164,6 +164,46 @@ test('secrets-only: long runs made of words show, random tokens of the same leng
   for (const s of [SECRETS.awsStyle, SECRETS.opaque, 'Ab3dEf9hIj-Kl2nOp5rSt_Uv8xYz1bCd4fGh7jKl', `dop_v1_${SECRETS.hex64}`]) assert.ok(!r.redact(s).includes(s), s);
 });
 
+test('secrets-only: ordinary prose and code around a sensitive word stay readable', () => {
+  const r = createSecretsOnlyRedactor();
+  const kept = [
+    ['Fix the login bug. Auth: users get logged out after five minutes when they refresh.', 'get logged out after five minutes when they refresh'],
+    ['I updated the token refresh. Token: it now refreshes a minute before expiry.', 'now refreshes a minute before expiry'],
+    ['function login(user: string, password: string): Promise<Session> { return api(user) }', '): Promise<Session> { return api(user) }'],
+    ['ran the suite: pass: 793, fail: 0, skipped: 2', 'pass: 793, fail: 0, skipped: 2'],
+    ['meta: { requiresAuth: true, layout: wide }', 'requiresAuth: true, layout: wide'],
+    ['edited deploy/k8s/overlays/production2/kustomization and src/i18n/locales/en/messages2', 'deploy/k8s/overlays/production2/kustomization and src/i18n/locales/en/messages2'],
+  ];
+  for (const [input, part] of kept) assert.ok(r.redact(input).includes(part), `${input} -> ${r.redact(input)}`);
+  // Free-text keys (answers keyed by the question) keep their answers in a re-read record.
+  const answers = { 'Which auth method should we use?': 'OAuth with PKCE', 'Should I pass the failing tests through?': 'No, fix them first' };
+  assert.deepEqual(r.deepRedact({ answers }), { answers });
+});
+
+test('secrets-only: the second review round: run-together keys, ===, typed values, quotes and numbers', () => {
+  const r = createSecretsOnlyRedactor();
+  const H = 'hunter2';
+  for (const [input, secret] of [
+    [`authtoken: ${H}`, H],
+    [`clientsecret=${H}`, H],
+    [`{"apitoken": "${H}"}`, H],
+    [`secretkey=${H}`, H],
+    [`api_keys: ${H}`, H],
+    [`if (password === "${H}") {`, H],
+    [`var password string = "${H}"`, H],
+    [`password?: string = "${H}"`, H],
+    ['{"password": "abc9xyz\\\\"}', 'abc9xyz'],
+    [JSON.stringify(JSON.stringify({ password: 'abc9xyz\\' })), 'abc9xyz'],
+    [JSON.stringify(JSON.stringify({ password: 'pa"ss9word' })), 'ss9word'],
+    [`{\\"password\\": \\"${H} and the excerpt was cut`, H],
+  ]) assert.ok(!r.redact(input).includes(secret), `${input} -> ${r.redact(input)}`);
+  assert.deepEqual(r.deepRedact({ password: 12345678, pin: 4321, port: 8080, count: 3 }), { password: '[redacted:secret]', pin: '[redacted:secret]', port: 8080, count: 3 });
+  // A dash-grouped random token stays hidden although each group is short. (Lowercase hex
+  // groups show in both redactors: hex up to 40 characters is kept as a possible commit id.)
+  const grouped = 'Ab3dEf9h-Kl2nOp5r-St8xYz1b-Cd4fGh7j';
+  assert.ok(!r.redact(`id ${grouped}`).includes(grouped));
+});
+
 test('secrets-only: ordinary keys and words are left alone', () => {
   const r = createSecretsOnlyRedactor();
   for (const s of ['max_tokens: 4096, author: alex, secrets: 3', 'passing: 12', 'auth flow works', 'tokens=5', 'https://git.example.com:8080/repo']) {
@@ -184,7 +224,7 @@ test('secrets-only: idempotent, keeps placeholders, counts, and has the redactor
 test('secrets-only: stays fast on long adversarial inputs', () => {
   const r = createSecretsOnlyRedactor();
   const B = '\\';
-  const inputs = ['a:'.repeat(50000), 'password:"'.repeat(20000), `${'x-'.repeat(50000)}token`, `http://${'a'.repeat(100000)}`, 'a-token-'.repeat(20000), `https://a:${'b'.repeat(100000)}`, 'token: '.repeat(20000), `${'ab/'.repeat(40000)}1`, `token:"${B.repeat(100000)}`, `token:"${`${B}${B}"`.repeat(30000)}`, `token ${B}`.repeat(15000), `token:"${B}`.repeat(15000), '--password '.repeat(10000), `-u a:${'b'.repeat(100000)}`, '0a1b2c3d-'.repeat(11000)];
+  const inputs = ['a:'.repeat(50000), 'password:"'.repeat(20000), `${'x-'.repeat(50000)}token`, `http://${'a'.repeat(100000)}`, 'a-token-'.repeat(20000), `https://a:${'b'.repeat(100000)}`, 'token: '.repeat(20000), `${'ab/'.repeat(40000)}1`, `token:"${B.repeat(100000)}`, `token:"${`${B}${B}"`.repeat(30000)}`, `token ${B}`.repeat(15000), `token:"${B}`.repeat(15000), '--password '.repeat(10000), `-u a:${'b'.repeat(100000)}`, '0a1b2c3d-'.repeat(11000), '.-u='.repeat(25000), '.--user='.repeat(12500), `token:"${`${B}"`.repeat(50000)}`];
   for (const input of inputs) {
     const started = Date.now();
     r.redact(input);
