@@ -459,6 +459,10 @@ honestweek is publish-ready but not yet on npm. To cut a release so `npx honestw
 
 Publishing to npm and cutting a GitHub Release are the only steps that go public; everything else in this repo is local.
 
+## Contributing and security
+
+[CONTRIBUTING.md](CONTRIBUTING.md) covers setup (there's nothing to install), the constraints every change keeps, and how to report a bug without pasting your own logs. To report a security or privacy problem privately, see [SECURITY.md](SECURITY.md).
+
 ## License
 
 [MIT](LICENSE)
