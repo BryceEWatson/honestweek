@@ -181,3 +181,22 @@ test('the contract verifier resolves its own default spec directory cross-platfo
   const output = execFileSync(process.execPath, [CONTRACT_VERIFIER], { cwd:ROOT, encoding:'utf8' });
   assert.match(output, /verify-contracts: OK/);
 });
+
+test('contributor docs: no dashes, links resolve, no personal data, private reporting documented', () => {
+  const files = ['CONTRIBUTING.md', 'SECURITY.md', '.github/pull_request_template.md', '.github/ISSUE_TEMPLATE/bug_report.md', '.github/ISSUE_TEMPLATE/feature_request.md', '.github/ISSUE_TEMPLATE/config.yml'];
+  for (const f of files) {
+    const text = readFileSync(resolve(ROOT, f), 'utf8');
+    assert.doesNotMatch(text, /[\u2014\u2013]| -- /, `${f} uses an em or en dash`);
+    assert.doesNotMatch(text, /@(?:gmail|outlook|yahoo|proton|icloud)\.com/i, `${f} holds a personal email`);
+    assert.doesNotMatch(text, /\/home\/[a-z]+\/|C:\\Users\\[A-Za-z]+\\/, `${f} holds a personal path`);
+    for (const [, target] of text.matchAll(/\]\((?!https?:|#|mailto:)([^)#\s]+)/g)) {
+      const linked = resolve(ROOT, dirname(f), target);
+      assert.doesNotThrow(() => readFileSync(linked), `${f} links to ${target}, which doesn't exist`);
+    }
+  }
+  const security = readFileSync(resolve(ROOT, 'SECURITY.md'), 'utf8');
+  assert.match(security, /Report a vulnerability/);
+  assert.match(security, /Security report/, 'the fallback route stays documented');
+  assert.match(README, /\]\(CONTRIBUTING\.md\)/);
+  assert.match(README, /\]\(SECURITY\.md\)/);
+});
