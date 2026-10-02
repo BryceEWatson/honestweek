@@ -82,6 +82,11 @@ test('lib/replay, its harness, fixtures and doc are clean-room', () => {
   assertCleanRoom(files, 'lib/replay');
 });
 
+// The demo week is invented end to end, so the same fence holds over it.
+test('the demo week, its test and its doc are clean-room', () => {
+  assertCleanRoom([join(HERE, '..', 'tools', 'demo-week.mjs'), join(HERE, 'demo-week.test.mjs'), join(HERE, '..', 'docs', 'demo-week.md')], 'demo week');
+});
+
 test('the shipped docs and example config are clean-room too', () => {
   assertCleanRoom([join(HERE, '..', 'docs', 'mining.md'), join(HERE, '..', 'docs', 'reader-profiles.md'), join(HERE, '..', 'honestweek.config.example.json')], 'docs + example config');
 });

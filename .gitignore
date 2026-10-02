@@ -41,6 +41,9 @@ honestweek.config.json
 # Dependencies (there should be none at runtime, but never commit these)
 node_modules/
 
+# The demo week (tools/demo-week.mjs) when written into the repo: logs and a nested repo
+.demo-out/
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db
