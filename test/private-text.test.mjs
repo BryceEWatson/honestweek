@@ -206,6 +206,7 @@ test('secrets-only: the second review round: run-together keys, ===, typed value
   assert.equal(r.redact('Authorization: Bearer abcdefgh12345678 Accept: application/json'), 'Authorization: [redacted:secret] Accept: application/json');
   for (const h of ['Authorization: AWS AKIAIOSFODNN7EXAMPLE:frJIUN8DYpKDtOLCwo//yllqDzg=', 'Authorization: HMAC alice:Xk9mP2qRz7abcd']) assert.equal(r.redact(h), 'Authorization: [redacted:secret]');
   // An unclosed quote earlier on a joined line doesn't pair with the next secret's quote.
+  for (const q of ['"', "'"]) assert.ok(!r.redact(`Cookie: sid=1 token: ${q}api_key: ${q}Xk9mP2qRz7abcd${q}`).includes('Xk9mP2qRz7abcd'), q);
   assert.ok(!r.redact('Cookie: sid=1 token: "Ab3dEf, api_key: "Xk9mP2qRz7abcd"').includes('Xk9mP2qRz7abcd'));
   assert.ok(!r.redact("dbPassword: M0)x api_key: 'Ab3dEf, api_key == 'Xk9mP2qRz7abcd'").includes('Xk9mP2qRz7abcd'));
   assert.ok(r.redact('await repo.SaveAsync(order, cancellationToken: ct).ConfigureAwait(false);').includes(').ConfigureAwait(false);'));
