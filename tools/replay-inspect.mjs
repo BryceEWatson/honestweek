@@ -339,6 +339,8 @@ async function inspect(h, o, io, redactor) {
     }
     if (h.goals && r.kind !== 'unknown') out(`\nGoals with these sessions as members: ${r.goals.length ? r.goals.join(', ') : 'none'}\n`);
     for (const n of r.notes) out(`\nNote: ${n.text}\n`);
+    const named = Object.entries(r.rules ?? {});
+    if (named.length) out(`\nRules named above:\n${named.map(([id, text]) => `  ${id}: ${text ?? 'not described'}\n`).join('')}`);
     return code;
   }
   io.err(`unknown command "${redactor.redact(String(cmd))}"\n\n${USAGE}`);

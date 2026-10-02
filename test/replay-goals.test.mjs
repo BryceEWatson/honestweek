@@ -8,7 +8,7 @@ import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { buildWorkHistory, parseLookup } from '../lib/replay/index.mjs';
-import { RULES, prRefsInCommand } from '../lib/replay/classify.mjs';
+import { LOOKUP_RULES, RULES, prRefsInCommand } from '../lib/replay/classify.mjs';
 import { goalCitations } from '../lib/replay/goals.mjs';
 import { createWatch } from '../lib/replay/parse-common.mjs';
 import { sourceKey } from '../lib/replay/ids.mjs';
@@ -40,12 +40,20 @@ after(() => {
 
 // ---- goal membership --------------------------------------------------------
 
-test('every new rule is registered with a plain description', () => {
-  for (const id of ['pr.gh-command', 'pr.squash-subject', 'goal.prompt-names-id']) {
-    assert.ok(RULES.has(id), id);
-    assert.ok(RULES.get(id).length > 40, `${id} says what it reads`);
+const NEW_RULES = ['pr.gh-command', 'pr.squash-subject', 'goal.prompt-names-id'];
+/** The event rules the engine shipped with before goals and lookup, in their order. */
+const BASE_EVENT_RULES = ['prompt.authorship.no-origin', 'prompt.authorship.unknown-origin', 'prompt.authorship.exec-session', 'prompt.correction', 'prompt.approval', 'prompt.resume', 'prompt.question', 'shell.test', 'shell.revert', 'shell.git-commit-output', 'shell.gh-pr-output', 'git.pr-number-from-subject', 'review.delegation', 'review.skill', 'handoff.chip-start', 'canonical.earliest-ending-copy'];
+
+test('every new rule has a plain description, kept apart from the event rules', () => {
+  for (const id of NEW_RULES) {
+    assert.ok(LOOKUP_RULES.has(id), id);
+    assert.ok(!RULES.has(id), `${id} labels no event, so it isn't an event rule`);
+    assert.ok(LOOKUP_RULES.get(id).length > 40, `${id} says what it reads`);
   }
-  for (const g of h.goals) for (const m of g.members) for (const j of m.joins) if (j.rule) assert.ok(RULES.has(j.rule), j.rule);
+  for (const g of h.goals) for (const m of g.members) for (const j of m.joins) if (j.rule) assert.ok(RULES.has(j.rule) || LOOKUP_RULES.has(j.rule), j.rule);
+  // With a goal record, the history's rules table names them; a lookup result always does.
+  for (const id of NEW_RULES) assert.equal(h.rules[id], LOOKUP_RULES.get(id));
+  assert.equal(h.lookup('#7').rules['pr.gh-command'], LOOKUP_RULES.get('pr.gh-command'));
 });
 
 test('an entry id a call carried while the record accepted it is a derived write; goal.create is its own type', () => {
@@ -178,7 +186,7 @@ test('goal titles and refs pass the redactor, and nothing private reaches the ou
   const view = h.goal('g-widget');
   assert.equal(view.members.length, g.members.length);
   assert.ok(view.members.every((m) => m.thread && m.firstAt));
-  assert.ok(view.members.flatMap((m) => m.joins).filter((j) => j.rule).every((j) => j.ruleText === RULES.get(j.rule)));
+  assert.ok(view.members.flatMap((m) => m.joins).filter((j) => j.rule).every((j) => j.ruleText === (RULES.get(j.rule) ?? LOOKUP_RULES.get(j.rule))));
   assert.equal(h.goal('g-nope'), null);
 });
 
@@ -188,11 +196,35 @@ test('additive: without a goal record the history is unchanged, with no goals ke
   assert.equal(JSON.stringify(without), JSON.stringify(undef));
   assert.ok(!('goals' in without.toJSON()));
   assert.equal(without.goal('g-widget'), null);
-  // The parse-time scan adds side notes, never facts: everything but `goals` is identical.
-  const { goals, ...rest } = h.toJSON();
+  // The parse-time scan adds side notes, never facts: everything but `goals` and the
+  // rules table it extends is identical.
+  const { goals, rules, ...rest } = h.toJSON();
+  const { rules: plainRules, ...plainRest } = without.toJSON();
   assert.ok(goals.length === 2);
-  assert.equal(JSON.stringify(rest), JSON.stringify(without.toJSON()));
+  assert.equal(JSON.stringify(rest), JSON.stringify(plainRest));
+  assert.deepEqual(Object.keys(rules).filter((id) => !(id in plainRules)), NEW_RULES);
 });
+
+test('additive: without a goal record the rules table is the engine\'s event rules, unchanged', async () => {
+  // The default corpus, read by the engine exactly as before this addition: the table
+  // names the same rules, in the same order, with the same text, and nothing else.
+  const plain = buildCorpus();
+  try {
+    const json = (await buildWorkHistory({ config: plain.config, from: '2024-06-10', to: '2024-06-16', roots: { claude: [plain.claudeRoot], codex: [plain.codexRoot] } })).toJSON();
+    assert.equal(JSON.stringify(json.rules), JSON.stringify(Object.fromEntries(RULES)));
+    assert.deepEqual(Object.keys(json.rules), BASE_EVENT_RULES);
+    for (const id of NEW_RULES) assert.ok(!(id in json.rules), `${id} stays out`);
+    assert.ok(!('goals' in json));
+    assert.ok(!JSON.stringify(json).includes('pr.gh-command'));
+  } finally {
+    try {
+      rmSync(plain.root, { recursive: true, force: true });
+    } catch {
+      /* Windows can hold a lock on .git briefly */
+    }
+  }
+});
+
 
 test('a goal record of the wrong shape is refused with a message that says what is expected', async () => {
   await assert.rejects(build({ goals: { items: [] } }), /must be an object with a "goals" list/);
