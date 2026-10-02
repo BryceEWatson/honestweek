@@ -349,6 +349,23 @@ node tools/replay-inspect.mjs --config honestweek.config.json --from 2024-06-10 
 
 [docs/work-history-engine.md](docs/work-history-engine.md) has the event model, the measured source coverage, and what it can't reconstruct yet.
 
+### Finding the sessions behind a pull request, a commit, a file, or a goal (in development)
+
+The same engine reads the history backwards too, through two more commands in that developer tool:
+
+- `lookup` takes a pull request (`#64`, `your-repo#64`, or its link), a commit id, a file path, or a branch name, and lists the sessions whose records point at it, strongest evidence first. Each pointer says how it's known: a record shows it, or a named rule read it (for example, a `gh pr view 64` command). A file is found under every worktree of its repository, not only the folder you configured.
+- `goals` takes a goal record: a JSON list of goals plus the log of changes made to it (a separate input from the goals page's registry above). For each goal it lists the sessions that did its work and every reason each one counts: the record cites the session or one of its pull requests or commits, a tool call wrote one of the goal's entries while the record accepted it, a command acted on a cited pull request, or a prompt named the goal. Whatever the record cites that no session matches is listed with the reason.
+
+You can try both without any logs of your own. `--demo` runs them on the made-up sessions, git repository, and goal record the tests use, built in a temporary folder that's deleted afterwards:
+
+```bash
+node tools/replay-inspect.mjs --demo goals
+node tools/replay-inspect.mjs --demo lookup '#7'
+node tools/replay-inspect.mjs --config honestweek.config.json --from 2024-06-10 --to 2024-06-16 --goals goals.json goals
+```
+
+Both only read. Nothing is published, sessions outside your configured repos and in display-role ones are never searched, and display-role repos are never read by git. The join types, their rules, and what lookup can't find are in [docs/work-history-engine.md](docs/work-history-engine.md#goals-and-lookup-reading-the-history-backwards).
+
 ## Config reference
 
 You commit your own `honestweek.config.json`. It mirrors `honestweek.config.example.json`:

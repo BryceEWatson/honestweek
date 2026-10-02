@@ -2,7 +2,7 @@
 
 ## In plain terms
 
-The work-history engine reads my local AI coding session logs and rebuilds what happened as a timeline I can replay to any moment and drill into, from a week down to the single log line behind each step. Every step it shows carries a tag saying how it's known: a log line says so, it was computed from log lines, a named rule interpreted it, or the evidence I'd expect is missing. It never invents working time, a count of agents "working", a cause, or a reason. It doesn't change any report honestweek already makes, and it has no screen of its own yet: a small developer tool prints each level so the model can be checked before a visual design is chosen.
+The work-history engine reads my local AI coding session logs and rebuilds what happened as a timeline I can replay to any moment and drill into, from a week down to the single log line behind each step. Every step it shows carries a tag saying how it's known: a log line says so, it was computed from log lines, a named rule interpreted it, or the evidence I'd expect is missing. It never invents working time, a count of agents "working", a cause, or a reason. It also works backwards: given a pull request, a commit, a file, or a branch, it finds the sessions behind it, and given my own list of goals, it says which sessions did each goal's work and how each link is known. It doesn't change any report honestweek already makes, and it has no screen of its own yet: a small developer tool prints each level so the model can be checked before a visual design is chosen.
 
 ## What it's for
 
@@ -125,6 +125,61 @@ Commits the harness recorded, or that a successful commit command printed (an in
 - **Anything older than the retention window.** Claude Code deletes transcripts after its cleanup period, so nothing before the oldest file exists to reconstruct.
 - **Claude desktop local-agent sessions,** which the miner reads, aren't read here yet.
 
+## Goals and lookup: reading the history backwards
+
+The timeline answers "what did this session do?". Two additions answer the reverse: "which sessions did this goal's work?" and "which sessions worked on this pull request, commit, file, or branch?". Both use the same four evidence levels, so every answer says how it's known, and both leave out sessions outside the configured repositories and in display-role ones.
+
+### Goal membership
+
+A **goal record** is my own list of goals, kept as JSON. Each goal has an id and a title, and can carry a state and four lists of notes: where it came from (`source`), `observations`, `results`, and `decisions`. Beside the list sits the record's write log (`events`): one **entry** per change to the record, each with an id the writer chose, the goal it belongs to, its type (`goal.create` for the entry that created the goal), and `at`, the time the record accepted it.
+
+```json
+{
+  "goals": [{ "id": "g-widget", "title": "Ship the widget parser", "state": "active",
+              "source": { "pr": "https://github.com/example/your-project/pull/7" },
+              "observations": [{ "text": "Started in session:0a0a0a0a-1111-4111-8111-00000000000a" }] }],
+  "events": [{ "eventId": "ev-0001", "goalId": "g-widget", "type": "goal.create", "at": "2024-06-11T21:41:30Z" }]
+}
+```
+
+Given a goal record, the engine lists each goal's **members**: the sessions that did some of its work, as far as the records show. Each member carries its **joins**, the reasons it counts, and each join has an evidence level. A **citation** is a reference inside the goal's own notes: a pull-request link, `your-project#7`, `session:` followed by a session's id, `commit:` followed by a commit id, or a bare 40-character commit id. A session's id is the one its harness gave it: a Claude Code session file's name, or a Codex thread id.
+
+| Join | Evidence | What it means | Example |
+| --- | --- | --- | --- |
+| cited-session | recorded | The goal record names the session by its id. | An observation says `session:0a0a0a0a-…`. |
+| cited-pr | recorded | The session's harness recorded a link to, or a git fact about, a pull request the goal cites, in the same repository. It's inferred, under the existing `shell.gh-pr-output` rule, when a Codex session's `gh pr create` printed the link. | The goal's source is pull request 7 of your-project, and the session recorded a link to it. |
+| cited-commit | recorded or inferred | The harness recorded a commit the goal cites. It's inferred, under `shell.git-commit-output`, when the commit was read from what a commit command printed. | The goal says `commit:00700b7dc502`, and the session's commit call recorded that commit. |
+| wrote-entry | derived | A tool call's input carried one of the goal's entry ids, and the record accepted that entry while the call ran. | A call began at 21:42 with `--event ev-0002` in its command, its result was recorded at 21:43, and the record accepted ev-0002 at 21:42:30. |
+| created-goal | derived | The same rule, for the entry that created the goal, kept apart so a view can show creation differently from work. | The entry is `goal.create`. |
+| command-on-pr | inferred (`pr.gh-command`) | A command in a session of the same repository acted on a pull request the goal cites. | `gh pr view 7 --json reviews` |
+| prompt-names-goal | inferred (`goal.prompt-names-id`) | A prompt names the goal id as a whole word. A longer id that contains it doesn't count. | "Now carry on with g-widget." |
+
+A session that only mentions a pull request or a commit in a prompt or a message never joins: a mention isn't work. A member's own level is the strongest of its joins, and members are listed in the order of their first record. Whatever in the goal record didn't match is listed too, with the reason: a citation no readable session points at, `session:` followed by words instead of an id (the engine doesn't guess which session that meant), or an entry no call wrote.
+
+**Why a write needs the time to match.** An entry id in a call's input isn't enough on its own. A session that read or searched the goal record would carry the same ids, and would count as having written them. So a call counts as writing an entry only when the record accepted the entry between the call's own recorded time and its recorded result's time, both as the log wrote them. A call with no recorded result never qualifies. When calls in more than one session carried the same entry id while the record accepted it, each of those joins is marked ambiguous with the number of candidate sessions, rather than the engine picking one. The tests prove all three cases on a made-up session that writes entries, then searches the record for them later.
+
+**Why the scan happens while parsing.** The engine keeps only the first 600 characters of a prompt and a clipped copy of each command, and a goal id or entry id can sit past either cut. So the ids are looked for while each log line is parsed, in the full text: entry ids in a tool call's whole input (never its result), goal ids in a prompt's whole text. Sessions outside the configured repositories and in display-role ones are never scanned. Without a goal record nothing is scanned and no event, session, or count changes: built from the test corpus before and after this addition, the history's JSON differs only in its table of rules, which now names the three new ones.
+
+### Lookup
+
+Lookup takes what I'd type, such as `#64`, `your-project#64`, a pull-request link, a commit id, a file path, or a branch name, and lists the readable sessions that point at it, strongest evidence first, each with how it points. When a goal record was given, it also names the goals those sessions are members of.
+
+- **A pull request** is found through the harness's own link records and git facts (recorded), git's record of the default-branch commit that names it (inferred, as it is everywhere in the engine), and `gh pr` commands that act on it (inferred, `pr.gh-command`). Without a repository name, a number matches in any repository.
+- **A commit** is found by any prefix of 7 characters or more, through commits the harness recorded (recorded), commits a session named that git confirms exist (recorded when the harness recorded them, inferred when they were read from printed output), and pull requests that landed as that commit (inferred). When the commit's subject ends in `(#N)`, the shape GitHub writes for a squash merge, the sessions behind pull request N are included too, inferred under `pr.squash-subject`. Git reads that subject only in configured repositories that aren't display-role.
+- **A file** is harder, because the engine never keeps a file's full path, only a fingerprint of it, and the same file in two **worktrees** (separate folders holding checkouts of one repository) has two different fingerprints. So a repository-relative path is tried under every folder it could have lived in: each configured repository, every worktree git lists for it, and the working folder of every readable session in it. The answer says how many folders were tried, never which.
+- **A branch** is found through the harness's records of a push, a branch operation, and the branch of a worktree a session entered (all recorded).
+
+What lookup can't find:
+
+- a file edited from a worktree that's since been deleted, when that folder is no longer listed by git and wasn't any session's working folder;
+- a commit a quiet command never printed and the harness didn't record;
+- a pull request named only in a prompt, a message, a commit message, or a comment body: free text is never read as work;
+- a `gh pr` command that changed directory first without naming its repository, since which repository it acted on isn't recorded;
+- anything in a session outside the configured repositories or in a display-role one;
+- reviews, approvals, and CI on GitHub, since nothing here reads the network.
+
+A session's repository is named by its origin remote when git is read, and by its configured label otherwise.
+
 ## Trying it
 
 From a clone of this repository (the developer tool isn't in the published package):
@@ -133,14 +188,33 @@ From a clone of this repository (the developer tool isn't in the published packa
 node tools/replay-inspect.mjs --config honestweek.config.json --from 2024-06-10 --to 2024-06-16 walk
 ```
 
-`overview`, `thread`, `session`, `turn`, `event`, and `record` print one level each; `at` and `step` scrub time; `coverage` lists every record type seen in the run and how it was handled; `--json` prints the same data as JSON. The tool writes nothing to disk and redacts everything it prints.
+`overview`, `thread`, `session`, `turn`, `event`, and `record` print one level each; `at` and `step` scrub time; `coverage` lists every record type seen in the run and how it was handled; `goals`, `goal <id>`, and `lookup <text>` read the history backwards (the first two need `--goals <file>`); `--json` prints the same data as JSON. The tool redacts everything it prints and writes nothing to disk.
+
+To see goals and lookup without any logs of my own, `--demo` runs the commands on the made-up logs, git repository, and goal record the tests use. It builds them in a temporary folder and deletes it afterwards, so it needs only a clone and git:
+
+```bash
+node tools/replay-inspect.mjs --demo goals
+node tools/replay-inspect.mjs --demo goal g-widget
+node tools/replay-inspect.mjs --demo lookup '#7'
+node tools/replay-inspect.mjs --demo lookup lib/widget.mjs
+```
+
+On my own logs, the same commands take a goal record file:
+
+```bash
+node tools/replay-inspect.mjs --config honestweek.config.json --from 2024-06-10 --to 2024-06-16 --goals goals.json goals
+```
 
 ## Implementation detail
 
-- `lib/replay/index.mjs`: `buildWorkHistory({ config, from, to, timezone, roots, scope, quietMs, git })` returns the history: `sessions`, `agents`, `threads`, `events`, `links`, `anomalies`, `coverage`, plus `stateAt(t, { thread })`, `timeline` and `threadTimeline(id)` (`cursorAt`, `step`, `seekWhere`, `stateAtCursor`), the views `overview()`, `thread(id)`, `session(key)`, `turn(id)`, `event(id)`, and `record(eventIdOrRef)`. `toJSON()` is deterministic and holds no file paths.
+- `lib/replay/index.mjs`: `buildWorkHistory({ config, from, to, timezone, roots, scope, quietMs, git, goals })` returns the history: `sessions`, `agents`, `threads`, `events`, `links`, `anomalies`, `coverage`, plus `stateAt(t, { thread })`, `timeline` and `threadTimeline(id)` (`cursorAt`, `step`, `seekWhere`, `stateAtCursor`), the views `overview()`, `thread(id)`, `session(key)`, `turn(id)`, `event(id)`, and `record(eventIdOrRef)`. `toJSON()` is deterministic and holds no file paths.
 - Each event keeps `facts` (recorded), `derived`, `inferred` (each with its rule id), and `missing`; `lib/replay/evidence.mjs` holds the contract, checked on every event before a history is returned.
 - `lib/replay/sources.mjs` finds files by the timestamps inside them; `claude.mjs` and `codex.mjs` parse one file each in file order, sharing `parse-common.mjs`; `assemble.mjs` de-duplicates, links, applies the clock rules, and builds turns and threads; `outcomes.mjs` asks git through `lib/git.mjs`; `timeline.mjs` folds points with snapshots; `views.mjs` renders the drill-down; `metrics.mjs` defines each counted thing once for both; `classify.mjs` holds every inference rule (`RULES`) and the parsers; `ids.mjs` makes ids from SHA-256 spelled in the letters a to p, so the redactor never alters them; `jsonl.mjs` reads lines with their byte offsets.
 - Non-interactive Codex runs are `codex exec`; Codex's patch tool is `apply_patch`.
 - The timeline's state at a moment carries `countEvidence`, the level of each running count, on the same terms as the views' metrics.
 - `lib/replay/` ships inside the package's `lib/` folder, but no honestweek command uses it yet, so its interface may change.
-- Tests: `test/replay-model.test.mjs`, `test/replay-timeline.test.mjs`, `test/replay-units.test.mjs`, `test/replay-harness.test.mjs`, `test/replay-regressions.test.mjs` (one test per defect the independent review found), the clean-room fence in `test/site-cleanroom.test.mjs`, over the synthetic corpus in `test/fixtures/replay/corpus.mjs`.
+- Goals and lookup: `buildWorkHistory({ ..., goals })` takes the goal record; with it the history gains `goals` (in `toJSON()` too) and the view `goal(id)`. `lookup(query)` takes a string or a query from `parseLookup(text)` (exported from `lib/replay/index.mjs`) and returns `{ query, kind, sessions: [{ session, evidence, refs: [{ via, evidence, rule?, pr?, event, count }] }], goals, notes }`. Each goal is `{ id, title, state, members: [{ session, evidence, ambiguous?, joins: [{ type, evidence, rule?, event, count, ambiguous?, detail }] }], unmatched: [{ kind, ref, where?, why }] }`.
+- `lib/replay/goals.mjs` reads the goal record (`normalizeGoalRecord`, `goalCitations`) and builds membership (`goalMembership`, `goalView`); `lib/replay/lookup.mjs` holds `parseLookup`, the reference index both share (`createReferenceIndex`), and `createLookup`. The parse-time scan is `createWatch` in `parse-common.mjs`: the adapters get it as `ctx.watch` (null for a private source) and push `{ token, where, event }` notes onto `joins.watched`; Claude Code's push, branch, and worktree records go onto `joins.branches`. Both lists move onto the kept copy of a record in `assemble.mjs` like the other joins, and neither adds a fact to any event.
+- The rules `pr.gh-command`, `pr.squash-subject`, and `goal.prompt-names-id` are in `RULES`; `prRefsInCommand` in `classify.mjs` implements the first. File paths are compared through `keyPath` in `ids.mjs`, the form `pathKey` hashes. Worktrees come from `worktreeList` in `lib/git.mjs` (`git worktree list --porcelain`), and squash subjects from `lookupCommit`; neither is called for a display-role repository or with `git: false`.
+- `tools/replay-inspect.mjs --demo` imports `buildCorpus({ goals: true })` from the test fixtures, so it runs only from a clone.
+- Tests: `test/replay-model.test.mjs`, `test/replay-timeline.test.mjs`, `test/replay-units.test.mjs`, `test/replay-harness.test.mjs`, `test/replay-regressions.test.mjs` (one test per defect the independent review found), `test/replay-goals.test.mjs` (goal membership, lookup, and the tool's new commands), the clean-room fence in `test/site-cleanroom.test.mjs`, over the synthetic corpus in `test/fixtures/replay/corpus.mjs` (its goal sessions are added only with `buildCorpus({ goals: true })`, so the other tests read the corpus they always did).
