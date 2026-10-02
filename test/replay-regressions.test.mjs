@@ -16,6 +16,7 @@ import { commandChain, headShaAfterCommit, parseTestSummary } from '../lib/repla
 import { execProgramCommand, patchSummary } from '../lib/replay/codex.mjs';
 import { testRunResult } from '../lib/replay/metrics.mjs';
 import { gitOutcomes } from '../lib/replay/outcomes.mjs';
+import { buildTimeline } from '../lib/replay/timeline.mjs';
 import { outputNominations } from '../lib/replay/parse-common.mjs';
 import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { sourceKey } from '../lib/replay/ids.mjs';
@@ -513,4 +514,31 @@ test('the log after a quiet commit is not read through a pipe, a parent format, 
     'git commit -q -m "x" && git log -1 --pretty="%h %s"',
     'git -C "repo one" commit -q -m "x" && git -C "repo two" log -1',
   ]) assert.equal(head(cmd), null, cmd);
+});
+
+test('the log after a quiet commit is read only in a format that prints the commit id first', () => {
+  const sha = '9f8e7d6a1b2c';
+  const head = (cmd) => headShaAfterCommit(cmd, `${sha} x`);
+  for (const ok of ['git commit -qm "x" && git log -1 --pretty=oneline', 'git commit -qm "x" && git log -1 --format=%h', 'git commit -qm "x" && git log -1 --format=tformat:%H']) assert.equal(head(ok), sha, ok);
+  for (const cmd of ['git commit -qm "x" && git log -1 --format=%B', 'git commit -qm "x" && git log -1 --format=%s', 'git commit -qm "x" && git log -1 --format=%ct', 'git commit -qm "x" && git log -1 --pretty=email']) assert.equal(head(cmd), null, cmd);
+});
+
+test('an unclear run never claims the command failed when its exit status was not recorded', () => {
+  assert.match(h.session(key.SA).metrics.testRunsUnclear.note, /failed or its success was not recorded/);
+});
+
+test("the timeline's event count is labelled by the weakest event it counts", () => {
+  const base = h.events.filter((e) => e.evidence === 'recorded');
+  const at0 = base[0];
+  const quiet = { ...at0, id: 'q.quiet.1', kind: 'quiet', evidence: 'derived', refs: [], basis: [at0.id, at0.id], end: { at: at0.at, t: at0.t + 1 }, facts: {}, derived: { ms: 1 }, inferred: [], missing: [] };
+  const label = (events) => buildTimeline(events, { agents: h.agents, sessions: h.sessions }).stateAt(Date.parse('2030-01-01T00:00:00.000Z')).countEvidence.events;
+  assert.equal(label(base), 'recorded');
+  assert.equal(label([...base, quiet]), 'derived');
+  assert.equal(label([...base, quiet, { ...quiet, id: 'q.outcome.1', kind: 'outcome', evidence: 'inferred', refs: [{ src: 'git-x', sha: 'abc1234' }], end: undefined, facts: { outcome: 'pr-landed' } }]), 'inferred');
+});
+
+test('reading an exec program stays fast on long runs of whitespace', () => {
+  const started = Date.now();
+  for (const tail of ['}))', 'x}))']) execProgramCommand(`text(await tools.exec_command({cmd:"git status"${' '.repeat(60000)}${tail}`);
+  assert.ok(Date.now() - started < 250, `took ${Date.now() - started} ms`);
 });
