@@ -14,6 +14,67 @@ function r(config = {}) {
   return createRedactor(config);
 }
 
+test('Windows user paths inside JSON-encoded text are redacted too', () => {
+  // A Codex tool call's arguments are JSON text, so its working folder arrives with doubled backslashes.
+  const args = JSON.stringify({ cmd: ['git', 'status'], workdir: 'C:\\Users\\Alex Jordan\\code\\client-app' });
+  assert.ok(args.includes('C:\\\\Users\\\\Alex Jordan'), 'the fixture really holds doubled backslashes');
+  const out = r().redact(args);
+  assert.doesNotMatch(out, /Alex Jordan|client-app/);
+  assert.match(out, /\[redacted:path\]/);
+  // The surrounding JSON keeps its shape: only the path value is replaced.
+  assert.match(out, /^\{"cmd":\["git","status"\],"workdir":"/);
+  // deepRedact reaches the same string nested inside a record.
+  const nested = r().deepRedact({ payload: { arguments: args } });
+  assert.doesNotMatch(JSON.stringify(nested), /Alex Jordan/);
+});
+
+test('a JSON-encoded home path stops at its own value, whatever follows or holds it', () => {
+  // The match can't run into the next field: the commit id and the rest survive.
+  const out = r().redact(JSON.stringify({ workdir: 'C:\\Users\\alex', cmd: 'git show abc1234 -- src/x.js' }));
+  assert.doesNotMatch(out, /alex/);
+  assert.match(out, /"cmd":"git show abc1234 -- src\/x\.js"\}$/);
+  // A bare home folder whose username holds a space is taken whole.
+  const spaced = r().redact(JSON.stringify({ workdir: 'C:\\Users\\Alex Jordan' }));
+  assert.doesNotMatch(spaced, /Alex|Jordan/);
+  // Lowercase, as some tools print it.
+  assert.doesNotMatch(r().redact('cd c:\\users\\alex\\code'), /alex/);
+  // A URL scheme before a POSIX home path keeps its letters.
+  assert.match(r().redact('see file:///Users/alex/report.md'), /^see file:\/\/\[redacted:path\]$/);
+});
+
+test('home paths after JSON escapes, inside escaped quotes, and before contractions', () => {
+  // Right after a \n or \t escape in JSON text.
+  for (const value of ['Path\n----\nC:\\Users\\alex\\proj\n', 'cwd:\tC:\\Users\\alex\\proj']) {
+    assert.doesNotMatch(r().redact(JSON.stringify({ output: value })), /alex/);
+  }
+  // Glued to a preceding letter, as main redacted it.
+  assert.doesNotMatch(r().redact('xC:\\Users\\alex\\proj'), /alex/);
+  // Inside an escaped quote: the path goes, and the JSON still parses.
+  const quoted = r().redact(JSON.stringify({ cmd: 'git -C "C:\\Users\\user\\repo" status' }));
+  assert.doesNotMatch(quoted, /\\user\\/);
+  assert.doesNotThrow(() => JSON.parse(quoted));
+  // A contraction after a bare home folder isn't swallowed.
+  assert.equal(r().redact("C:\\Users\\alex doesn't exist"), "[redacted:path] doesn't exist");
+});
+
+test('path redaction stays fast on long runs of separators', () => {
+  // A pattern with overlapping repeats backtracks exponentially here; 40 backslashes once took minutes.
+  const B = '\\';
+  const inputs = [
+    `C:${B}Users${B}a${B.repeat(100000)}"`,
+    `C:${B}Users${B}a${`${B}x`.repeat(30000)}${B}"`,
+    `C:${B}${B}Userz${B}`.repeat(10000),
+    // A long backslash run inside a match that doesn't end it (once quadratic in the give-back step).
+    `C:${B}Users${B}a${B.repeat(100000)}x`,
+    `/home/a/${B.repeat(100000)}x`,
+  ];
+  for (const input of inputs) {
+    const started = Date.now();
+    r().redact(input);
+    assert.ok(Date.now() - started < 1000, `took ${Date.now() - started} ms on a ${input.length}-character input`);
+  }
+});
+
 test('shape: returns exactly { redact, deepRedact, count }, count starts at 0', () => {
   const red = r();
   assert.deepEqual(Object.keys(red).sort(), ['count', 'deepRedact', 'redact']);
