@@ -86,10 +86,13 @@ function write(file, lines, { trailingPartial = null } = {}) {
 }
 
 /**
- * buildCorpus() -> { root, claudeRoot, codexRoot, repo, config, ids }
- * `ids` names the files' session ids so tests can find their keys.
+ * buildCorpus({ goals }) -> { root, claudeRoot, codexRoot, repo, config, ids }
+ * `ids` names the files' session ids so tests can find their keys. With `goals: true`
+ * it also writes the goal-membership and lookup sessions (see addGoalSessions) and
+ * returns `goalRecord`, `goalsFile`, `goalIds`, `worktreeDir` and `displaySquashSha`;
+ * without it the corpus is exactly the one the model tests read.
  */
-export function buildCorpus({ root = mkdtempSync(join(tmpdir(), 'hw-replay-')) } = {}) {
+export function buildCorpus({ root = mkdtempSync(join(tmpdir(), 'hw-replay-')), goals = false } = {}) {
   const repo = makeRepo(root);
   const displayDir = join(root, 'a-private-project');
   const displaySha = makeDisplayRepo(displayDir);
@@ -278,8 +281,231 @@ ${repo.featureSha.slice(0, 7)} Add a widget parser` }] }),
       redaction: { codenames: [CODENAME], names: [], terms: [] },
       output: { mode: 'digest', file: 'honestweek.digest.md' },
   };
+  const extra = goals ? addGoalSessions({ root, repo, displayDir, elsewhere, claudeRoot, codexRoot, ids: { A } }) : null;
+  if (extra) rawConfig.repos.push(...extra.repos);
   const config = normalizeConfig(rawConfig, { configDir: root });
   const configFile = join(root, 'honestweek.config.json');
   writeFileSync(configFile, JSON.stringify(rawConfig, null, 2));
-  return { root, claudeRoot, codexRoot, repo, config, configFile, displaySha, ids: { A, B, C, D, E, F, G, H, P, K }, dirs: { A: 'proj-a', B: 'proj-a', C: 'proj-c', D: 'proj-d', E: 'proj-a', F: 'proj-a', G: 'proj-a', H: 'proj-a' } };
+  const base = { root, claudeRoot, codexRoot, repo, config, configFile, displaySha, ids: { A, B, C, D, E, F, G, H, P, K }, dirs: { A: 'proj-a', B: 'proj-a', C: 'proj-c', D: 'proj-d', E: 'proj-a', F: 'proj-a', G: 'proj-a', H: 'proj-a' } };
+  if (!extra) return base;
+  const { repos: _repos, ...rest } = extra;
+  return { ...base, ...rest, ids: { ...base.ids, ...extra.goalIds }, dirs: { ...base.dirs, ...extra.goalDirs } };
+}
+
+/**
+ * The goal-membership and reverse-lookup corpus: a goal record, and the sessions that
+ * do (and pointedly don't) join it. Every case has a failing partner:
+ *   W  writes entries ev-0001 (goal.create) and ev-0002 inside each call's recorded span;
+ *      ev-0003 inside a span it shares with Z (ambiguous); ev-0004 in a call with no
+ *      recorded result; and later searches the record for ev-0001, ev-0002 and ev-0007
+ *      (a read is not a write). The goal record cites W by its session id.
+ *   X  only mentions pull request 7, a commit, and a longer id containing the goal id.
+ *   Y  runs gh pr view 7 (and gh pr list --limit 7, which acts on no pull request), and
+ *      records a link to acme/widget#7, a different pull request 7.
+ *   Z  names the goal id after character 600 of a long prompt, and carries ev-0003.
+ *   V  works in a second worktree of the same repository: edits lib/widget.mjs, records
+ *      its worktree branch, and pushes it.
+ *   Q  a display-role session holding every id, a pull-request link, and a commit.
+ *   O  a session outside every configured repository holding every id.
+ *   R  a Codex thread that names the goal id and writes ev-0005 through exec_command;
+ *      runs gh pr view 7 in a folder outside the repository (no repository, so nothing)
+ *      and gh pr checks 32 in the repository's own folder.
+ *   T1 started in a subfolder of the repository (lib/), links example/your-project#11.
+ *   T2 in a second configured repository with the same name under another owner
+ *      (fork-owner/your-project): links its own #11 and edits its own lib/widget.mjs.
+ *   U  every way a command must not count: a rejected gh pr view 7, gh pr view 7 after
+ *      a cd, a pull-request link after echo, a commit id printed for a commit git can't
+ *      find, ev-0009 carried by a refused call while the record accepted it, ev-0008
+ *      carried by a call whose result came before the record accepted it, and
+ *      GH_REPO=someone-else/other-tool gh pr view 31, and two interrupted calls: one
+ *      carrying ev-0010 while the record accepted it, and gh pr view 33.
+ */
+function addGoalSessions({ root, repo, displayDir, elsewhere, claudeRoot, codexRoot, ids }) {
+  // A second working tree of the featured repository, on its own branch.
+  const worktreeDir = join(root, 'your-project-wt');
+  git(repo.dir, ['worktree', 'add', '-q', '-b', 'feature/wt', worktreeDir]);
+  // A squash-merge subject in the display-role repository: reading it would name #9.
+  const displaySquashSha = commit(displayDir, 'invoice.txt', 'Polish the invoice export (#9)', at(45));
+
+  const W = '0a0a0a0a-1111-4111-8111-00000000000a';
+  const X = '0b0b0b0b-2222-4222-8222-00000000000b';
+  const Y = '0c0c0c0c-3333-4333-8333-00000000000c';
+  const Z = '0d0d0d0d-4444-4444-8444-00000000000d';
+  const V = '0e0e0e0e-5555-4555-8555-00000000000e';
+  const Q = '0f0f0f0f-6666-4666-8666-00000000000f';
+  const O = '1a1a1a1a-7777-4777-8777-0000000000a1';
+  const R = '01900000-0000-7000-8000-00000000000c';
+  const T1 = '2b2b2b2b-1111-4111-8111-0000000000b1';
+  const T2 = '2c2c2c2c-2222-4222-8222-0000000000b2';
+  const U = '2d2d2d2d-3333-4333-8333-0000000000b3';
+  const ok = (stdout = '') => ({ tur: { stdout, stderr: '', interrupted: false } });
+
+  // A second configured repository: the same name under another owner.
+  const forkDir = join(root, 'your-project-fork');
+  mkdirSync(forkDir, { recursive: true });
+  git(forkDir, ['init', '-q']);
+  git(forkDir, ['symbolic-ref', 'HEAD', 'refs/heads/main']);
+  git(forkDir, ['config', 'user.email', ME]);
+  git(forkDir, ['config', 'user.name', 'Dev']);
+  git(forkDir, ['config', 'commit.gpgsign', 'false']);
+  git(forkDir, ['remote', 'add', 'origin', 'https://github.com/fork-owner/your-project.git']);
+  commit(forkDir, 'README.md', 'Initial commit', at(-500));
+  mkdirSync(join(repo.dir, 'lib'), { recursive: true });
+
+  const w = claudeRecords(W, repo.dir);
+  w.prompt(at(400), 'Record the widget progress in the goal record.');
+  w.say(at(401), [{ type: 'tool_use', id: 'tu-w1', name: 'Bash', input: { command: 'node tools/goals.mjs create --goal g-widget --event ev-0001' } }]);
+  w.result(at(402), 'tu-w1', 'created', ok('created'));
+  // The id sits after a newline in the command: matched in the string, not in JSON text.
+  w.say(at(402, 100), [{ type: 'tool_use', id: 'tu-w2', name: 'Bash', input: { command: 'node tools/goals.mjs observe --goal g-widget \\\n--event\nev-0002 --text "parser done"' } }]);
+  w.result(at(403), 'tu-w2', 'observed', ok('observed'));
+  w.say(at(404), [{ type: 'tool_use', id: 'tu-w3', name: 'Bash', input: { command: 'node tools/goals.mjs result --event ev-0003' } }]);
+  w.result(at(406), 'tu-w3', 'recorded', ok('recorded'));
+  w.say(at(407), [{ type: 'tool_use', id: 'tu-w4', name: 'Bash', input: { command: 'node tools/goals.mjs observe --event ev-0004' } }]);
+  // The record is read back much later: the ids are in the call, the times are not.
+  w.say(at(410), [{ type: 'tool_use', id: 'tu-w5', name: 'Grep', input: { pattern: 'ev-0001|ev-0002|ev-0007', path: 'goals.json' } }]);
+  w.result(at(410, 500), 'tu-w5', 'goals.json', { tur: { mode: 'files_with_matches', numFiles: 1 } });
+  w.say(at(411), [{ type: 'text', text: 'Recorded.' }]);
+  write(join(claudeRoot, 'proj-g', `${W}.jsonl`), w.lines);
+
+  const x = claudeRecords(X, repo.dir);
+  x.prompt(at(420), `Is pull request 7 ready? See your-project#7, https://github.com/example/your-project/pull/7 and commit ${repo.featureSha}. Leave g-widget-v2 and g-widget.2 alone.`);
+  x.say(at(420, 500), [{ type: 'text', text: 'Pull request #7 looks ready.' }]);
+  write(join(claudeRoot, 'proj-g', `${X}.jsonl`), x.lines);
+
+  const y = claudeRecords(Y, repo.dir);
+  y.prompt(at(425), 'Check the review status.');
+  y.say(at(426), [{ type: 'tool_use', id: 'tu-y1', name: 'Bash', input: { command: 'gh pr view 7 --json reviews' } }]);
+  y.result(at(426, 500), 'tu-y1', '{"reviews":[]}', ok('{"reviews":[]}'));
+  y.say(at(427), [{ type: 'tool_use', id: 'tu-y2', name: 'Bash', input: { command: 'gh pr list --limit 7 && gh pr comment 12 --body "relates to #7"' } }]);
+  y.result(at(427, 500), 'tu-y2', '', ok(''));
+  y.push({ type: 'pr-link', sessionId: Y, prNumber: 7, prUrl: 'https://github.com/acme/widget/pull/7', prRepository: 'acme/widget', timestamp: at(428) });
+  write(join(claudeRoot, 'proj-g', `${Y}.jsonl`), y.lines);
+
+  const z = claudeRecords(Z, repo.dir);
+  z.prompt(at(404, 100), `${'Some long context about the parser. '.repeat(18)}Now carry on with g-widget.`);
+  z.say(at(404, 200), [{ type: 'tool_use', id: 'tu-z1', name: 'Bash', input: { command: 'node tools/goals.mjs result --event ev-0003' } }]);
+  z.result(at(405, 500), 'tu-z1', 'recorded', ok('recorded'));
+  write(join(claudeRoot, 'proj-g', `${Z}.jsonl`), z.lines);
+
+  const v = claudeRecords(V, worktreeDir);
+  v.push(v.base('worktree-state', at(460), { worktreeSession: { worktreeBranch: 'feature/wt', originalBranch: 'main' } }));
+  v.prompt(at(460, 100), 'Tidy the widget in the worktree.');
+  v.say(at(461), [{ type: 'tool_use', id: 'tu-v1', name: 'Edit', input: { file_path: join(worktreeDir, 'lib', 'widget.mjs'), old_string: 'a', new_string: 'b' } }]);
+  v.result(at(461, 500), 'tu-v1', 'ok', { tur: { filePath: join(worktreeDir, 'lib', 'widget.mjs'), structuredPatch: [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: ['-a', '+b'] }], userModified: false } });
+  v.say(at(462), [{ type: 'tool_use', id: 'tu-v2', name: 'Bash', input: { command: 'git push -u origin feature/wt' } }]);
+  v.result(at(462, 500), 'tu-v2', '', { tur: { stdout: '', stderr: '', interrupted: false, gitOperation: { push: { branch: 'feature/wt' } } } });
+  write(join(claudeRoot, 'proj-g', `${V}.jsonl`), v.lines);
+
+  // Q and O hold every id the goal record uses, inside every time window, and must
+  // still never join: Q is display-role, O is outside the configured repositories.
+  const holdsEverything = (s, sid) => {
+    s.prompt(at(440), 'Update g-widget please, see https://github.com/example/your-project/pull/7');
+    s.push({ type: 'pr-link', sessionId: sid, prNumber: 7, prUrl: 'https://github.com/example/your-project/pull/7', prRepository: 'example/your-project', timestamp: at(440, 10) });
+    s.say(at(441), [{ type: 'tool_use', id: `tu-${sid.slice(0, 2)}1`, name: 'Bash', input: { command: 'node tools/goals.mjs observe --event ev-0006 && node tools/goals.mjs decide --event ev-0005 && gh pr view 7' } }]);
+    s.result(at(442), `tu-${sid.slice(0, 2)}1`, 'ok', { tur: { stdout: 'ok', stderr: '', interrupted: false, gitOperation: { commit: { sha: displaySquashSha, kind: 'committed' }, push: { branch: 'feature/wt' } } } });
+    s.say(at(443), [{ type: 'tool_use', id: `tu-${sid.slice(0, 2)}2`, name: 'Edit', input: { file_path: join(repo.dir, 'lib', 'widget.mjs'), old_string: 'a', new_string: 'b' } }]);
+    s.result(at(443, 500), `tu-${sid.slice(0, 2)}2`, 'ok', { tur: { structuredPatch: [] } });
+  };
+  const q = claudeRecords(Q, displayDir);
+  holdsEverything(q, Q);
+  write(join(claudeRoot, 'proj-q', `${Q}.jsonl`), q.lines);
+  const o = claudeRecords(O, elsewhere);
+  holdsEverything(o, O);
+  write(join(claudeRoot, 'proj-o', `${O}.jsonl`), o.lines);
+
+  const cx = (ts, type, payload) => JSON.stringify({ timestamp: ts, type, payload });
+  write(join(codexRoot, '2024', '06', '11', `rollout-2024-06-11T22-10-00-${R}.jsonl`), [
+    cx(at(430), 'session_meta', { id: R, timestamp: at(430), cwd: repo.dir, originator: 'Codex Desktop', cli_version: '0.1.0', source: 'vscode' }),
+    cx(at(430, 100), 'response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Work on g-widget next.' }] }),
+    cx(at(431), 'response_item', { type: 'function_call', name: 'exec_command', arguments: JSON.stringify({ cmd: 'node tools/goals.mjs decide --event ev-0005' }), call_id: 'call-r1' }),
+    cx(at(432), 'response_item', { type: 'function_call_output', call_id: 'call-r1', output: 'Exit code: 0\nrecorded' }),
+    cx(at(432, 100), 'response_item', { type: 'function_call', name: 'exec_command', arguments: JSON.stringify({ cmd: 'gh pr view 7', workdir: elsewhere }), call_id: 'call-r2' }),
+    cx(at(432, 200), 'response_item', { type: 'function_call_output', call_id: 'call-r2', output: 'Exit code: 0\nopen' }),
+    cx(at(432, 300), 'response_item', { type: 'function_call', name: 'exec_command', arguments: JSON.stringify({ cmd: 'gh pr checks 32', workdir: repo.dir }), call_id: 'call-r3' }),
+    cx(at(432, 400), 'response_item', { type: 'function_call_output', call_id: 'call-r3', output: 'Exit code: 0\npassing' }),
+    cx(at(432, 500), 'event_msg', { type: 'task_complete', turn_id: 't1', duration_ms: 2500 }),
+  ]);
+
+  const t1 = claudeRecords(T1, join(repo.dir, 'lib'));
+  t1.prompt(at(470), 'Look at the follow-up pull request.');
+  t1.push({ type: 'pr-link', sessionId: T1, prNumber: 11, prUrl: 'https://github.com/example/your-project/pull/11', prRepository: 'example/your-project', timestamp: at(470, 10) });
+  t1.say(at(470, 500), [{ type: 'text', text: 'Linked.' }]);
+  write(join(claudeRoot, 'proj-t', `${T1}.jsonl`), t1.lines);
+
+  const t2 = claudeRecords(T2, forkDir);
+  t2.prompt(at(475), 'Port the widget to the fork.');
+  t2.push({ type: 'pr-link', sessionId: T2, prNumber: 11, prUrl: 'https://github.com/fork-owner/your-project/pull/11', prRepository: 'fork-owner/your-project', timestamp: at(475, 10) });
+  t2.say(at(476), [{ type: 'tool_use', id: 'tu-t2', name: 'Edit', input: { file_path: join(forkDir, 'lib', 'widget.mjs'), old_string: 'a', new_string: 'b' } }]);
+  t2.result(at(476, 500), 'tu-t2', 'ok', { tur: { structuredPatch: [] } });
+  write(join(claudeRoot, 'proj-t', `${T2}.jsonl`), t2.lines);
+
+  const u = claudeRecords(U, repo.dir);
+  u.prompt(at(480), 'Tidy up.');
+  u.say(at(480, 100), [{ type: 'tool_use', id: 'tu-u1', name: 'Bash', input: { command: 'gh pr view 7' } }]);
+  u.result(at(480, 200), 'tu-u1', "The user doesn't want to proceed with this tool use. The tool use was rejected.", { isError: true, denial: 'user-rejected' });
+  u.say(at(480, 300), [{ type: 'tool_use', id: 'tu-u2', name: 'Bash', input: { command: `cd ${elsewhere} && gh pr view 7` } }]);
+  u.result(at(480, 400), 'tu-u2', 'open', ok('open'));
+  u.say(at(480, 500), [{ type: 'tool_use', id: 'tu-u3', name: 'Bash', input: { command: 'echo see https://github.com/example/your-project/pull/7' } }]);
+  u.result(at(480, 600), 'tu-u3', 'see', ok('see'));
+  u.say(at(480, 700), [{ type: 'tool_use', id: 'tu-u4', name: 'Bash', input: { command: 'git commit -m "wip"' } }]);
+  u.result(at(480, 800), 'tu-u4', '[main dead0be] wip', ok('[main dead0be] wip\n 1 file changed'));
+  u.say(at(481), [{ type: 'tool_use', id: 'tu-u5', name: 'Bash', input: { command: 'node tools/goals.mjs observe --event ev-0009' } }]);
+  u.result(at(482), 'tu-u5', 'PreToolUse:Bash hook error: Refused: the goal record is read-only here', { isError: true, denial: 'permission-rule' });
+  u.say(at(483), [{ type: 'tool_use', id: 'tu-u6', name: 'Bash', input: { command: 'node tools/goals.mjs observe --dry-run --event ev-0008' } }]);
+  u.result(at(483, 500), 'tu-u6', 'dry run', ok('dry run'));
+  u.say(at(484), [{ type: 'tool_use', id: 'tu-u7', name: 'Bash', input: { command: 'GH_REPO=someone-else/other-tool gh pr view 31' } }]);
+  u.result(at(484, 500), 'tu-u7', 'open', ok('open'));
+  u.say(at(485), [{ type: 'tool_use', id: 'tu-u8', name: 'Bash', input: { command: 'node tools/goals.mjs observe --event ev-0010' } }]);
+  u.result(at(486), 'tu-u8', '[Request interrupted by user for tool use]', { isError: true, denial: 'interrupted' });
+  u.say(at(487), [{ type: 'tool_use', id: 'tu-u9', name: 'Bash', input: { command: 'gh pr view 33' } }]);
+  u.result(at(487, 500), 'tu-u9', '[Request interrupted by user for tool use]', { isError: true, denial: 'interrupted' });
+  write(join(claudeRoot, 'proj-t', `${U}.jsonl`), u.lines);
+
+  const goalRecord = {
+    goals: [
+      {
+        id: 'g-widget',
+        title: `Ship the widget parser for ${CODENAME}`,
+        state: 'active',
+        source: { pr: 'https://github.com/example/your-project/pull/7' },
+        observations: [
+          { text: `Started in session:${W}` },
+          { text: 'Picked up again in session:the long debugging one' },
+          { text: `Also seen in session:${Q}` },
+          { text: `Landed as ${repo.squashSha}` },
+        ],
+        results: [{ text: `First commit commit:${repo.featureSha.slice(0, 12)}` }, { text: 'A follow-up is your-project#8' }],
+        decisions: [],
+      },
+      { id: 'g-docs', title: 'Document the widget', state: 'proposed' },
+      { id: 'g-owners', title: 'Follow up on the widget', state: 'active', source: 'your-project#11', observations: ['Not a-different-owner/your-project#7, and not another-repo#7.'] },
+    ],
+    events: [
+      { eventId: 'ev-0001', goalId: 'g-widget', type: 'goal.create', at: at(401, 30000) },
+      { eventId: 'ev-0002', goalId: 'g-widget', type: 'observation.add', at: at(402, 30000) },
+      { eventId: 'ev-0003', goalId: 'g-widget', type: 'result.add', at: at(405) },
+      { eventId: 'ev-0004', goalId: 'g-widget', type: 'observation.add', at: at(407, 30000) },
+      { eventId: 'ev-0005', goalId: 'g-widget', type: 'decision.add', at: at(431, 30000) },
+      { eventId: 'ev-0006', goalId: 'g-widget', type: 'observation.add', at: at(441, 30000) },
+      { eventId: 'ev-0007', goalId: 'g-widget', type: 'observation.add', at: at(408) },
+      { eventId: 'ev-0008', goalId: 'g-widget', type: 'observation.add', at: at(484, 200) },
+      { eventId: 'ev-0009', goalId: 'g-widget', type: 'observation.add', at: at(481, 30000) },
+      { eventId: 'ev-0010', goalId: 'g-widget', type: 'observation.add', at: at(485, 30000) },
+      { eventId: 'ev-0101', goalId: 'g-docs', type: 'goal.create', at: at(450) },
+      { eventId: 'ev-0999', goalId: 'g-not-in-the-record', type: 'goal.create', at: at(401, 30000) },
+    ],
+  };
+  const goalsFile = join(root, 'goals.json');
+  writeFileSync(goalsFile, JSON.stringify(goalRecord, null, 2));
+  return {
+    goalRecord,
+    goalsFile,
+    worktreeDir,
+    forkDir,
+    displaySquashSha,
+    repos: [{ path: forkDir, label: 'your-project-fork', role: 'featured' }],
+    goalIds: { W, X, Y, Z, V, Q, O, R, T1, T2, U },
+    goalDirs: { W: 'proj-g', X: 'proj-g', Y: 'proj-g', Z: 'proj-g', V: 'proj-g', Q: 'proj-q', O: 'proj-o', T1: 'proj-t', T2: 'proj-t', U: 'proj-t' },
+  };
 }
