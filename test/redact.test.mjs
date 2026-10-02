@@ -42,6 +42,32 @@ test('a JSON-encoded home path stops at its own value, whatever follows or holds
   assert.match(r().redact('see file:///Users/alex/report.md'), /^see file:\/\/\[redacted:path\]$/);
 });
 
+test('home paths after JSON escapes, inside escaped quotes, and before contractions', () => {
+  // Right after a \n or \t escape in JSON text.
+  for (const value of ['Path\n----\nC:\\Users\\alex\\proj\n', 'cwd:\tC:\\Users\\alex\\proj']) {
+    assert.doesNotMatch(r().redact(JSON.stringify({ output: value })), /alex/);
+  }
+  // Glued to a preceding letter, as main redacted it.
+  assert.doesNotMatch(r().redact('xC:\\Users\\alex\\proj'), /alex/);
+  // Inside an escaped quote: the path goes, and the JSON still parses.
+  const quoted = r().redact(JSON.stringify({ cmd: 'git -C "C:\\Users\\user\\repo" status' }));
+  assert.doesNotMatch(quoted, /\\user\\/);
+  assert.doesNotThrow(() => JSON.parse(quoted));
+  // A contraction after a bare home folder isn't swallowed.
+  assert.equal(r().redact("C:\\Users\\alex doesn't exist"), "[redacted:path] doesn't exist");
+});
+
+test('path redaction stays fast on long runs of separators', () => {
+  // A pattern with overlapping repeats backtracks exponentially here; 40 backslashes once took minutes.
+  const B = '\\';
+  const inputs = [`C:${B}Users${B}a${B.repeat(100000)}"`, `C:${B}Users${B}a${`${B}x`.repeat(30000)}${B}"`, `C:${B}${B}Userz${B}`.repeat(10000)];
+  for (const input of inputs) {
+    const started = Date.now();
+    r().redact(input);
+    assert.ok(Date.now() - started < 1000, `took ${Date.now() - started} ms on a ${input.length}-character input`);
+  }
+});
+
 test('shape: returns exactly { redact, deepRedact, count }, count starts at 0', () => {
   const red = r();
   assert.deepEqual(Object.keys(red).sort(), ['count', 'deepRedact', 'redact']);
