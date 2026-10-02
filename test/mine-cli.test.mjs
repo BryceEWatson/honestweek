@@ -180,9 +180,8 @@ test('the ledger is written through the configured redactor, not just de-identif
 
   runMine(fx);
   const raw = readFileSync(fx.ledger, 'utf8');
-  // honestweek's redactor matches whole words, by design — a longer identifier that
-  // merely contains the term (`AcmeVMService`) is not a leak of the configured term
-  // and is left alone. What must not survive is the term itself.
+  // The redactor finds the term as a camel-case part too (`AcmeVMService` loses `Acme`),
+  // so the term itself must not survive anywhere in the ledger.
   assert.ok(!/\bAcme\b/.test(raw), 'a configured codename reached the ledger unredacted');
   assert.match(raw, /\[redacted/, 'expected the redactor to have visibly run');
   rmSync(fx.dir, { recursive: true, force: true });
