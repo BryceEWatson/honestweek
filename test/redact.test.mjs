@@ -60,7 +60,14 @@ test('home paths after JSON escapes, inside escaped quotes, and before contracti
 test('path redaction stays fast on long runs of separators', () => {
   // A pattern with overlapping repeats backtracks exponentially here; 40 backslashes once took minutes.
   const B = '\\';
-  const inputs = [`C:${B}Users${B}a${B.repeat(100000)}"`, `C:${B}Users${B}a${`${B}x`.repeat(30000)}${B}"`, `C:${B}${B}Userz${B}`.repeat(10000)];
+  const inputs = [
+    `C:${B}Users${B}a${B.repeat(100000)}"`,
+    `C:${B}Users${B}a${`${B}x`.repeat(30000)}${B}"`,
+    `C:${B}${B}Userz${B}`.repeat(10000),
+    // A long backslash run inside a match that doesn't end it (once quadratic in the give-back step).
+    `C:${B}Users${B}a${B.repeat(100000)}x`,
+    `/home/a/${B.repeat(100000)}x`,
+  ];
   for (const input of inputs) {
     const started = Date.now();
     r().redact(input);
