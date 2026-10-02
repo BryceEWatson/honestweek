@@ -28,6 +28,20 @@ test('Windows user paths inside JSON-encoded text are redacted too', () => {
   assert.doesNotMatch(JSON.stringify(nested), /Alex Jordan/);
 });
 
+test('a JSON-encoded home path stops at its own value, whatever follows or holds it', () => {
+  // The match can't run into the next field: the commit id and the rest survive.
+  const out = r().redact(JSON.stringify({ workdir: 'C:\\Users\\alex', cmd: 'git show abc1234 -- src/x.js' }));
+  assert.doesNotMatch(out, /alex/);
+  assert.match(out, /"cmd":"git show abc1234 -- src\/x\.js"\}$/);
+  // A bare home folder whose username holds a space is taken whole.
+  const spaced = r().redact(JSON.stringify({ workdir: 'C:\\Users\\Alex Jordan' }));
+  assert.doesNotMatch(spaced, /Alex|Jordan/);
+  // Lowercase, as some tools print it.
+  assert.doesNotMatch(r().redact('cd c:\\users\\alex\\code'), /alex/);
+  // A URL scheme before a POSIX home path keeps its letters.
+  assert.match(r().redact('see file:///Users/alex/report.md'), /^see file:\/\/\[redacted:path\]$/);
+});
+
 test('shape: returns exactly { redact, deepRedact, count }, count starts at 0', () => {
   const red = r();
   assert.deepEqual(Object.keys(red).sort(), ['count', 'deepRedact', 'redact']);
