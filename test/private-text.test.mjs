@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url';
 
 import { createRedactor, createSecretsOnlyRedactor } from '../lib/redact.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
+import { parseClaudeSource } from '../lib/replay/claude.mjs';
+import { createWatch } from '../lib/replay/parse-common.mjs';
 import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { buildDemoWeek, SESSION_IDS, WEEK } from '../tools/demo-week.mjs';
 
@@ -78,11 +80,77 @@ test('secrets-only: sensitive fields in their common spellings', () => {
     ['export DB_PASS=xyz FOO=1', 'export DB_PASS=[redacted:secret] FOO=1'],
     ['$env:API_KEY = "abc"', '$env:API_KEY = "[redacted:secret]"'],
     ["password='a b'", "password='[redacted:secret]'"],
-    ['client_secret: s3cr3t,', 'client_secret: [redacted:secret],'],
+    ['client_secret: s3cr3t, then more', 'client_secret: [redacted:secret]'],
     [JSON.stringify(JSON.stringify({ password: 'hunter 2', note: 'ok' })), JSON.stringify(JSON.stringify({ password: '[redacted:secret]', note: 'ok' }))],
-    ['Cookie: sid=abc123', 'Cookie: [redacted:secret]'],
+    [JSON.stringify({ password: 'hun"ter2', note: 'ok' }), JSON.stringify({ password: '[redacted:secret]', note: 'ok' })],
+    ['Cookie: sid=abc123; theme=dark', 'Cookie: [redacted:secret]'],
+    ['{"token":12345,"x":1}', '{"token":[redacted:secret]"x":1}'],
   ];
   for (const [input, expected] of cases) assert.equal(r.redact(input), expected);
+});
+
+test('secrets-only: hides what the independent review found shown, and what the full redactor hides', () => {
+  const H = 'hunter2';
+  const T = 'abcdefgh12345678';
+  const U = '0a1b2c3d-1111-2222-3333-444455556666';
+  const cases = [
+    [`mysql -u root --password=${H} db`, H],
+    [`deploy --token=${T}`, T],
+    [`login --client-secret=${T}`, T],
+    [`docker login --password ${H}`, H],
+    [`tool --api-key ${U}`, U],
+    [`Connect-Thing -Password ${H}`, H],
+    [`password := "${H}"`, H],
+    [`if password == "${H}":`, H],
+    [`const password: string = "${H}";`, H],
+    [`PASSWORD ?= ${H}`, H],
+    [`{"dbPassword": "${H}"}`, H],
+    [`accessToken = "${T}"`, T],
+    [`PGPASSWORD=${H} psql -h localhost`, H],
+    [`MYSQL_PWD=${H} mysql`, H],
+    [`ENCRYPTION_KEY=${T}`, T],
+    [`//registry.npmjs.org/:_authToken=${U}`, U],
+    [`authorization: bearer ${T}`, T],
+    [`AUTHORIZATION: BEARER ${T}`, T],
+    [`Authorization: token ${T}`, T],
+    [`curl -H "X-Foo: bearer ${T}"`, T],
+    [`Cookie: a=1; session=${H}`, H],
+    [`redis://:${H}@localhost:6379/0`, H],
+    [`curl -u admin:${H} https://example.com`, H],
+    [`password: ${H} horse battery staple`, 'horse battery staple'],
+    [`password:\u00a0${H}`, H],
+    [`ConvertTo-SecureString "${H}" -AsPlainText -Force`, H],
+    [`MYSQL_ROOT_PASSWORD=Xk9;mP2,qRz`, 'mP2,qRz'],
+    [`DB_PASSWORD={Xk9mP2qRz}`, 'Xk9mP2qRz'],
+    [`API_TOKEN=ab]cd9xyz`, 'cd9xyz'],
+    [`password: Xk9,mP2qRz`, 'mP2qRz'],
+    [`https://files.example.com/x.zip?X-Amz-Signature=${T}&sig=${H}`, T],
+    [`https://files.example.com/x.zip?sig=${H}`, H],
+    [`curl https://api.example.com/hooks/${SECRETS.hex64}`, SECRETS.hex64],
+    ['see .../k/abcd1234efgh5678ijkl9012mnop3456qrst', 'abcd1234efgh5678ijkl9012mnop3456qrst'],
+  ];
+  const so = createSecretsOnlyRedactor();
+  for (const [input, secret] of cases) assert.ok(!so.redact(input).includes(secret), `${input} -> ${so.redact(input)}`);
+  // Every secret form the full redactor hides stays hidden here too.
+  const full = createRedactor({});
+  for (const input of [`mysql --password=${H}`, `deploy --token=${T}`, `MYSQL_ROOT_PASSWORD=Xk9;mP2,qRz`, `x ${SECRETS.opaque} ${SECRETS.jwt}`]) {
+    const hiddenByFull = input.split(/\s+/).filter((w) => w && !full.redact(w).includes(w));
+    for (const w of hiddenByFull) assert.ok(!so.redact(input).includes(w), `${w} is hidden by the full redactor but shown here`);
+  }
+});
+
+test('secrets-only: a record read back as JSON hides values whose own key is sensitive', () => {
+  const r = createSecretsOnlyRedactor();
+  const out = r.deepRedact({ headers: { 'x-api-key': 'shortkey99', Accept: 'json' }, password: 'hunter2', dbPassword: 'hunter3', note: 'ok', count: 3, auth: true, list: [{ token: 'abc123' }] });
+  assert.deepEqual(out, { headers: { 'x-api-key': '[redacted:secret]', Accept: 'json' }, password: '[redacted:secret]', dbPassword: '[redacted:secret]', note: 'ok', count: 3, auth: true, list: [{ token: '[redacted:secret]' }] });
+});
+
+test('secrets-only: long runs made of words show, random tokens of the same length stay hidden', () => {
+  const r = createSecretsOnlyRedactor();
+  for (const s of ['C--Users-alex-Projects-your-project--claude-worktrees-quiet-river-20c28a', 'https://github.com/AlexJordan/your-project/pull/73', 'C:/Users/alex/AppData/Local/Temp/claude/C--Users-alex-Projects', '.claude/handoffs/20261002T212500Z_find-and-check-continue.md']) {
+    assert.equal(r.redact(s), s);
+  }
+  for (const s of [SECRETS.awsStyle, SECRETS.opaque, 'Ab3dEf9hIj-Kl2nOp5rSt_Uv8xYz1bCd4fGh7jKl', `dop_v1_${SECRETS.hex64}`]) assert.ok(!r.redact(s).includes(s), s);
 });
 
 test('secrets-only: ordinary keys and words are left alone', () => {
@@ -104,7 +172,8 @@ test('secrets-only: idempotent, keeps placeholders, counts, and has the redactor
 
 test('secrets-only: stays fast on long adversarial inputs', () => {
   const r = createSecretsOnlyRedactor();
-  const inputs = ['a:'.repeat(50000), 'password:"'.repeat(20000), `${'x-'.repeat(50000)}token`, `http://${'a'.repeat(100000)}`, 'a-token-'.repeat(20000), `https://a:${'b'.repeat(100000)}`, 'token: '.repeat(20000), `${'ab/'.repeat(40000)}1`];
+  const B = '\\';
+  const inputs = ['a:'.repeat(50000), 'password:"'.repeat(20000), `${'x-'.repeat(50000)}token`, `http://${'a'.repeat(100000)}`, 'a-token-'.repeat(20000), `https://a:${'b'.repeat(100000)}`, 'token: '.repeat(20000), `${'ab/'.repeat(40000)}1`, `token:"${B.repeat(100000)}`, `token:"${`${B}${B}"`.repeat(30000)}`, `token ${B}`.repeat(15000), `token:"${B}`.repeat(15000), '--password '.repeat(10000), `-u a:${'b'.repeat(100000)}`, '0a1b2c3d-'.repeat(11000)];
   for (const input of inputs) {
     const started = Date.now();
     r.redact(input);
@@ -222,6 +291,37 @@ test('engine: privateText leaves every link, lookup, goal and git read as it was
   const chip = shown.events.find((e) => e.session === key.display && e.facts.category === 'handoff');
   assert.equal(chip.facts.title, 'Site follow-up');
   assert.equal(shown.sessions.find((s) => s.key === key.started).startedFrom, null);
+});
+
+test('parser: a private session adds no links, commits, branches, hand-offs or goal-id hits, with or without private text', async () => {
+  // Later filters would hide these anyway; the parser's own guard is checked here directly.
+  const file = join(scratch[0], 'guard.jsonl');
+  const at = (s) => `2025-03-12T11:00:${String(s).padStart(2, '0')}.000Z`;
+  const rec = (type, extra, t, n) => JSON.stringify({ parentUuid: null, isSidechain: false, userType: 'external', cwd: '/path/to/your/repo', sessionId: 'guard', type, uuid: `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`, timestamp: at(t), ...extra });
+  const say = (content, t, n) => rec('assistant', { message: { id: `msg_${n}`, type: 'message', role: 'assistant', model: 'model-a', content } }, t, n);
+  const result = (id, tur, t, n) => rec('user', { message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content: '' }] }, toolUseResult: tur }, t, n);
+  writeFileSync(file, `${[
+    rec('user', { message: { role: 'user', content: 'Carry on with g-widget.' }, origin: { kind: 'human' } }, 0, 1),
+    JSON.stringify({ type: 'pr-link', prNumber: 7, prRepository: 'example/your-project', timestamp: at(1), sessionId: 'guard' }),
+    JSON.stringify({ type: 'worktree-state', worktreeSession: { worktreeBranch: 'feature/x', originalBranch: 'main' }, timestamp: at(2), sessionId: 'guard' }),
+    say([{ type: 'tool_use', id: 'tu_commit', name: 'Bash', input: { command: 'git commit -m x && git push && gh pr create' } }], 3, 2),
+    result('tu_commit', { stdout: '', stderr: '', interrupted: false, gitOperation: { commit: { sha: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2', kind: 'committed' }, push: { branch: 'feature/x' }, pr: { number: 8, url: 'https://github.com/example/your-project/pull/8', action: 'created' }, branch: { ref: 'feature/y', action: 'created' } } }, 4, 3),
+    say([{ type: 'tool_use', id: 'tu_out', name: 'Bash', input: { command: 'git commit -m y' } }], 5, 4),
+    result('tu_out', { stdout: '[main 1a2b3c4] y\n 1 file changed', stderr: '', interrupted: false }, 6, 5),
+    say([{ type: 'tool_use', id: 'tu_chip', name: 'mcp__ccd_session__spawn_task', input: { title: 'Next', prompt: 'Pick up g-widget.' } }], 7, 6),
+    result('tu_chip', { ok: true }, 8, 7),
+  ].join('\n')}\n`);
+  const source = { key: 'cc-guard', sessionKey: 'cc-guard', file, role: 'session', tool: 'claude-code' };
+  const parse = (isPrivate, privateText) => parseClaudeSource(source, { redact: (s) => s, isPrivate, privateText, cwd: '/path/to/your/repo', agentKey: 'cc-guard:main', sidechainAgentKey: 'cc-guard:sidechain', watch: isPrivate ? null : createWatch({ goalIds: ['g-widget'] }) });
+  const kinds = ['prs', 'commits', 'branches', 'chips', 'watched'];
+  const open = (await parse(false, false)).joins;
+  for (const k of kinds) assert.ok(open[k].length > 0, `the readable parse finds ${k}`);
+  for (const privateText of [false, true]) {
+    const { joins, events } = await parse(true, privateText);
+    for (const k of kinds) assert.deepEqual(joins[k], [], `private (privateText ${privateText}) adds no ${k}`);
+    const prompt = events.find((e) => e.kind === 'prompt');
+    assert.equal(prompt.facts.text ?? null, privateText ? 'Carry on with g-widget.' : null);
+  }
 });
 
 test('engine: a privateText history refuses to serialize whole', () => {
