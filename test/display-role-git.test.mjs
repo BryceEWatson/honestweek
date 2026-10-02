@@ -59,3 +59,49 @@ test('discover never asks git about a display-only folder, even when its draft i
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// The wiring: runInit and runDiscover decide from the real config that the folder they
+// run in is display-only, and pass that to the guards above.
+import { runInit } from '../lib/init.mjs';
+import { runDiscover } from '../lib/discover.mjs';
+
+function folderWithConfig(role) {
+  const dir = tempRepo();
+  writeFileSync(join(dir, 'honestweek.config.json'), JSON.stringify({
+    identity: { authorEmails: ['you@example.com'] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: '.', label: 'here', role }],
+    redaction: { codenames: [], names: [], terms: [] },
+    output: { mode: 'digest', file: 'out.md' },
+  }));
+  return dir;
+}
+
+test('runInit treats the folder it runs in as display-only when the config says so', async () => {
+  for (const [role, expected] of [['display', true], ['featured', false]]) {
+    const dir = folderWithConfig(role);
+    try {
+      const seen = [];
+      await runInit({ cwd: dir, argv: ['--yes'], io: silentIo(), inferEmail: (cwd, opts) => (seen.push(opts?.isDisplay === true), 'you@example.com') });
+      assert.deepEqual(seen, [expected], `role ${role}`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test('runDiscover skips the tracked-draft git check only when the folder is display-only', async () => {
+  for (const [role, flagged] of [['display', false], ['featured', true]]) {
+    const dir = folderWithConfig(role);
+    try {
+      writeFileSync(join(dir, 'honestweek.draft.json'), '{}\n');
+      git(dir, ['add', 'honestweek.draft.json']);
+      const io = silentIo();
+      io.exit = (c) => c;
+      await runDiscover({ cwd: dir, now: new Date('2024-06-19T12:00:00Z'), io, adapter: async () => [], gitWindow: () => [] });
+      assert.equal(io.errors.some((s) => s.includes('is tracked in git')), flagged, `role ${role}`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
