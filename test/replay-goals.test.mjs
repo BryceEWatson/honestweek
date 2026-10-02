@@ -30,6 +30,7 @@ before(async () => {
   h = await build({ goals: fx.goalRecord });
   k = Object.fromEntries(Object.entries(fx.ids).map(([n, id]) => [n, n === 'P' || n === 'K' || n === 'R' ? sourceKey('cx', id) : claudeSessionKey(fx.dirs[n], id)]));
 });
+const allEntries = (g) => g.members.flatMap((m) => m.joins).filter((j) => j.type === 'wrote-entry' || j.type === 'created-goal').map((j) => j.detail.entry);
 after(() => {
   try {
     rmSync(fx.root, { recursive: true, force: true });
@@ -82,6 +83,19 @@ test('a later search of the record, and a call with no recorded result, write no
   // The grep carried ev-0001 and ev-0002 too, yet each still joins exactly once.
   const w = joinsOf(g, k.W);
   assert.equal(w.filter((j) => j.type === 'created-goal').reduce((n, j) => n + j.count, 0), 1);
+});
+
+test('a call whose result came before the record accepted the entry wrote nothing (the window has an end)', () => {
+  const g = goalOf('g-widget');
+  assert.ok(!allEntries(g).includes('ev-0008'), 'carried by a dry run whose result was recorded before the entry was accepted');
+  assert.equal(memberOf(g, k.U), undefined);
+  assert.match(g.unmatched.find((u) => u.ref === 'ev-0008').why, /1 call\(s\) carried this id, but none/);
+});
+
+test('a refused call never writes an entry, even when the record accepted it during the call', () => {
+  const g = goalOf('g-widget');
+  assert.ok(!allEntries(g).includes('ev-0009'));
+  assert.match(g.unmatched.find((u) => u.ref === 'ev-0009').why, /1 call\(s\) carried this id, but none/);
 });
 
 test('one entry id carried inside its window by calls in two sessions is ambiguous, never picked', () => {
@@ -167,12 +181,17 @@ test('private and display-role sessions holding every id never join and are neve
   }
 });
 
-test('members are ordered by first record, each with its strongest join first', () => {
+test('members are ordered by first record; an ambiguous join ranks below an inferred one', () => {
   const g = goalOf('g-widget');
   const order = g.members.map((m) => m.session);
   assert.deepEqual(order, [k.A, k.P, k.W, k.Z, k.Y, k.R]);
   for (const m of g.members) assert.equal(m.evidence, m.joins[0].evidence);
-  assert.equal(memberOf(g, k.Z).evidence, 'derived');
+  // Z's derived write is ambiguous (W carried the same entry), so its plain inferred
+  // prompt is its strongest join, and the member isn't marked ambiguous.
+  const z = memberOf(g, k.Z);
+  assert.equal(z.evidence, 'inferred');
+  assert.equal(z.ambiguous, undefined);
+  assert.deepEqual(z.joins.map((j) => [j.type, Boolean(j.ambiguous)]), [['prompt-names-goal', false], ['wrote-entry', true]]);
   assert.equal(goalOf('g-docs').members.length, 0);
   assert.match(goalOf('g-docs').unmatched[0].why, /no tool call/);
 });
@@ -200,7 +219,7 @@ test('additive: without a goal record the history is unchanged, with no goals ke
   // rules table it extends is identical.
   const { goals, rules, ...rest } = h.toJSON();
   const { rules: plainRules, ...plainRest } = without.toJSON();
-  assert.ok(goals.length === 2);
+  assert.ok(goals.length === 3);
   assert.equal(JSON.stringify(rest), JSON.stringify(plainRest));
   assert.deepEqual(Object.keys(rules).filter((id) => !(id in plainRules)), NEW_RULES);
 });
@@ -244,6 +263,17 @@ test('the watch list matches whole ids only, in strings rather than JSON text', 
   assert.equal(createWatch({}), null, 'no watch list, no scan');
 });
 
+test('a dot followed by a letter or digit is part of an id', () => {
+  const watch = createWatch({ entryIds: ['g.1', 'ev-3'], goalIds: ['g-widget'] });
+  assert.deepEqual(watch.inCall({ c: 'see g.1.2' }), [], 'g.1 is not inside g.1.2');
+  assert.deepEqual(watch.inCall({ c: 'see x.g.1' }), []);
+  assert.deepEqual(watch.inCall({ c: 'see g.1.' }), ['g.1'], 'a dot ending a sentence is not part of it');
+  assert.deepEqual(watch.inCall({ c: 'ev-3.4 and ev-3.x' }), []);
+  assert.deepEqual(watch.inCall({ c: 'wrote ev-3.' }), ['ev-3']);
+  assert.deepEqual(watch.inPrompt('leave g-widget.2 alone'), []);
+  assert.deepEqual(watch.inPrompt('carry on with g-widget.'), ['g-widget']);
+});
+
 test('goal citations: links, repo#N, session and commit markers, bare commit ids; words are kept apart', () => {
   const sha = 'abcdef0123456789abcdef0123456789abcdef01';
   const cites = goalCitations({
@@ -251,11 +281,13 @@ test('goal citations: links, repo#N, session and commit markers, bare commit ids
     observations: ['see your-project#64 again', 'and owner/other#3', { note: `in session:aaaaaaaa-1111-4111-8111-000000000001.` }, 'a session: in prose is not a marker', 'session:yesterday afternoon'],
     results: [`commit:${sha.slice(0, 9)}`, sha, 'commit:the big one', 'issue#5x', '#12 alone'],
   });
-  assert.deepEqual(cites.map((c) => c.kind), ['pr', 'pr', 'session', 'session-words', 'commit', 'commit', 'commit-words']);
+  assert.deepEqual(cites.map((c) => c.kind), ['pr', 'pr', 'pr', 'session', 'session-words', 'commit', 'commit', 'commit-words']);
   assert.equal(cites[0].where, 'source');
-  assert.equal(cites[1].repo, 'other');
-  assert.equal(cites[2].where, 'observations[2].note');
-  assert.equal(cites[2].id, 'aaaaaaaa-1111-4111-8111-000000000001');
+  assert.deepEqual([cites[0].owner, cites[0].repo], ['example', 'your-project']);
+  assert.deepEqual([cites[1].owner, cites[1].repo], [null, 'your-project'], 'a name with no owner names none');
+  assert.deepEqual([cites[2].owner, cites[2].repo], ['owner', 'other']);
+  assert.equal(cites[3].where, 'observations[2].note');
+  assert.equal(cites[3].id, 'aaaaaaaa-1111-4111-8111-000000000001');
 });
 
 test('pr.gh-command reads a pull request only where a command acts on it', () => {
@@ -270,10 +302,26 @@ test('pr.gh-command reads a pull request only where a command acts on it', () =>
   assert.deepEqual(refs('git commit -m "follow-up to https://github.com/o/r/pull/5"'), [], 'quoted free text is not read');
 });
 
+test('pr.gh-command honors GH_REPO and --repo, and reads a link only as a gh argument', () => {
+  const refs = (c) => prRefsInCommand(c).map((r) => `${r.repo ?? '-'}#${r.number}${r.repoKnown ? '' : '?'}`);
+  assert.deepEqual(refs('GH_REPO=o/r gh pr view 7'), ['o/r#7']);
+  assert.deepEqual(refs('GH_REPO="o/r" gh pr view 7'), ['o/r#7'], 'a quoted repository is still that repository');
+  assert.deepEqual(refs('export GH_REPO=o/r && gh pr view 7'), ['o/r#7']);
+  assert.deepEqual(refs('env GH_REPO=o/r gh pr checks 7'), ['o/r#7']);
+  assert.deepEqual(refs('GH_REPO=a/b gh pr view 7 --repo c/d'), ['c/d#7'], '--repo wins over GH_REPO');
+  assert.deepEqual(refs('gh pr view 7 -R "o/r"'), ['o/r#7']);
+  assert.deepEqual(refs('GH_REPO= gh pr view 7'), ['-#7?'], 'a blank repository names none');
+  assert.deepEqual(refs('echo see https://github.com/o/r/pull/5'), [], 'a link after echo acts on nothing');
+  assert.deepEqual(refs('open https://github.com/o/r/pull/5 && gh pr list'), []);
+  assert.deepEqual(refs('gh pr view https://github.com/o/r/pull/5/files'), ['o/r#5']);
+  assert.deepEqual(refs('gh pr comment 9 --body https://github.com/o/r/pull/5'), ['-#9'], "a link as an option's value isn't the pull request acted on");
+});
+
 test('parseLookup reads what a person types', () => {
-  assert.deepEqual(parseLookup('#64'), { kind: 'pr', repo: null, number: 64 });
-  assert.deepEqual(parseLookup('your-project#64'), { kind: 'pr', repo: 'your-project', number: 64 });
-  assert.deepEqual(parseLookup('https://github.com/example/Your-Project/pull/64/files'), { kind: 'pr', repo: 'your-project', number: 64 });
+  assert.deepEqual(parseLookup('#64'), { kind: 'pr', owner: null, repo: null, number: 64 });
+  assert.deepEqual(parseLookup('your-project#64'), { kind: 'pr', owner: null, repo: 'your-project', number: 64 });
+  assert.deepEqual(parseLookup('Example/your-project#64'), { kind: 'pr', owner: 'example', repo: 'your-project', number: 64 });
+  assert.deepEqual(parseLookup('https://github.com/example/Your-Project/pull/64/files'), { kind: 'pr', owner: 'example', repo: 'your-project', number: 64 });
   assert.deepEqual(parseLookup('ABCDEF1'), { kind: 'commit', sha: 'abcdef1' });
   assert.deepEqual(parseLookup('lib/replay/index.mjs'), { kind: 'file', path: 'lib/replay/index.mjs' });
   assert.deepEqual(parseLookup('C:\\work\\repo\\a.mjs'), { kind: 'file', path: 'C:\\work\\repo\\a.mjs' });
@@ -299,6 +347,57 @@ test('lookup of a pull request: link and git facts are recorded, its landing and
   assert.deepEqual(sessionsOf(h.lookup('your-project#7')), [k.A, k.Y]);
   assert.deepEqual(sessionsOf(h.lookup('https://github.com/example/your-project/pull/7')), [k.A, k.Y]);
   assert.deepEqual(sessionsOf(h.lookup('another-repo#7')), []);
+});
+
+test("a pull request's owner is compared when both sides name one", () => {
+  // The goal cites a-different-owner/your-project#7 and another-repo#7: neither is the
+  // pull request A linked (example/your-project#7) or Y acted on.
+  const g = goalOf('g-owners');
+  const members = g.members.map((m) => m.session);
+  assert.ok(!members.includes(k.A) && !members.includes(k.Y), 'another owner, or another repository, is another pull request');
+  const unmatched = g.unmatched.filter((u) => u.kind === 'pr').map((u) => u.ref).sort();
+  assert.deepEqual(unmatched, ['a-different-owner/your-project#7', 'another-repo#7']);
+  assert.deepEqual(sessionsOf(h.lookup('a-different-owner/your-project#7')), []);
+  assert.deepEqual(sessionsOf(h.lookup('example/your-project#7')), [k.A, k.Y]);
+});
+
+test('a name with no owner whose matches disagree on the owner is ambiguous, in goals and in lookup', () => {
+  const g = goalOf('g-owners');
+  assert.deepEqual(g.members.map((m) => m.session), [k.T1, k.T2]);
+  for (const m of g.members) {
+    assert.equal(m.ambiguous, true, 'its strongest join is ambiguous');
+    assert.equal(m.evidence, 'recorded');
+    assert.deepEqual(m.joins.map((j) => [j.type, j.ambiguous]), [['cited-pr', { owners: 2 }]]);
+  }
+  const r = h.lookup('your-project#11');
+  assert.deepEqual(sessionsOf(r), [k.T1, k.T2]);
+  assert.ok(r.sessions.every((s) => s.ambiguous && s.refs.every((x) => x.ambiguous?.owners === 2)));
+  assert.match(r.notes.find((n) => n.kind === 'owners-disagree').text, /2 different owners/);
+  const exact = h.lookup('example/your-project#11');
+  assert.deepEqual(sessionsOf(exact), [k.T1]);
+  assert.equal(exact.sessions[0].ambiguous, undefined);
+  assert.ok(!exact.notes.some((n) => n.kind === 'owners-disagree'));
+});
+
+test('commands that never ran, ran after a cd, or only echo a link never point at a pull request', () => {
+  const r = h.lookup('your-project#7');
+  assert.ok(!sessionsOf(r).includes(k.U), 'a rejected gh pr view 7, gh pr view 7 after a cd, and echo of the link');
+  assert.deepEqual(sessionsOf(r), [k.A, k.Y]);
+});
+
+test("a Codex call's working folder outside the repository names no repository; inside it, it does", () => {
+  assert.ok(!sessionsOf(h.lookup('your-project#7')).includes(k.R), 'gh pr view 7 ran in a folder outside the repository');
+  assert.deepEqual(sessionsOf(h.lookup('your-project#32')), [k.R], "gh pr checks 32 ran in the repository's own folder");
+});
+
+test('GH_REPO names the repository a gh command acts on', () => {
+  assert.deepEqual(sessionsOf(h.lookup('other-tool#31')), [k.U]);
+  assert.deepEqual(sessionsOf(h.lookup('your-project#31')), [], "GH_REPO named another repository, not the session's");
+});
+
+test('commit lookup counts a commit id read from printed output only once git confirmed it', () => {
+  const r = h.lookup('dead0be');
+  assert.deepEqual(r.sessions, [], "the commit command printed it, but git can't find it");
 });
 
 test('lookup of a commit: harness records, git outcomes, a 12-character prefix, and a squash subject', () => {
@@ -327,18 +426,37 @@ test('lookup never reads a display-role repository, even for a commit whose subj
   assert.deepEqual(sessionsOf(h.lookup('#9')), []);
 });
 
-test('lookup of a file resolves one repo-relative path across every worktree it was edited from', () => {
+test('lookup of a relative file path searches each repository and lists the results per repository', () => {
   const r = h.lookup('lib/widget.mjs');
   assert.equal(r.kind, 'file');
-  assert.deepEqual(sessionsOf(r).sort(), [k.A, k.V].sort());
-  const a = r.sessions.find((s) => s.session === k.A);
+  const groups = Object.fromEntries(r.repositories.map((g) => [g.repo, g]));
+  assert.deepEqual(Object.keys(groups).sort(), ['your-project', 'your-project-fork']);
+  assert.deepEqual(groups['your-project'].sessions.map((s) => s.session).sort(), [k.A, k.V].sort(), 'the main checkout and its worktree');
+  assert.deepEqual(groups['your-project-fork'].sessions.map((s) => s.session), [k.T2], 'the same path in another repository is its own group');
+  assert.ok(groups['your-project'].roots >= 2);
+  assert.deepEqual(r.sessions.map((s) => `${s.repo}:${s.session}`).sort(), [`your-project:${k.A}`, `your-project:${k.V}`, `your-project-fork:${k.T2}`].sort(), 'each row names its repository');
+  const a = groups['your-project'].sessions.find((s) => s.session === k.A);
   assert.deepEqual(a.refs.map((x) => x.via).sort(), ['edit', 'read'], 'the edit, and the reviewer sub-agent reading it');
   assert.ok(r.sessions.every((s) => s.evidence === 'recorded'));
-  const tried = r.notes.find((n) => n.kind === 'roots-tried');
-  assert.ok(tried.count >= 2, 'the main checkout and the worktree');
   assert.ok(!JSON.stringify(r).includes(fx.root.replace(/\\/g, '/')) && !JSON.stringify(r).includes(fx.root), 'no folder path in the output');
+});
+
+test("an absolute file path resolves to the one repository holding it, and a session's subfolder is never a root", () => {
   const abs = h.lookup(join(fx.worktreeDir, 'lib', 'widget.mjs'));
-  assert.deepEqual(sessionsOf(abs).sort(), [k.A, k.V].sort(), 'an absolute path in one worktree finds the other too');
+  assert.deepEqual(abs.repositories.map((g) => g.repo), ['your-project']);
+  assert.deepEqual(sessionsOf(abs).sort(), [k.A, k.V].sort(), 'an absolute path in one worktree finds the other too, and nothing in the other repository');
+  const fork = h.lookup(join(fx.forkDir, 'lib', 'widget.mjs'));
+  assert.deepEqual(fork.repositories.map((g) => g.repo), ['your-project-fork']);
+  assert.deepEqual(sessionsOf(fork), [k.T2]);
+  // T1 worked from the repository's lib/ folder; that folder is not a root, so a bare
+  // file name doesn't reach lib/widget.mjs.
+  assert.deepEqual(h.lookup('widget.mjs').sessions, []);
+  const outside = h.lookup(join(fx.root, 'nowhere', 'widget.mjs'));
+  assert.deepEqual(outside.sessions, []);
+  assert.ok(outside.notes.some((n) => n.kind === 'outside-every-repository'));
+});
+
+test('lookup of a file: an external edit, and a path no session touched', () => {
   assert.deepEqual(sessionsOf(h.lookup('docs/notes.md')), [k.A]);
   assert.equal(h.lookup('docs/notes.md').sessions[0].refs[0].via, 'external-edit');
   const none = h.lookup('lib/never.mjs');
@@ -366,7 +484,7 @@ const corpusArgs = () => ['--config', fx.configFile, '--from', '2024-06-10', '--
 test('the tool prints goals, one goal, and lookups, in text and JSON, without leaking', async () => {
   const goals = await tool(...corpusArgs(), '--goals', fx.goalsFile, 'goals', '--json');
   assert.equal(goals.code, 0);
-  assert.deepEqual(JSON.parse(goals.out).map((g) => g.id), ['g-widget', 'g-docs']);
+  assert.deepEqual(JSON.parse(goals.out).map((g) => g.id), ['g-widget', 'g-docs', 'g-owners']);
   const one = JSON.parse((await tool(...corpusArgs(), '--goals', fx.goalsFile, 'goal', 'g-widget', '--json')).out);
   assert.ok(one.members.length >= 5 && one.unmatched.length >= 3);
   const look = JSON.parse((await tool(...corpusArgs(), '--goals', fx.goalsFile, 'lookup', 'your-project#7', '--json')).out);
@@ -414,7 +532,7 @@ test('the tool says what to do next when something is missing or wrong', async (
 test('--demo runs the goal and lookup commands on made-up logs with no config', async () => {
   const goals = await tool('--demo', 'goals', '--json');
   assert.equal(goals.code, 0);
-  assert.deepEqual(JSON.parse(goals.out).map((g) => g.id), ['g-widget', 'g-docs']);
+  assert.deepEqual(JSON.parse(goals.out).map((g) => g.id), ['g-widget', 'g-docs', 'g-owners']);
   const look = await tool('--demo', 'lookup', '#7');
   assert.equal(look.code, 0);
   assert.match(look.out, /2 readable session\(s\)/);

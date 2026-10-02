@@ -14,7 +14,7 @@ tool faster, prettier, or more featureful at the cost of that guarantee is a reg
 tradeoff.
 
 It's also growing into a local tool for anyone using Claude Code or Codex to find the sessions and
-goals behind any pull request, commit, file, or prompt, replay them, and check how every step and
+goals behind any pull request, commit, file, or branch, replay them, and check how every step and
 link is known. That work lives in the work-history engine (`lib/replay/`, described in
 `docs/work-history-engine.md`) and is held to the same guarantee and the constraints below.
 

@@ -282,12 +282,14 @@ ${repo.featureSha.slice(0, 7)} Add a widget parser` }] }),
       output: { mode: 'digest', file: 'honestweek.digest.md' },
   };
   const extra = goals ? addGoalSessions({ root, repo, displayDir, elsewhere, claudeRoot, codexRoot, ids: { A } }) : null;
+  if (extra) rawConfig.repos.push(...extra.repos);
   const config = normalizeConfig(rawConfig, { configDir: root });
   const configFile = join(root, 'honestweek.config.json');
   writeFileSync(configFile, JSON.stringify(rawConfig, null, 2));
   const base = { root, claudeRoot, codexRoot, repo, config, configFile, displaySha, ids: { A, B, C, D, E, F, G, H, P, K }, dirs: { A: 'proj-a', B: 'proj-a', C: 'proj-c', D: 'proj-d', E: 'proj-a', F: 'proj-a', G: 'proj-a', H: 'proj-a' } };
   if (!extra) return base;
-  return { ...base, ...extra, ids: { ...base.ids, ...extra.goalIds }, dirs: { ...base.dirs, ...extra.goalDirs } };
+  const { repos: _repos, ...rest } = extra;
+  return { ...base, ...rest, ids: { ...base.ids, ...extra.goalIds }, dirs: { ...base.dirs, ...extra.goalDirs } };
 }
 
 /**
@@ -304,7 +306,17 @@ ${repo.featureSha.slice(0, 7)} Add a widget parser` }] }),
  *      its worktree branch, and pushes it.
  *   Q  a display-role session holding every id, a pull-request link, and a commit.
  *   O  a session outside every configured repository holding every id.
- *   R  a Codex thread that names the goal id and writes ev-0005 through exec_command.
+ *   R  a Codex thread that names the goal id and writes ev-0005 through exec_command;
+ *      runs gh pr view 7 in a folder outside the repository (no repository, so nothing)
+ *      and gh pr checks 32 in the repository's own folder.
+ *   T1 started in a subfolder of the repository (lib/), links example/your-project#11.
+ *   T2 in a second configured repository with the same name under another owner
+ *      (fork-owner/your-project): links its own #11 and edits its own lib/widget.mjs.
+ *   U  every way a command must not count: a rejected gh pr view 7, gh pr view 7 after
+ *      a cd, a pull-request link after echo, a commit id printed for a commit git can't
+ *      find, ev-0009 carried by a refused call while the record accepted it, ev-0008
+ *      carried by a call whose result came before the record accepted it, and
+ *      GH_REPO=someone-else/other-tool gh pr view 31.
  */
 function addGoalSessions({ root, repo, displayDir, elsewhere, claudeRoot, codexRoot, ids }) {
   // A second working tree of the featured repository, on its own branch.
@@ -321,7 +333,22 @@ function addGoalSessions({ root, repo, displayDir, elsewhere, claudeRoot, codexR
   const Q = '0f0f0f0f-6666-4666-8666-00000000000f';
   const O = '1a1a1a1a-7777-4777-8777-0000000000a1';
   const R = '01900000-0000-7000-8000-00000000000c';
+  const T1 = '2b2b2b2b-1111-4111-8111-0000000000b1';
+  const T2 = '2c2c2c2c-2222-4222-8222-0000000000b2';
+  const U = '2d2d2d2d-3333-4333-8333-0000000000b3';
   const ok = (stdout = '') => ({ tur: { stdout, stderr: '', interrupted: false } });
+
+  // A second configured repository: the same name under another owner.
+  const forkDir = join(root, 'your-project-fork');
+  mkdirSync(forkDir, { recursive: true });
+  git(forkDir, ['init', '-q']);
+  git(forkDir, ['symbolic-ref', 'HEAD', 'refs/heads/main']);
+  git(forkDir, ['config', 'user.email', ME]);
+  git(forkDir, ['config', 'user.name', 'Dev']);
+  git(forkDir, ['config', 'commit.gpgsign', 'false']);
+  git(forkDir, ['remote', 'add', 'origin', 'https://github.com/fork-owner/your-project.git']);
+  commit(forkDir, 'README.md', 'Initial commit', at(-500));
+  mkdirSync(join(repo.dir, 'lib'), { recursive: true });
 
   const w = claudeRecords(W, repo.dir);
   w.prompt(at(400), 'Record the widget progress in the goal record.');
@@ -340,7 +367,7 @@ function addGoalSessions({ root, repo, displayDir, elsewhere, claudeRoot, codexR
   write(join(claudeRoot, 'proj-g', `${W}.jsonl`), w.lines);
 
   const x = claudeRecords(X, repo.dir);
-  x.prompt(at(420), `Is pull request 7 ready? See your-project#7, https://github.com/example/your-project/pull/7 and commit ${repo.featureSha}. Leave g-widget-v2 alone.`);
+  x.prompt(at(420), `Is pull request 7 ready? See your-project#7, https://github.com/example/your-project/pull/7 and commit ${repo.featureSha}. Leave g-widget-v2 and g-widget.2 alone.`);
   x.say(at(420, 500), [{ type: 'text', text: 'Pull request #7 looks ready.' }]);
   write(join(claudeRoot, 'proj-g', `${X}.jsonl`), x.lines);
 
@@ -390,8 +417,43 @@ function addGoalSessions({ root, repo, displayDir, elsewhere, claudeRoot, codexR
     cx(at(430, 100), 'response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Work on g-widget next.' }] }),
     cx(at(431), 'response_item', { type: 'function_call', name: 'exec_command', arguments: JSON.stringify({ cmd: 'node tools/goals.mjs decide --event ev-0005' }), call_id: 'call-r1' }),
     cx(at(432), 'response_item', { type: 'function_call_output', call_id: 'call-r1', output: 'Exit code: 0\nrecorded' }),
+    cx(at(432, 100), 'response_item', { type: 'function_call', name: 'exec_command', arguments: JSON.stringify({ cmd: 'gh pr view 7', workdir: elsewhere }), call_id: 'call-r2' }),
+    cx(at(432, 200), 'response_item', { type: 'function_call_output', call_id: 'call-r2', output: 'Exit code: 0\nopen' }),
+    cx(at(432, 300), 'response_item', { type: 'function_call', name: 'exec_command', arguments: JSON.stringify({ cmd: 'gh pr checks 32', workdir: repo.dir }), call_id: 'call-r3' }),
+    cx(at(432, 400), 'response_item', { type: 'function_call_output', call_id: 'call-r3', output: 'Exit code: 0\npassing' }),
     cx(at(432, 500), 'event_msg', { type: 'task_complete', turn_id: 't1', duration_ms: 2500 }),
   ]);
+
+  const t1 = claudeRecords(T1, join(repo.dir, 'lib'));
+  t1.prompt(at(470), 'Look at the follow-up pull request.');
+  t1.push({ type: 'pr-link', sessionId: T1, prNumber: 11, prUrl: 'https://github.com/example/your-project/pull/11', prRepository: 'example/your-project', timestamp: at(470, 10) });
+  t1.say(at(470, 500), [{ type: 'text', text: 'Linked.' }]);
+  write(join(claudeRoot, 'proj-t', `${T1}.jsonl`), t1.lines);
+
+  const t2 = claudeRecords(T2, forkDir);
+  t2.prompt(at(475), 'Port the widget to the fork.');
+  t2.push({ type: 'pr-link', sessionId: T2, prNumber: 11, prUrl: 'https://github.com/fork-owner/your-project/pull/11', prRepository: 'fork-owner/your-project', timestamp: at(475, 10) });
+  t2.say(at(476), [{ type: 'tool_use', id: 'tu-t2', name: 'Edit', input: { file_path: join(forkDir, 'lib', 'widget.mjs'), old_string: 'a', new_string: 'b' } }]);
+  t2.result(at(476, 500), 'tu-t2', 'ok', { tur: { structuredPatch: [] } });
+  write(join(claudeRoot, 'proj-t', `${T2}.jsonl`), t2.lines);
+
+  const u = claudeRecords(U, repo.dir);
+  u.prompt(at(480), 'Tidy up.');
+  u.say(at(480, 100), [{ type: 'tool_use', id: 'tu-u1', name: 'Bash', input: { command: 'gh pr view 7' } }]);
+  u.result(at(480, 200), 'tu-u1', "The user doesn't want to proceed with this tool use. The tool use was rejected.", { isError: true, denial: 'user-rejected' });
+  u.say(at(480, 300), [{ type: 'tool_use', id: 'tu-u2', name: 'Bash', input: { command: `cd ${elsewhere} && gh pr view 7` } }]);
+  u.result(at(480, 400), 'tu-u2', 'open', ok('open'));
+  u.say(at(480, 500), [{ type: 'tool_use', id: 'tu-u3', name: 'Bash', input: { command: 'echo see https://github.com/example/your-project/pull/7' } }]);
+  u.result(at(480, 600), 'tu-u3', 'see', ok('see'));
+  u.say(at(480, 700), [{ type: 'tool_use', id: 'tu-u4', name: 'Bash', input: { command: 'git commit -m "wip"' } }]);
+  u.result(at(480, 800), 'tu-u4', '[main dead0be] wip', ok('[main dead0be] wip\n 1 file changed'));
+  u.say(at(481), [{ type: 'tool_use', id: 'tu-u5', name: 'Bash', input: { command: 'node tools/goals.mjs observe --event ev-0009' } }]);
+  u.result(at(482), 'tu-u5', 'PreToolUse:Bash hook error: Refused: the goal record is read-only here', { isError: true, denial: 'permission-rule' });
+  u.say(at(483), [{ type: 'tool_use', id: 'tu-u6', name: 'Bash', input: { command: 'node tools/goals.mjs observe --dry-run --event ev-0008' } }]);
+  u.result(at(483, 500), 'tu-u6', 'dry run', ok('dry run'));
+  u.say(at(484), [{ type: 'tool_use', id: 'tu-u7', name: 'Bash', input: { command: 'GH_REPO=someone-else/other-tool gh pr view 31' } }]);
+  u.result(at(484, 500), 'tu-u7', 'open', ok('open'));
+  write(join(claudeRoot, 'proj-t', `${U}.jsonl`), u.lines);
 
   const goalRecord = {
     goals: [
@@ -410,6 +472,7 @@ function addGoalSessions({ root, repo, displayDir, elsewhere, claudeRoot, codexR
         decisions: [],
       },
       { id: 'g-docs', title: 'Document the widget', state: 'proposed' },
+      { id: 'g-owners', title: 'Follow up on the widget', state: 'active', source: 'your-project#11', observations: ['Not a-different-owner/your-project#7, and not another-repo#7.'] },
     ],
     events: [
       { eventId: 'ev-0001', goalId: 'g-widget', type: 'goal.create', at: at(401, 30000) },
@@ -419,11 +482,22 @@ function addGoalSessions({ root, repo, displayDir, elsewhere, claudeRoot, codexR
       { eventId: 'ev-0005', goalId: 'g-widget', type: 'decision.add', at: at(431, 30000) },
       { eventId: 'ev-0006', goalId: 'g-widget', type: 'observation.add', at: at(441, 30000) },
       { eventId: 'ev-0007', goalId: 'g-widget', type: 'observation.add', at: at(408) },
+      { eventId: 'ev-0008', goalId: 'g-widget', type: 'observation.add', at: at(484, 200) },
+      { eventId: 'ev-0009', goalId: 'g-widget', type: 'observation.add', at: at(481, 30000) },
       { eventId: 'ev-0101', goalId: 'g-docs', type: 'goal.create', at: at(450) },
       { eventId: 'ev-0999', goalId: 'g-not-in-the-record', type: 'goal.create', at: at(401, 30000) },
     ],
   };
   const goalsFile = join(root, 'goals.json');
   writeFileSync(goalsFile, JSON.stringify(goalRecord, null, 2));
-  return { goalRecord, goalsFile, worktreeDir, displaySquashSha, goalIds: { W, X, Y, Z, V, Q, O, R }, goalDirs: { W: 'proj-g', X: 'proj-g', Y: 'proj-g', Z: 'proj-g', V: 'proj-g', Q: 'proj-q', O: 'proj-o' } };
+  return {
+    goalRecord,
+    goalsFile,
+    worktreeDir,
+    forkDir,
+    displaySquashSha,
+    repos: [{ path: forkDir, label: 'your-project-fork', role: 'featured' }],
+    goalIds: { W, X, Y, Z, V, Q, O, R, T1, T2, U },
+    goalDirs: { W: 'proj-g', X: 'proj-g', Y: 'proj-g', Z: 'proj-g', V: 'proj-g', Q: 'proj-q', O: 'proj-o', T1: 'proj-t', T2: 'proj-t', U: 'proj-t' },
+  };
 }

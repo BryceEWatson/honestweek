@@ -181,12 +181,12 @@ export async function main(argv, io = { out: (s) => process.stdout.write(s), err
   }
 }
 
-const joinLabel = (j) => `${j.type}${j.detail?.via ? ` via ${j.detail.via}` : ''}${j.count > 1 ? ` x${j.count}` : ''} (${j.evidence}${j.rule ? `, ${j.rule}` : ''}${j.ambiguous ? `, one of ${j.ambiguous.candidates} candidate sessions` : ''})`;
-const refLabel = (x) => `${x.via}${x.count > 1 ? ` x${x.count}` : ''} (${x.evidence}${x.rule ? `, ${x.rule}` : ''})${x.pr != null ? ` -> pull request ${x.pr}` : ''}`;
+const joinLabel = (j) => `${j.type}${j.detail?.via ? ` via ${j.detail.via}` : ''}${j.count > 1 ? ` x${j.count}` : ''} (${j.evidence}${j.rule ? `, ${j.rule}` : ''}${j.ambiguous?.candidates ? `, ambiguous: one of ${j.ambiguous.candidates} candidate sessions` : ''}${j.ambiguous?.owners ? `, ambiguous: the matches name ${j.ambiguous.owners} owners` : ''})`;
+const refLabel = (x) => `${x.via}${x.count > 1 ? ` x${x.count}` : ''} (${x.evidence}${x.rule ? `, ${x.rule}` : ''}${x.ambiguous?.owners ? `, ambiguous: ${x.ambiguous.owners} owners` : ''})${x.pr != null ? ` -> pull request ${x.pr}` : ''}`;
 const joinDetail = (d = {}) => [d.ref && `cites ${d.ref}`, d.where && `at ${d.where}`, d.entry && `entry ${d.entry}${d.entryType ? ` (${d.entryType})` : ''}`, d.at && `accepted ${d.at}`].filter(Boolean).join(', ');
 
 function describeQuery(q) {
-  if (q.kind === 'pr') return `pull request #${q.number} in ${q.repo ?? 'any repository'}`;
+  if (q.kind === 'pr') return `pull request #${q.number} in ${q.repo ? `${q.owner ? `${q.owner}/` : ''}${q.repo}` : 'any repository'}`;
   if (q.kind === 'commit') return `commit ${q.sha}`;
   if (q.kind === 'file') return `file ${q.path}`;
   if (q.kind === 'branch') return `branch ${q.branch}`;
@@ -331,11 +331,22 @@ async function inspect(h, o, io, redactor) {
     const code = r.kind === 'unknown' ? 1 : 0;
     if (o.json) return emit(r), code;
     out(`Lookup: ${describeQuery(r.query)}\n`);
-    if (r.kind !== 'unknown') out(r.sessions.length ? `${r.sessions.length} readable session(s), strongest evidence first:\n` : 'No readable session points at it.\n');
-    for (const s of r.sessions) {
-      const row = h.session(s.session);
-      out(`\n  ${s.session}  ${s.evidence}  ${row?.title ?? '(untitled)'}  first record ${local(row?.firstAt, tz)}, thread ${row?.thread ?? '-'}\n`);
-      for (const x of s.refs) out(`    ${refLabel(x)}${x.event ? `  event ${x.event}` : ''}\n`);
+    const printSessions = (list, indent) => {
+      for (const s of list) {
+        const row = h.session(s.session);
+        out(`\n${indent}${s.session}  ${s.evidence}${s.ambiguous ? ' (ambiguous)' : ''}  ${row?.title ?? '(untitled)'}  first record ${local(row?.firstAt, tz)}, thread ${row?.thread ?? '-'}\n`);
+        for (const x of s.refs) out(`${indent}  ${refLabel(x)}${x.event ? `  event ${x.event}` : ''}\n`);
+      }
+    };
+    if (r.repositories) {
+      // A file is listed per repository, never merged across them.
+      for (const g of r.repositories) {
+        out(`\nIn ${g.repo ?? 'no configured repository'} (${g.roots} folder(s) tried): ${g.sessions.length ? `${g.sessions.length} readable session(s), strongest evidence first` : 'no readable session'}\n`);
+        printSessions(g.sessions, '    ');
+      }
+    } else {
+      if (r.kind !== 'unknown') out(r.sessions.length ? `${r.sessions.length} readable session(s), strongest evidence first:\n` : 'No readable session points at it.\n');
+      printSessions(r.sessions, '  ');
     }
     if (h.goals && r.kind !== 'unknown') out(`\nGoals with these sessions as members: ${r.goals.length ? r.goals.join(', ') : 'none'}\n`);
     for (const n of r.notes) out(`\nNote: ${n.text}\n`);
