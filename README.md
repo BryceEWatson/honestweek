@@ -188,6 +188,9 @@ Configure the destination under `mine` in your config (all optional):
 `draft.frontmatter` is your destination's schema, not honestweek's: keys it recognises
 are filled in, keys it does not are passed through empty for you. `ownRepos` stops
 issues on your own repositories counting as evidence that someone else's software broke.
+honestweek reads the GitHub remote of each configured repository for this, except `display`
+repositories, which it never runs `git` against: list their `owner/name` under `ownRepos` if
+issues there should count as yours.
 
 See [`docs/mining.md`](docs/mining.md) for the detector's signals, what is measured
 versus guessed at, and how the score bar was calibrated.
