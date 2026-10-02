@@ -86,6 +86,9 @@ before(async () => {
   };
   const pr15 = merge('fix-typo', 'd.txt', 'Fix a typo', 'Merge pull request #15 from example/fix-typo', 'other@example.com', 22);
   const pr16 = merge('add-docs', 'e.txt', 'Add docs', 'Merge pull request #16 from example/add-docs', ME, 24);
+  // #17 landed by someone else's merge; a later commit of mine names it again.
+  const pr17 = merge('tweak', 'f.txt', 'Tweak the reader', 'Merge pull request #17 from example/tweak', 'other@example.com', 26);
+  commit(site, 'g.txt', 'Follow-up tweak (#17)', at(28));
   const display = join(root, 'a-private-project');
   repo(display);
   const displaySha = commit(display, 'invoice.txt', 'Fix the invoice export', at(1));
@@ -192,6 +195,23 @@ before(async () => {
   s9.say(at(153), [{ type: 'text', text: 'ok' }]);
   write(join(claudeRoot, 'proj-s', `${ids.S9}.jsonl`), s9.lines);
 
+  // SA: a test run whose summary is clean but whose own command failed (a coverage gate).
+  const sa = cc(sid('SA', 'a'), site);
+  const clean = '# tests 3\n# pass 3\n# fail 0\nERROR: coverage for lines (71%) does not meet the threshold (80%)';
+  sa.prompt(at(160), 'run the tests with coverage');
+  sa.say(at(161), [{ type: 'tool_use', id: 'cov', name: 'Bash', input: { command: 'node --test --experimental-test-coverage' } }]);
+  sa.result(at(162), 'cov', clean, { stdout: clean, stderr: '', interrupted: false }, { isError: true });
+  write(join(claudeRoot, 'proj-s', `${ids.SA}.jsonl`), sa.lines);
+
+  // SB: a sub-agent whose starting instructions open by quoting another session's message.
+  const sb = cc(sid('SB', 'b'), site);
+  sb.prompt(at(170), 'forward this to a helper');
+  write(join(claudeRoot, 'proj-s', `${ids.SB}.jsonl`), sb.lines);
+  const fw = cc(ids.SB, site);
+  fw.add(fw.base('user', at(171), { isSidechain: true, agentId: 'fw1', message: { role: 'user', content: '<cross-session-message from="helper">the docs moved</cross-session-message>\nUpdate the links.' } }));
+  fw.add(fw.base('user', at(172), { isSidechain: true, agentId: 'fw1', message: { role: 'user', content: 'Also check the README.' } }));
+  write(join(claudeRoot, 'proj-s', ids.SB, 'subagents', 'agent-fw1.jsonl'), fw.lines);
+
   const rawConfig = {
     identity: { authorEmails: [ME] },
     week: { startsOn: 'monday', timezone: 'UTC' },
@@ -205,7 +225,7 @@ before(async () => {
   const config = normalizeConfig(rawConfig, { configDir: root });
   const configFile = join(root, 'honestweek.config.json');
   writeFileSync(configFile, JSON.stringify(rawConfig));
-  fx = { site, display, plain, shaA, pr12, followUp, pr15, pr16, displaySha, claudeRoot, codexRoot, config, configFile };
+  fx = { site, display, plain, shaA, pr12, followUp, pr15, pr16, pr17, displaySha, claudeRoot, codexRoot, config, configFile };
   key = Object.fromEntries(Object.entries(ids).map(([name, id]) => [name, claudeSessionKey(name === 'S1' || name === 'S2' ? 'proj-c' : 'proj-s', id)]));
   key.X = sourceKey('cx', X);
   key.Y = sourceKey('cx', Y);
@@ -453,4 +473,44 @@ test('git: an unreadable repository is reported even when a session named only a
   const out = gitOutcomes({ config: fx.config, sessionsByKey, commits: [], prs: [p], redact });
   assert.deepEqual(out.notes.map((x) => x.kind), ['repository-unreadable']);
   assert.ok(p.event.missing.includes('readable-session-repository'));
+});
+
+test('a clean summary from a failed command is unclear in the views and the timeline alike', () => {
+  const m = h.session(key.SA).metrics;
+  assert.deepEqual([m.testRuns.value, m.testRunsUnclear.value, m.testRunsAllPassed.value, m.testRunsWithFailures.value], [1, 1, 0, 0]);
+  assert.equal(m.testRunsUnclear.evidence, 'missing');
+  const th = h.session(key.SA).thread;
+  const end = h.threadTimeline(th).stateAt(Date.parse('2030-01-01T00:00:00.000Z'));
+  assert.deepEqual([end.counts.testRunsUnclear, end.counts.testRunsAllPassed], [1, 0]);
+  assert.equal(end.latestTestRuns[0].result, 'unclear', 'the latest run per runner says how it ended, not only its counts');
+  const recordedOnly = { kind: 'action', end: {}, facts: { testRunner: 'pytest', result: 'recorded' }, derived: { tests: { tests: 2, pass: 2, fail: 0 } } };
+  assert.equal(testRunResult(recordedOnly), 'unclear', 'a command whose success was never recorded is not a pass');
+});
+
+test('a sub-agent whose instructions quote another session still starts with its delegation', () => {
+  const agent = h.agents.find((a) => a.session === key.SB && a.kind === 'subagent');
+  const evs = h.events.filter((e) => e.agent === agent.key).map((e) => e.kind);
+  assert.deepEqual(evs.slice(0, 2), ['delegation-received', 'agent-message']);
+  assert.equal(h.events.find((e) => e.agent === agent.key && e.kind === 'agent-message').facts.from, 'parent-agent');
+});
+
+test('git: a later commit naming a pull request never moves when it landed', () => {
+  const sessionsByKey = new Map([['x', { repo: { label: 'your-project', role: 'featured', path: fx.site }, isPrivate: false }]]);
+  const p = { repo: 'example/your-project', number: 17, evidence: 'recorded', event: nomination('x', '', 'recorded').event };
+  const [pr] = gitOutcomes({ config: fx.config, sessionsByKey, commits: [], prs: [p], redact }).events;
+  assert.equal(pr.refs[0].sha, fx.pr17.sha, "the merge's landing, not the follow-up");
+  assert.equal(pr.at, at(27));
+  assert.equal(pr.facts.numberFrom, 'merge-subject');
+});
+
+test('the log after a quiet commit is not read through a pipe, a parent format, or an unreadable path', () => {
+  const sha = '9f8e7d6a1b2c';
+  const head = (cmd) => headShaAfterCommit(cmd, `${sha} x`);
+  assert.equal(head('git commit -qm "x" && git log -1 --format=%H'), sha);
+  for (const cmd of [
+    'git commit -q -m "x" && git log --oneline -3 | tail -1',
+    'git commit -q -m "x" && git log -1 --format=%P',
+    'git commit -q -m "x" && git log -1 --pretty="%h %s"',
+    'git -C "repo one" commit -q -m "x" && git -C "repo two" log -1',
+  ]) assert.equal(head(cmd), null, cmd);
 });
