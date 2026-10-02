@@ -507,13 +507,33 @@ function writeFiles(dir, files) {
 }
 
 /** A repository whose every commit is authored by ME at a fixed time. */
+/** Settings that would change a commit id, stop a step, or change what a command prints.
+ *  Set in each repository, they win over any global or system git config. */
+const LOCAL_GIT_CONFIG = [
+  ['user.name', AUTHOR],
+  ['user.email', ME],
+  ['commit.gpgsign', 'false'], // a signature is part of the commit
+  ['tag.gpgsign', 'false'],
+  ['i18n.commitEncoding', 'UTF-8'], // any other encoding adds a header to the commit
+  ['commit.cleanup', 'whitespace'], // what -m uses by default; verbatim keeps other bytes
+  ['core.autocrlf', 'false'], // the blobs are the bytes written
+  ['core.attributesFile', '.git/no-attributes'], // no global eol, text, or filter rules
+  ['core.hooksPath', '.git/no-hooks'],
+  ['core.longpaths', 'true'], // Git for Windows: allow paths past 260 characters
+  ['merge.ff', 'true'], // merge.ff=false refuses --squash
+  ['merge.verifySignatures', 'false'],
+  ['log.showSignature', 'false'], // printed output is copied into the logs
+  ['color.ui', 'false'],
+  ['gc.auto', '0'],
+];
+
 function createRepo(dir, { remote } = {}) {
   mkdirSync(dir, { recursive: true });
-  git(dir, ['init', '-q']);
+  // No templates (they can carry hooks and settings), and SHA-1 object ids whatever
+  // init.defaultObjectFormat says.
+  execFileSync('git', ['init', '-q', '--template='], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], env: { ...gitEnv(), GIT_DEFAULT_HASH: 'sha1' } });
   git(dir, ['symbolic-ref', 'HEAD', 'refs/heads/main']);
-  // Local settings win over any global ones: no signing, no hooks, no line-ending
-  // conversion, no background gc, so the same inputs give the same commit ids.
-  for (const [k, v] of [['user.name', AUTHOR], ['user.email', ME], ['commit.gpgsign', 'false'], ['tag.gpgsign', 'false'], ['core.autocrlf', 'false'], ['core.hooksPath', '.git/no-hooks'], ['gc.auto', '0']]) git(dir, ['config', k, v]);
+  for (const [k, v] of LOCAL_GIT_CONFIG) git(dir, ['config', k, v]);
   if (remote) git(dir, ['remote', 'add', 'origin', remote]);
   const describe = (sha, cwd = dir) => {
     const stat = git(cwd, ['show', '--format=', '--shortstat', sha]);
@@ -825,9 +845,31 @@ function writeLines(file, lines) {
  *
  * `roots` is { claude: [dir], codex: [dir] } for buildWorkHistory, `config` is the
  * normalized honestweek config (lantern featured, the site display-only), and
- * `goalRecord` is the goal record whose event ids the sessions carry.
+ * `goalRecord` is the goal record whose event ids the sessions carry. With no `root`,
+ * it writes into a new temp folder.
+ *
+ * If any step fails, everything it wrote is removed before the error is thrown: a half
+ * week can't be resumed, and the command line refuses a folder that isn't empty. When
+ * that removal fails too, the error carries `leftBehind: true`.
  */
-export function buildDemoWeek({ root = mkdtempSync(join(tmpdir(), 'hw-demo-week-')) } = {}) {
+export function buildDemoWeek({ root } = {}) {
+  const created = root == null || !existsSync(root);
+  const dir = root ?? mkdtempSync(join(tmpdir(), 'hw-demo-week-'));
+  const before = created ? null : new Set(readdirSync(dir));
+  try {
+    return writeWeek(dir);
+  } catch (err) {
+    try {
+      if (created) rmSync(dir, { recursive: true, force: true });
+      else for (const name of readdirSync(dir)) if (!before.has(name)) rmSync(join(dir, name), { recursive: true, force: true });
+    } catch {
+      if (err && typeof err === 'object') err.leftBehind = true;
+    }
+    throw err;
+  }
+}
+
+function writeWeek(root) {
   mkdirSync(root, { recursive: true });
   const projects = join(root, 'claude', 'projects');
   const codexRoot = join(root, 'codex', 'sessions');
@@ -1353,7 +1395,20 @@ export function main(argv, io = { out: (s) => process.stdout.write(s), err: (s) 
     io.err(`demo-week: ${root} is not empty; choose a new folder.\n`);
     return 1;
   }
-  const d = buildDemoWeek({ root });
+  let d;
+  try {
+    d = buildDemoWeek({ root });
+  } catch (err) {
+    const lines = String(err?.message ?? err).trim().split('\n').filter((l) => l.trim());
+    const reason = lines[lines.length - 1] ?? 'unknown error';
+    // Git for Windows caps a repository's own path near 260 characters, and the week's
+    // worktrees sit four folders below <out-dir>.
+    const tooLong = /too (big|long)|ENAMETOOLONG/i.test(String(err?.message ?? ''));
+    io.err(`demo-week: could not write the week into ${root}: ${reason.trim()}\n`);
+    io.err(err?.leftBehind ? `Some files may be left in ${root}; delete that folder before trying again.\n` : 'Nothing was left behind.\n');
+    if (tooLong) io.err('The folder path is too long for git. Choose a shorter one, such as C:\\demo-week on Windows.\n');
+    return 1;
+  }
   io.out(`${JSON.stringify({ root: d.root, from: d.week.from, to: d.week.to, timezone: d.week.timezone, config: d.configFile, goals: d.goalsFile, roots: d.roots, repo: d.repo.dir, displayRepo: d.displayRepo.dir, outsideDir: d.outsideDir }, null, 2)}\n`);
   return 0;
 }

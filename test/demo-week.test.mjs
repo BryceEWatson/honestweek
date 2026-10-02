@@ -5,7 +5,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 
@@ -100,13 +100,14 @@ test('worktree sessions count for the project, and the resumed session joins the
   assert.equal(call.facts.result, 'interrupted');
 });
 
-test('prompts: 2 to 8 typed per session, one queued until the next turn, one absorbed mid-turn', () => {
+test('prompts: 2 to 5 typed per session, one queued until the next turn, one absorbed mid-turn', () => {
   const totals = h.overview().totals;
   assert.equal(totals.prompts.value, 24);
   assert.equal(totals.prompts.evidence, 'recorded');
   assert.equal(all.overview().totals.prompts.value, 26);
   const perSession = Object.fromEntries(all.sessions.map((s) => [s.key, of(all, s.key, 'prompt').length]));
   assert.deepEqual(perSession, { [k.since]: 4, [k.wide]: 2, [k.group]: 5, [k.resumed]: 4, [k.json]: 3, [k.node18]: 2, [k.site]: 2, [k.lookup]: 2, [k.scratch]: 2 });
+  assert.deepEqual([Math.min(...Object.values(perSession)), Math.max(...Object.values(perSession))], [2, 5]);
   const queued = of(h, k.since, 'prompt').find((e) => e.facts.queuedAt);
   assert.match(queued.facts.text, /tag name/);
   assert.ok(queued.derived.queuedMs > 0);
@@ -300,8 +301,58 @@ test('the script writes the same bytes on every run, apart from the folder path'
   const text = a.map((f) => normalized(d.root, f)).join('\n');
   assert.deepEqual([...new Set(text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/g))], [ME]);
   assert.ok((text.match(/github\.com\/[\w.-]+/g) ?? []).every((m) => m === 'github.com/example'));
+  // Codex addresses its agents with paths of its own (the root agent is "/root"). They
+  // aren't file paths, and on a machine whose home is /root they'd look like one, so
+  // they're set aside, read from the rollouts themselves, before looking for a home path.
+  const agentAddresses = new Set();
+  for (const f of a.filter((x) => relative(d.root, x).startsWith('codex'))) {
+    for (const line of readFileSync(f, 'utf8').split('\n').filter(Boolean)) {
+      const p = JSON.parse(line).payload ?? {};
+      const named = [p.source?.subagent?.thread_spawn?.agent_path, ...(p.type === 'agent_message' ? [p.author, p.recipient] : [])];
+      if (p.type === 'function_call_output' && p.output.startsWith('{')) named.push(JSON.parse(p.output).task_name);
+      for (const v of named) if (typeof v === 'string') agentAddresses.add(v);
+    }
+  }
+  assert.deepEqual([...agentAddresses].sort(), ['/root', '/root/wide_fixtures']);
+  let pathless = text;
+  for (const address of agentAddresses) for (const form of [`"${address}"`, `\\"${address}\\"`]) pathless = pathless.split(form).join('"<agent>"');
   const home = homedir();
-  for (const form of [home, JSON.stringify(home).slice(1, -1)]) assert.ok(!text.includes(form), 'no home-directory path');
+  for (const form of [home, JSON.stringify(home).slice(1, -1)]) assert.ok(!pathless.includes(form), 'no home-directory path');
+});
+
+test('a build that fails partway leaves nothing behind and says so', () => {
+  const fresh = join(tmp('hw-demo-test-'), 'fresh');
+  const empty = tmp('hw-demo-test-');
+  const path = process.env.PATH;
+  let err = '';
+  try {
+    // With no PATH, the first git call fails after the build has started writing.
+    process.env.PATH = '';
+    assert.throws(() => buildDemoWeek({ root: fresh }), /git/);
+    assert.equal(demoMain([empty], { out: () => {}, err: (s) => (err += s) }), 1);
+  } finally {
+    process.env.PATH = path;
+  }
+  assert.equal(existsSync(fresh), false, 'a folder the build created is removed');
+  assert.deepEqual(readdirSync(empty), [], 'a folder that was empty is empty again');
+  assert.match(err, /could not write the week into/);
+  assert.match(err, /Nothing was left behind/);
+  assert.doesNotMatch(err, /too long/);
+});
+
+test('on Windows, a folder path too long for git is cleaned up and named as the cause', { skip: process.platform !== 'win32' }, () => {
+  const base = tmp('hw-demo-test-');
+  const deep = join(base, 'long-'.padEnd(Math.max(20, 215 - base.length), 'x'));
+  let err = '';
+  const code = demoMain([deep], { out: () => {}, err: (s) => (err += s) });
+  if (code === 0) {
+    // A git that handles long paths writes the whole week.
+    assert.ok(existsSync(join(deep, 'goals.json')));
+    return;
+  }
+  assert.equal(existsSync(deep), false);
+  assert.match(err, /too long for git\. Choose a shorter one/);
+  assert.match(err, /Nothing was left behind/);
 });
 
 test('the script refuses a folder that is not empty, and explains itself', () => {
