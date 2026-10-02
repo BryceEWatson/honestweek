@@ -14,4 +14,4 @@ labels: enhancement
 
 ## What it must not break
 
-honestweek stays local (no network, no dependencies), redacts before it writes, and never claims more than the logs and git can back. If your idea would bend one of those, say how, so we can look for a way that doesn't.
+honestweek stays local (no network, no dependencies), redacts before it writes, and never claims more than the logs and git can back. If your idea would bend one of those, say how, and I'll look for a way that doesn't.
