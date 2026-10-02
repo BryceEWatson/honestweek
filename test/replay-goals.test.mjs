@@ -4,7 +4,7 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { rmSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { buildWorkHistory, parseLookup } from '../lib/replay/index.mjs';
@@ -13,7 +13,7 @@ import { goalCitations } from '../lib/replay/goals.mjs';
 import { createWatch } from '../lib/replay/parse-common.mjs';
 import { sourceKey } from '../lib/replay/ids.mjs';
 import { claudeSessionKey } from '../lib/replay/sources.mjs';
-import { buildCorpus, CODENAME, ME } from './fixtures/replay/corpus.mjs';
+import { at, buildCorpus, CODENAME, ME } from './fixtures/replay/corpus.mjs';
 import { main as inspect } from '../tools/replay-inspect.mjs';
 
 let fx;
@@ -525,6 +525,82 @@ test('lookup of a branch: the harness recorded the push and the worktree branch'
   assert.deepEqual(sessionsOf(r), [k.V]);
   assert.deepEqual(r.sessions[0].refs.map((x) => `${x.via}/${x.evidence}`), ['push/recorded', 'worktree/recorded']);
   assert.deepEqual(h.lookup('branch:feature/nothing').sessions, []);
+});
+
+// ---- one pull-request number in two repositories that share a name -------------
+//
+// One session links pull request 7 in alice/your-project and in bob/your-project, then
+// runs gh pr view 7 against each. Those are two pull requests, so the lookup gives each
+// repository its own row and the goal gives each its own join, never one row or one
+// join counted twice. The session is its own small log, read with the shared corpus's
+// config (its folder is the configured your-project) and without git, so nothing else
+// joins in.
+
+let twoOwnersBuilt = null;
+function twoOwners() {
+  twoOwnersBuilt ??= (async () => {
+    const id = '3a3a3a3a-1111-4111-8111-0000000000c1';
+    const dirName = 'proj-owners';
+    let n = 0;
+    const rec = (type, ts, extra) => JSON.stringify({ type, sessionId: id, cwd: fx.repo.dir, version: '2.1.0', uuid: `${id}-o${++n}`, timestamp: ts, ...extra });
+    const link = (owner, minute) => JSON.stringify({ type: 'pr-link', sessionId: id, prNumber: 7, prUrl: `https://github.com/${owner}/your-project/pull/7`, prRepository: `${owner}/your-project`, timestamp: at(minute) });
+    const ghView = (owner, minute) => [
+      rec('assistant', at(minute), { message: { id: `m-${owner}`, model: 'model-a', role: 'assistant', content: [{ type: 'tool_use', id: `tu-${owner}`, name: 'Bash', input: { command: `gh pr view 7 -R ${owner}/your-project` } }] } }),
+      rec('user', at(minute, 500), { message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `tu-${owner}`, content: 'open' }] }, toolUseResult: { stdout: 'open', stderr: '', interrupted: false } }),
+    ];
+    const lines = [
+      rec('user', at(500), { message: { role: 'user', content: 'Open pull request 7 upstream and on the fork.' }, origin: { kind: 'human' } }),
+      link('alice', 501),
+      link('bob', 502),
+      ...ghView('alice', 503),
+      ...ghView('bob', 504),
+    ];
+    const claudeRoot = join(fx.root, 'claude-two-owners');
+    mkdirSync(join(claudeRoot, dirName), { recursive: true });
+    writeFileSync(join(claudeRoot, dirName, `${id}.jsonl`), `${lines.join('\n')}\n`);
+    const goals = { goals: [{ id: 'g-both', title: 'Land pull request 7 on both', state: 'active', source: 'your-project#7' }] };
+    const history = await buildWorkHistory({ config: fx.config, from: '2024-06-10', to: '2024-06-16', roots: { claude: [claudeRoot], codex: [] }, git: false, goals });
+    return { history, key: claudeSessionKey(dirName, id) };
+  })();
+  return twoOwnersBuilt;
+}
+const repositoryOf = (x) => `${x.owner}/${x.name}`;
+
+test('lookup: one session pointing at pull request 7 in two repositories the same way gets one row per repository', async () => {
+  const { history, key } = await twoOwners();
+  const r = history.lookup('#7');
+  assert.deepEqual(sessionsOf(r), [key]);
+  assert.deepEqual(r.sessions[0].refs.map((x) => [x.via, x.evidence, repositoryOf(x.repository), x.count]), [
+    ['pr-link', 'recorded', 'alice/your-project', 1],
+    ['pr-link', 'recorded', 'bob/your-project', 1],
+    ['gh-pr-command', 'inferred', 'alice/your-project', 1],
+    ['gh-pr-command', 'inferred', 'bob/your-project', 1],
+  ]);
+  // Named without its owner, every pointer is ambiguous, and still one row per repository.
+  const named = history.lookup('your-project#7');
+  assert.deepEqual(sessionsOf(named), [key]);
+  assert.equal(named.sessions[0].ambiguous, true);
+  assert.deepEqual(named.sessions[0].refs.map((x) => [x.via, repositoryOf(x.repository), x.count, x.ambiguous]), [
+    ['pr-link', 'alice/your-project', 1, { owners: 2 }],
+    ['pr-link', 'bob/your-project', 1, { owners: 2 }],
+    ['gh-pr-command', 'alice/your-project', 1, { owners: 2 }],
+    ['gh-pr-command', 'bob/your-project', 1, { owners: 2 }],
+  ]);
+});
+
+test('goals: a citation with no owner that matches two owners from one session gets one join per owner', async () => {
+  const { history, key } = await twoOwners();
+  const g = history.goals.find((x) => x.id === 'g-both');
+  assert.deepEqual(g.members.map((m) => m.session), [key]);
+  assert.deepEqual(g.unmatched, []);
+  const m = g.members[0];
+  assert.equal(m.ambiguous, true, 'which owner the goal meant is open');
+  assert.deepEqual(m.joins.map((j) => [j.type, j.evidence, repositoryOf(j.detail.repository), j.count, j.ambiguous]), [
+    ['cited-pr', 'recorded', 'alice/your-project', 1, { owners: 2 }],
+    ['cited-pr', 'recorded', 'bob/your-project', 1, { owners: 2 }],
+    ['command-on-pr', 'inferred', 'alice/your-project', 1, { owners: 2 }],
+    ['command-on-pr', 'inferred', 'bob/your-project', 1, { owners: 2 }],
+  ]);
 });
 
 // ---- the developer tool ---------------------------------------------------------
