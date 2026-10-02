@@ -143,6 +143,17 @@ test('secrets-only: a record read back as JSON hides values whose own key is sen
   const r = createSecretsOnlyRedactor();
   const out = r.deepRedact({ headers: { 'x-api-key': 'shortkey99', Accept: 'json' }, password: 'hunter2', dbPassword: 'hunter3', note: 'ok', count: 3, auth: true, list: [{ token: 'abc123' }] });
   assert.deepEqual(out, { headers: { 'x-api-key': '[redacted:secret]', Accept: 'json' }, password: '[redacted:secret]', dbPassword: '[redacted:secret]', note: 'ok', count: 3, auth: true, list: [{ token: '[redacted:secret]' }] });
+  // The engine's own id fields end in "Key" and must survive; a named key kind doesn't.
+  const ids = { fileKey: 'k-abc', sessionKey: 'cc-abc', statusKey: 'progress', weekStartKey: '2025-03-10', ENCRYPTION_KEY: 'abcdefgh12345678', signingKey: 'xyz' };
+  assert.deepEqual(r.deepRedact(ids), { ...ids, ENCRYPTION_KEY: '[redacted:secret]', signingKey: '[redacted:secret]' });
+});
+
+test('engine: privateText keeps every fact the full build keeps that isn\'t text (file keys, ids, commit ids)', () => {
+  const structural = (h) => h.events.map((e) => JSON.stringify({ id: e.id, fileKey: e.facts.fileKey ?? null, fileKeys: e.facts.fileKeys ?? null, sha: e.facts.sha ?? null, pr: e.facts.pr ?? null, action: e.facts.action ?? null }));
+  const readable = new Set(plain.sessions.filter((s) => !s.private).map((s) => s.key));
+  const pick = (h) => structural({ events: h.events.filter((e) => readable.has(e.session)) });
+  assert.deepEqual(pick(shown), pick(plain));
+  assert.ok(plain.events.some((e) => e.facts.fileKey), 'the demo week has file keys to compare');
 });
 
 test('secrets-only: long runs made of words show, random tokens of the same length stay hidden', () => {
