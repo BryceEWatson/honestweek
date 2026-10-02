@@ -8,7 +8,7 @@ honestweek runs on your own machine and reads private data: your AI coding sessi
 - **It runs `git`** against the repositories you list in your config. Two setup commands look a little further: `init` checks the folder you run it in and the folders next to it for repositories with your commits, to suggest what to list, and `discover` checks whether its draft file is tracked in the folder you run it in.
 - **It never runs `git`** against a repository you mark display-only, and it summarizes display-only work generically.
 - **Weekly reports use sessions from your listed repositories.** A session anywhere else is private to the report: its text never becomes a report item. `mine` works differently: it looks for solved problems across every session in the logs it reads, because a problem worth writing up can come from any project. It reports what it found and writes a draft only when you run it with `--draft`.
-- **It writes local files only**, and every string passes through its redactor (a pattern-based scrubber for secrets, personal paths and terms you list) before it's written.
+- **It writes local files only**, and every string passes through its redactor (a pattern-based scrubber for secrets, personal paths and terms you list) before it's written. One of those files is meant to be committed: `mine` keeps its findings ledger in `honestweek.findings.json` on every run, de-identified and redacted, as the record of what you've already accepted or declined.
 - **It makes no network calls.** No telemetry, no fetch. The optional `preview` server binds to `127.0.0.1`, so only your own browser can reach it.
 - **It never publishes anything.** You decide what leaves your machine.
 

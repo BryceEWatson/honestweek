@@ -38,7 +38,7 @@ Every change ships with tests, and the suite has to be green before review. Test
 
 Public text (the README, `SKILL.md`, `--help`, docs) is written in plain first person with contractions, states the point first, and defines a term the first time it's used. No em dashes, no marketing tone.
 
-Pull request and issue bodies open with an **In plain terms** section of two to four sentences that someone who doesn't read code can follow, then **What you're deciding**: what merging changes and what it doesn't touch. File paths, commit ids, flags and line references go at the bottom under **Implementation detail**. The pull request template sets this up for you.
+Pull request bodies open with an **In plain terms** section of two to four sentences that someone who doesn't read code can follow, then **What you're deciding**: what merging changes and what it doesn't touch. File paths, commit ids, flags and line references go at the bottom under **Implementation detail**. The pull request template sets this up for you. Issues open with **In plain terms** too; the issue templates ask for the rest.
 
 ## Pull requests
 
