@@ -198,6 +198,12 @@ test('secrets-only: the second review round: run-together keys, ===, typed value
     [`{\\"password\\": \\"${H} and the excerpt was cut`, H],
   ]) assert.ok(!r.redact(input).includes(secret), `${input} -> ${r.redact(input)}`);
   assert.deepEqual(r.deepRedact({ password: 12345678, pin: 4321, port: 8080, count: 3 }), { password: '[redacted:secret]', pin: '[redacted:secret]', port: 8080, count: 3 });
+  // A ")" inside a value doesn't end it; one that closes the code around it does.
+  for (const [input, secret] of [['client_secret: Xk9)mP2qRz7', 'mP2qRz7'], ['api_key: ab)cd9xyz', 'cd9xyz']]) assert.ok(!r.redact(input).includes(secret), input);
+  assert.ok(r.redact('await repo.SaveAsync(order, cancellationToken: ct); return Ok(order);').includes('); return Ok(order);'));
+  // Random dash-grouped lowercase tokens stay hidden; real folder paths with k8s or i18n show.
+  for (const tok of ['q7xk2m-zp4vtr-8wnc3j-hf6b2d-tq9xvw', 'x8kq2vzt-3mpw7nhc-r4tz9qkx-v2nb8wqp']) assert.ok(!r.redact(`id ${tok}`).includes(tok), tok);
+  for (const p of ['deploy/k8s/overlays/production2/kustomization', 'src/i18n/locales/en/messages2', 'apis/apps/v1beta1/deployments']) assert.equal(r.redact(p), p);
   // A dash-grouped random token stays hidden although each group is short. (Lowercase hex
   // groups show in both redactors: hex up to 40 characters is kept as a possible commit id.)
   const grouped = 'Ab3dEf9h-Kl2nOp5r-St8xYz1b-Cd4fGh7j';
@@ -224,7 +230,7 @@ test('secrets-only: idempotent, keeps placeholders, counts, and has the redactor
 test('secrets-only: stays fast on long adversarial inputs', () => {
   const r = createSecretsOnlyRedactor();
   const B = '\\';
-  const inputs = ['a:'.repeat(50000), 'password:"'.repeat(20000), `${'x-'.repeat(50000)}token`, `http://${'a'.repeat(100000)}`, 'a-token-'.repeat(20000), `https://a:${'b'.repeat(100000)}`, 'token: '.repeat(20000), `${'ab/'.repeat(40000)}1`, `token:"${B.repeat(100000)}`, `token:"${`${B}${B}"`.repeat(30000)}`, `token ${B}`.repeat(15000), `token:"${B}`.repeat(15000), '--password '.repeat(10000), `-u a:${'b'.repeat(100000)}`, '0a1b2c3d-'.repeat(11000), '.-u='.repeat(25000), '.--user='.repeat(12500), `token:"${`${B}"`.repeat(50000)}`];
+  const inputs = ['a:'.repeat(50000), 'password:"'.repeat(20000), `${'x-'.repeat(50000)}token`, `http://${'a'.repeat(100000)}`, 'a-token-'.repeat(20000), `https://a:${'b'.repeat(100000)}`, 'token: '.repeat(20000), `${'ab/'.repeat(40000)}1`, `token:"${B.repeat(100000)}`, `token:"${`${B}${B}"`.repeat(30000)}`, `token ${B}`.repeat(15000), `token:"${B}`.repeat(15000), '--password '.repeat(10000), `-u a:${'b'.repeat(100000)}`, '0a1b2c3d-'.repeat(11000), '.-u='.repeat(25000), '.--user='.repeat(12500), 'token:a)'.repeat(12500), 'token=a '.repeat(12500), `token:"${`${B}"`.repeat(50000)}`];
   for (const input of inputs) {
     const started = Date.now();
     r.redact(input);
