@@ -91,6 +91,15 @@ test('the prompt-privacy audit flags and replaces the same spans', () => {
   assert.doesNotMatch(never.text, /acme/i);
 });
 
+test('the redactor stays fast with many terms and many placeholders on one text', () => {
+  const red = createRedactor(config);
+  for (const input of ['acme $1 '.repeat(25000), 'acme deadbee '.repeat(16000), 'a1b2c3d acme: fix widget parsing\n'.repeat(3000)]) {
+    const started = Date.now();
+    red.redact(input);
+    assert.ok(Date.now() - started < 1000, `took ${Date.now() - started} ms on a ${input.length}-character input`);
+  }
+});
+
 test('term matching stays fast on long adversarial inputs', () => {
   const inputs = ['acme-'.repeat(20000), 'acme.'.repeat(20000), `${'a'.repeat(100000)}acme`, 'aA'.repeat(50000), `${'x.'.repeat(50000)}acme`, 'acmeacme'.repeat(12500), `${'Acme'.repeat(25000)}.com`, `${'jane'.repeat(20000)}doe`];
   for (const re of termMatchers(['acme', 'Jane Doe'])) {
