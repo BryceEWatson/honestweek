@@ -75,6 +75,13 @@ test('lib/mine contains no target-specific tokens (clean-room)', () => {
   assertCleanRoom(files, 'lib/mine');
 });
 
+// The work-history engine, its developer tool, its fixtures and its doc: the same fence.
+test('lib/replay, its harness, fixtures and doc are clean-room', () => {
+  const files = [...allFiles(join(HERE, '..', 'lib', 'replay')), join(HERE, '..', 'tools', 'replay-inspect.mjs'), ...allFiles(join(HERE, 'fixtures', 'replay')), join(HERE, '..', 'docs', 'work-history-engine.md')];
+  assert.ok(files.length >= 12, 'expected the replay modules to be present');
+  assertCleanRoom(files, 'lib/replay');
+});
+
 test('the shipped docs and example config are clean-room too', () => {
   assertCleanRoom([join(HERE, '..', 'docs', 'mining.md'), join(HERE, '..', 'docs', 'reader-profiles.md'), join(HERE, '..', 'honestweek.config.example.json')], 'docs + example config');
 });
