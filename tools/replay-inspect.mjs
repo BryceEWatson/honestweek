@@ -68,7 +68,7 @@ const lvl = (evidence) => (evidence === 'recorded' ? '' : ` (${evidence})`);
 const m = (x) => (x == null ? '-' : `${x.value}${x.evidence === 'recorded' ? '' : ` (${x.evidence})`}${x.excludesPrivateEvents ? '*' : ''}`);
 
 function printMetrics(out, metrics, indent = '  ') {
-  const order = ['prompts', 'corrections', 'approvals', 'decisions', 'interrupts', 'actions', 'actionsWithoutRecordedResult', 'delegations', 'agentsStartedByARecordedCall', 'agentsWithoutARecordedStart', 'edits', 'filesEdited', 'testRuns', 'testRunsAllPassed', 'testRunsWithFailures', 'testRunsWithoutSummary', 'reviews', 'guards', 'errors', 'commitsFoundInGit', 'commitsByConfiguredIdentity', 'prsLanded', 'quietIntervals', 'eventsInPrivateSessions'];
+  const order = ['prompts', 'corrections', 'approvals', 'decisions', 'interrupts', 'actions', 'actionsWithoutRecordedResult', 'delegations', 'agentsStartedByARecordedCall', 'agentsWithoutARecordedStart', 'edits', 'filesEdited', 'testRuns', 'testRunsAllPassed', 'testRunsWithFailures', 'testRunsUnclear', 'testRunsWithoutSummary', 'reviews', 'guards', 'errors', 'commitsFoundInGit', 'commitsByConfiguredIdentity', 'prsLanded', 'quietIntervals', 'eventsInPrivateSessions'];
   const parts = order.filter((k) => metrics[k] && metrics[k].value).map((k) => `${k} ${m(metrics[k])}`);
   out(`${indent}${parts.join(', ') || 'nothing recorded'}\n`);
 }

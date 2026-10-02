@@ -226,7 +226,7 @@ test('a late-stamped queue record does not stretch a session span', () => {
 });
 
 test('the timeline and the summaries count every shared metric the same way', () => {
-  const pairs = [['prompts', 'prompts'], ['decisions', 'decisions'], ['interrupts', 'interrupts'], ['actions', 'actions'], ['delegations', 'delegations'], ['edits', 'edits'], ['testRuns', 'testRuns'], ['testRunsAllPassed', 'testRunsAllPassed'], ['testRunsWithFailures', 'testRunsWithFailures'], ['testRunsWithoutSummary', 'testRunsNoSummary'], ['guards', 'guards'], ['errors', 'errors'], ['commitsFoundInGit', 'commitsFoundInGit'], ['commitsByConfiguredIdentity', 'commitsByConfiguredIdentity'], ['prsLanded', 'prsLanded']];
+  const pairs = [['prompts', 'prompts'], ['decisions', 'decisions'], ['interrupts', 'interrupts'], ['actions', 'actions'], ['delegations', 'delegations'], ['edits', 'edits'], ['testRuns', 'testRuns'], ['testRunsAllPassed', 'testRunsAllPassed'], ['testRunsWithFailures', 'testRunsWithFailures'], ['testRunsUnclear', 'testRunsUnclear'], ['testRunsWithoutSummary', 'testRunsNoSummary'], ['guards', 'guards'], ['errors', 'errors'], ['commitsFoundInGit', 'commitsFoundInGit'], ['commitsByConfiguredIdentity', 'commitsByConfiguredIdentity'], ['prsLanded', 'prsLanded']];
   const readable = h.threads.filter((t) => !h.thread(t.id).private);
   assert.ok(readable.length >= 3);
   for (const th of readable) {

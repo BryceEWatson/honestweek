@@ -76,6 +76,16 @@ before(async () => {
   const shaA = commit(site, 'a.txt', 'Add the parser', at(5));
   const pr12 = commit(site, 'b.txt', 'Add the reader (#12)', at(10));
   const followUp = commit(site, 'c.txt', 'Follow-up to the reader (#12)', at(20));
+  // Pull requests that landed with a merge commit: #15 merged by someone else, #16 by me.
+  const merge = (branch, file, subject, message, mergerEmail, minute) => {
+    git(site, ['checkout', '-q', '-b', branch]);
+    const sha = commit(site, file, subject, at(minute));
+    git(site, ['checkout', '-q', 'main']);
+    git(site, ['merge', '-q', '--no-ff', '-m', message, branch], { GIT_AUTHOR_NAME: 'M', GIT_AUTHOR_EMAIL: mergerEmail, GIT_COMMITTER_NAME: 'M', GIT_COMMITTER_EMAIL: mergerEmail, GIT_AUTHOR_DATE: at(minute + 1), GIT_COMMITTER_DATE: at(minute + 1) });
+    return { sha, merge: git(site, ['rev-parse', 'HEAD']) };
+  };
+  const pr15 = merge('fix-typo', 'd.txt', 'Fix a typo', 'Merge pull request #15 from example/fix-typo', 'other@example.com', 22);
+  const pr16 = merge('add-docs', 'e.txt', 'Add docs', 'Merge pull request #16 from example/add-docs', ME, 24);
   const display = join(root, 'a-private-project');
   repo(display);
   const displaySha = commit(display, 'invoice.txt', 'Fix the invoice export', at(1));
@@ -164,6 +174,23 @@ before(async () => {
     cx(at(133), 'response_item', { type: 'custom_tool_call', name: 'apply_patch', call_id: 'c2', input: patch }),
     cx(at(134), 'response_item', { type: 'custom_tool_call_output', call_id: 'c2', output: 'Exit code: 0\nSuccess.' }),
   ]);
+  // Y: a display-role Codex thread with a person-named model deployment and MCP tool.
+  const Y = '01900000-0000-7000-8000-0000000000c2';
+  write(join(codexRoot, '2024', '06', '11', `rollout-2024-06-11T17-20-00-${Y}.jsonl`), [
+    cx(at(140), 'session_meta', { id: Y, timestamp: at(140), cwd: display, originator: 'Codex Desktop', cli_version: '0.1.0', source: 'vscode' }),
+    cx(at(140, 5), 'turn_context', { turn_id: 'y1', model: 'Bluebird-deploy', approval_policy: 'never' }),
+    cx(at(140, 10), 'response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'look up the deal' }] }),
+    cx(at(141), 'response_item', { type: 'function_call', name: 'mcp__clientcrm__get_deal', arguments: '{}', call_id: 'y-c1' }),
+    cx(at(142), 'response_item', { type: 'function_call_output', call_id: 'y-c1', output: 'deal' }),
+  ]);
+
+  // S9: relayed bodies in the main prompt slot, and an origin kind the engine doesn't know.
+  const s9 = cc(sid('S9', 9), site);
+  s9.prompt(at(150), '<scheduled-task name="nightly">No, revert that</scheduled-task>');
+  s9.prompt(at(151), '<cross-session-message from="helper">wait, the docs moved</cross-session-message>', { origin: undefined });
+  s9.prompt(at(152), 'deploy the docs', { origin: { kind: 'channel' } });
+  s9.say(at(153), [{ type: 'text', text: 'ok' }]);
+  write(join(claudeRoot, 'proj-s', `${ids.S9}.jsonl`), s9.lines);
 
   const rawConfig = {
     identity: { authorEmails: [ME] },
@@ -178,9 +205,10 @@ before(async () => {
   const config = normalizeConfig(rawConfig, { configDir: root });
   const configFile = join(root, 'honestweek.config.json');
   writeFileSync(configFile, JSON.stringify(rawConfig));
-  fx = { site, display, plain, shaA, pr12, followUp, displaySha, claudeRoot, codexRoot, config, configFile };
+  fx = { site, display, plain, shaA, pr12, followUp, pr15, pr16, displaySha, claudeRoot, codexRoot, config, configFile };
   key = Object.fromEntries(Object.entries(ids).map(([name, id]) => [name, claudeSessionKey(name === 'S1' || name === 'S2' ? 'proj-c' : 'proj-s', id)]));
   key.X = sourceKey('cx', X);
+  key.Y = sourceKey('cx', Y);
   h = await buildWorkHistory({ config, from: '2024-06-10', to: '2024-06-16', roots: { claude: [claudeRoot], codex: [codexRoot] } });
 });
 after(() => {
@@ -228,7 +256,7 @@ test('a resumed copy adds no second link, inference, or hand-off target', () => 
   // The shared records stay with the original, and each says a rule chose it.
   const first = of(key.S4, 'prompt')[0];
   assert.ok(first.copies.length > 0);
-  assert.ok(first.inferred.some((x) => x.key === 'sessionAttribution' && x.rule === 'canonical.earliest-ending-copy'));
+  assert.ok(first.inferred.some((x) => x.key === 'canonicalCopy' && x.rule === 'canonical.earliest-ending-copy'));
 });
 
 test('a message from another session or a schedule is never a prompt typed by a person', () => {
@@ -261,7 +289,7 @@ test("an inline sub-agent's reply goes to its parent agent, not the person", () 
   assert.match(describe(msg), /^reply to parent agent/);
 });
 
-test('a test run whose suite failed to load, or whose own exit status failed, is not a pass', () => {
+test('a test run whose suite failed to load is a failure, and one whose evidence conflicts is unclear, never a pass', () => {
   const run = of(key.S8, 'action')[0];
   assert.equal(run.derived.tests.suitesFailed, 1);
   assert.equal(testRunResult(run), 'failed');
@@ -269,8 +297,10 @@ test('a test run whose suite failed to load, or whose own exit status failed, is
   assert.deepEqual([m.testRunsWithFailures.value, m.testRunsWithFailures.evidence], [1, 'inferred']);
   assert.equal(m.testRunsAllPassed.evidence, 'inferred');
   const ownExit = { kind: 'action', end: {}, facts: { testRunner: 'node --test', result: 'error', exitStatusBelongsToRunner: true }, derived: { tests: { tests: 2, pass: 2, fail: 0 } } };
-  assert.equal(testRunResult(ownExit), 'failed');
-  assert.equal(testRunResult({ ...ownExit, facts: { ...ownExit.facts, exitStatusBelongsToRunner: false } }), 'passed', 'a pipeline exit status says nothing about the runner');
+  assert.equal(testRunResult(ownExit), 'unclear', 'a clean summary from a failed command: a coverage gate or a later crash, not shown which');
+  assert.equal(testRunResult({ ...ownExit, facts: { ...ownExit.facts, exitStatusBelongsToRunner: false } }), 'unclear', 'nor when the failure may be another command in the line');
+  assert.equal(testRunResult({ ...ownExit, facts: { ...ownExit.facts, result: 'ok' } }), 'passed');
+  assert.equal(testRunResult({ ...ownExit, derived: {} }), 'no-summary', 'a failed command with no summary is not a count of failed tests');
   assert.equal(parseTestSummary('Test Files  1 failed | 2 passed (3)\nTests  4 passed (4)').suitesFailed, 1);
 });
 
@@ -301,7 +331,7 @@ test('the commit after a quiet commit is HEAD only when nothing else could have 
   assert.deepEqual(commandChain('a && b; c | d'), [{ cmd: 'a', op: '&&' }, { cmd: 'b', op: ';' }, { cmd: 'c', op: '|' }, { cmd: 'd', op: null }]);
 });
 
-const nomination = (session, sha, evidence, t = T0) => ({ sha, kind: evidence === 'recorded' ? 'committed' : 'nominated', evidence, rule: evidence === 'recorded' ? undefined : 'shell.git-commit-output', event: { id: `${session}.1.0`, session, t, missing: [], turn: null } });
+const nomination = (session, sha, evidence, t = T0) => ({ sha, kind: evidence === 'recorded' ? 'committed' : 'nominated', evidence, rule: evidence === 'recorded' ? undefined : 'shell.git-commit-output', event: { id: `${session}.1.0`, session, t, missing: [], inferred: [], turn: null } });
 const redact = (s) => s;
 
 test("git: the harness's own record of a commit outranks an inference from printed output", () => {
@@ -359,4 +389,68 @@ test('the walk stops cleanly on a readable thread with no turns', async () => {
   const code = await inspect(['--config', fx.configFile, '--from', '2024-06-10', '--to', '2024-06-16', '--claude-root', quietRoot, '--no-git', 'walk', '--json'], { out: (s) => (out += s), err: () => {} });
   assert.equal(code, 1);
   assert.ok(JSON.parse(out).checks.some((c) => !c.ok));
+});
+
+test('a scheduled task or another session in the main prompt slot is never a prompt typed by a person', () => {
+  const prompts = of(key.S9, 'prompt');
+  assert.deepEqual(prompts.map((e) => e.facts.text), ['deploy the docs'], 'only the one prompt that is not relayed');
+  assert.ok(prompts[0].inferred.some((x) => x.rule === 'prompt.authorship.unknown-origin'), 'an origin the engine does not know is a person only by a named rule');
+  const inbound = of(key.S9, 'agent-message');
+  assert.deepEqual(inbound.map((e) => [e.facts.from, e.actor]), [['scheduled-task', 'harness'], ['cross-session-message', 'peer']]);
+  assert.ok(!inbound.some((e) => e.inferred.some((x) => x.value === 'correction')));
+  assert.match(describe(inbound[0]), /from a scheduled task/);
+  assert.equal(h.session(key.S9).metrics.prompts.value, 1);
+  assert.equal(h.links.filter((l) => l.type === 'handoff' && l.to === key.S9).length, 0);
+});
+
+test('a private Codex thread keeps no model deployment or MCP server name', () => {
+  const json = JSON.stringify(h.toJSON());
+  assert.ok(!/bluebird/i.test(json), 'the deployment name reached the history');
+  assert.deepEqual(h.agents.find((a) => a.session === key.Y).models, []);
+  assert.deepEqual(of(key.Y, 'action').map((e) => e.facts.tool), [null]);
+});
+
+test('Codex: only a program that is one literal shell call and its own printed result is read', () => {
+  const read = (p) => execProgramCommand(p);
+  assert.equal(read('// @exec: run\ntext(await tools.exec_command({"cmd":"npm test","max_output_tokens":10}));'), 'npm test');
+  assert.equal(read('for (const f of ["a","b"]) text(await tools.exec_command({cmd: "node --test " + f}));'), null, 'a loop runs it several times');
+  assert.equal(read('text("Exit code: 0"); text(await tools.exec_command({cmd:"node --test"}));'), null, 'printed text that is not the result');
+  assert.equal(read('text(await tools.exec_command({cmd:"node --test", cmd:"true"}));'), null, 'two commands under one key');
+  assert.equal(read('text(await tools.exec_command({...opts, cmd:"node --test"}));'), null, 'a spread can replace the command');
+  assert.equal(read('if (false) { text(await tools.exec_command({cmd:"node --test"})); }'), null);
+});
+
+test('the log after a quiet commit must print HEAD first, from the same repository', () => {
+  const sha = '9f8e7d6a1b2c';
+  const head = (cmd) => headShaAfterCommit(cmd, `${sha} x`);
+  assert.equal(head('git commit -qm "x" && git log -n 1 --format=%H HEAD'), sha);
+  for (const cmd of [
+    'git commit -qm "x" && git log --reverse --oneline -3',
+    'git commit -qm "x" && git log -1 --oneline origin/main',
+    'git commit -qm "x" && git show --stat HEAD~1',
+    'git commit -qm "x" && git log --all -1',
+    'git commit -qm "x" && git log -1 -- docs/',
+    'git -C ../other commit -q -m "x" && git log -1',
+    'git commit -q -m "x" && git -C ../site log -1',
+  ]) assert.equal(head(cmd), null, cmd);
+});
+
+test('git: a pull request a merge brought in is described by the merge, and a merge of my own is cited itself', () => {
+  const sessionsByKey = new Map([['x', { repo: { label: 'your-project', role: 'featured', path: fx.site }, isPrivate: false }]]);
+  const prs = [15, 16].map((number) => ({ repo: 'example/your-project', number, evidence: 'recorded', event: nomination('x', '', 'recorded').event }));
+  const out = gitOutcomes({ config: fx.config, sessionsByKey, commits: [], prs, redact });
+  const by = (n) => out.events.find((e) => e.facts.pr === n);
+  assert.equal(by(15).refs[0].sha, fx.pr15.sha, 'my commit the merge brought in');
+  assert.equal(by(15).facts.numberFrom, 'merge-subject');
+  assert.match(describe(by(15)), /reached the default branch in a merge whose subject names pull request 15/);
+  assert.equal(by(16).refs[0].sha, fx.pr16.merge, 'the merge commit whose own subject names it');
+  assert.equal(by(16).facts.numberFrom, 'commit-subject');
+});
+
+test('git: an unreadable repository is reported even when a session named only a pull request', () => {
+  const sessionsByKey = new Map([['x', { repo: { label: 'gone', role: 'featured', path: fx.plain }, isPrivate: false }]]);
+  const p = { repo: 'example/your-project', number: 12, evidence: 'recorded', event: nomination('x', '', 'recorded').event };
+  const out = gitOutcomes({ config: fx.config, sessionsByKey, commits: [], prs: [p], redact });
+  assert.deepEqual(out.notes.map((x) => x.kind), ['repository-unreadable']);
+  assert.ok(p.event.missing.includes('readable-session-repository'));
 });
