@@ -13,6 +13,11 @@ The product's value is that it refuses to state anything it cannot back. A chang
 tool faster, prettier, or more featureful at the cost of that guarantee is a regression, not a
 tradeoff.
 
+It's also growing into a local tool for anyone using Claude Code or Codex to find the sessions and
+goals behind any pull request, commit, file, or branch, replay them, and check how every step and
+link is known. That work lives in the work-history engine (`lib/replay/`, described in
+`docs/work-history-engine.md`) and is held to the same guarantee and the constraints below.
+
 ## Hard constraints
 
 - **Zero runtime dependencies.** Node built-ins plus the system `git` CLI only. Do not add a

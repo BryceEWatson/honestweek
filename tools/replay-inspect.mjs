@@ -4,20 +4,30 @@
 // Not part of the published package (package.json "files" ships bin/ and lib/ only).
 // It builds a history from your local session logs and prints one level of the
 // drill-down at a time, or `walk` to prove every level on a real thread. Output is
-// plain text on stdout (or JSON with --json); nothing is written to disk, nothing
-// leaves the machine, and every string has passed the redactor.
+// plain text on stdout (or JSON with --json); nothing leaves the machine, and every
+// string has passed the redactor. Nothing is written to disk, except that --demo
+// builds its made-up logs in a temporary folder and deletes it when it's done.
 //
 //   node tools/replay-inspect.mjs --config <file> --from 2024-06-10 --to 2024-06-16 overview
 //   node tools/replay-inspect.mjs --config <file> --from … --to … thread <thread-id>
 //   node tools/replay-inspect.mjs --config <file> --from … --to … walk
+//   node tools/replay-inspect.mjs --config <file> --from … --to … --goals <file> goals
+//   node tools/replay-inspect.mjs --demo lookup '#7'
+
+import { readFileSync, rmSync } from 'node:fs';
 
 import { loadConfig } from '../lib/config.mjs';
+import { createRedactor } from '../lib/redact.mjs';
+import { normalizeGoalRecord } from '../lib/replay/goals.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
+
+const GOAL_RECORD_SHAPE = '{ "goals": [{ "id", "title", "state", "source", "observations", "results", "decisions" }], "events": [{ "eventId", "goalId", "type", "at" }] }';
 
 const USAGE = `replay-inspect: drill into an evidence-backed work history.
 
 Usage:
   node tools/replay-inspect.mjs --config <file> --from <YYYY-MM-DD> --to <YYYY-MM-DD> [options] <command> [args]
+  node tools/replay-inspect.mjs --demo [options] <command> [args]
 
 Commands:
   overview              one row per day and per thread
@@ -31,6 +41,13 @@ Commands:
   coverage              every record type seen and how it was handled
   walk [thread-id]      prove the full drill-down on one thread (default: the busiest
                         readable thread); exits 1 if any check fails
+  goals                 every goal in the --goals record, the sessions that did its
+                        work, and how each link is known
+  goal <id>             one goal: each member session, each join with its evidence
+                        and rule, and what in the record didn't match and why
+  lookup <text>         the sessions (and goals) behind a pull request (#64,
+                        your-repo#64, or its link), a commit id, a file path, or a
+                        branch; prefix file: or branch: when the text could be either
 
 Options:
   --scope configured|all   sessions outside the configured repos: left out (default)
@@ -38,17 +55,34 @@ Options:
   --claude-root <dir>      read Claude Code logs from here (repeatable)
   --codex-root <dir>       read Codex logs from here (repeatable)
   --timezone <IANA>        day boundaries (default: config week.timezone, else host)
+  --goals <file>           a goal record to match sessions against, as JSON:
+                           ${GOAL_RECORD_SHAPE}
+  --demo                   use a small made-up set of logs, a git repository and a
+                           goal record instead of yours (it ignores --config, --from,
+                           --to, the log roots and --goals); it's built in a temporary
+                           folder and deleted after
   --no-git                 skip the git outcome lookups
   --json                   print JSON instead of text
   -h, --help               show this help
+
+Try it without your own logs:
+  node tools/replay-inspect.mjs --demo goals
+  node tools/replay-inspect.mjs --demo lookup '#7'
+`;
+
+const NEED_GOALS = `This command needs a goal record. Pass --goals <file>, a JSON file shaped like
+  ${GOAL_RECORD_SHAPE}
+or add --demo to see it on made-up logs.
 `;
 
 function parseArgs(argv) {
-  const o = { claude: [], codex: [], rest: [], scope: 'configured', git: true, json: false };
+  const o = { claude: [], codex: [], rest: [], scope: 'configured', git: true, json: false, demo: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => argv[++i];
     if (a === '--config') o.config = next();
+    else if (a === '--goals') o.goals = next();
+    else if (a === '--demo') o.demo = true;
     else if (a === '--from') o.from = next();
     else if (a === '--to') o.to = next();
     else if (a === '--scope') o.scope = next();
@@ -73,15 +107,97 @@ function printMetrics(out, metrics, indent = '  ') {
   out(`${indent}${parts.join(', ') || 'nothing recorded'}\n`);
 }
 
+/** A goal record read from a file, or a plain error saying what to fix. */
+function readGoalRecord(file) {
+  let text;
+  try {
+    text = readFileSync(file, 'utf8');
+  } catch (err) {
+    return { error: `couldn't read the --goals file (${err?.code ?? 'error'}). Check the path; it should be a JSON goal record shaped like ${GOAL_RECORD_SHAPE}.` };
+  }
+  let record;
+  try {
+    record = JSON.parse(text);
+  } catch {
+    return { error: `the --goals file isn't valid JSON. It should hold a goal record shaped like ${GOAL_RECORD_SHAPE}.` };
+  }
+  try {
+    normalizeGoalRecord(record);
+  } catch (err) {
+    return { error: `${String(err.message).replace(/^replay: /, '')} Fix the --goals file and run it again.` };
+  }
+  return { record };
+}
+
 export async function main(argv, io = { out: (s) => process.stdout.write(s), err: (s) => process.stderr.write(s) }) {
   const o = parseArgs(argv);
-  if (o.help || !o.config || !o.from || !o.to || !o.rest.length) {
-    (o.help ? io.out : io.err)(USAGE);
-    return o.help ? 0 : 1;
+  if (o.help) {
+    io.out(USAGE);
+    return 0;
   }
-  const config = loadConfig(o.config);
-  const roots = o.claude.length || o.codex.length ? { claude: o.claude, codex: o.codex } : undefined;
-  const h = await buildWorkHistory({ config, from: o.from, to: o.to, timezone: o.timezone, roots, scope: o.scope, git: o.git });
+  if (!o.rest.length || (!o.demo && (!o.config || !o.from || !o.to))) {
+    const missing = !o.rest.length ? 'a command (such as overview, goals, or lookup)' : 'the logs to read: --config <file> with --from and --to, or --demo to try it on made-up logs';
+    io.err(`replay-inspect: this needs ${missing}.\n\n${USAGE}`);
+    return 1;
+  }
+  let demo = null;
+  try {
+    let config;
+    let from = o.from;
+    let to = o.to;
+    let roots = o.claude.length || o.codex.length ? { claude: o.claude, codex: o.codex } : undefined;
+    let goals;
+    if (o.demo) {
+      // The test suite's synthetic corpus: made-up sessions, a small git repository,
+      // and a goal record, built in a temporary folder. Only in a clone, never shipped.
+      const { buildCorpus } = await import('../test/fixtures/replay/corpus.mjs');
+      demo = buildCorpus({ goals: true });
+      config = demo.config;
+      from = '2024-06-10';
+      to = '2024-06-16';
+      roots = { claude: [demo.claudeRoot], codex: [demo.codexRoot] };
+      goals = demo.goalRecord;
+    } else {
+      config = loadConfig(o.config);
+      if (o.goals) {
+        const read = readGoalRecord(o.goals);
+        if (read.error) {
+          io.err(`replay-inspect: ${createRedactor(config).redact(read.error)}\n`);
+          return 1;
+        }
+        goals = read.record;
+      }
+    }
+    const h = await buildWorkHistory({ config, from, to, timezone: o.timezone, roots, scope: o.scope, git: o.git, goals });
+    return await inspect(h, o, io, createRedactor(config));
+  } finally {
+    if (demo) {
+      try {
+        rmSync(demo.root, { recursive: true, force: true });
+      } catch {
+        /* Windows can hold a lock on .git briefly; the folder is in the system temp directory */
+      }
+    }
+  }
+}
+
+/** Why a join or pointer is ambiguous, in words. */
+const ambiguity = (a) => (!a ? '' : a.candidates ? `, ambiguous: one of ${a.candidates} candidate sessions` : a.owners ? `, ambiguous: the matches name ${a.owners} owners` : a.ownerUnknown ? ", ambiguous: this one doesn't name the owner" : ', ambiguous');
+/** The repository a pull-request pointer is in, or that it's unknown. */
+const repositoryText = (r) => (!r ? '' : r.name ? `in ${r.owner ? `${r.owner}/${r.name}` : `${r.name} (owner unknown)`}` : 'repository unknown');
+const joinLabel = (j) => `${j.type}${j.detail?.via ? ` via ${j.detail.via}` : ''}${j.count > 1 ? ` x${j.count}` : ''} (${j.evidence}${j.rule ? `, ${j.rule}` : ''}${ambiguity(j.ambiguous)})`;
+const refLabel = (x) => `${x.via}${x.count > 1 ? ` x${x.count}` : ''} (${x.evidence}${x.rule ? `, ${x.rule}` : ''}${ambiguity(x.ambiguous)})${x.pr != null ? ` -> pull request ${x.pr}` : ''}${x.repository ? ` ${repositoryText(x.repository)}` : ''}`;
+const joinDetail = (d = {}) => [d.ref && `cites ${d.ref}`, d.where && `at ${d.where}`, d.repository && `matched a pointer ${repositoryText(d.repository)}`, d.entry && `entry ${d.entry}${d.entryType ? ` (${d.entryType})` : ''}`, d.at && `accepted ${d.at}`].filter(Boolean).join(', ');
+
+function describeQuery(q) {
+  if (q.kind === 'pr') return `pull request #${q.number} in ${q.repo ? `${q.owner ? `${q.owner}/` : ''}${q.repo}` : 'any repository'}`;
+  if (q.kind === 'commit') return `commit ${q.sha}`;
+  if (q.kind === 'file') return `file ${q.path}`;
+  if (q.kind === 'branch') return `branch ${q.branch}`;
+  return `"${q.text}"`;
+}
+
+async function inspect(h, o, io, redactor) {
   const tz = h.window.timezone;
   const [cmd, ...args] = o.rest;
   const out = io.out;
@@ -177,7 +293,72 @@ export async function main(argv, io = { out: (s) => process.stdout.write(s), err
     return 0;
   }
   if (cmd === 'walk') return walk(h, args[0], { out, json: o.json, tz });
-  io.err(`unknown command "${cmd}"\n\n${USAGE}`);
+  if (cmd === 'goals') {
+    if (!h.goals) return io.err(NEED_GOALS), 1;
+    if (o.json) return emit(h.goals), 0;
+    out(`Goals in the goal record, matched to the sessions from ${h.window.from} to ${h.window.to} (${tz}).\n`);
+    out(`Levels: recorded = a record says so; derived = computed from records; inferred = a named rule read it.\n\n`);
+    for (const g of h.goals) {
+      out(`${g.id}  ${g.title ?? '(untitled)'}${g.state ? `  [${g.state}]` : ''}\n`);
+      if (!g.members.length) out('  no member sessions in this window\n');
+      for (const m of g.members) out(`  ${m.session}  ${m.evidence}${m.ambiguous ? ' (ambiguous)' : ''}: ${m.joins.map(joinLabel).join('; ')}\n`);
+      if (g.unmatched.length) out(`  ${g.unmatched.length} of the record's references and entries didn't match; run "goal ${g.id}" to see why\n`);
+      out('\n');
+    }
+    return 0;
+  }
+  if (cmd === 'goal') {
+    if (!h.goals) return io.err(NEED_GOALS), 1;
+    if (!args[0]) return io.err('goal needs an id. Run "goals" to list the ids in the goal record.\n'), 1;
+    const v = h.goal(args[0]);
+    if (!v) return io.err(`no goal "${redactor.redact(args[0])}" in the goal record. Run "goals" to list the ids.\n`), 1;
+    if (o.json) return emit(v), 0;
+    out(`Goal ${v.id}: ${v.title ?? '(untitled)'}${v.state ? ` [${v.state}]` : ''}\n`);
+    out(`${v.members.length} member session(s), ordered by first record:\n`);
+    for (const m of v.members) {
+      out(`\n  ${m.session}  ${m.evidence}${m.ambiguous ? ' (ambiguous)' : ''}  ${m.title ?? '(untitled)'}  first record ${local(m.firstAt, tz)}, thread ${m.thread ?? '-'}\n`);
+      for (const j of m.joins) {
+        out(`    ${joinLabel(j)}${j.event ? `  event ${j.event}` : ''}\n`);
+        const d = joinDetail(j.detail);
+        if (d) out(`      ${d}\n`);
+        if (j.ruleText) out(`      rule: ${j.ruleText}\n`);
+      }
+    }
+    out(`\nNot matched: ${v.unmatched.length}\n`);
+    for (const u of v.unmatched) out(`  ${u.kind} ${u.ref}${u.where ? ` (at ${u.where})` : ''}: ${u.why}\n`);
+    return 0;
+  }
+  if (cmd === 'lookup') {
+    const text = args.join(' ').trim();
+    if (!text) return io.err('lookup needs something to look up, such as #64, your-repo#64, a pull-request link, a commit id, a file path, or branch:<name>.\n'), 1;
+    const r = h.lookup(text);
+    const code = r.kind === 'unknown' ? 1 : 0;
+    if (o.json) return emit(r), code;
+    out(`Lookup: ${describeQuery(r.query)}\n`);
+    const printSessions = (list, indent) => {
+      for (const s of list) {
+        const row = h.session(s.session);
+        out(`\n${indent}${s.session}  ${s.evidence}${s.ambiguous ? ' (ambiguous)' : ''}  ${row?.title ?? '(untitled)'}  first record ${local(row?.firstAt, tz)}, thread ${row?.thread ?? '-'}\n`);
+        for (const x of s.refs) out(`${indent}  ${refLabel(x)}${x.event ? `  event ${x.event}` : ''}\n`);
+      }
+    };
+    if (r.repositories) {
+      // A file is listed per repository, never merged across them.
+      for (const g of r.repositories) {
+        out(`\nIn ${g.repo ?? 'no configured repository'} (${g.roots} folder(s) tried): ${g.sessions.length ? `${g.sessions.length} readable session(s), strongest evidence first` : 'no readable session'}\n`);
+        printSessions(g.sessions, '    ');
+      }
+    } else {
+      if (r.kind !== 'unknown') out(r.sessions.length ? `${r.sessions.length} readable session(s), strongest evidence first:\n` : 'No readable session points at it.\n');
+      printSessions(r.sessions, '  ');
+    }
+    if (h.goals && r.kind !== 'unknown') out(`\nGoals with these sessions as members: ${r.goals.length ? r.goals.join(', ') : 'none'}\n`);
+    for (const n of r.notes) out(`\nNote: ${n.text}\n`);
+    const named = Object.entries(r.rules ?? {});
+    if (named.length) out(`\nRules named above:\n${named.map(([id, text]) => `  ${id}: ${text ?? 'not described'}\n`).join('')}`);
+    return code;
+  }
+  io.err(`unknown command "${redactor.redact(String(cmd))}"\n\n${USAGE}`);
   return 1;
 }
 
