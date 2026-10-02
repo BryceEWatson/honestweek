@@ -64,6 +64,7 @@ function parseArgs(argv) {
 }
 
 const local = (iso, tz) => (iso ? new Date(iso).toLocaleString('en-US', { timeZone: tz, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'not recorded');
+const lvl = (evidence) => (evidence === 'recorded' ? '' : ` (${evidence})`);
 const m = (x) => (x == null ? '-' : `${x.value}${x.evidence === 'recorded' ? '' : ` (${x.evidence})`}${x.excludesPrivateEvents ? '*' : ''}`);
 
 function printMetrics(out, metrics, indent = '  ') {
@@ -97,7 +98,7 @@ export async function main(argv, io = { out: (s) => process.stdout.write(s), err
     }
     out(`\nThreads:\n`);
     for (const t of v.threads) {
-      out(`  ${t.id}  ${t.private ? '[private]' : t.title ?? '(untitled)'}  ${local(t.firstAt, tz)} to ${local(t.lastAt, tz)}, ${t.sessions.value} session(s), ${t.agentsStarted.value} agent(s) started, ${t.events} events\n`);
+      out(`  ${t.id}  ${t.private ? '[private]' : t.title ?? '(untitled)'}  ${local(t.firstAt, tz)} to ${local(t.lastAt, tz)}, ${t.sessions.value} session(s), ${t.agentRecords.value} agent record(s), ${t.events} events\n`);
     }
     if (v.sessionsOutsideConfiguredRepos) out(`\n${v.sessionsOutsideConfiguredRepos} session(s) outside the configured repos were left out (use --scope all to show them as skeletons).\n`);
     return 0;
@@ -119,8 +120,8 @@ export async function main(argv, io = { out: (s) => process.stdout.write(s), err
     };
     walkTree(v.agentTree, 0);
     for (const a of v.agentsWithoutRecordedParent) out(`  (no recorded parent) ${a.kind} ${a.key} missing: ${a.missing.join(', ')}\n`);
-    out(`\nOutcomes (git's own record):\n`);
-    for (const e of v.outcomes) out(`  ${local(e.at, tz)}  ${e.text}\n`);
+    out(`\nOutcomes (from git; how each ties to its session is marked):\n`);
+    for (const e of v.outcomes) out(`  ${local(e.at, tz)}  ${e.text}${e.evidence === 'recorded' ? '' : ` (${e.evidence})`}${e.inferred.length ? `  [${e.inferred.join('; ')}]` : ''}\n`);
     if (!v.outcomes.length) out('  none recorded\n');
     out(`\nLinks: ${v.links.length} (${[...new Set(v.links.map((l) => `${l.type}/${l.evidence}`))].join(', ') || 'none'})\n`);
     if (v.related.handoffs.length) out(`Inferred hand-offs: ${v.related.handoffs.map((l) => l.to).join(', ')}\n`);
@@ -199,13 +200,15 @@ function walk(h, threadId, { out, json, tz }) {
   check('a thread to walk exists', pick, pick?.id ?? 'none');
   if (!pick) return finish();
   const th = h.thread(pick.id);
-  check('thread view resolves', th, `${th.sessions.length} sessions`);
+  check('thread view resolves', th, `${th?.sessions.length ?? 0} sessions`);
+  if (!th?.sessions.length) return finish();
   sessionKey = [...th.sessions].sort((a, b) => b.turns - a.turns)[0].key;
   const sess = h.session(sessionKey);
-  check('session view resolves', sess && sess.turns.length > 0, `${sess.turns.length} turns`);
+  check('session view resolves', sess && sess.turns.length > 0, `${sess?.turns.length ?? 0} turns`);
+  if (!sess?.turns.length) return finish();
   busiest = [...sess.turns].sort((a, b) => b.events - a.events || (a.id < b.id ? -1 : 1))[0];
   turn = h.turn(busiest.id);
-  check('turn view resolves', turn && turn.events.length > 0, `${turn.events.length} events`);
+  check('turn view resolves', turn && turn.events.length > 0, `${turn?.events.length ?? 0} events`);
 
   const sessionEvents = h.events.filter((e) => th.sessions.some((s) => s.key === e.session));
   const kinds = [...new Set(sessionEvents.map((e) => e.kind))].sort();
@@ -230,7 +233,7 @@ function walk(h, threadId, { out, json, tz }) {
     const b = h.stateAt(t, { thread: pick.id, fromScratch: true });
     const same = JSON.stringify(a) === JSON.stringify(b);
     check(`state at ${new Date(t).toISOString()} is the same from a snapshot and from scratch`, same);
-    return { at: new Date(t).toISOString(), local: local(new Date(t).toISOString(), tz), prompts: a.counts.prompts, actions: a.counts.actions, sessionsOpen: a.sessionsWithOpenRecordedSpan.length, agentSpansOpen: a.agentsWithOpenRecordedSpan.length, callsAwaitingResult: a.callsAwaitingRecordedResult.length, queued: a.messagesQueued.length, testRuns: a.counts.testRuns, prsLanded: a.counts.prsLanded };
+    return { at: new Date(t).toISOString(), local: local(new Date(t).toISOString(), tz), prompts: a.counts.prompts, actions: a.counts.actions, sessionsOpen: a.sessionsWithOpenRecordedSpan.length, agentSpansOpen: a.agentsWithOpenRecordedSpan.length, callsAwaitingResult: a.callsAwaitingRecordedResult.length, queued: a.messagesQueued.length, testRuns: a.counts.testRuns, prsLanded: a.counts.prsLanded, evidence: { prompts: a.countEvidence.prompts, testRuns: a.countEvidence.testRuns, prsLanded: a.countEvidence.prsLanded } };
   });
   const totals = h.thread(pick.id).metrics;
   check('the state at the end of the thread matches the thread totals', scrub.at(-1).prompts === totals.prompts.value && scrub.at(-1).actions === totals.actions.value, `${scrub.at(-1).prompts}/${totals.prompts.value} prompts, ${scrub.at(-1).actions}/${totals.actions.value} actions`);
@@ -255,7 +258,7 @@ function walk(h, threadId, { out, json, tz }) {
         out(`Overview -> thread -> session ${sessionKey} -> turn ${busiest.id} (${turn.events.length} events)\n\nOne event of each kind, with its record:\n`);
         for (const s of samples) out(`  ${s.kind.padEnd(19)} ${s.description.slice(0, 110)}${s.inferred.length ? `  {${s.inferred.join('; ')}}` : ''}${s.missing.length ? `  [missing: ${s.missing.join(', ')}]` : ''}\n${' '.repeat(22)}records: ${s.records.map((r) => `line ${r.line ?? 'git'} ${r.verified === true ? 'verified' : r.verified === null ? 'git object' : 'NOT VERIFIED'}`).join('; ')}\n`);
         out(`\nScrubbing the thread's recorded span:\n`);
-        for (const s of scrub) out(`  ${s.local.padEnd(18)} prompts ${s.prompts}, actions ${s.actions}, sessions open ${s.sessionsOpen}, agent spans open ${s.agentSpansOpen}, calls awaiting a result ${s.callsAwaitingResult}, queued messages ${s.queued}, test runs ${s.testRuns}, PRs landed ${s.prsLanded}\n`);
+        for (const s of scrub) out(`  ${s.local.padEnd(18)} prompts ${s.prompts}${lvl(s.evidence.prompts)}, actions ${s.actions}, sessions open ${s.sessionsOpen}, agent spans open ${s.agentSpansOpen}, calls awaiting a result ${s.callsAwaitingResult}, queued messages ${s.queued}, test runs ${s.testRuns}${lvl(s.evidence.testRuns)}, PRs landed ${s.prsLanded}${lvl(s.evidence.prsLanded)}\n`);
         if (nextPrompt) out(`  next prompt after the midpoint: ${local(new Date(nextPrompt.t).toISOString(), tz)}; previous: ${prevPrompt ? local(new Date(prevPrompt.t).toISOString(), tz) : 'none'}\n`);
       }
       out(`\nChecks: ${checks.length - failed.length} of ${checks.length} passed\n`);

@@ -181,7 +181,9 @@ test('git outcomes: what git recorded, never a claim that a session commit is th
   assert.deepEqual(commit.inferred, [], 'the harness recorded this commit itself');
   const pr = outcomes.find((e) => e.facts.outcome === 'pr-landed');
   assert.equal(pr.facts.pr, 7);
-  assert.equal(pr.at, '2024-06-11T16:00:00Z', "git's committer time, not the session's");
+  assert.equal(pr.at, '2024-06-11T16:00:00.000Z', "git's committer time, not the session's, spelled one way whatever git version printed it");
+  assert.equal(pr.evidence, 'inferred', 'git records the commit; that it is pull request 7 is read from its subject');
+  assert.equal(pr.inferred[0].rule, 'git.pr-number-from-subject');
   assert.equal(pr.refs[0].sha, fx.repo.squashSha);
   // Codex records no git operations: its commit is nominated from printed output, an
   // inference that stays visible on the outcome. A git log line after it nominates nothing.
@@ -229,8 +231,13 @@ test('the timeline and the summaries count every shared metric the same way', ()
   assert.ok(readable.length >= 3);
   for (const th of readable) {
     const m = h.thread(th.id).metrics;
-    const end = h.threadTimeline(th.id).stateAt(Date.parse('2030-01-01T00:00:00.000Z')).counts;
-    for (const [view, tl] of pairs) assert.equal(end[tl], m[view].value, `${th.id} ${view}`);
+    const state = h.threadTimeline(th.id).stateAt(Date.parse('2030-01-01T00:00:00.000Z'));
+    const end = state.counts;
+    for (const [view, tl] of pairs) {
+      assert.equal(end[tl], m[view].value, `${th.id} ${view}`);
+      assert.equal(state.countEvidence[tl], m[view].evidence, `${th.id} ${view} is known the same way in both`);
+    }
+    assert.equal(state.filesEdited, m.filesEdited.value);
     assert.equal(end.promptsLabelled.correction, m.corrections.value);
     assert.equal(end.promptsLabelled.approval, m.approvals.value);
   }

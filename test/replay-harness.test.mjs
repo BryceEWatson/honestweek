@@ -52,7 +52,7 @@ test('each drill-down command answers, in text and JSON, without leaking', async
   const thread = ovJson.threads.find((t) => t.sessions.value === 3);
   const thJson = JSON.parse((await run('thread', thread.id, '--json')).out);
   assert.ok(thJson.agentTree.some((a) => a.children.length > 0), 'the agent tree has a recorded child');
-  assert.ok(thJson.outcomes.some((o) => /pull request 7 landed/.test(o.text)));
+  assert.ok(thJson.outcomes.some((o) => /names pull request 7/.test(o.text)));
   const session = thJson.sessions.find((s) => s.turns > 3).key;
   const seJson = JSON.parse((await run('session', session, '--json')).out);
   assert.ok(seJson.turns.length > 3);
@@ -99,8 +99,16 @@ function files(dir) {
 test('the engine makes no network calls and adds no dependency', () => {
   for (const f of [...files(join(ROOT, 'lib', 'replay')), join(ROOT, 'tools', 'replay-inspect.mjs')]) {
     const text = readFileSync(f, 'utf8');
-    assert.ok(!/\b(fetch\(|node:https?|node:net|node:dgram|node:tls|XMLHttpRequest|WebSocket)\b/.test(text), `network use in ${f}`);
-    for (const m of text.matchAll(/from '([^']+)'/g)) assert.ok(m[1].startsWith('node:') || m[1].startsWith('.'), `non-built-in import ${m[1]} in ${f}`);
+    assert.ok(!/\bfetch\s*\(|\b(node:https?|node:net|node:dgram|node:tls|XMLHttpRequest|WebSocket)\b/.test(text), `network use in ${f}`);
+    const specifiers = [
+      ...text.matchAll(/\bfrom\s+['"]([^'"]+)['"]/g),
+      ...text.matchAll(/^\s*import\s+['"]([^'"]+)['"]/gm),
+      ...text.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]/g),
+      ...text.matchAll(/\brequire\s*\(\s*['"]([^'"]+)['"]/g),
+    ].map((m) => m[1]);
+    for (const s of specifiers) assert.ok(s.startsWith('node:') || s.startsWith('.'), `non-built-in import ${s} in ${f}`);
+    // Every git call goes through lib/git.mjs, so the engine never spawns a process itself.
+    if (f.includes(`${join('lib', 'replay')}`)) assert.ok(!/child_process/.test(text), `process spawning in ${f}`);
   }
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
   assert.equal(pkg.dependencies, undefined);
