@@ -7,12 +7,12 @@
 // module that another issue has not built yet — `--help` works from a fresh
 // clone with zero modules present.
 
-const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts', 'digest', 'mine', 'history'];
+const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts', 'digest', 'mine', 'history', 'view'];
 
 // Subcommands that parse `--help` themselves and print their own richer text.
 // Everything else is served by COMMAND_HELP below, BEFORE the handler is
 // imported, because asking for help must never read a session log or write a file.
-const SELF_HELP = new Set(['prompts', 'digest', 'preview', 'mine']);
+const SELF_HELP = new Set(['prompts', 'digest', 'preview', 'mine', 'view']);
 
 const COMMAND_HELP = {
   init: `honestweek init: scaffold honestweek.config.json.
@@ -145,6 +145,9 @@ Commands:
               undecided. Add --draft to write the top one up as a post.
   history     List the pull requests you landed in a period (--from, --to), the
               raw material for a client report. Writes a gitignored sidecar.
+  view        Find, check and replay your agent work in your browser, on a
+              local-only (127.0.0.1) page. Add --demo to look around a made-up
+              week first. Publishes nothing.
 
 Options:
   -h, --help  Show this help.

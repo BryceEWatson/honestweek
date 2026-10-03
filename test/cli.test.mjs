@@ -67,7 +67,7 @@ test('every subcommand answers --help with help, exit 0, and no side effects', (
   // write honestweek.harvest.json.
   const dir = scratchCwd(t);
 
-  for (const cmd of ['init', 'discover', 'prompts', 'digest', 'validate', 'build', 'harvest', 'preview', 'mine']) {
+  for (const cmd of ['init', 'discover', 'prompts', 'digest', 'validate', 'build', 'harvest', 'preview', 'mine', 'view']) {
     const res = runCli([cmd, '--help'], dir);
     assert.equal(res.code, 0, `${cmd} --help should exit 0`);
     assert.match(res.stdout, /usage|Usage/, `${cmd} --help should print usage`);
