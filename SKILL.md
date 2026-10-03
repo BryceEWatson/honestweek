@@ -74,6 +74,7 @@ Each item in `honestweek.items.json` carries:
 - **Verify or abort.** Every git-checkable claim is re-derived at `build`; an unresolved or non-authored commit **aborts the build (exit 2)**, writing nothing. A `shipped` badge must also be **landed**: every cited commit reachable from the repo's default branch, verified offline from local refs. Unlanded work is downgraded to `in progress`, and a `shipped` claim that cannot be checked (no determinable default branch) aborts. There is no half-true output.
 - **Human gate: honestweek never auto-publishes.** `review` shows the build output and the emitted-items summary; **the USER is the publisher.** Nothing is posted in the user's voice automatically.
 - **Local-only preview.** The optional `preview` server binds to loopback (`127.0.0.1`) only, renders the built output in memory as a self-contained page (no external resources), and publishes nothing. It is a viewer, not a producer: it never re-runs `build`, calls git, or writes a file.
+- **Local-only page.** `view` binds to loopback (`127.0.0.1`) only, answers only the page it opened (each run's key is traded once for the one-time code in the address it prints), keeps what it reads in memory, and publishes nothing. Its Show private text switch belongs to the user, on their own screen.
 - **A mined draft asserts nothing about today.** `mine --draft` writes a post from old session logs. Its last-verified field is emitted **empty**, its publication date is left blank, and every item on its verification checklist starts `UNVERIFIED`. Do not fill any of them in on the user's behalf: they record whether a human re-ran the checks, and pre-filling them would launder a past observation into a present-tense claim. If asked to help publish one, work the checklist first and say plainly which items you could not verify.
 
 ## A report for a client (`client` mode)
@@ -106,6 +107,22 @@ node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" mine --draft    # write the top on
 - Every run prints a retention floor — the oldest session still on disk. Nothing before it can ever be mined, because the agent deleted it.
 
 Full detector, ranker, and calibration notes: `docs/mining.md`.
+
+## Finding and replaying work (`view`)
+
+When the user wants to find the sessions behind a pull request, a commit, a file, a branch or a phrase, see which sessions worked toward a goal, or replay a session step by step, start the local page:
+
+```bash
+node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" view                     # the last 7 days; opens the browser
+node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" view --days 30 --goals goals.json
+node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" view --demo              # a made-up week, no logs or config needed
+```
+
+- It serves on `127.0.0.1` until Ctrl+C, so run it in the background or let the user run it in their own terminal. It prints an address carrying a one-time code; each code works once, and pressing Enter in that terminal prints a fresh one. Give that address only to the user's own browser.
+- With no `honestweek.config.json` it stops and points to `init` and `--demo`.
+- `--goals <file>` (or `goalsFile` in the config) names a goal list: `{ "goals": [{ "id", "title" }], "events": [] }`. It's a different file from the goals page's `honestweek.objectives.json`.
+- The page is redacted unless the user turns on Show private text. Don't copy what it shows into anything you write for someone else, and don't flip the switch for them.
+- Every link, count and step on it says how it's known (recorded, derived, inferred, missing, or ambiguous). When you report what it shows, keep that word: an inferred link is not a recorded one.
 
 ## Clean-room
 

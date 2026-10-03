@@ -23,7 +23,7 @@ Run `node --test` from the repository root with no path argument (passing `test/
 [`AGENTS.md`](AGENTS.md) is the full list, written for coding agents but meant for everyone. In short:
 
 - **Zero runtime dependencies.** Node built-ins and the system `git` only. No package, no lockfile, no install step.
-- **No network calls.** No telemetry, no fetch. The optional `preview` command (a small local server that shows your built output) binds to `127.0.0.1` only.
+- **No network calls.** No telemetry, no fetch. Two commands start a small local server, and both bind to `127.0.0.1` only: `preview`, which shows your built output, and `view`, a page for finding and replaying your sessions.
 - **Node 18 APIs only**, and no hardcoded path separators.
 - **Redact before disk.** honestweek's redactor scrubs secrets, personal paths and any terms you list. Every string that reaches a written file passes through it first.
 - **Display-only repositories never reach `git`.** A repository you mark `display` in your config gets a generic summary, and no code path runs `git` against it.
@@ -55,7 +55,7 @@ Session logs hold your prompts, file paths and sometimes secrets. Don't paste a 
 
 ## Security
 
-If you find a way honestweek could send data off your machine, write an unredacted secret to an output file, run `git` against a display-only repository, or expose the `preview` server beyond your own machine, please report it privately as described in [`SECURITY.md`](SECURITY.md) rather than in a public issue.
+If you find a way honestweek could send data off your machine, write an unredacted secret to an output file, run `git` against a display-only repository, or expose the `preview` or `view` server beyond your own machine, please report it privately as described in [`SECURITY.md`](SECURITY.md) rather than in a public issue.
 
 ## License
 
