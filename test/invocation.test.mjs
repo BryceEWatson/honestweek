@@ -3,6 +3,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { commandForm, currentCommand, pageCommand, setCommandForm } from '../lib/invocation.mjs';
@@ -38,6 +40,40 @@ test('npx prints the package spec it fetched, read from its cache folder', () =>
   assert.equal(commandForm({ argv1, env, cwd: at('project'), readFile: noFile }), 'npx honestweek');
 });
 
+test('on Linux and macOS npm runs its command through a link, which is followed to the package', () => {
+  // npx runs <cache>/_npx/<hash>/node_modules/.bin/honestweek, a link to the package's script,
+  // and node reports the link.
+  const cache = at('npm-cache', '_npx', 'a1b2c3');
+  const script = join(cache, 'node_modules', 'honestweek', 'bin', 'honestweek.mjs');
+  const links = new Map([
+    [join(cache, 'node_modules', '.bin', 'honestweek'), script],
+    [at('usr', 'local', 'bin', 'honestweek'), at('usr', 'local', 'lib', 'node_modules', 'honestweek', 'bin', 'honestweek.mjs')],
+  ]);
+  const realpath = (p) => links.get(p) ?? noFile();
+  const readFile = () => JSON.stringify({ dependencies: { honestweek: 'github:your-org/honestweek' } });
+  const env = { npm_command: 'exec' };
+  assert.equal(commandForm({ argv1: join(cache, 'node_modules', '.bin', 'honestweek'), env, cwd: at('project'), readFile, realpath }), 'npx github:your-org/honestweek');
+  // A global install's command on the PATH is a link into <prefix>/lib/node_modules.
+  assert.equal(commandForm({ argv1: at('usr', 'local', 'bin', 'honestweek'), env: {}, cwd: at('project'), readFile: noFile, realpath }), 'honestweek');
+  // Failing path: a path that can't be followed is read as it is.
+  assert.equal(commandForm({ argv1: at('clone', 'bin', 'honestweek.mjs'), env: {}, cwd: at('clone'), realpath: noFile }), 'node bin/honestweek.mjs');
+});
+
+test('a real npx cache with its .bin link prints the spec npx fetched', { skip: process.platform === 'win32' && 'symlinks need extra rights on Windows' }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hw-npx-'));
+  try {
+    const cache = join(dir, '_npx', 'a1b2c3');
+    mkdirSync(join(cache, 'node_modules', 'honestweek', 'bin'), { recursive: true });
+    mkdirSync(join(cache, 'node_modules', '.bin'));
+    writeFileSync(join(cache, 'node_modules', 'honestweek', 'bin', 'honestweek.mjs'), '');
+    writeFileSync(join(cache, 'package.json'), JSON.stringify({ dependencies: { honestweek: 'github:your-org/honestweek' } }));
+    symlinkSync('../honestweek/bin/honestweek.mjs', join(cache, 'node_modules', '.bin', 'honestweek'));
+    assert.equal(commandForm({ argv1: join(cache, 'node_modules', '.bin', 'honestweek'), env: { npm_command: 'exec' }, cwd: dir }), 'npx github:your-org/honestweek');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('node with a script path prints that path: relative inside the folder, absolute outside it, quoted with a space', () => {
   const argv1 = at('clone', 'bin', 'honestweek.mjs');
   assert.equal(commandForm({ argv1, env: {}, cwd: at('clone') }), 'node bin/honestweek.mjs');
@@ -50,10 +86,14 @@ test('node with a script path prints that path: relative inside the folder, abso
   assert.equal(commandForm({ argv1: null, env: {} }), 'honestweek');
 });
 
-test('a page shows a command with an absolute path by a placeholder, never the path', () => {
+test('a page shows a command that names a file by a placeholder, never the path', () => {
   assert.equal(pageCommand('honestweek'), 'honestweek');
   assert.equal(pageCommand('npx github:your-org/honestweek'), 'npx github:your-org/honestweek');
-  assert.equal(pageCommand('node bin/honestweek.mjs'), 'node bin/honestweek.mjs');
+  assert.equal(pageCommand('npx your-org/honestweek'), 'npx your-org/honestweek');
+  // A relative path only works from the folder honestweek was started in, and a page names
+  // steps for another folder (set it up in your project folder).
+  assert.equal(pageCommand('node bin/honestweek.mjs'), 'node <your honestweek folder>/bin/honestweek.mjs');
+  assert.equal(pageCommand('npx ./pkgs/honestweek-0.1.0.tgz'), 'npx <your honestweek package file>');
   assert.equal(pageCommand('node C:/Users/you/code/honestweek/bin/honestweek.mjs'), 'node <your honestweek folder>/bin/honestweek.mjs');
   assert.equal(pageCommand('node "/home/you/my tools/bin/honestweek.mjs"'), 'node <your honestweek folder>/bin/honestweek.mjs');
   assert.equal(pageCommand('npx /home/you/honestweek-0.1.0.tgz'), 'npx <your honestweek package file>');

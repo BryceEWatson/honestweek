@@ -27,10 +27,11 @@ next to it, folding each extra working copy (a git worktree) into its main
 repository. It shows the list so you can keep or drop repositories by number
 ('keep 1-5 9', 'drop 3 7-9') or change a role ('role 2 display'), then asks for
 people's names and client or project words to keep private (you can skip
-both). It writes nothing until you've said yes twice. Then it writes
-honestweek.config.json, drops honestweek.config.example.json if absent, and
-adds honestweek's generated files to .gitignore. Answers piped in on stdin work,
-one per line.
+both). It reads back the words it'll store, and writes nothing until you've
+said yes twice. Then it writes honestweek.config.json, drops
+honestweek.config.example.json if absent, and adds honestweek's generated files
+to .gitignore, and the config too when you gave it private words. If it finds no
+repositories, it writes nothing. Answers piped in on stdin work, one per line.
 
 Options:
   -y, --yes   Accept the inferred defaults without prompting. Use this when no
