@@ -16,7 +16,7 @@ cd honestweek
 node --test
 ```
 
-Run `node --test` from the repository root with no path argument (passing `test/` fails, because Node treats it as a module name). `npm test` runs the same thing. CI runs the suite on Node 18, 20 and 22, on Linux, and development happens on Windows too, so a change has to work on both.
+Run `node --test` from the repository root with no path argument (passing `test/` fails, because Node treats it as a module name). `npm test` runs the same thing. CI runs the suite on Node 18, 20 and 22 on Linux, and on Node 22 on Windows and macOS, so a change has to work on all three.
 
 ## The constraints every change keeps
 
