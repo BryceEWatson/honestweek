@@ -6,10 +6,9 @@
 
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 import { createRedactor, createSecretsOnlyRedactor } from '../lib/redact.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { createLeakCounter, EXEMPT_FIELDS, setAsideAllowed, stringsIn } from '../lib/view/leaks.mjs';
@@ -18,8 +17,8 @@ import { REPLAY_EVENT_FIELDS } from '../lib/view/replay-export.mjs';
 import { buildCorpus } from './fixtures/replay/corpus.mjs';
 import { buildViewWeek, EMAIL, LONG_WORD, NOT_PROMPT_WORDS, OTHER_TERM, PRIVATE_WORDS, QUEUED_WORD, SECRETS, SEEDED, STRADDLE_WORD, SUMMARY_WORD, TERM, WEEK } from './fixtures/view/week.mjs';
 
-const scratch = mkdtempSync(join(tmpdir(), 'hw-view-data-'));
-after(() => rmSync(scratch, { recursive: true, force: true }));
+const scratch = makeTempDir('hw-view-data-');
+after(() => removeTempDir(scratch));
 
 const w = buildViewWeek(join(scratch, 'week'));
 const WINDOW = { from: WEEK.from, to: WEEK.to, timezone: 'UTC' };

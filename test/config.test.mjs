@@ -288,7 +288,7 @@ test('goalsFile resolves relative to the config file, and ~ to the home folder',
     const abs = resolve(dir, 'abs.json');
     assert.equal(normalizeConfig({ ...minimalValid(), goalsFile: abs }).goalsFile, abs);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
