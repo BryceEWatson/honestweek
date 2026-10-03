@@ -82,6 +82,9 @@ export const SUMMARY_WORD = 'wombatsummary';
 
 /** A word only a prompt typed while the agent was busy holds. */
 export const QUEUED_WORD = 'numbatqueued';
+/** Words only busy-time records that aren't the person's prompts hold, or one whose own
+ *  time is outside the week: search everywhere finds none of them. */
+export const NOT_PROMPT_WORDS = Object.freeze({ notice: 'dingonotice', peer: 'emupeer', relayed: 'bilbyrelayed', late: 'possumlate' });
 
 const at = (hh, mm, ss = 0, ms = 0) => `2025-03-12T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}.${String(ms).padStart(3, '0')}Z`;
 
@@ -94,7 +97,7 @@ function claudeLog(id, cwd) {
     title: (text) => lines.push(JSON.stringify({ type: 'ai-title', aiTitle: text, sessionId: id })),
     prompt: (ts, text, origin = { kind: 'human' }) => lines.push(JSON.stringify(base('user', ts, { message: { role: 'user', content: text }, ...(origin ? { origin } : {}) }))),
     summary: (ts, text) => lines.push(JSON.stringify(base('user', ts, { message: { role: 'user', content: text }, isCompactSummary: true }))),
-    queued: (ts, text) => lines.push(JSON.stringify(base('attachment', ts, { attachment: { type: 'queued_command', prompt: text, commandMode: 'prompt' } }))),
+    queued: (ts, text, { origin = null, at: own = null } = {}) => lines.push(JSON.stringify(base('attachment', ts, { attachment: { type: 'queued_command', prompt: text, commandMode: 'prompt', ...(origin ? { origin } : {}), ...(own ? { timestamp: own } : {}) } }))),
     say: (ts, content) => lines.push(JSON.stringify(base('assistant', ts, { message: { id: `msg_${n}`, type: 'message', role: 'assistant', model: 'model-a', content } }))),
     result: (ts, toolUseId, content, tur) => lines.push(JSON.stringify(base('user', ts, { message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, content }] }, toolUseResult: tur }))),
   };
@@ -161,6 +164,10 @@ export function buildViewWeek(root) {
   o.summary(at(12, 5), `This session is being continued from an earlier one. The ${SUMMARY_WORD} covers the work so far.`);
   o.say(at(12, 6), [{ type: 'tool_use', id: 'toolu_view_busy', name: 'Bash', input: { command: 'sleep 1' } }]);
   o.queued(at(12, 6, 30), `Also check the ${QUEUED_WORD} list while that runs.`);
+  o.queued(at(12, 6, 35), `<task-notification><summary>Agent finished: ${NOT_PROMPT_WORDS.notice}</summary></task-notification>`, { origin: { kind: 'task-notification' } });
+  o.queued(at(12, 6, 40), `Status from the other session: ${NOT_PROMPT_WORDS.peer}.`, { origin: { kind: 'peer', name: 'other' } });
+  o.queued(at(12, 6, 45), `<cross-session-message from="other">${NOT_PROMPT_WORDS.relayed}</cross-session-message>`);
+  o.queued(null, `Typed long after the week: ${NOT_PROMPT_WORDS.late}.`, { at: '2025-04-20T09:00:00.000Z' });
   o.result(at(12, 7), 'toolu_view_busy', 'done', { stdout: 'done', stderr: '', interrupted: false });
   writeFileSync(join(projects, dirs.scratch, `${IDS.outside}.jsonl`), `${o.lines.join('\n')}\n`);
 

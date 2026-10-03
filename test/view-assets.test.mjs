@@ -12,6 +12,7 @@ import { runInNewContext } from 'node:vm';
 
 import { createRedactor } from '../lib/redact.mjs';
 import { createLeakCounter } from '../lib/view/leaks.mjs';
+import { memberCount } from '../lib/view/data.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS = join(HERE, '..', 'lib', 'view', 'assets');
@@ -191,6 +192,9 @@ test("a goal's session count on a page is no stronger than its weakest session",
   assert.equal(memberLevel([{ evidence: 'recorded' }, { evidence: 'inferred' }]), 'inferred');
   assert.equal(memberLevel([{ evidence: 'recorded', ambiguous: true }]), 'inferred');
   assert.equal(memberLevel([{ evidence: 'missing' }]), 'inferred');
+  // The server's count for the home page reads the same level over the same sessions.
+  const sets = [[], [{ evidence: 'recorded' }], [{ evidence: 'derived' }], [{ evidence: 'inferred' }], [{ evidence: 'missing' }], [{ evidence: 'recorded', ambiguous: true }], [{ evidence: 'recorded' }, { evidence: 'derived' }], [{ evidence: 'derived' }, { evidence: 'inferred' }]];
+  for (const s of sets) assert.equal(memberCount(s.map((m) => ({ ...m, joins: [] }))).evidence, memberLevel(s), JSON.stringify(s));
 });
 
 test("the step list keeps each piece read from the logs in its own element, and cuts one only where the scrubber reads it the same", () => {

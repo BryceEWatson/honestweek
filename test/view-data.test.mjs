@@ -16,7 +16,7 @@ import { createLeakCounter, EXEMPT_FIELDS, setAsideAllowed, stringsIn } from '..
 import { createLru, createViewData, goalKey, memberCount } from '../lib/view/data.mjs';
 import { REPLAY_EVENT_FIELDS } from '../lib/view/replay-export.mjs';
 import { buildCorpus } from './fixtures/replay/corpus.mjs';
-import { buildViewWeek, EMAIL, LONG_WORD, OTHER_TERM, PRIVATE_WORDS, QUEUED_WORD, SECRETS, SEEDED, STRADDLE_WORD, SUMMARY_WORD, TERM, WEEK } from './fixtures/view/week.mjs';
+import { buildViewWeek, EMAIL, LONG_WORD, NOT_PROMPT_WORDS, OTHER_TERM, PRIVATE_WORDS, QUEUED_WORD, SECRETS, SEEDED, STRADDLE_WORD, SUMMARY_WORD, TERM, WEEK } from './fixtures/view/week.mjs';
 
 const scratch = mkdtempSync(join(tmpdir(), 'hw-view-data-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -174,6 +174,7 @@ test('search everywhere redacts a long prompt whole before cutting it, and leave
     const busy = await body('/api/search', { q: QUEUED_WORD }, priv);
     assert.equal(busy.results.length, 1, 'a prompt typed while the agent was busy is searched');
     assert.equal(busy.results[0].session, w.keys.outside);
+    for (const [why, word] of Object.entries(NOT_PROMPT_WORDS)) assert.equal((await body('/api/search', { q: word }, priv)).results.length, 0, `a busy-time record that isn't a prompt in the week (${why}) is not searched`);
   }
 });
 
