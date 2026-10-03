@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replay · honestweek</title>
+<link rel="stylesheet" href="common.css">
+</head>
+<body data-page="replay">
+<header class="topbar">
+  <a class="brand" href="search.html">honestweek</a>
+  <nav aria-label="Pages"><a href="search.html">Search</a><a href="goal.html">Goals</a><a href="replay.html" aria-current="page">Replay</a></nav>
+  <span class="window" id="window"></span>
+  <span class="privacy" id="privacy"></span>
+</header>
+<p class="demo" id="demo" hidden></p>
+<p class="statusline" id="status" role="status" hidden></p>
+<div class="pagehead">
+  <h1>Replay a session</h1>
+  <span class="sub" id="title"></span>
+  <p class="evkey" data-evkey></p>
+</div>
+<div class="wrap" id="content">
+  <div class="chartcol">
+    <div class="controls">
+      <button type="button" id="prevPrompt" title="Previous prompt (Shift+←)">⏮ Prompt</button>
+      <button type="button" id="prevStep" title="Previous record (←)">◀ Step</button>
+      <button type="button" id="play" title="Play through the records (Space)">▶ Play</button>
+      <button type="button" id="nextStep" title="Next record (→)">Step ▶</button>
+      <button type="button" id="nextPrompt" title="Next prompt (Shift+→)">Prompt ⏭</button>
+      <span class="sep"></span>
+      <button type="button" id="expandAll" title="Show one row per tool and record kind">Expand all</button>
+      <button type="button" id="collapseAll">Collapse all</button>
+      <span class="sep"></span>
+      <label class="kbd">Zoom <select id="zoom"><option value="0">Whole session</option><option value="7200000">2 hours</option><option value="1800000">30 minutes</option><option value="300000">5 minutes</option><option value="60000">1 minute</option><option value="custom" disabled>Your selection</option></select></label>
+      <button type="button" id="fit" title="Zoom back out to the whole session (Esc, or double-click the chart)">⤢ Whole session</button>
+      <span class="readout" id="readout"></span>
+    </div>
+    <div class="zoombar" id="zoombar" hidden></div>
+    <div class="scrub"><input type="range" id="slider" min="0" max="1000" value="0" aria-label="Time in the session"></div>
+    <p class="sr" id="announce" aria-live="polite"></p>
+    <details class="catalog" id="catalog">
+      <summary id="catalogSummary"></summary>
+      <div class="cat-grid" id="catalogGrid"></div>
+      <div class="excluded">Never shown: the model's private reasoning (read by no part of the engine), model-written summaries of earlier context, and the harness's own context injections. Each is counted in the engine's coverage report instead.</div>
+    </details>
+    <p class="warn" id="undrawn" hidden></p>
+    <div class="legend">
+      <span><span class="sw run"></span>Ran a command</span>
+      <span><span class="sw change"></span>Changed a file</span>
+      <span><span class="sw look"></span>Looked something up</span>
+      <span><span class="sw other"></span>Other step</span>
+      <span>◆ Your input</span>
+      <span><svg class="legend-svg" width="14" height="12" aria-hidden="true"><path d="M1,1 h12 v7 h-7 l-4,3 v-3 h-1 z" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>A sub-agent's starting instruction</span>
+      <span><span class="sw hatch"></span>No result recorded</span>
+      <span><span class="git">○</span> Commit (git)</span>
+      <span><span class="git">■</span> Pull request landed (git)</span>
+      <span><span class="sw timeby"></span>Time borrowed or moved</span>
+      <span><span class="sw gap"></span>No records (a gap, not idle)</span>
+      <span id="legendSession" hidden><svg class="legend-svg narrow" width="10" height="12" aria-hidden="true"><line x1="5" x2="5" y1="0" y2="12" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 2"/></svg>A session's first record</span>
+    </div>
+    <svg id="chart" class="chart" role="group" aria-label="Every recorded step by agent and tool over time. Each step is a button; the list after the chart reads them in order."></svg>
+    <h2 class="sr">Every step on the chart, in order (<span id="stepCount">0 steps</span>)</h2>
+    <ol class="sr" id="chartSteps"></ol>
+    <p class="note">Click a lane name to open one row per tool or record kind. Drag across the chart to zoom; double-click to zoom back out. Labels appear once there's room to read them. Bars run from a recorded call to its recorded result, a recorded span rather than time spent working. Hover for a summary; click any mark, or Tab to it and press Enter, for every field and the original record.</p>
+  </div>
+  <aside class="panel" id="panel" aria-label="What the logs say was going on at the playhead"></aside>
+</div>
+<script src="evidence.js"></script>
+<script src="key.js"></script>
+<script src="private-text.js"></script>
+<script src="common.js"></script>
+<script src="replay.js"></script>
+</body>
+</html>
