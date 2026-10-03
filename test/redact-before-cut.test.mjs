@@ -183,6 +183,23 @@ test('a name broken across the first line break is still hidden in a first-line 
   assert.equal(out, 'PreToolUse:Bash hook error: Refused by [redacted:term] policy');
 });
 
+test('a name broken across the first line break, with a long line after it, is still cut to its length', () => {
+  const r = full();
+  for (const max of [160, 80]) {
+    const body = `Refused by ${PAIR.replace(' ', '\n')} ${fill(400)}\nthird line`;
+    const out = redactClipFirstLine(body, max, r.redact);
+    assert.ok(out.length <= max + 1 && out.endsWith('…'), `${max}: ${out.length} characters`);
+    assert.ok(out.startsWith('Refused by [redacted:term] the build') && !leaks(out) && !out.includes('third'), out);
+    // Failing-path partner: the redacted first line runs on past the cut.
+    assert.ok(r.redact(body).split('\n')[0].length > max);
+  }
+  // A short first line with nothing hidden across the break reads as before, even when a
+  // placeholder makes its redaction longer than the cut.
+  const short = `x ${TERM} ${TERM} ${TERM}`;
+  assert.ok(short.length <= 40 && r.redact(short).length > 40);
+  assert.equal(redactClipFirstLine(`${short}\n${fill(200)}`, 40, r.redact), cutThenRedact(short, 40, r.redact));
+});
+
 test('a secret on the line after its key stays hidden in an excerpt, under both scrubbers', () => {
   for (const r of [full(), createSecretsOnlyRedactor()]) {
     for (const max of EXCERPT_LENGTHS) {
@@ -540,6 +557,7 @@ const ALLOWED = [
   ['parse-common.mjs', 'piece.slice(0, piece.length - end.length)', 'the helper itself'],
   ['parse-common.mjs', 'redact(s).split(/\\r?\\n/)[0]', 'the helper itself: the first line of redacted text'],
   ['parse-common.mjs', 'collapse(s.split(/\\r?\\n/)[0])', 'the helper itself: the raw first line, cut only by redactThenCut'],
+  ['parse-common.mjs', 'whole.slice(0, at).trimEnd()', 'the helper itself: a redacted first line run on past its break, cut before any placeholder'],
   ['timeline.mjs', "k.split('|')[0]", 'an internal map key'],
   ['views.mjs', 'toISOString().slice(0, 10)', 'a date'],
 ];
