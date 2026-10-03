@@ -220,6 +220,24 @@ test('with --no-open nothing is opened, and the printed address works; Enter pri
   await r.handle.stop();
 });
 
+test('with --self-test it also prints the click-through page\'s address, with its own code, and a fresh one on Enter', async () => {
+  const input = new PassThrough();
+  const r = await view(['--no-open', '--self-test', ...RANGE], { input });
+  const selfTestCodes = (text) => [...text.matchAll(/http:\/\/127\.0\.0\.1:(\d+)\/selftest\/clickthrough\.html#c=([0-9a-f]+)/g)].map((m) => ({ port: Number(m[1]), code: m[2] }));
+  const [page] = selfTestCodes(r.out());
+  assert.ok(page, 'the click-through address is printed');
+  assert.equal(codesIn(r.out()).length, 1, 'beside the one search-page address');
+  const key = await claim(page.port, page.code);
+  assert.ok(key);
+  assert.equal(await claim(page.port, page.code), null, 'used once');
+  input.write('\n');
+  await new Promise((res) => setTimeout(res, 50));
+  const fresh = selfTestCodes(r.out());
+  assert.equal(fresh.length, 2);
+  assert.equal(await claim(fresh[1].port, fresh[1].code), key, 'the fresh click-through address works');
+  await r.handle.stop();
+});
+
 test('restarted on the same port, a switch saved under the old run\'s key counts as off', async () => {
   const first = await view(['--no-open', ...RANGE]);
   const port = first.handle.port;

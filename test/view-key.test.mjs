@@ -230,3 +230,31 @@ test('key: waiting for the build reports progress, then a failed private build a
   await t2.client.init();
   assert.deepEqual(await t2.client.waitForBuild({ intervalMs: 1 }), { ok: false, reason: 'failed', message: 'made-up', status: { state: 'failed', failed: 'made-up' } });
 });
+
+test('key: it waits on the status the data layer really sends, and asking for it with the switch on starts the private build', async () => {
+  const { createViewData } = await import('../lib/view/data.mjs');
+  let release;
+  const gate = new Promise((r) => (release = r));
+  const made = () => ({ events: [], sessions: [], window: { startT: 0, endT: 1 }, sourceSession: new Map() });
+  const data = createViewData({ config: {}, roots: { claude: [], codex: [] }, from: '2025-03-10', to: '2025-03-16', timezone: 'UTC', buildHistory: (o) => (o.privateText ? gate.then(made) : Promise.resolve(made())) });
+  await data.start();
+  const s = server();
+  const real = s.fetch;
+  const fetch = async (url, opts = {}) => {
+    if (!url.startsWith('/api/status') || opts.headers?.['X-Honestweek-Key'] !== KEY) return real(url, opts);
+    const r = await data.route('/api/status', new URL(url, 'http://127.0.0.1').searchParams);
+    return { ok: r.status === 200, status: r.status, json: async () => r.body };
+  };
+  const store = storage();
+  store.setItem(KEY_SLOT, KEY);
+  store.setItem(SWITCH_SLOT, JSON.stringify({ run: KEY, on: true }));
+  const t = tab({ store, fetch });
+  await t.client.init();
+  const phases = [];
+  const waiting = t.client.waitForBuild({ intervalMs: 1, onProgress: (p) => (phases.push(p.phase), phases.length === 3 && release()) });
+  const r = await waiting;
+  assert.equal(r.ok, true);
+  assert.equal(r.note, null);
+  assert.ok(phases.length >= 3 && phases.every((p) => p === 'private'), 'it waited on the private build');
+  assert.equal(data.status().builds.private.state, 'ready', 'the status request started it');
+});

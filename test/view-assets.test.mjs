@@ -141,11 +141,10 @@ test('assets: the click-through counts policy violations as failures and keeps i
   for (const m of ct.matchAll(/skip\('([\w-]+)'\)/g)) assert.ok(new RegExp(`'${m[1]}':|${m[1].replace(/-/g, '\\-')}:`).test(ct.match(/const SKIPS = \{([^]*?)\n  \};/)[1]) || m[1] === 'page-did-not-load', `skip "${m[1]}" isn't on the named list`);
 });
 
-// The clean-room fence over these files: no real name, path, repository, address or codename.
-const FORBIDDEN = ['brycewatson', 'DemandForge', 'claude-global-skills', 'dropKnowledge', 'Akaya', 'ShopForge', 'bryceewatson'];
+// No real data in these files. The named tokens of the clean-room fence are checked over them by
+// test/site-cleanroom.test.mjs, which keeps that list in one place; this checks the shapes.
 test('assets: no real data: names, home folders, addresses or codenames', () => {
   for (const f of files()) {
-    for (const token of FORBIDDEN) assert.doesNotMatch(f.text, new RegExp(token, 'i'), `${f.name}: "${token}"`);
     assert.doesNotMatch(f.text, /\bBryce\b/i, `${f.name}: an operator account name`);
     assert.doesNotMatch(f.text, /[A-Za-z]:\\\\?Users\\\\?|\/Users\/[A-Za-z]|\/home\/[a-z]/, `${f.name}: a home folder`);
     for (const m of f.text.matchAll(/[\w.+-]+@[\w-]+\.[\w.]+/g)) assert.match(m[0], /@example\.(com|org)$/, `${f.name}: an email address`);

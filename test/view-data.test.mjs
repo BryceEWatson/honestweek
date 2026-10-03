@@ -391,7 +391,8 @@ test('every row and count in the word, search-everywhere and home answers carrie
   check(await body('/api/words', { similar: reference.events.find((e) => e.session === w.keys.featured && e.kind === 'prompt').id }), 'similar');
   for (const q of ['release', TERM, 'suite']) check(await body('/api/search', { q }), `search ${q}`);
   const words = await body('/api/words', { q: 'release notes changelog' });
-  assert.ok(words.prompts.some((p) => p.evidence === 'inferred' && p.rule === 'view.shared-words'), 'a partial match is inferred by a named rule');
+  assert.ok(words.prompts.some((p) => p.matched === 'some of your words'), 'a partial match is listed');
+  assert.ok(words.prompts.every((p) => p.evidence === 'recorded' && p.score.evidence === 'inferred' && p.score.rule === 'view.shared-words'), 'the words are recorded in the prompt; its shared-word score is inferred by a named rule');
   assert.ok(words.rules['view.shared-words']);
 });
 

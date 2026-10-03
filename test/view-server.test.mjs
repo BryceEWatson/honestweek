@@ -167,13 +167,14 @@ test('a malformed address gets an error, not a crash', async () => {
 
 test('a path outside the page is refused', async () => {
   const s = await start();
-  for (const path of ['/../package.json', '/..%2f..%2fpackage.json', '/%2e%2e/%2e%2e/package.json', '/lib/view.mjs', '/assets/search.html', '/nested/inner.js', '/notes.txt', '/search.html/..%2fsearch.js', '/SEARCH.HTML', '/search.html%00', '/clickthrough.html']) {
+  for (const path of ['/../package.json', '/..%2f..%2fpackage.json', '/%2e%2e/%2e%2e/package.json', '/lib/view.mjs', '/assets/search.html', '/nested/inner.js', '/notes.txt', '/search.html/..%2fsearch.js', '/SEARCH.HTML', '/search.html%00', '/clickthrough.html', '/selftest/clickthrough.html']) {
     assert.equal((await raw(s.port, { path })).status, 404, path);
   }
   assert.equal((await raw(s.port, { path: '/search.js' })).status, 200);
   assert.equal((await raw(s.port, { path: '/search.js' })).headers['content-type'], 'text/javascript; charset=utf-8');
   const t = await start({ selfTest: true });
-  assert.equal((await raw(t.port, { path: '/clickthrough.html' })).status, 200, 'the self-test page is served only with --self-test');
+  assert.equal((await raw(t.port, { path: '/selftest/clickthrough.html' })).status, 200, 'the self-test page is served only with --self-test');
+  assert.equal((await raw(t.port, { path: '/clickthrough.html' })).status, 404, 'under /selftest/, beside the pages it drives');
 });
 
 test('pages are read once at start, from a fixed list', async () => {
@@ -287,7 +288,9 @@ test('no shipped page or script holds an inline style, an inline script, or an i
 test('the page code never puts typed words, a goal\'s id or title, or a reference\'s text in the address', { skip: PAGES_SKIP }, () => {
   for (const f of pageFiles().filter((x) => /\.m?js$/.test(x))) {
     const js = readFileSync(f, 'utf8');
-    assert.ok(!/#q=/.test(js), `${f} builds a #q= address`);
+    // The search page's address holds its query id (#q=<id>), never typed text: every #q= in
+    // page code is built from the id the server gave, or reads one back with a pattern.
+    for (const m of js.matchAll(/#q=(.{0,14})/g)) assert.match(m[1], /^(\$\{qid\}|\(\[A-Za-z0-9_-\]|\[A-Za-z0-9_-\]|<query id>)/, `${f} builds a #q= address from something other than a query id: #q=${m[1]}`);
     for (const line of js.split('\n')) {
       if (!/(location\.(hash|search|href)\s*=|history\.(push|replace)State\(|location\.(assign|replace)\()/.test(line)) continue;
       assert.ok(!/\b(query|words|title|text|value|ref)\b/.test(line), `${f} may put text in the address: ${line.trim()}`);
