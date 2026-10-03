@@ -10,6 +10,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
 
+import { createRedactor } from '../lib/redact.mjs';
+import { createLeakCounter } from '../lib/view/leaks.mjs';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS = join(HERE, '..', 'lib', 'view', 'assets');
 const SELFTEST = join(HERE, '..', 'lib', 'view', 'selftest');
@@ -158,6 +161,60 @@ test("the click-through's address check: a typed word counts only as a whole id-
   assert.equal(holds('replay.html#th-parser', typed), true);
   assert.equal(holds('replay.html?session=cc-parser', typed), true);
   assert.equal(holds('replay.html?session=session', typed), true, 'a typed word as a value counts, even when it is also a name');
+});
+
+test("the step list keeps each piece read from the logs in its own element, and cuts one only where the scrubber reads it the same", () => {
+  // common.js, loaded the way a page loads it, over made-up answers.
+  const sandbox = { window: { HWE: { chips: () => '' }, HWP: {} }, document: { getElementById: () => null } };
+  runInNewContext(readFileSync(join(ASSETS, 'common.js'), 'utf8'), sandbox);
+  const HW = sandbox.window.HW;
+  const config = { redaction: { codenames: [], names: [], terms: ['Northwind'] } };
+  const full = createRedactor(config).redact;
+  const leaks = createLeakCounter(config);
+  // What the server sends: a sub-agent whose description ends in a word that names a
+  // credential, a command that ends in a hidden header, and a command with a long id that
+  // the scrubber leaves whole (its hex tail is set aside as a commit id).
+  const header = full('curl -s https://api.example.com/v1/items -H Authorization: Bearer abcdEFGH12345678');
+  const longId = full(`Set-Location app; $runner = 'build'; ${'x'.repeat(63)} run worker7f3e2026-b12c-34d5-abcd-2026e45f67a8:1 again`);
+  assert.equal(header, 'curl -s https://api.example.com/v1/items -H Authorization: [redacted:secret]');
+  assert.ok(longId.includes('worker7f3e2026-b12c-34d5-abcd-2026e45f67a8'), 'the scrubber leaves the long id');
+  const at = Date.UTC(2025, 2, 12, 10, 9);
+  HW.useData({
+    events: [
+      { id: 'cc-abcdefghijkl.40.0', t: at, kind: 'action', group: 'run', actor: 'agent', agent: 'ag-1', ev: 'recorded', facts: { command: header } },
+      { id: 'cc-abcdefghijkl.41.0', t: at + 1000, kind: 'action', group: 'run', actor: 'agent', agent: 'ag-1', ev: 'recorded', facts: { command: longId } },
+    ],
+    agents: [{ key: 'ag-1', session: 'cc-abcdefghijkl', kind: 'subagent', type: 'general-purpose', description: 'Review the session auth' }],
+  });
+  for (const s of [header, longId, 'Review the session auth']) assert.equal(leaks.redacted(s).total, 0, 'each served string reads clean on its own');
+  // Before: one line in one text node, and a hard cut at 140 characters, five into the id's hex tail.
+  assert.equal(leaks.redacted(longId.slice(0, 140)).secrets, 1, 'a cut inside the id reads as a token');
+  const el = { innerHTML: '' };
+  const drawn = [...HW.data.byId.values()].map((e) => {
+    const pieces = HW.describeStepPieces(e);
+    return { id: e.id, text: pieces.map(([t]) => t).join(''), pieces };
+  });
+  for (const d of drawn) {
+    assert.equal(d.text, HW.describeStep(HW.data.byId.get(d.id)), 'a screen reader hears the same line');
+    assert.equal(leaks.redacted(d.text).secrets, 1, 'joined, the page\'s own words read as a field\'s value');
+  }
+  HW.stepList(el, drawn);
+  const nodes = el.innerHTML.split(/<[^>]+>/).map((t) => t.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')).filter((t) => t.trim());
+  assert.deepEqual(nodes.join('').replace(/\s+/g, ' '), drawn.map((d) => d.text).join('').replace(/\s+/g, ' '));
+  for (const t of nodes) assert.equal(leaks.redacted(t).total, 0, `a text node reads as a leak: ${JSON.stringify(t)}`);
+  assert.ok(nodes.includes('Sub-agent general-purpose: Review the session auth') && nodes.includes(header), 'the pieces from the logs stand alone');
+  // The cut: never inside a run of token characters or a placeholder; a run longer than half
+  // the room is shown whole.
+  const cut = HW.clip(longId, 140);
+  assert.ok(longId.startsWith(cut) && cut.length < longId.length);
+  assert.equal(leaks.redacted(cut).total, 0);
+  assert.ok(!cut.includes('worker7f3e'), 'the cut stops before the id');
+  assert.equal(HW.clip('see password: [redacted:secret] then more', 22), 'see password:');
+  assert.equal(HW.clip('a'.repeat(200), 50), 'a'.repeat(200));
+  assert.equal(HW.clip('short', 50), 'short');
+  // A chart label's cut keeps a placeholder whole, and its "…" stands apart.
+  assert.equal(HW.fitText('Review the session auth: [redacted:secret] and more words here', 36, 1), 'Review the session auth:<tspan>…</tspan>');
+  assert.equal(HW.fitText('Plain & short', 36, 1), 'Plain &amp; short');
 });
 
 test('the click-through sends the leak check each shown string and value on its own, never one joined text', () => {

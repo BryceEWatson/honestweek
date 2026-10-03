@@ -57,7 +57,7 @@ Every page's header shows the window it covers, the Show private text switch, an
 - for a command, its output, redacted, then cut short.
 - the original log line, re-read from disk only when the panel opens and checked against the fingerprint taken when the history was built, and for a tool call, its recorded result.
 
-Every step on a chart can be reached with the keyboard and opened with Enter, and each chart has a matching list of its steps for a screen reader.
+Every step on a chart can be reached with the keyboard and opened with Enter, and each chart has a matching list of its steps for a screen reader. Where the page shortens text from the logs, it cuts between words, never inside a hidden part or an id.
 
 ## How it keeps my data private
 
@@ -93,7 +93,7 @@ Every step on a chart can be reached with the keyboard and opened with Enter, an
 - `lib/view/replay-export.mjs`: one thread shaped for the replay page (`REPLAY_EVENT_FIELDS`), frames from the engine's timeline, and the "who" and "how the time is known" labels. `eventRow(h, e, agentsByKey, redact)` passes the engine's `describe(e)` through the build's scrubber.
 - `lib/view/word-index.mjs`: search everywhere. It reads prompts and titles line by line into memory, labels each hit from the build's own sessions, and collapses, redacts and then cuts each excerpt.
 - `lib/view/leaks.mjs`: `createLeakCounter(config)` with `redacted(value)` and `secrets(value)`, and `keyedSecrets(value)` for values under a sensitive key (the full redactor's `deepRedact` rule); `EXEMPT_FIELDS` is `['query']`.
-- `lib/view/assets/`: `search`, `goal` and `replay` pages, `common.js` (the page shell, the record panel and the chart pieces), `key.js` (the run key, the switch, and waiting for the build), `evidence.js` (the five words), `private-text.js` (the switch's handle) and `common.css`.
+- `lib/view/assets/`: `search`, `goal` and `replay` pages, `common.js` (the page shell, the record panel and the chart pieces; `clip()` cuts text the server sent only outside a placeholder and between runs of token characters, and the step list, the screen-reader announcements and chart labels keep each piece from the logs in an element of its own, apart from the page's own words), `key.js` (the run key, the switch, and waiting for the build), `evidence.js` (the five words), `private-text.js` (the switch's handle) and `common.css`.
 - `lib/view/selftest/clickthrough.{html,js}`: the click-through test and its `SKIPS` list. Its search words and references come from `/api/selftest`, never from its address.
 
 **Routes and the fields the pages read**
