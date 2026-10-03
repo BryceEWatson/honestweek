@@ -588,6 +588,7 @@ const ALLOWED = [
   ['parse-common.mjs', "redact(lines.join('\\n')).split('\\n')[0]", 'the helper itself: the first line of the redacted lines'],
   ['parse-common.mjs', 'first.slice(0, took ? took.index + took[0].length : at)', 'the helper itself: the first line up to the placeholder that took its break, or to where the readings part'],
   ['parse-common.mjs', 'whole.slice(0, placeholderSafeEnd(whole, max)).trimEnd()', 'the helper itself: a cut before any placeholder'],
+  ['parse-common.mjs', "String(s ?? '').slice(0, RAW_ERROR_MAX)", "a failed call's raw error text, kept in memory for checks (keepRaw) and never shown"],
   ['timeline.mjs', "k.split('|')[0]", 'an internal map key'],
   ['views.mjs', 'toISOString().slice(0, 10)', 'a date'],
 ];
