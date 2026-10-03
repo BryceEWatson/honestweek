@@ -2,9 +2,17 @@
 
 ## In plain terms
 
-The demo week is a made-up week of AI coding sessions that I generate on demand, so anyone can try the work-history engine, and the goal and search views meant to sit on top of it, without their own session logs. One command writes the session logs, the small git repository those sessions worked in, and a goal record into a folder. Everything in it is invented and fixed: a command-line tool called lantern, the author you@example.com, and the same timestamps and commit ids on every run. The tests build it and check that the engine reads it the way this page says.
+The demo week is a made-up week of AI coding sessions that I generate on demand, so anyone can try the work-history engine, and the page that sits on top of it (`honestweek view --demo`), without their own session logs. One command writes the session logs, the small git repository those sessions worked in, and a goal record into a folder. Everything in it is invented and fixed: a command-line tool called lantern, the author you@example.com, and the same timestamps and commit ids on every run. The tests build it and check that the engine reads it the way this page says.
 
 ## Running it
+
+The quickest way to look around it is the page:
+
+```bash
+node bin/honestweek.mjs view --demo
+```
+
+That builds the week in a temporary folder, serves only it on `127.0.0.1`, and deletes the folder when you stop it. For that run it also treats the made-up project name, lantern, as a private word, so the page's Show private text switch has something to show. To write the week into a folder you keep:
 
 ```bash
 node tools/demo-week.mjs ./.demo-out
@@ -53,7 +61,7 @@ The display-only session appears as a skeleton in both views, and the outside se
 
 The week also writes a goal record next to the logs. It holds three goals: `release-1-4` (active), `wrap-every-script` (done), and `json-output` (active). Each goal names where it came from and carries notes, and each citation is a pull request (written `lantern#12` or as a full pull-request URL) or a session (written `session:` plus the session's file name).
 
-Six goal events changed those goals during the week. In the session that wrote each one, the agent ran `goals.mjs apply`, the command that records a goal event, with that event's id, and the event's time falls between the moment the command started and the moment its result came back. Saturday's session runs the same tool's read-only `list` and `show` commands and a search for two ids, so a goal view can show that reading an id isn't writing it. The engine on main doesn't read a goal record yet, so the tests check the record against the sessions directly.
+Six goal events changed those goals during the week. In the session that wrote each one, the agent ran `goals.mjs apply`, the command that records a goal event, with that event's id, and the event's time falls between the moment the command started and the moment its result came back. Saturday's session runs the same tool's read-only `list` and `show` commands and a search for two ids, so a goal view can show that reading an id isn't writing it. The engine reads the goal record and joins each goal to the sessions that did its work, and `honestweek view --demo` shows those goals on its goal page; the demo week's tests also check the record against the sessions directly.
 
 ### What I left out
 
@@ -63,7 +71,7 @@ Six goal events changed those goals during the week. In the session that wrote e
 
 ## Implementation detail
 
-- `tools/demo-week.mjs`: `buildDemoWeek({ root })` writes the folder (a fresh temp folder when `root` is left out) and returns `{ root, roots: { claude, codex }, repo, displayRepo, outsideDir, config, configFile, goalRecord, goalsFile, week, ids, files }`. `repo` is `{ dir, remote, defaultBranch, worktrees, commits }`. Pass `config`, `roots`, and `week.from` and `week.to` to `buildWorkHistory`. `main(argv, io)` is the command line.
+- `lib/demo/week.mjs`: `buildDemoWeek({ root })` writes the folder (a fresh temp folder when `root` is left out) and returns `{ root, roots: { claude, codex }, repo, displayRepo, outsideDir, config, configFile, goalRecord, goalsFile, week, ids, files }`. `repo` is `{ dir, remote, defaultBranch, worktrees, commits }`. Pass `config`, `roots`, and `week.from` and `week.to` to `buildWorkHistory`. It lives in `lib/` so `honestweek view --demo` can use it from the published package. `tools/demo-week.mjs` re-exports it and holds the command line, `main(argv, io)`.
 - The goal record, `goals.json`, has this shape:
 
   ```json
@@ -79,4 +87,4 @@ Six goal events changed those goals during the week. In the session that wrote e
 - `buildDemoWeek` removes everything it wrote when a step fails, and sets `leftBehind` on the error if that removal fails too. The command line reports the cause, and suggests a shorter folder when git says a path is too long.
 - The test builds the week twice and compares every log byte for byte, after replacing the folder path (which Codex call arguments escape twice).
 - Monday's Codex commit time was picked, back when the engine read a 12-character commit id made only of digits as an account number, so no commit id in the week is one. The engine now keeps commit ids as they are (`test/replay-commit-ids.test.mjs`), and the test still checks that no outcome's commit id was redacted.
-- Tests: `test/demo-week.test.mjs`; the clean-room fence in `test/site-cleanroom.test.mjs` covers the script, the test, and this page.
+- Tests: `test/demo-week.test.mjs`; the clean-room fence in `test/site-cleanroom.test.mjs` covers the builder, the script, the test, and this page.
