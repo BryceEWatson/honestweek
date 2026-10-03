@@ -64,6 +64,9 @@ test('the matcher catches a planted word in every spelling and never prints it',
     'the Quixel\u00a0Mora team, Quixel\u2013Mora and quix\u00adel\u200bmora',
     'search?q=Quixel+Mora, Quixel/Mora, **Quixel** Mora and `Quixel` `Mora`',
     'Quixel&nbsp;Mora, Quixel&#160;Mora, Quixel&#xA0;Mora and Quixel&ndash;Mora in pasted HTML',
+    'Quixel%C2%A0Mora and Quixel%E2%80%93Mora in a link, and %FFQuixel%20Mora after a stray byte',
+    'Quixel – Mora with a spaced dash',
+    '| Quixel | Mora | in a table',
   ];
   writeFileSync(file, ['nothing to see here', ...caught, 'quixelmor is one letter short and passes', 'a quixel and a mora pass too'].join('\n'));
   const text = readFileSync(file, 'utf8');
@@ -88,8 +91,12 @@ test('a multi-word name split by a line break is caught, on the line where it st
     'the next line starts Mora, unrelated',
     'a comma after quixel,',
     'mora after a comma stays apart',
+    'a name hyphenated where the line wraps, Quixel-',
+    'Mora, is caught too',
+    '| a table row ending | Quixel |',
+    '| Mora | on the next row |',
   ].join('\r\n');
-  assert.deepEqual(findForbidden(text, MADE_UP_FENCE).map((f) => f.line), [2, 4, 6, 8]);
+  assert.deepEqual(findForbidden(text, MADE_UP_FENCE).map((f) => f.line), [2, 4, 6, 8, 12, 14]);
   const site = new Map([[sha256('work-item'), SITE_FIELD]]);
   assert.deepEqual(findForbidden('the work\nitem in prose', site), [], 'a target-site field still never matches across a gap');
 });

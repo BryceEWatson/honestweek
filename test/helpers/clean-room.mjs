@@ -14,8 +14,10 @@
 //     "work-log" is a field.
 //   - URL-encoded spaces: "Lark%20Board" is read as "Lark Board" as well
 //   - other gaps between the words: a non-breaking space (or its HTML entity), a "+" from a URL
-//     query, a slash, markdown marks ("**Lark** Board"), and a line break, as in a
-//     hard-wrapped paragraph or a comment that runs onto the next line
+//     query, a slash, markdown marks ("**Lark** Board"), a spaced dash, a table-cell border,
+//     and a line break, as in a hard-wrapped paragraph or a comment that runs onto the next
+//     line (including a name hyphenated where the line wraps)
+//   - URL-encoded UTF-8: "Lark%C2%A0Board" is read with its non-breaking space
 //   - a Unicode dash read as a hyphen ("Lark–Board"), and invisible characters (soft
 //     hyphen, zero-width space) dropped
 // A match reports the file and line, never the word. findForbiddenPaths checks file paths.
@@ -116,11 +118,15 @@ function kindOf(candidate, forbidden) {
 }
 
 // What may sit between two words of a multi-word name: spaces, a `+` from a URL query, a
-// slash, and markdown emphasis or code marks around a word ("**Lark** Board", "`Lark` Board").
-const GAP_RE = /^[\s+/*_`~]+$/;
+// slash, markdown emphasis or code marks around a word ("**Lark** Board", "`Lark` Board"), a
+// spaced dash ("Lark - Board", after Unicode dashes are read as "-") and a table-cell border.
+const GAP_RE = /^[\s+/*_`~|-]+$/;
+// What may end a line before a break: the same, or nothing. A trailing hyphen is a name
+// hyphenated where the line wraps ("Lark-" then "Board").
+const TAIL_RE = /^[\s+/*_`~|-]*$/;
 // What may open a continuation line before its first word: indentation, comment and quote
-// marks, and list bullets.
-const LEAD_RE = /^[\s>#*/;+_`~-]*$/;
+// marks, list bullets and a table-cell border.
+const LEAD_RE = /^[\s>#*/;+_`~|-]*$/;
 
 /**
  * A line as a reader sees it: invisible characters (soft hyphen, zero-width space and
@@ -186,7 +192,7 @@ function scanBreak(line, next, forbidden, acrossSpaces, kinds) {
   const before = wordsOf(line).slice(-(MAX_WORDS - 1));
   const after = wordsOf(next).slice(0, MAX_WORDS - 1);
   if (!before.length || !after.length) return;
-  if (!/^[\s+/*_`~]*$/.test(line.slice(before[before.length - 1].end))) return;
+  if (!TAIL_RE.test(line.slice(before[before.length - 1].end))) return;
   if (!LEAD_RE.test(next.slice(0, after[0].start))) return;
   // Keep only the words that run up to the break and on from it without another gap.
   while (before.length > 1 && !GAP_RE.test(line.slice(before[0].end, before[1].start))) before.shift();
@@ -200,10 +206,19 @@ function scanBreak(line, next, forbidden, acrossSpaces, kinds) {
   }
 }
 
-/** A line with each %XX escape decoded, or null when it has none. */
+/**
+ * A line with its %XX escapes decoded, or null when it has none. Each run of escapes is
+ * read as UTF-8 ("%C2%A0" is a non-breaking space), and byte by byte when it isn't valid UTF-8.
+ */
 function urlDecoded(line) {
   if (!/%[0-9A-Fa-f]{2}/.test(line)) return null;
-  return normalizeLine(line.replace(/%([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))));
+  return normalizeLine(line.replace(/(?:%[0-9A-Fa-f]{2})+/g, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      return run.replace(/%([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+    }
+  }));
 }
 
 /**
