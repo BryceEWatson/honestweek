@@ -72,6 +72,8 @@ test('secrets-only: hides every secret and shows names, folders, addresses, ids 
 test('the full redactor still hides all of it (unchanged)', () => {
   const out = createRedactor({ redaction: { terms: [PRIVATE.term] } }).redact(SEEDED);
   for (const name of ['term', 'email', 'path', 'uuid', 'number']) assert.ok(!out.includes(PRIVATE[name]), `full redactor shows the ${name}`);
+  // It now shares the secret-field rules too ("password": "…", Bearer, x-api-key: …).
+  assertNoSecrets(out, 'full redactor');
 });
 
 test('secrets-only: sensitive fields in their common spellings', () => {
@@ -310,8 +312,9 @@ const promptOf = (h, session) => h.events.find((e) => e.session === session && e
 
 test('engine: the default build redacts the seeded session as before', () => {
   const text = promptOf(plain, key.featured).facts.text;
-  // The full redactor's own secret rules (KEY=VALUE only, no "key": "value" or Bearer form).
-  for (const name of ['apiKey', 'github', 'jwt', 'urlPassword', 'opaque', 'awsStyle', 'hex64']) assert.ok(!text.includes(SECRETS[name]), `default build: the ${name} secret leaked`);
+  // Every secret, the "key": "value", Bearer and short x-api-key forms included: the full
+  // redactor shares the secrets-only scrubber's secret-field rules.
+  assertNoSecrets(text, 'default build');
   for (const name of ['term', 'email', 'path', 'uuid', 'number']) assert.ok(!text.includes(PRIVATE[name]), `default build shows the ${name}`);
   assert.equal(promptOf(plain, key.display).facts.text ?? null, null, 'a display-role session is a content-free skeleton by default');
   assert.equal(plain.sessions.find((s) => s.key === key.display).title, null);
