@@ -125,7 +125,7 @@ The joining has to come first. The redactor finds a password only on the same li
 8. **Show private text.**
    - The switch appears only when the page comes from this command on your own machine.
    - It's off every time you run the command. Each run gets a fresh random key, which the command puts in the address it opens and the page sends with every data request. The server refuses data requests without it, so another program on the machine can't read your data either. A switch setting counts only under the current run's key, so reloading a tab left open from an earlier run, even on the same port, opens redacted.
-   - The address bar never holds what you typed or a goal's name, only made-up ids, because the browser keeps addresses in its history on disk.
+   - The address bar never holds what you typed or a goal's name, only made-up ids, because the browser keeps addresses in its history on disk. For the same reason, what you typed and any reference you clicked stay in the open page's memory only: browsers also save a tab's stored data to disk so they can restore it after a restart. The tab's stored data holds only the run key and the switch setting.
    - If the private version fails to build, the page keeps showing the redacted version and says the private one couldn't be built.
    - It changes only text, never which sessions link to which or which goals they join.
    - The private version is built in memory the first time you turn the switch on, and it's never written to disk.
@@ -239,7 +239,7 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
   - A data request without the run key is refused, even with a correct Host header.
   - The status answer doesn't reveal the key.
 - **Failed build:** a forced failure of the private build still serves the redacted answer, with a note, never an error or a hang.
-- **Address:** the address never contains the typed words, a goal id or title, or a clicked reference's text. This is checked both in the click-through test and by reading the page code.
+- **Address and browser storage:** the address never contains the typed words, a goal id or title, or a clicked reference's text. After a search and a reference click with the switch on, the tab's stored data holds nothing but the run key and the switch setting, and the browser's other storage is empty. This is checked both in the click-through test and by reading the page code.
 - **Privacy everywhere:**
   - Every redacted answer the command can give has zero leaks.
   - With the switch off, a display-only or outside session's replay and record (command output included) carry only the kind and time of each step, and no text. With it on, they carry text.
@@ -407,7 +407,8 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
 - Ports of the prototype's `search.html`, `goal.html`, `lanes.html` (renamed `replay.html`), `common.css`, `common.js`, `evidence.js` and `private-text.js`.
 - Inline scripts move into files. Every `<style>` block moves into `common.css`, and every static `style=` attribute becomes a class. Geometry that changes at run time is set through `el.style` or SVG attributes, which the content policy allows.
 - Data loads with `fetch`. The switch lives in `sessionStorage` under the current run key, so a key from an earlier run finds nothing.
-- Addresses hold only letter-hash ids (thread, session, event and goal key). The typed query and any clicked reference text stay in memory or `sessionStorage`, never in `location`. The prototype's `#q=` step is dropped.
+- `sessionStorage` holds only the run key and the switch setting. Chromium and Firefox write it to the profile for session restore, so nothing typed or shown goes there.
+- Addresses hold only letter-hash ids (thread, session, event and goal key). The typed query and any clicked reference text stay in page memory only: never in `location`, `history.state`, `sessionStorage` or `localStorage`. A reload or another page starts with an empty search box. The prototype's `#q=` step is dropped.
 - In-browser lookup and goal-membership code is replaced by the routes above.
 
 **Self-test: `lib/view/selftest/clickthrough.{html,js}`**
