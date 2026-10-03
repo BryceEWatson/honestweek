@@ -4,15 +4,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { existingDisplayRepos, inferAuthorEmail } from '../lib/init.mjs';
 import { ensureDraftGitignored } from '../lib/discover.mjs';
 
 const git = (dir, args) => execFileSync('git', ['-C', dir, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
-function tempRepo() {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-display-'));
+/**
+ * A fresh git repo whose PARENT is also scratch. `init` scans the parent's children and
+ * runs git in each repo it finds, so a repo sitting directly in the system temp folder
+ * makes the test walk every entry there: slow, and it reads repos the test doesn't own.
+ */
+function tempRepo(t) {
+  const root = mkdtempSync(join(tmpdir(), 'hw-display-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const dir = join(root, 'repo');
   execFileSync('git', ['init', '-q', dir]);
   return dir;
 }
@@ -31,33 +38,25 @@ test('a display path written with ~ resolves under the home folder', () => {
   }
 });
 
-test('inferAuthorEmail never reads a display-only folder\'s own git config', () => {
-  const dir = tempRepo();
-  try {
-    git(dir, ['config', 'user.email', 'repo-local@example.com']);
-    // Failing-path partner: an ordinary folder reports its own setting.
-    assert.equal(inferAuthorEmail(dir), 'repo-local@example.com');
-    assert.notEqual(inferAuthorEmail(dir, { isDisplay: true }), 'repo-local@example.com');
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+test('inferAuthorEmail never reads a display-only folder\'s own git config', (t) => {
+  const dir = tempRepo(t);
+  git(dir, ['config', 'user.email', 'repo-local@example.com']);
+  // Failing-path partner: an ordinary folder reports its own setting.
+  assert.equal(inferAuthorEmail(dir), 'repo-local@example.com');
+  assert.notEqual(inferAuthorEmail(dir, { isDisplay: true }), 'repo-local@example.com');
 });
 
-test('discover never asks git about a display-only folder, even when its draft is tracked', () => {
-  const dir = tempRepo();
-  try {
-    writeFileSync(join(dir, 'honestweek.draft.json'), '{}\n');
-    git(dir, ['add', 'honestweek.draft.json']);
-    // Failing-path partner: in an ordinary folder, git is asked and the tracked draft is flagged.
-    const plain = silentIo();
-    ensureDraftGitignored(dir, plain);
-    assert.ok(plain.errors.some((s) => s.includes('is tracked in git')));
-    const display = silentIo();
-    ensureDraftGitignored(dir, display, { isDisplay: true });
-    assert.equal(display.errors.length, 0);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+test('discover never asks git about a display-only folder, even when its draft is tracked', (t) => {
+  const dir = tempRepo(t);
+  writeFileSync(join(dir, 'honestweek.draft.json'), '{}\n');
+  git(dir, ['add', 'honestweek.draft.json']);
+  // Failing-path partner: in an ordinary folder, git is asked and the tracked draft is flagged.
+  const plain = silentIo();
+  ensureDraftGitignored(dir, plain);
+  assert.ok(plain.errors.some((s) => s.includes('is tracked in git')));
+  const display = silentIo();
+  ensureDraftGitignored(dir, display, { isDisplay: true });
+  assert.equal(display.errors.length, 0);
 });
 
 // The wiring: runInit and runDiscover decide from the real config that the folder they
@@ -65,8 +64,8 @@ test('discover never asks git about a display-only folder, even when its draft i
 import { runInit } from '../lib/init.mjs';
 import { runDiscover } from '../lib/discover.mjs';
 
-function folderWithConfig(role) {
-  const dir = tempRepo();
+function folderWithConfig(t, role) {
+  const dir = tempRepo(t);
   writeFileSync(join(dir, 'honestweek.config.json'), JSON.stringify({
     identity: { authorEmails: ['you@example.com'] },
     week: { startsOn: 'monday', timezone: 'UTC' },
@@ -77,31 +76,26 @@ function folderWithConfig(role) {
   return dir;
 }
 
-test('runInit treats the folder it runs in as display-only when the config says so', async () => {
+test('runInit treats the folder it runs in as display-only when the config says so', async (t) => {
   for (const [role, expected] of [['display', true], ['featured', false]]) {
-    const dir = folderWithConfig(role);
-    try {
-      const seen = [];
-      await runInit({ cwd: dir, argv: ['--yes'], io: silentIo(), inferEmail: (cwd, opts) => (seen.push(opts?.isDisplay === true), 'you@example.com') });
-      assert.deepEqual(seen, [expected], `role ${role}`);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    const dir = folderWithConfig(t, role);
+    // init scans this folder's parent, so it must hold nothing but the folder itself.
+    const scanned = readdirSync(dirname(dir));
+    assert.ok(scanned.length === 1 && scanned[0] === basename(dir), `init would scan ${scanned.length} entries beside the test folder`);
+    const seen = [];
+    await runInit({ cwd: dir, argv: ['--yes'], io: silentIo(), inferEmail: (cwd, opts) => (seen.push(opts?.isDisplay === true), 'you@example.com') });
+    assert.deepEqual(seen, [expected], `role ${role}`);
   }
 });
 
-test('runDiscover skips the tracked-draft git check only when the folder is display-only', async () => {
+test('runDiscover skips the tracked-draft git check only when the folder is display-only', async (t) => {
   for (const [role, flagged] of [['display', false], ['featured', true]]) {
-    const dir = folderWithConfig(role);
-    try {
-      writeFileSync(join(dir, 'honestweek.draft.json'), '{}\n');
-      git(dir, ['add', 'honestweek.draft.json']);
-      const io = silentIo();
-      io.exit = (c) => c;
-      await runDiscover({ cwd: dir, now: new Date('2024-06-19T12:00:00Z'), io, adapter: async () => [], gitWindow: () => [] });
-      assert.equal(io.errors.some((s) => s.includes('is tracked in git')), flagged, `role ${role}`);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    const dir = folderWithConfig(t, role);
+    writeFileSync(join(dir, 'honestweek.draft.json'), '{}\n');
+    git(dir, ['add', 'honestweek.draft.json']);
+    const io = silentIo();
+    io.exit = (c) => c;
+    await runDiscover({ cwd: dir, now: new Date('2024-06-19T12:00:00Z'), io, adapter: async () => [], gitWindow: () => [] });
+    assert.equal(io.errors.some((s) => s.includes('is tracked in git')), flagged, `role ${role}`);
   }
 });
