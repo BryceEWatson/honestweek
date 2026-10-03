@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -135,10 +135,12 @@ test('matchConfiguredRepo resolves dot segments before containment',()=>{
 test('resolveWorkTrees: a repository reached through a symlinked folder keeps both spellings', () => {
   clearWorkTreeCache();
   const base = makeTempDir('hw-wt-link-');
-  const real = join(base, 'real');
   const link = join(base, 'link');
   try {
-    makeRepo(join(real, 'alpha'));
+    makeRepo(join(base, 'real', 'alpha'));
+    // Where the folder really is: the temp folder itself can be a symlink (macOS) or a
+    // Windows short name, which git writes out in full.
+    const real = realpathSync.native(join(base, 'real'));
     git(join(real, 'alpha'), 'worktree', 'add', '-q', '--detach', join(real, 'alpha-weekly'));
     symlinkSync(real, link, process.platform === 'win32' ? 'junction' : 'dir');
 
