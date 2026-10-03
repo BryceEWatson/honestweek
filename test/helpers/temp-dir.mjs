@@ -20,7 +20,11 @@ function track(dir) {
   pending.add(dir);
   if (!sweepOnExit) {
     sweepOnExit = true;
-    process.on('exit', () => { for (const d of [...pending]) removeTempDir(d); });
+    process.on('exit', () => {
+      for (const d of [...pending]) {
+        if (!removeTempDir(d)) process.stderr.write(`test cleanup: could not remove ${d}\n`);
+      }
+    });
   }
 }
 
@@ -40,7 +44,7 @@ export function makeTempDir(prefix) {
 
 /**
  * Removes a folder and everything in it. On a Windows lock it waits a little longer before
- * each of up to ten retries (under three seconds in all). It never throws: a folder it
+ * each of up to ten retries (2.75 seconds of waiting in all). It never throws: a folder it
  * can't remove yet stays on the list and is tried again when the process exits. Returns
  * whether the folder is gone.
  */

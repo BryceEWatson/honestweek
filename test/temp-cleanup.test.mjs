@@ -23,7 +23,8 @@ function runWithEmptyTemp(file, extraEnv = {}) {
   // Without this the child would report to this run instead of running as its own.
   delete env.NODE_TEST_CONTEXT;
   Object.assign(env, { TEMP: temp, TMP: temp, TMPDIR: temp }, extraEnv);
-  const r = spawnSync(process.execPath, ['--test', file], { cwd: ROOT, env, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, ['--test', file], { cwd: ROOT, env, encoding: 'utf8', timeout: 120_000 });
+  assert.equal(r.error, undefined, `${file} did not finish: ${r.error?.message}`);
   return { status: r.status, output: `${r.stdout}${r.stderr}`, temp, left: readdirSync(temp) };
 }
 
