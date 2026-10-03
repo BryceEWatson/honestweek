@@ -84,11 +84,25 @@ async function everyAnswer(priv) {
 const redactedAnswers = await everyAnswer(false);
 const privateAnswers = await everyAnswer(true);
 
+// A search's id is random letters a to p, which can spell a planted word ("dana") by
+// chance. It never holds text, and the redactor and the leak counter leave ids alone too,
+// so a planted value is looked for in everything but those ids.
+const QUERY_ID_TOKEN = /\bq[a-p]{16}\b/g;
 const literalHits = (answer, values) => {
   const hits = [];
-  for (const s of stringsIn(answer)) for (const v of values) if (s.toLowerCase().includes(String(v).toLowerCase())) hits.push(v);
+  for (const s of stringsIn(answer)) {
+    const text = s.replace(QUERY_ID_TOKEN, ' ').toLowerCase();
+    for (const v of values) if (text.includes(String(v).toLowerCase())) hits.push(v);
+  }
   return hits;
 };
+
+test("the planted-value check skips a search id that spells a planted word by chance, and nothing else", () => {
+  const id = `qhdana${'p'.repeat(11)}`;
+  assert.match(id, /^q[a-p]{16}$/, 'shaped like the ids the server makes');
+  assert.deepEqual(literalHits({ queryId: id, note: `search.html#q=${id}~w` }, ['Dana']), []);
+  for (const s of ['Ask Dana first', 'see /home/dana/notes', `${id}a`, `x${id}`]) assert.deepEqual(literalHits({ s }, ['Dana']), ['Dana'], s);
+});
 
 // ---- privacy everywhere -----------------------------------------------------------------
 
