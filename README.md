@@ -24,7 +24,7 @@ npx github:BryceEWatson/honestweek view          # your own last 7 days
 
 The demo opens a page with three parts: Search (type one of the examples it offers, or a few words), Goals (each goal in a goal list, a small JSON file of your goals, with its sessions on one timeline you can play), and Replay (one session step by step, each step with the log line behind it). Press Ctrl+C in the terminal to stop it.
 
-From a clone of this repository, put `node bin/honestweek.mjs` where it says `npx github:BryceEWatson/honestweek`, and once honestweek is installed as a command, plain `honestweek`. `honestweek` with no command lists the same three steps, and every message that tells you what to run next names it the way you ran honestweek.
+If you'd rather have a plain `honestweek` command, install it from GitHub with `npm install -g github:BryceEWatson/honestweek` and write `honestweek` where it says `npx github:BryceEWatson/honestweek`. From a clone of this repository, write `node bin/honestweek.mjs` there instead. `honestweek` with no command lists the same three steps, and every message that tells you what to run next names it the way you ran honestweek.
 
 Run `init` from your project folder, or from a new folder next to your projects. It lists the git repositories there and folds each extra working copy of one repository (a git worktree) into it, so one repository shows up once. Before it writes anything you can keep or drop repositories by number (`keep 1-5 9`, `drop 3 7-9`) or change a role (`role 2 display`; the roles are explained under [Config reference](#config-reference)). It then asks for people's names and client or project words to keep private. You can skip both, but until you list some, names in your logs show as written, and `view` says so in the terminal and on every page.
 
@@ -48,7 +48,7 @@ Your commits show what shipped. Your sessions show what you *figured out*: the d
 
 ## Install
 
-honestweek runs locally with zero `npm install`. Pick whichever path you prefer. The plugin and the skill give you `/honestweek`, which runs the weekly summary inside Claude Code. For the browser page (`view`), use the standalone command.
+honestweek runs locally and has no dependencies to install. Pick whichever path you prefer. The plugin and the skill give you `/honestweek`, which runs the weekly summary inside Claude Code. For the browser page (`view`), use the standalone command.
 
 ### As a Claude Code plugin (recommended for the weekly summary)
 
@@ -92,6 +92,13 @@ Or from a clone of the repo:
 ```bash
 # run these from the repo root
 node bin/honestweek.mjs --help
+```
+
+Or install it from GitHub as a `honestweek` command:
+
+```bash
+npm install -g github:BryceEWatson/honestweek
+honestweek --help
 ```
 
 Once it's published to npm (**not yet**; see [Releasing](#releasing-maintainers)), `npx honestweek` and `npm i -g honestweek` will work too.
