@@ -12,7 +12,7 @@ import { join } from 'node:path';
 
 import { createRedactor, createSecretsOnlyRedactor } from '../lib/redact.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
-import { createLeakCounter, EXEMPT_FIELDS, setAsideAllowed, stringsIn } from '../lib/view/leaks.mjs';
+import { createLeakCounter, EXEMPT_FIELDS, setAsideAllowed, stringsIn, unglue } from '../lib/view/leaks.mjs';
 import { createLru, createViewData, goalKey, memberCount } from '../lib/view/data.mjs';
 import { REPLAY_EVENT_FIELDS } from '../lib/view/replay-export.mjs';
 import { buildCorpus } from './fixtures/replay/corpus.mjs';
@@ -656,4 +656,26 @@ test('a lookup\'s and a goal member\'s ambiguous flags reach the page', async ()
 test('no data answer names the engine\'s private-text option', () => {
   const text = JSON.stringify([...redactedAnswers, ...privateAnswers].map((a) => a.body));
   assert.ok(!text.includes('privateText'));
+});
+
+test('the leak counter reads a JSON line break as a break, so a commit id after one is not a token, and a secret after one is still found', () => {
+  const counter = createLeakCounter({ redaction: {} });
+  const sha = '3f9a1c0b7e2d4f6a8b0c1d2e3f4a5b6c7d8e9f01';
+  // A tool result shown as JSON, as the record panel shows it: `\n` glues an n onto the id.
+  const record = JSON.stringify({ type: 'user', content: [{ type: 'tool_result', content: `exit=0\n${sha}\nlib/x.mjs` }] }, null, 2);
+  assert.ok(record.includes(`\\n${sha}`), 'the shown record writes the line break as an escape');
+  assert.equal(counter.redacted(record).secrets, 0);
+  assert.equal(counter.secrets(record).secrets, 0);
+  // Failing-path partners: a real secret after the same break still counts, with the switch off and on.
+  for (const secret of ['ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 'sk-abcdefghijklmnop1234567890']) {
+    for (const sep of ['\n', '\t']) {
+      const shown = JSON.stringify({ content: `exit=0${sep}${secret}` });
+      assert.equal(counter.redacted(shown).secrets, 1, `${secret.slice(0, 4)} after ${JSON.stringify(sep)}`);
+      assert.equal(counter.secrets(shown).secrets, 1);
+    }
+  }
+  // An escaped backslash before an n (a Windows folder in JSON) isn't a line break.
+  assert.equal(unglue('C:\\\\new\\\\x'), 'C:\\\\new\\\\x');
+  assert.equal(unglue('a\\nb'), 'a\\ b');
+  assert.equal(unglue('a\\\\\\nb'), 'a\\\\\\ b', 'an odd run of backslashes ends in an escape');
 });
