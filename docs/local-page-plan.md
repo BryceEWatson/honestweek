@@ -67,11 +67,18 @@ The redactor is honestweek's privacy core. A change there gets its own review an
 
 ## Pull request 2: redact before cutting
 
-**What changes.** The engine shortens long text, such as a prompt or a command's output, before it hides private words in it. A private name that straddles the cut point loses its end, so the redactor no longer recognises it, and its start shows on screen. The engine will hide private words in the whole text first, then cut, stepping the cut back so it never splits a `[redacted:…]` marker.
+**What changes.** The engine shortens long text, such as a prompt, a command's output, a person's answer to a question, or a citation in a goal list, before it hides private words in it. A private name that straddles the cut point loses its end, so the redactor no longer recognises it, and its start shows on screen. The engine will first join the text onto one line, as it does today, then hide private words in the whole line, then cut, stepping the cut back so it never splits a `[redacted:…]` marker. Every place the engine shortens text changes this way, not only the main one.
+
+The joining has to come first. The redactor finds a password only on the same line as its label, so hiding private words in the raw text first would let through a password written on the line after its label, which today's order hides.
 
 **Why now.** No shipped command shows this text today, so nothing published is affected. The page will be the first to put it on screen.
 
-**How it's checked.** A test places a made-up private name across every cut point the engine uses, and no part of the name may reach the output. The engine's output for text with no private word straddling a cut stays byte-identical.
+**How it's checked.**
+
+- A test places a made-up private name across every cut point the engine uses, in every kind of text it cuts, and no part of the name may reach the output.
+- A test puts a made-up password on the line after its label and checks it stays hidden at every cut length, with the switch off and on.
+- A guard test fails if any part of the engine still cuts text before hiding private words in it.
+- Output stays byte-identical for text the redactor leaves unchanged. Text with something hidden before the cut point does change, because a marker isn't the same length as what it replaces; no shipped command shows that text.
 
 ## Pull request 3: the page
 
@@ -182,7 +189,9 @@ The pull request reports the measured times. If any page takes more than twice i
 
 **Pull request 2**
 
-- The straddling-name test passes at every cut point.
+- The straddling-name test passes at every cut point, in every kind of text the engine cuts.
+- The password-on-the-next-line test passes at every cut length, with the switch off and on.
+- The guard test finds no place that cuts before hiding.
 - `node --test` passes, and checks pass on Node 18, 20 and 22.
 - An independent review comes back clean.
 
@@ -306,9 +315,14 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
 
 **Pull request 2, on branch `feature/redact-before-cut`**
 
-- `lib/replay/claude.mjs:132` and the matching line in `lib/replay/codex.mjs` (`red(clip(s, max))`) become: redact the whole string, then clip it with a helper that steps the cut back to before any `[redacted:` marker it would split. The helper goes in `lib/replay/parse-common.mjs`.
-- `record()` in `lib/replay/index.mjs` redacts before `project()` cuts at 2,000 characters, using the same helper.
-- New `test/redact-before-cut.test.mjs` covers the straddling name at each cut length (600, 400, 300, 160 and 2,000), plus byte-identity on the demo week and corpus.
+- A new helper in `lib/replay/parse-common.mjs` does what `clip()` does today in a safe order: collapse whitespace and trim (`clip()`'s `\s+` to one space), redact the one-line result, then cut it, stepping the cut back to before any `[redacted:` marker it would split. Collapsing first matters because the secret-field rules in `lib/redaction-patterns.mjs` match only within one line (`docs/work-history-engine.md` already says the engine relies on this); measured on main, `password:\n  <value>` comes out hidden under clip-then-redact and in clear text under redact-then-clip.
+- Every cut-then-redact site in `lib/replay/` moves to the helper, not only the `text()` helpers (`claude.mjs:132`, `codex.mjs:142`). On main that is every `red(clip(` call (`claude.mjs` 258, 295, 436, 465, 489, 495, 498, 520 and 529; `codex.mjs` 197 and 212), every bare `clip()` whose result is redacted later by the facts backstop in `index.mjs`, and `clipRef` in `lib/replay/goals.mjs:59`, which cuts a words-only citation at 80 characters before the goal list is redacted.
+- `record()` in `lib/replay/index.mjs` redacts before `project()` cuts at 2,000 characters, stepping the cut back the same way. A record keeps its line breaks, as today.
+- New `test/redact-before-cut.test.mjs`:
+  - the straddling name at every cut length the engine uses (600, 400, 300, 160, 80, 60, 40, 30, 20 and 2,000), driven through a normal prompt, a mid-turn prompt, a person's answers, a command and a goal-list words citation;
+  - a made-up secret on the line after its key (newline or tab between them, and a header value on the next line) stays hidden at every cut length, under `createRedactor` and `createSecretsOnlyRedactor`;
+  - a guard that fails if any file in `lib/replay/` calls `red(clip(` or cuts unredacted text;
+  - byte-identity on the demo week and corpus for every excerpt the redactor leaves unchanged.
 
 **Pull request 3, on branch `feature/local-page`: the command (`lib/view.mjs`)**
 
@@ -368,7 +382,7 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
 
 - It's given the same `roots` and window as the build, and reads prompts and titles line by line. The text stays in memory only.
 - A hit's label (configured, display or outside) and its session key come from the build's `sessions[]` (`repoRole`, `private`, `h.sourceSession`), not from a second folder matcher.
-- Snippets are redacted whole before they're cut: `createRedactor(config)` with the switch off, `createSecretsOnlyRedactor()` with it on.
+- Snippets go through the pull request 2 helper (collapse whitespace, redact, then cut): `createRedactor(config)` with the switch off, `createSecretsOnlyRedactor()` with it on.
 - A hit with no session in the build says "not in this window". No second history is ever built.
 
 **The leak counter: `lib/view/leaks.mjs`**
