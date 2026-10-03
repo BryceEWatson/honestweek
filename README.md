@@ -3,9 +3,37 @@
 [![CI](https://github.com/BryceEWatson/honestweek/actions/workflows/ci.yml/badge.svg)](https://github.com/BryceEWatson/honestweek/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Turn a completed week of your AI coding **sessions** into an honest, git-verified, private-by-default work summary, including the figured-out-but-not-yet-shipped work your commits can't show.
+honestweek works with the session logs that Claude Code and Codex already keep on your computer. It does two things with them, both on your own machine:
 
-honestweek is a locally-run, Claude-Code-native tool, shipped as a skill that orchestrates small zero-dependency Node scripts. It reads your AI coding session transcripts, distils a completed week into an honest shareable summary, **re-derives every git-checkable claim against your real commits (or aborts)**, and produces a draft *you* review and publish yourself. It never auto-publishes.
+- **Find and replay your work.** `honestweek view` opens a page in your browser where you type a pull request number, a commit, a file, a branch or a few words and get the sessions behind it, then replay any session step by step. Every link and count says how it's known: recorded in a log or by git, computed from records, inferred by a named rule, or missing.
+- **Write an honest weekly summary.** A short pipeline turns a finished week into a summary you review and publish yourself. It checks every commit the summary cites against your real git history first, and it stops rather than write a claim it can't back.
+
+It's for developers who do much of their work through an AI coding agent and want to find, check or show that work later. Nothing leaves your machine: there's no account, no telemetry and no network call. The names and client words you list stay hidden on the page unless you turn on its Show private text switch, on your own screen, and keys, tokens and passwords stay hidden either way.
+
+To see it with nothing to set up, run `npx github:BryceEWatson/honestweek view --demo`: a made-up week opens in your browser.
+
+## Try it
+
+You need Node 18 or later and git. Nothing is on npm yet, so run it straight from GitHub with `npx`, with no install step:
+
+```bash
+npx github:BryceEWatson/honestweek view --demo   # a made-up week in your browser; it sets nothing up
+npx github:BryceEWatson/honestweek init          # set up honestweek.config.json in this folder
+npx github:BryceEWatson/honestweek view          # your own last 7 days
+```
+
+The demo opens a page with three parts: Search (type one of the examples it offers, or a few words), Goals (each goal in a goal list, a small JSON file of your goals, with its sessions on one timeline you can play), and Replay (one session step by step, each step with the log line behind it). Press Ctrl+C in the terminal to stop it.
+
+If you'd rather have a plain `honestweek` command, install it from GitHub with `npm install -g github:BryceEWatson/honestweek` and write `honestweek` where it says `npx github:BryceEWatson/honestweek`. From a clone of this repository, write `node bin/honestweek.mjs` there instead. `honestweek` with no command lists the same three steps, and every message that tells you what to run next names it the way you ran honestweek.
+
+Run `init` from your project folder, or from a new folder next to your projects. It lists the git repositories there and folds each extra working copy of one repository (a git worktree) into it, so one repository shows up once. Before it writes anything you can keep or drop repositories by number (`keep 1-5 9`, `drop 3 7-9`) or change a role (`role 2 display`; the roles are explained under [Config reference](#config-reference)). It then asks for people's names and client or project words to keep private. You can skip both, but until you list some, names in your logs show as written, and `view` says so in the terminal and on every page, with an example of where to list them. For candidates, run `discover` and then `harvest`: it writes the capitalised words that survived redaction in last week's sessions, most frequent first, to `honestweek.harvest.json`.
+
+What's further down:
+
+- [Install](#install) as a Claude Code plugin, a plain skill, or the standalone command.
+- [Finding and replaying your work in the browser](#finding-and-replaying-your-work-in-the-browser-view): every option of `view`, the goal list, and what it keeps private.
+- [The flow](#the-flow-an-honest-weekly-summary): the weekly summary from `init` to `build`, then [mining solved problems](#mining-solved-problems-worth-publishing-mine), [a standalone site](#standalone-site-page-mode) and [a report for a client](#a-report-for-a-client-client-mode).
+- [Config reference](#config-reference), [Sidecars](#sidecars) (the files it writes) and the [privacy model](#what-it-does-not-do--privacy-model).
 
 ## Why
 
@@ -16,13 +44,13 @@ Your commits show what shipped. Your sessions show what you *figured out*: the d
 - **Node ≥ 18**
 - The system **`git` CLI** on your `PATH`
 - **Zero runtime dependencies**: Node built-ins plus `git` only
-- Runs **entirely locally**. No telemetry, no network egress. The optional `preview` server binds to loopback (`127.0.0.1`) only.
+- Runs **entirely locally**. No telemetry, no network egress. The optional `preview` and `view` servers bind to loopback (`127.0.0.1`) only.
 
 ## Install
 
-honestweek runs locally with zero `npm install`. Pick whichever path you prefer.
+honestweek runs locally and has no dependencies to install. Pick whichever path you prefer. The plugin and the skill give you `/honestweek`, which runs the weekly summary inside Claude Code. For the browser page (`view`), use the standalone command.
 
-### As a Claude Code plugin (recommended)
+### As a Claude Code plugin (recommended for the weekly summary)
 
 Add this repo as a plugin marketplace, then install from inside Claude Code:
 
@@ -66,21 +94,104 @@ Or from a clone of the repo:
 node bin/honestweek.mjs --help
 ```
 
+Or install it from GitHub as a `honestweek` command:
+
+```bash
+npm install -g github:BryceEWatson/honestweek
+honestweek --help
+```
+
 Once it's published to npm (**not yet**; see [Releasing](#releasing-maintainers)), `npx honestweek` and `npm i -g honestweek` will work too.
 
-The CLI surface is nine subcommands: `init`, `discover`, `prompts`, `digest`, `validate`, `build`, `harvest`, `preview`, and `mine`. Every one answers `--help` without touching your files. The `mine` command (`node bin/honestweek.mjs mine --help`) is the separate "solved problems worth publishing" pass described under [Mining solved problems](#mining-solved-problems-worth-publishing-mine). The `digest` command (`node bin/honestweek.mjs digest --help`) prepares one receipt-bearing review across prompts, ideas, techniques, decisions, reversals, and next steps for `page` or `site` output. The `prompts` command (`node bin/honestweek.mjs prompts --help`) remains the private prompt inbox and prompt-only compatibility path. The `harvest` command (`node bin/honestweek.mjs harvest`) proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review). The `preview` command (`node bin/honestweek.mjs preview`) renders the built output as HTML and serves it on a local-only (`127.0.0.1`) server for you to read in your browser.
+The CLI surface is eleven subcommands: `init`, `discover`, `prompts`, `digest`, `validate`, `build`, `harvest`, `preview`, `mine`, `history`, and `view`. Every one answers `--help` without touching your files. The `mine` command (`node bin/honestweek.mjs mine --help`) is the separate "solved problems worth publishing" pass described under [Mining solved problems](#mining-solved-problems-worth-publishing-mine). The `digest` command (`node bin/honestweek.mjs digest --help`) prepares one receipt-bearing review across prompts, ideas, techniques, decisions, reversals, and next steps for `page` or `site` output. The `prompts` command (`node bin/honestweek.mjs prompts --help`) remains the private prompt inbox and prompt-only compatibility path. The `harvest` command (`node bin/honestweek.mjs harvest`) proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review). The `preview` command (`node bin/honestweek.mjs preview`) renders the built output as HTML and serves it on a local-only (`127.0.0.1`) server for you to read in your browser. The `view` command (`node bin/honestweek.mjs view --demo` to try it) opens a local page for finding and replaying the sessions behind your work, described under [Finding and replaying your work in the browser](#finding-and-replaying-your-work-in-the-browser-view).
 
-## The flow
+## Finding and replaying your work in the browser (`view`)
+
+`honestweek view` opens a page on your own machine where you can find the sessions and goals behind a pull request, a commit, a file, a branch or some words, see which sessions worked toward each goal, and replay any session step by step. It reads your config and the last 7 days of your Claude Code and Codex logs, serves the page on `127.0.0.1`, and opens your browser. Nothing is published, and nothing it reads is written to disk.
+
+```bash
+node bin/honestweek.mjs view                  # the last 7 days of your logs
+node bin/honestweek.mjs view --days 30        # look further back
+node bin/honestweek.mjs view --from 2024-06-10 --to 2024-06-16 --goals goals.json
+node bin/honestweek.mjs view --demo           # a made-up week, before you set anything up
+```
+
+With no `honestweek.config.json`, it stops and points to `honestweek init` to set one up and `honestweek view --demo` to look around first. The commands it names, there and on the page, are written the way you ran honestweek. While it reads the logs, the page says what it's reading and for how long. When your config lists no private words, the terminal and every page say that names and client words show as written, and where to add them. Ctrl+C stops it.
+
+What's on the page:
+
+- *Search.* Type a pull request (`#67` or its address), a commit, a file or a branch, and it lists the sessions and goals behind it. Type words, and it lists the goals and sessions whose titles match, the branches that contain them, and the prompts that share the most words, each with a link to replay from that prompt. A line says what these lookups cover: your configured repositories, in the dates shown at the top of every page.
+- *Search everywhere.* The same words, searched across the prompts of every session in those dates, including display-only repositories and folders outside your config. Each result says which of those three it comes from.
+- *Goals.* Each goal in your goal list, with the sessions working toward it on one timeline you can play, pause and scrub. A citation in the goal list that no session backs is listed as missing, with the reason.
+- *Replay.* Any session, step by step. Each step opens a panel with what happened and who did it ("You", "a person or a script" for a non-interactive run, the main agent, or a named sub-agent), the original log line checked against its fingerprint, a command's output, and how its time is known.
+- *Problems.* 40 known ways AI coding agents go wrong or waste time and tokens, which of them showed up in your sessions with each finding linked to its step in the replay, and fix ideas from published sources for you to adopt yourself; the replay and goal timelines can mark the same findings. To see it on the made-up week, run `node bin/honestweek.mjs view --demo` and open Problems.
+- *One evidence key.* Every link, count and step says how it's known: **recorded** (a log line or git says so), **derived** (computed from recorded facts), **inferred** (a named rule's best reading, and the rule is named), **missing** (the log doesn't say), or **ambiguous** (the records fit more than one way). A goal you assigned a session to yourself, by citing it in your goal list, is labelled as yours.
+
+Options: `--days <n>`, or `--from` with `--to`, picks the dates; `--timezone <zone>` reads them in another timezone; `--goals <file>` names your goal list; `--config <file>` reads another config; `--port <n>` picks the port (a free one otherwise); `--no-open` only prints the address; `--self-test` adds a page that clicks through every page in your browser and reports each step as pass, fail or skip, and prints that page's address too; a step's note can quote what the page showed, so read it before you share it. `--demo` uses only its own made-up logs, config, goal list and week, so it refuses `--config`, `--goals`, `--days`, `--from`, `--to` and `--timezone`.
+
+### The goal list
+
+A goal list is a JSON file of your goals and the changes made to them. Each goal has an `id` and a `title`, and can carry a `state` and notes (`source`, `observations`, `results`, `decisions`) that cite pull requests, commits, or sessions (`session:` followed by the session's id). `events` logs each change to the list, with the time it was accepted:
+
+```json
+{
+  "goals": [{ "id": "g-widget", "title": "Ship the widget parser", "state": "active",
+              "source": { "pr": "https://github.com/example/your-project/pull/7" } }],
+  "events": [{ "eventId": "ev-0001", "goalId": "g-widget", "type": "goal.create", "at": "2024-06-11T21:41:30Z" }]
+}
+```
+
+Name it with `--goals <file>`, or once with `goalsFile` in the config. It's a different file from the goals page's `honestweek.objectives.json` that `build` reads, and passing that one by mistake gets a message saying so. Without a goal list, search and replay still work. [docs/work-history-engine.md](docs/work-history-engine.md#goal-membership) explains how a session joins a goal and how each join is known.
+
+### What `view` keeps private
+
+- *It answers only your own page.* The server binds to `127.0.0.1`, refuses a request that names another host or comes from another website, and answers a data request only with this run's key. The key is made fresh each run and never sits in an address or a command line: the address it opens or prints carries a one-time code that the page trades for the key. Each code works once, and pressing Enter in the terminal prints a fresh address.
+- *Redacted unless you ask.* The page shows redacted text. Its **Show private text** switch shows names, client words and folders on your own screen; keys, tokens and passwords stay hidden either way. The switch starts off every run and changes only text, never which sessions link to which or which goals they join. That version is built in memory the first time you turn it on, and it's never written to disk.
+- *Display-only and outside sessions.* With the switch off, a session from a display-only repository or a folder outside your config never shows a private word, and it never joins a lookup or a goal. Git is never run against a display-only repository.
+- *Nothing on disk.* The page's address holds only made-up ids, never what you typed or a goal's name, because the browser keeps addresses in its history. What it reads stays in memory. `--demo` builds its made-up week in a temporary folder and deletes it when you stop.
+
+## Replaying how the work happened (the engine underneath)
+
+The weekly summary below says what landed. The work-history engine in `lib/replay/` rebuilds how it got there from the same local logs: prompts, the sub-agents an agent started, each command and its recorded result, tests, interruptions, what git says happened to each commit, and which pull requests a default-branch commit names. You can replay it to any moment and drill from a week down to the log line behind a step, and every step says whether a record shows it, it was computed from records, a named rule inferred it, or the evidence is missing. It never invents working time or reasons. It doesn't change any existing output, and `honestweek view` (above) is its page. A developer tool also prints each level, from a clone of this repository (the tool isn't in the published package):
+
+```bash
+node tools/replay-inspect.mjs --config honestweek.config.json --from 2024-06-10 --to 2024-06-16 walk
+```
+
+[docs/work-history-engine.md](docs/work-history-engine.md) has the event model, the measured source coverage, and what it can't reconstruct yet.
+
+### Finding the sessions behind a pull request, a commit, a file, or a goal (in development)
+
+The same engine reads the history backwards too, through two more commands in that developer tool:
+
+- `lookup` takes a pull request (`#64`, `your-repo#64`, or its link), a commit id, a file path, or a branch name, and lists the sessions whose records point at it, strongest evidence first. Each pointer says how it's known: a record shows it, or a named rule read it (for example, a `gh pr view 64` command). A file path is tried under each checkout of a repository, the configured folder and its worktrees, but never under a session's own working folder. An absolute path searches only the repository that holds it; a relative one searches each configured repository and lists the results per repository.
+- `goals` takes a goal record: a JSON list of goals plus the log of changes made to it (a separate input from the goals page's registry above). For each goal it lists the sessions that did its work and every reason each one counts: the record cites the session or one of its pull requests or commits, a tool call wrote one of the goal's entries while the record accepted it, a command acted on a cited pull request, or a prompt named the goal. Whatever the record cites that no session matches is listed with the reason.
+
+You can try both without any logs of your own. `--demo` runs them on the made-up sessions, git repository, and goal record the tests use, built in a temporary folder that's deleted afterwards:
+
+```bash
+node tools/replay-inspect.mjs --demo goals
+node tools/replay-inspect.mjs --demo lookup '#7'
+node tools/replay-inspect.mjs --config honestweek.config.json --from 2024-06-10 --to 2024-06-16 --goals goals.json goals
+```
+
+Both only read. Nothing is published, sessions outside your configured repos and in display-role ones are never searched, and display-role repos are never read by git. For a page on your own machine, the engine can also build a history that shows your private text (names, folders, addresses, ids) while keeping secrets hidden. It's built in memory and meant for your screen only: `honestweek view` asks for it only when you turn on Show private text, and the engine refuses to turn the whole history into JSON. The join types, their rules, and what lookup can't find are in [docs/work-history-engine.md](docs/work-history-engine.md#goals-and-lookup-reading-the-history-backwards).
+
+## The flow: an honest weekly summary
+
+This turns a completed week of your AI coding **sessions** (each one conversation log) into an honest, git-verified, private-by-default work summary, including the figured-out-but-not-yet-shipped work your commits can't show.
+
+It's shipped as a Claude Code skill (instructions Claude follows when you type `/honestweek`) that runs small Node scripts with no dependencies, all on your machine. It reads your AI coding session transcripts, distils a completed week into an honest shareable summary, **re-derives every git-checkable claim against your real commits (or aborts)**, and produces a draft *you* review and publish yourself. It never auto-publishes.
 
 End-to-end happy path, in order. Each step names the artifact it produces.
 
 > Installed as the skill/plugin? Just run `/honestweek`: Claude drives these steps for you and resolves the CLI path automatically. The raw `node bin/honestweek.mjs …` commands below are for running the CLI directly **from a clone of the repo** (cwd = the repo root).
 
-1. **`init`** → writes `honestweek.config.json`, inferred from your git state (your `git config user.email` plus the nearby git repos it finds), for you to review and commit. It also drops `honestweek.config.example.json` if one isn't present. Two confirmations gate the write; accepting the defaults yields a valid config.
+1. **`init`** → writes `honestweek.config.json`, inferred from your git state (your `git config user.email` plus the nearby git repos it finds), for you to review and commit. It also drops `honestweek.config.example.json` if one isn't present. Two confirmations gate the write; accepting the defaults yields a valid config. Between them it asks for the names and client words to keep private, which go under `redaction` (either can be skipped), and before the second it shows a short summary of what the file will say.
    ```bash
    node bin/honestweek.mjs init
    ```
-   Those two confirmations need someone to answer them. In a script, in CI, or from an agent's shell nobody does, so `init` exits `2` rather than writing a config you never approved, and tells you to accept the inferred defaults instead:
+   Those questions need someone to answer them. Answers piped in on stdin work, one per line. In a script, in CI, or from an agent's shell where stdin ends before the last answer, `init` exits `2` rather than writing a config you never approved, and tells you to accept the inferred defaults instead:
    ```bash
    node bin/honestweek.mjs init --yes
    ```
@@ -121,7 +232,7 @@ environment and you work out why, someone else will hit the same wall and paste 
 error into a search box. That second kind is rare, it is already sitting in your session
 logs, and it is almost never written down.
 
-`mine` finds those, ranks them, and — with `--draft` — writes one up.
+`mine` finds those, ranks them, and, with `--draft`, writes one up.
 
 ```bash
 node bin/honestweek.mjs mine              # report what is undecided
@@ -130,7 +241,7 @@ node bin/honestweek.mjs mine --draft      # and write the top one up as a post
 
 **What it reads.** Claude Code (`~/.claude/projects`), Codex (`~/.codex/sessions`) and
 Cowork session logs. Pick with `--corpus claude-code,codex,cowork`. A name outside that
-list is an error (exit 1), not an empty scan — a typo must never read as a quiet week.
+list is an error (exit 1), not an empty scan: a typo must never read as a quiet week.
 
 **How it decides.** A session is a candidate only when all three hold:
 
@@ -144,7 +255,7 @@ A session that edited your repo far more than it investigated anything else is r
 however good it looks otherwise. That is ordinary work.
 
 **The ledger.** Findings land in `honestweek.findings.json` with a status. The number
-that matters is the **backlog** — findings you have not yet accepted or declined:
+that matters is the **backlog**: findings you have not yet accepted or declined:
 
 ```text
 ERROR SIGNAL — backlog 3 undecided; oldest waiting 12 day(s).
@@ -165,7 +276,7 @@ whether anyone actually searches for this, and whether the fix still works on th
 current build. `mine` never publishes anything.
 
 **When it is blind, it says so.** Every run reports files found per corpus and the
-retention floor — the oldest session still on disk, since agents delete old logs. If a
+retention floor: the oldest session still on disk, since agents delete old logs. If a
 corpus resolves to a real directory holding zero logs, `mine` **exits `2`**: a zero from
 a blind sensor is not evidence of a quiet week.
 
@@ -234,7 +345,7 @@ Rendered to the default `digest` output. Every line carries a status badge and a
 ## Standalone site (`page` mode)
 
 Set `"output": { "mode": "page" }` and `build` writes one self-contained, interactive
-HTML file (`honestweek.report.html` by default) — a polished **standalone site** with a
+HTML file (`honestweek.report.html` by default), a polished **standalone site** with a
 git-derived commits/day chart, collapsible per-project cards with metrics, status-badged
 items, and an expandable git receipt on each. No target project, no framework, no build
 step, and **zero external resources** (inline CSS + JS, system fonts), so it opens
@@ -258,7 +369,7 @@ happens on one day, so N active days mean at least N sessions); for a cross-cwd 
 project that reconciled figure is a lower bound on its distinct session-days, not a raw
 session-log tally. Every figure is a deterministic count, never authored. (To
 instead generate INTO an existing website's data
-file — the integrated path — use `site` mode with a committed `output.adapter`; see
+file (the integrated path), use `site` mode with a committed `output.adapter`; see
 `docs/site-integration.md`.)
 
 ### A goals page too (opt-in, multi-page)
@@ -266,7 +377,7 @@ file — the integrated path — use `site` mode with a committed `output.adapte
 Drop a `honestweek.objectives.json` registry beside your config and `page` mode becomes
 **multi-page**: it emits a second self-contained page, `goals.html`, next to `report.html`
 and cross-links the two. The goals page groups your verified work **by goal** instead of by
-project — goal cards with a kind chip, a what / why / how, a per-week activity strip, status
+project: goal cards with a kind chip, a what / why / how, a per-week activity strip, status
 counts, and an expandable list of the entries behind each goal. With **no** registry, `page`
 mode stays single-page exactly as above (the goals page is purely additive).
 
@@ -339,33 +450,6 @@ Different readers want different things from the same report. An optional `hones
 
 Without the file, the report uses the shipped default and client layers. The design and its rules are in [docs/reader-profiles.md](docs/reader-profiles.md).
 
-## Replaying how the work happened (developer preview)
-
-The reports above say what landed. The work-history engine in `lib/replay/` rebuilds how it got there from the same local logs: prompts, the sub-agents an agent started, each command and its recorded result, tests, interruptions, what git says happened to each commit, and which pull requests a default-branch commit names. I can replay it to any moment and drill from a week down to the log line behind a step, and every step says whether a record shows it, it was computed from records, a named rule inferred it, or the evidence is missing. It never invents working time or reasons. It doesn't change any existing output, no honestweek command uses it yet (so its interface may change), and it has no screen yet; a developer tool prints each level, from a clone of this repository (the tool isn't in the published package):
-
-```bash
-node tools/replay-inspect.mjs --config honestweek.config.json --from 2024-06-10 --to 2024-06-16 walk
-```
-
-[docs/work-history-engine.md](docs/work-history-engine.md) has the event model, the measured source coverage, and what it can't reconstruct yet.
-
-### Finding the sessions behind a pull request, a commit, a file, or a goal (in development)
-
-The same engine reads the history backwards too, through two more commands in that developer tool:
-
-- `lookup` takes a pull request (`#64`, `your-repo#64`, or its link), a commit id, a file path, or a branch name, and lists the sessions whose records point at it, strongest evidence first. Each pointer says how it's known: a record shows it, or a named rule read it (for example, a `gh pr view 64` command). A file path is tried under each checkout of a repository, the configured folder and its worktrees, but never under a session's own working folder. An absolute path searches only the repository that holds it; a relative one searches each configured repository and lists the results per repository.
-- `goals` takes a goal record: a JSON list of goals plus the log of changes made to it (a separate input from the goals page's registry above). For each goal it lists the sessions that did its work and every reason each one counts: the record cites the session or one of its pull requests or commits, a tool call wrote one of the goal's entries while the record accepted it, a command acted on a cited pull request, or a prompt named the goal. Whatever the record cites that no session matches is listed with the reason.
-
-You can try both without any logs of your own. `--demo` runs them on the made-up sessions, git repository, and goal record the tests use, built in a temporary folder that's deleted afterwards:
-
-```bash
-node tools/replay-inspect.mjs --demo goals
-node tools/replay-inspect.mjs --demo lookup '#7'
-node tools/replay-inspect.mjs --config honestweek.config.json --from 2024-06-10 --to 2024-06-16 --goals goals.json goals
-```
-
-Both only read. Nothing is published, sessions outside your configured repos and in display-role ones are never searched, and display-role repos are never read by git. For a page on your own machine, the engine can also build a history that shows your private text (names, folders, addresses, ids) while keeping secrets hidden. It's built in memory and meant for your screen only: no honestweek command asks for it, and the engine refuses to turn the whole history into JSON. The join types, their rules, and what lookup can't find are in [docs/work-history-engine.md](docs/work-history-engine.md#goals-and-lookup-reading-the-history-backwards).
-
 ## Config reference
 
 You commit your own `honestweek.config.json`. It mirrors `honestweek.config.example.json`:
@@ -384,7 +468,8 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
   "privacy": { "publicRenditions": { "enabled": true, "maxAutomaticChangedPercent": 20, "generalizationMappings": {}, "neverPublicTerms": [] } }, // deterministic public-rendition gate
   "output": { "mode": "digest", "file": "honestweek.digest.md" },  // optional; mode ∈ post|changelog|digest|report|page|site|client, default digest
   "client": { "name": "your-client", "preparedFor": "Their name", "preparedBy": "Your name", "organization": "Your business", "prLinks": { "your-project": "https://github.com/your-org/your-project/pull/" } }, // required for mode client only
-  "voice": { "denyMeta": false }                               // optional; OFF by default. true = lint authored prose for withholding/honesty-meta (see below)
+  "voice": { "denyMeta": false },                              // optional; OFF by default. true = lint authored prose for withholding/honesty-meta (see below)
+  "goalsFile": "honestweek.goals.json"                          // optional; the goal list `view` reads
 }
 ```
 
@@ -393,21 +478,22 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `identity.authorEmails` | The emails a commit must be authored by to count as yours. `build` aborts on any cited commit not authored by one of these. |
 | `week.startsOn` | `"monday"` (the only supported value in v0.1). |
 | `week.timezone` | IANA timezone used to compute the week boundary; defaults to your host zone. |
-| `repos[].path` | A repo path. `~`/`~/` expands to your home dir; relative paths resolve against the config file. Sessions are attributed to this repo from **any working tree of the same git repository** — the path itself, sub-directories, and every `git worktree`, including ones checked out at a sibling path rather than inside it. Git reads (commits, handoffs, metrics) always use this path alone, so a worktree's branch or detached `HEAD` never becomes the basis for your commit counts. A separate *clone* has its own git database and is never attributed here. |
+| `repos[].path` | A repo path. `~`/`~/` expands to your home dir; relative paths resolve against the config file. Sessions are attributed to this repo from **any working tree of the same git repository**: the path itself, sub-directories, and every `git worktree`, including ones checked out at a sibling path rather than inside it. Git reads (commits, handoffs, metrics) always use this path alone, so a worktree's branch or detached `HEAD` never becomes the basis for your commit counts. A separate *clone* has its own git database and is never attributed here. |
 | `repos[].label` | The short name items reference and outputs display. |
 | `repos[].role` | One of the three trust levels below. |
 | `redaction.codenames` / `names` / `terms` | Private tokens scrubbed from all output, in any letter case. A term is found as a word, after an underscore or a digit, or as one part of a camel-case name (`acme_report`, `AcmeReport`, `XMLAcmeThing`). A web-address or file-name part that starts with a codename or term of four or more letters is replaced whole (`www.acmehq.com`, `http://acmehq:3000`, `acmereport.pdf`); a person's name is matched that way only in a web address, so "Bill" leaves `billing.ts` alone. A word that only shares letters with a term (`academy`) is kept. Default empty (clean-room). |
 | `curation.*` | Local weekly-selection policy. Defaults target 12 items with caps of 2 prompts, 2 ideas, 3 techniques, 2 decisions, 1 reversal, and 2 next steps. The automatic floor is 2. `automaticCarryWeeks` defaults to 2 and is hard-limited to 2. `retentionWeeks` defaults to 12 and is hard-limited to 12. Explicit keeps and one-week renewals are never silently dropped, but they never bypass receipt or privacy gates. |
 | `privacy.publicRenditions.*` | Public-rendition gate. `enabled` defaults true for the local artifact, `maxAutomaticChangedPercent` defaults to and cannot exceed 20, and `neverPublicTerms` extends hard redaction. `generalizationMappings` remains empty in this slice. Ambiguous or residual high-risk material in every category stays private. |
-| `output.mode` | `post` (build-in-public update), `changelog` (in-repo `CHANGELOG.md` section), `digest` (the private, local-only weekly file; the default and trust anchor), `report` (grouped by project, each headed by its git-derived metrics; the structured weekly-work-log shape, still a local file you publish yourself), `site` (integrate the verified report into a target website's data artifact via a committed adapter — advanced; see [docs/site-integration.md](docs/site-integration.md)), or `client` (a printable report of the work done for one client over the items file's `period`; see [A report for a client](#a-report-for-a-client-client-mode)). |
+| `output.mode` | `post` (build-in-public update), `changelog` (in-repo `CHANGELOG.md` section), `digest` (the private, local-only weekly file; the default and trust anchor), `report` (grouped by project, each headed by its git-derived metrics; the structured weekly-work-log shape, still a local file you publish yourself), `site` (integrate the verified report into a target website's data artifact via a committed adapter (advanced; see [docs/site-integration.md](docs/site-integration.md))), or `client` (a printable report of the work done for one client over the items file's `period`; see [A report for a client](#a-report-for-a-client-client-mode)). |
 | `output.file` | Where the output is written. Defaults per mode when unset. (Not used by `site`, whose write path comes from the adapter.) |
-| `output.adapter` | **Required for `site` mode only**: path to the committed adapter (resolved like a repo path) — a `.json` *static* field-map, or a `.mjs` *transform* (`transform(model, ctx)`) for artifacts needing grouping/sorting/joins. It maps the verified model onto the site's data artifact; the artifact's own write path lives in the adapter. |
-| `output.redact` | Default `true` (honestweek scrubs every byte). For `site` mode only, `false` delegates string redaction to the committed transform (so a target with its own redactor gets exact placeholder parity) — permitted **only with a transform adapter**; verify-or-abort and the numeric fact-fence always run. See [docs/site-integration.md](docs/site-integration.md). |
+| `output.adapter` | **Required for `site` mode only**: path to the committed adapter (resolved like a repo path): a `.json` *static* field-map, or a `.mjs` *transform* (`transform(model, ctx)`) for artifacts needing grouping/sorting/joins. It maps the verified model onto the site's data artifact; the artifact's own write path lives in the adapter. |
+| `output.redact` | Default `true` (honestweek scrubs every byte). For `site` mode only, `false` delegates string redaction to the committed transform (so a target with its own redactor gets exact placeholder parity), permitted **only with a transform adapter**; verify-or-abort and the numeric fact-fence always run. See [docs/site-integration.md](docs/site-integration.md). |
 | `output.archive` / `output.archiveDir` | Opt-in local weekly archive. With `archive: true`, `build` also snapshots each week to `<archiveDir>/<weekStart>.json` and maintains `<archiveDir>/index.json` (the "/log" series; default dir `honestweek.archive`). Local files only, never pushed. |
 | `client.name` | **Required for `client` mode.** The client or product the report covers. |
 | `client.preparedFor` / `preparedBy` / `organization` | Optional lines for the report's header: who it's for, who wrote it, and the business it comes from. |
 | `client.prLinks` | Optional map of repo label to an https prefix (`https://github.com/your-org/your-project/pull/`), so a PR number derived from a verified commit becomes a link. Every key must be a configured repo label. |
 | `voice.denyMeta` | Opt-in authored-prose honesty lint, **OFF by default**. When `true`, `build` aborts (exit 2, writes nothing) if an authored-prose field (item `title`/`summary`/`text`, or curated `content`/`projects` prose) *narrates its own withholding* ("keeping the specifics sealed", "kept generic here", "not public-facing") or *announces the page's own honesty* ("show the work honestly, receipts and retractions included", "belongs in an honest log"). That's what an honest log should show through its badges and receipts, not say about itself. It's the prose analogue of the numeric fact-fence, names each offending field plus matched phrase plus rule, and is **never** applied to verified evidence snippets/receipts (where a word like "sealed" can legitimately appear); conversely, keep authored prose out of evidence-named keys (`commits`, `receipt`, `snippet`, ...), which are treated as evidence and skipped. Absent, nothing changes. |
+| `goalsFile` | Optional. The goal list `view` reads, resolved like a repo path. Leave it out and `view` runs without goals, or pass `--goals <file>` for one run. It's not the goals page's `honestweek.objectives.json`; see [The goal list](#the-goal-list). |
 | `voice.denyPhrases` / `voice.allowPhrases` | Optional string lists (default empty). `denyPhrases` **extends** the built-in denylist with your own phrases (literal, case-insensitive). `allowPhrases` is the false-positive **off-ramp**: it exempts a legitimate phrase a built-in pattern would otherwise flag (surgical to the matched text), so one over-eager match doesn't force you to disable the whole lint. |
 
 **Repo roles:**
@@ -437,14 +523,14 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `honestweek.archive/` (opt-in) | The local weekly snapshots + `index.json` (the "/log" series). Only written when `output.archive` is true. **Yours to keep, ignore, or commit.** |
 | `honestweek.objectives.json` (opt-in) | The goal registry that turns `page` mode multi-page (emits `goals.html`). Absent → single-page. The publish gate for goals; commit it if you want the goals page. |
 | `honestweek.goal-changelog.json` (opt-in) | Optional append-only log of structural goal-set changes, rendered as the goals page's "what changed" band. |
-| `honestweek.findings.json` (opt-in) | The `mine` findings ledger: what was found, and what you accepted or declined. **Commit it** — it is the only record of what you already said no to, and everything in it is de-identified and redacted before it is written. |
+| `honestweek.findings.json` (opt-in) | The `mine` findings ledger: what was found, and what you accepted or declined. **Commit it**: it is the only record of what you already said no to, and everything in it is de-identified and redacted before it is written. |
 
 ## What it does NOT do / privacy model
 
 - **Only your own allowlisted repos are read.** Nothing outside your `repos` list is ever touched.
 - **`display`-role repos are summarized generically and NEVER git-read.** There is no code path that runs `git` against a `display` repo.
 - **Output stays local until you publish it.** honestweek writes local files only.
-- **No telemetry, no network egress.** The optional `preview` server is loopback-only (`127.0.0.1`): it serves your already-built output to your own browser, and nothing leaves your machine.
+- **No telemetry, no network egress.** The optional `preview` server is loopback-only (`127.0.0.1`): it serves your already-built output to your own browser, and nothing leaves your machine. The `view` page is loopback-only too, answers only the page it opened, and keeps what it reads in memory; see [What `view` keeps private](#what-view-keeps-private).
 - **Nothing is auto-published.** honestweek produces a draft; *you* are the publisher.
 
 ### What the scrubber catches, and what it doesn't

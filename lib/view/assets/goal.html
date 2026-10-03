@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goals · honestweek</title>
+<link rel="stylesheet" href="common.css">
+</head>
+<body data-page="goal">
+<header class="topbar">
+  <a class="brand" href="search.html">honestweek</a>
+  <nav aria-label="Pages"><a href="search.html">Search</a><a href="goal.html" aria-current="page">Goals</a><a href="replay.html">Replay</a><a href="problems.html">Problems</a></nav>
+  <span class="window" id="window"></span>
+  <span class="privacy" id="privacy"></span>
+</header>
+<p class="demo" id="demo" hidden></p>
+<p class="statusline" id="status" role="status" hidden></p>
+<div class="pagehead">
+  <h1>Replay by goal</h1>
+  <span class="sub">one goal's sessions in this window, on one clock</span>
+  <span id="wlBadge"></span>
+  <p class="evkey" data-evkey></p>
+</div>
+<div class="wrap" id="content">
+  <div class="chartcol">
+    <div class="goalbar">
+      <label for="goal" class="kbd">Goal</label>
+      <select id="goal"></select>
+      <span class="meta" id="goalMeta"></span>
+    </div>
+    <div class="controls">
+      <button type="button" id="prevPrompt" title="Previous prompt in any of these sessions (Shift+←)">⏮ Prompt</button>
+      <button type="button" id="prevStep" title="Previous record (←)">◀ Step</button>
+      <button type="button" id="play" title="Play through the records (Space)">▶ Play</button>
+      <button type="button" id="nextStep" title="Next record (→)">Step ▶</button>
+      <button type="button" id="nextPrompt" title="Next prompt (Shift+→)">Prompt ⏭</button>
+      <span class="sep"></span>
+      <button type="button" id="openAll" title="Open every session into its agent lanes">Open sessions</button>
+      <button type="button" id="closeAll">Fold sessions</button>
+      <span class="sep"></span>
+      <label class="kbd"><input type="checkbox" id="collapse" checked> Fold gaps over 30 min</label>
+      <label class="kbd">Zoom <select id="zoom"><option value="0">Whole goal</option><option value="7200000">2 hours</option><option value="1800000">30 minutes</option><option value="300000">5 minutes</option><option value="custom" disabled>Your selection</option></select></label>
+      <button type="button" id="fit" title="Zoom back out to the whole goal (Esc, or double-click the chart)">⤢ Whole goal</button>
+      <span class="readout" id="readout"></span>
+    </div>
+    <div class="zoombar" id="zoombar" hidden></div>
+    <div class="scrub"><input type="range" id="slider" min="0" max="1000" value="0" aria-label="Time across the goal's sessions"></div>
+    <p class="sr" id="announce" aria-live="polite"></p>
+    <div class="legend">
+      <span><span class="sw run"></span>Ran a command</span>
+      <span><span class="sw change"></span>Changed a file</span>
+      <span><span class="sw look"></span>Looked something up</span>
+      <span><span class="sw other"></span>Other step</span>
+      <span>◆ Your input</span>
+      <span>⚑ Why the session belongs</span>
+      <span><span class="sw joined-record"></span>Joined by a record</span>
+      <span><span class="sw joined-rule"></span>Joined by a rule (weaker)</span>
+      <span><span class="sw timeby"></span>Time borrowed or moved</span>
+      <span><span class="sw gap"></span>No records (a gap, not idle)</span>
+    </div>
+    <div id="wl"></div>
+    <svg id="chart" class="chart" role="group" aria-label="The goal's sessions on one clock. Each step is a button; the list after the chart reads them in order."></svg>
+    <h2 class="sr">Every step on the chart, in order (<span id="stepCount">0 steps</span>)</h2>
+    <ol class="sr" id="chartSteps"></ol>
+    <p class="note">Each row is one session that did this goal's work, folded until you click it. Open a session for its agent lanes, and a lane for one row per tool. The flags mark the records that tie the session to the goal: solid for a record, dashed for a named rule that could be wrong. Stretches where none of these sessions wrote anything fold into a labelled break; click one to unfold it. Bars are recorded spans, not working time. Tab reaches every step; Enter opens its record.</p>
+  </div>
+  <aside class="panel" id="panel" aria-label="Why these sessions belong to the goal"></aside>
+</div>
+<script src="evidence.js"></script>
+<script src="key.js"></script>
+<script src="private-text.js"></script>
+<script src="common.js"></script>
+<script src="prefs.js"></script>
+<script src="strip.js"></script>
+<script src="goal.js"></script>
+</body>
+</html>

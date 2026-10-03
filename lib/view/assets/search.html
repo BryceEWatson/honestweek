@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Search · honestweek</title>
+<link rel="stylesheet" href="common.css">
+</head>
+<body data-page="search">
+<header class="topbar">
+  <a class="brand" href="search.html">honestweek</a>
+  <nav aria-label="Pages"><a href="search.html" aria-current="page">Search</a><a href="goal.html">Goals</a><a href="replay.html">Replay</a><a href="problems.html">Problems</a></nav>
+  <span class="window" id="window"></span>
+  <span class="privacy" id="privacy"></span>
+</header>
+<p class="demo" id="demo" hidden></p>
+<p class="statusline" id="status" role="status" hidden></p>
+<div class="pagehead">
+  <h1>Find agent work</h1>
+  <span class="sub">sessions, goals, pull requests, commits, files, branches and prompts</span>
+  <p class="evkey" data-evkey></p>
+</div>
+<main id="content">
+  <div class="searchbox"><input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="A pull request (#12), a commit id, a file, a branch, or words from a prompt" aria-label="Search"></div>
+  <div class="hint" id="hint"></div>
+  <div class="coverage" id="coverage"></div>
+  <div id="out" aria-live="polite"></div>
+</main>
+<script src="evidence.js"></script>
+<script src="key.js"></script>
+<script src="private-text.js"></script>
+<script src="common.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
