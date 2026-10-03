@@ -8,7 +8,9 @@ honestweek works with the session logs that Claude Code and Codex already keep o
 - **Find and replay your work.** `honestweek view` opens a page in your browser where you type a pull request number, a commit, a file, a branch or a few words and get the sessions behind it, then replay any session step by step. Every link and count says how it's known: recorded in a log or by git, computed from records, inferred by a named rule, or missing.
 - **Write an honest weekly summary.** A short pipeline turns a finished week into a summary you review and publish yourself. It checks every commit the summary cites against your real git history first, and it stops rather than write a claim it can't back.
 
-It's for developers who do much of their work through an AI coding agent and want to find, check or show that work later. Nothing leaves your machine: there's no account, no telemetry and no network call. The names and client words you list stay hidden unless you turn on Show private text on your own screen, and keys, tokens and passwords stay hidden either way.
+It's for developers who do much of their work through an AI coding agent and want to find, check or show that work later. Nothing leaves your machine: there's no account, no telemetry and no network call. The names and client words you list stay hidden on the page unless you turn on its Show private text switch, on your own screen, and keys, tokens and passwords stay hidden either way.
+
+To see it with nothing to set up, run `npx github:BryceEWatson/honestweek view --demo`: a made-up week opens in your browser.
 
 ## Try it
 
@@ -20,7 +22,7 @@ npx github:BryceEWatson/honestweek init          # set up honestweek.config.json
 npx github:BryceEWatson/honestweek view          # your own last 7 days
 ```
 
-The demo opens a page with three parts: Search (type one of the examples it offers, or a few words), Goals (each goal's sessions on one timeline you can play), and Replay (one session step by step, each step with the log line behind it). Press Ctrl+C in the terminal to stop it.
+The demo opens a page with three parts: Search (type one of the examples it offers, or a few words), Goals (each goal in a goal list, a small JSON file of your goals, with its sessions on one timeline you can play), and Replay (one session step by step, each step with the log line behind it). Press Ctrl+C in the terminal to stop it.
 
 From a clone of this repository, put `node bin/honestweek.mjs` where it says `npx github:BryceEWatson/honestweek`, and once honestweek is installed as a command, plain `honestweek`. `honestweek` with no command lists the same three steps, and every message that tells you what to run next names it the way you ran honestweek.
 
@@ -98,7 +100,7 @@ The CLI surface is eleven subcommands: `init`, `discover`, `prompts`, `digest`, 
 
 ## Finding and replaying your work in the browser (`view`)
 
-`honestweek view` opens a page on my own machine where I can find the sessions and goals behind a pull request, a commit, a file, a branch or some words, see which sessions worked toward each goal, and replay any session step by step. It reads my config and the last 7 days of my Claude Code and Codex logs, serves the page on `127.0.0.1`, and opens my browser. Nothing is published, and nothing it reads is written to disk.
+`honestweek view` opens a page on your own machine where you can find the sessions and goals behind a pull request, a commit, a file, a branch or some words, see which sessions worked toward each goal, and replay any session step by step. It reads your config and the last 7 days of your Claude Code and Codex logs, serves the page on `127.0.0.1`, and opens your browser. Nothing is published, and nothing it reads is written to disk.
 
 ```bash
 node bin/honestweek.mjs view                  # the last 7 days of your logs
@@ -121,7 +123,7 @@ Options: `--days <n>`, or `--from` with `--to`, picks the dates; `--timezone <zo
 
 ### The goal list
 
-A goal list is a JSON file of my goals and the changes made to them. Each goal has an `id` and a `title`, and can carry a `state` and notes (`source`, `observations`, `results`, `decisions`) that cite pull requests, commits, or sessions (`session:` followed by the session's id). `events` logs each change to the list, with the time it was accepted:
+A goal list is a JSON file of your goals and the changes made to them. Each goal has an `id` and a `title`, and can carry a `state` and notes (`source`, `observations`, `results`, `decisions`) that cite pull requests, commits, or sessions (`session:` followed by the session's id). `events` logs each change to the list, with the time it was accepted:
 
 ```json
 {
@@ -142,7 +144,7 @@ Name it with `--goals <file>`, or once with `goalsFile` in the config. It's a di
 
 ## Replaying how the work happened (the engine underneath)
 
-The weekly summary below says what landed. The work-history engine in `lib/replay/` rebuilds how it got there from the same local logs: prompts, the sub-agents an agent started, each command and its recorded result, tests, interruptions, what git says happened to each commit, and which pull requests a default-branch commit names. I can replay it to any moment and drill from a week down to the log line behind a step, and every step says whether a record shows it, it was computed from records, a named rule inferred it, or the evidence is missing. It never invents working time or reasons. It doesn't change any existing output, and `honestweek view` (above) is its page. A developer tool also prints each level, from a clone of this repository (the tool isn't in the published package):
+The weekly summary below says what landed. The work-history engine in `lib/replay/` rebuilds how it got there from the same local logs: prompts, the sub-agents an agent started, each command and its recorded result, tests, interruptions, what git says happened to each commit, and which pull requests a default-branch commit names. You can replay it to any moment and drill from a week down to the log line behind a step, and every step says whether a record shows it, it was computed from records, a named rule inferred it, or the evidence is missing. It never invents working time or reasons. It doesn't change any existing output, and `honestweek view` (above) is its page. A developer tool also prints each level, from a clone of this repository (the tool isn't in the published package):
 
 ```bash
 node tools/replay-inspect.mjs --config honestweek.config.json --from 2024-06-10 --to 2024-06-16 walk
