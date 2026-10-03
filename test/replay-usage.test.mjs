@@ -15,8 +15,11 @@ const U = 'aaaaaaaa-9999-4999-8999-0000000000a1';
 const V = 'aaaaaaaa-9999-4999-8999-0000000000a2';
 const W = 'aaaaaaaa-9999-4999-8999-0000000000a3';
 const X = '01900000-0000-7000-8000-0000000000c1';
+const Y = 'aaaaaaaa-9999-4999-8999-0000000000a4';
+const Z = 'aaaaaaaa-9999-4999-8999-0000000000a5';
 const LONG_SENTINEL = 'RAW-ONLY-TAIL-SENTINEL';
 const ERROR_SENTINEL = 'RAW-ERROR-SENTINEL';
+const RESUMED_SENTINEL = 'RAW-RESUMED-ERROR-SENTINEL';
 
 let fx;
 const WINDOW = { from: '2024-06-10', to: '2024-06-16' };
@@ -74,6 +77,16 @@ before(() => {
     tc(at(1503), 1500, null),
     tc(at(1504), 2700, { input_tokens: 1000, cached_input_tokens: 900, output_tokens: 150, reasoning_output_tokens: 50, total_tokens: 1200 }),
   ]);
+  // Y stops mid-call. Z resumes it, copying Y's records, and records that call's failed result.
+  const y = claude(Y, fx.repo.dir);
+  y.prompt(at(600), 'Run the slow suite.');
+  y.say(at(601), 'msg-y1', [{ type: 'tool_use', id: 'tu-y1', name: 'Bash', input: { command: 'npm run slow-suite' } }]);
+  write(join(fx.claudeRoot, 'proj-u', `${Y}.jsonl`), y.lines);
+  const z = claude(Z, fx.repo.dir);
+  z.lines.push(...y.lines.map((l) => JSON.stringify({ ...JSON.parse(l), sessionId: Z })));
+  z.result(at(700), 'tu-y1', `suite failed: ${RESUMED_SENTINEL}`, true);
+  z.prompt(at(701), 'continue');
+  write(join(fx.claudeRoot, 'proj-u', `${Z}.jsonl`), z.lines);
 });
 after(() => rmSync(fx.root, { recursive: true, force: true }));
 
@@ -165,4 +178,29 @@ test('keepRaw: raw inputs, full text and error text sit on a non-enumerable fiel
   const plain = await build();
   assert.ok(plain.events.every((e) => e._raw === undefined));
   assert.equal(plain._raw, undefined);
+});
+
+test('keepRaw: display-only and outside sessions never get raw text or a folder, in any mode', async () => {
+  for (const mode of [{}, { hiddenSessions: 'redacted' }, { privateText: true }]) {
+    const label = JSON.stringify(mode);
+    const h = await build({ scope: 'all', usage: true, keepRaw: true, ...mode });
+    const priv = new Set(h.sessions.filter((s) => s.private).map((s) => s.key));
+    assert.ok(h.sessions.some((s) => s.private && s.repoRole === 'display'), `${label}: a display-only session is in the history`);
+    assert.ok(h.sessions.some((s) => s.private && s.repoRole !== 'display'), `${label}: an outside session is in the history`);
+    if (Object.keys(mode).length) assert.ok(h.events.some((e) => priv.has(e.session) && e.kind === 'prompt' && typeof e.facts.text === 'string'), `${label}: these sessions keep their other content`);
+    assert.ok(h.events.some((e) => !priv.has(e.session) && e._raw), `${label}: readable sessions keep raw text`);
+    assert.equal(h.events.filter((e) => priv.has(e.session) && e._raw !== undefined).length, 0, `${label}: no private event keeps raw text`);
+    assert.ok(h.sources.some((s) => s.private), label);
+    for (const s of h.sources) if (s.private) assert.equal(h._raw.cwdOfSource.has(s.key), false, `${label}: no private folder is kept`);
+    assert.ok(h.sources.some((s) => !s.private && h._raw.cwdOfSource.has(s.key)), `${label}: readable folders are kept`);
+  }
+});
+
+test("keepRaw: a resumed copy's failed result brings its raw error text to the kept call", async () => {
+  const h = await build({ keepRaw: true });
+  const calls = h.events.filter((e) => e.kind === 'action' && e._raw?.input?.command === 'npm run slow-suite');
+  assert.equal(calls.length, 1, 'the copied call is one event');
+  assert.equal(calls[0].facts.result, 'error', "the copy's result moved to the kept call");
+  assert.match(calls[0]._raw.error ?? '', new RegExp(RESUMED_SENTINEL));
+  assert.ok(!JSON.stringify(h).includes(RESUMED_SENTINEL));
 });
