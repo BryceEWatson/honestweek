@@ -6,7 +6,7 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -18,9 +18,10 @@ import { setCommandForm } from '../lib/invocation.mjs';
 import { CODE_HEADER, KEY_HEADER } from '../lib/view/server.mjs';
 import { createLeakCounter } from '../lib/view/leaks.mjs';
 import { buildViewWeek, PRIVATE_WORDS, TERM, WEEK } from './fixtures/view/week.mjs';
+import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const scratch = mkdtempSync(join(tmpdir(), 'hw-view-cli-'));
+const scratch = makeTempDir('hw-view-cli-');
 const running = [];
 after(async () => {
   for (const h of running) await h.stop();
@@ -93,7 +94,7 @@ test('--help prints the help in the published voice and exits 0', async () => {
 });
 
 test('with no config file, view says to run init or try --demo, and writes nothing', async () => {
-  const empty = mkdtempSync(join(scratch, 'empty-'));
+  const empty = makeTempDir('hw-view-cli-empty-');
   const r = await view([], { cwd: empty });
   assert.equal(r.code, 1);
   assert.match(r.err(), /honestweek init/);
@@ -105,7 +106,7 @@ test('with no config file, view says to run init or try --demo, and writes nothi
 });
 
 test('the no-config message names init and the demo the way the person ran honestweek', async () => {
-  const empty = mkdtempSync(join(scratch, 'empty-'));
+  const empty = makeTempDir('hw-view-cli-empty-');
   setCommandForm('node bin/honestweek.mjs');
   try {
     const r = await view([], { cwd: empty });
@@ -176,7 +177,7 @@ test('setup errors exit 1 with a plain message', async () => {
 });
 
 test('a wrong goal list file gets a message that names the problem', async () => {
-  const dir = mkdtempSync(join(scratch, 'goals-'));
+  const dir = makeTempDir('hw-view-cli-goals-');
   writeFileSync(join(dir, 'registry.json'), JSON.stringify({ objectives: { 'obj-1': { publicLabel: 'Ship it' } }, projectToObjective: {} }));
   writeFileSync(join(dir, 'broken.json'), '{ not json');
   writeFileSync(join(dir, 'list.json'), JSON.stringify([{ id: 'g-1' }]));
@@ -332,7 +333,7 @@ test('a port already in use is a setup error', async () => {
 
 test('a demo run reads only the made-up week, carries the notice, and deletes its folder on stop', async () => {
   // A realistic session in the default log folders, which the demo must never read.
-  const home = mkdtempSync(join(scratch, 'home-'));
+  const home = makeTempDir('hw-view-cli-home-');
   const projects = join(home, 'claude', 'projects', '-work-real-project');
   mkdirSync(projects, { recursive: true });
   const id = '22222222-3333-4444-8555-666666666666';
@@ -342,7 +343,7 @@ test('a demo run reads only the made-up week, carries the notice, and deletes it
     JSON.stringify({ type: 'user', sessionId: id, cwd: '/work/real-project', uuid: `${id}-1`, timestamp: t, message: { role: 'user', content: 'Plan the zebracrossing migration for #12 and lib/format.mjs' }, origin: { kind: 'human' } }),
   ].join('\n')}\n`);
   const env = { CLAUDE_CONFIG_DIR: join(home, 'claude'), CODEX_HOME: join(home, 'codex') };
-  const r = await view(['--demo', '--no-open'], { cwd: mkdtempSync(join(scratch, 'nowhere-')), env });
+  const r = await view(['--demo', '--no-open'], { cwd: makeTempDir('hw-view-cli-nowhere-'), env });
   assert.equal(r.code, 0);
   assert.ok(r.handle.demoRoot && existsSync(r.handle.demoRoot));
   const key = await claim(r.handle.port, codesIn(r.out())[0].code);

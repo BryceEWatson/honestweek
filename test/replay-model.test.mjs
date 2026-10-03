@@ -3,7 +3,6 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { rmSync } from 'node:fs';
 
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { RULES } from '../lib/replay/classify.mjs';
@@ -11,6 +10,7 @@ import { assertEventContract, EVENT_KINDS } from '../lib/replay/evidence.mjs';
 import { sourceKey } from '../lib/replay/ids.mjs';
 import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { buildCorpus, CODENAME, CODEX_SECRET_REASONING, ME, PRIVATE_TEXT, SECRET_REASONING } from './fixtures/replay/corpus.mjs';
+import { removeTempDir } from './helpers/temp-dir.mjs';
 
 let fx;
 let h;
@@ -24,11 +24,7 @@ before(async () => {
   k = Object.fromEntries(Object.entries(fx.ids).map(([n, id]) => [n, n === 'P' || n === 'K' ? sourceKey('cx', id) : claudeSessionKey(fx.dirs[n], id)]));
 });
 after(() => {
-  try {
-    rmSync(fx.root, { recursive: true, force: true });
-  } catch {
-    /* Windows can hold a lock on .git briefly */
-  }
+  removeTempDir(fx.root);
 });
 
 test('every event keeps the contract: a kind, an evidence level, a reference, a position, named rules', () => {

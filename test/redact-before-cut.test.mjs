@@ -6,8 +6,7 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,6 +17,7 @@ import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { sourceKey } from '../lib/replay/ids.mjs';
 import { buildCorpus, at } from './fixtures/replay/corpus.mjs';
 import { buildDemoWeek } from '../tools/demo-week.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -248,7 +248,7 @@ let fixtureStrings;
 before(() => {
   fx = buildCorpus();
   scratch.push(fx.root);
-  const dir = mkdtempSync(join(tmpdir(), 'hw-redact-before-cut-'));
+  const dir = makeTempDir('hw-redact-before-cut-');
   scratch.push(dir);
   demo = buildDemoWeek({ root: join(dir, 'week') });
   // Read before the sessions below are added to the corpus.
@@ -256,11 +256,7 @@ before(() => {
 });
 after(() => {
   for (const dir of scratch) {
-    try {
-      rmSync(dir, { recursive: true, force: true });
-    } catch {
-      /* Windows can hold a lock on .git briefly */
-    }
+    removeTempDir(dir);
   }
 });
 
@@ -623,7 +619,7 @@ test('shown text is cut only by the helper: no other cut or first line in lib/re
 });
 
 test('the scan finds a cut, a first line and the old helpers outside the allowed list (failing-path partner)', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-scan-'));
+  const dir = makeTempDir('hw-scan-');
   scratch.push(dir);
   const bad = ['const t = text.slice(0, 80);', "const first = body.split('\\n')[0];", 'const c = clip(s, 40);', 'const r = clipRef(s);', 'const end = text.slice(-80);', "const top = body.split('\\n').shift();", "const [line] = body.split('\\n');", "const one = body.split('\\n', 1);", '// text.slice(0, 80) in a comment is fine'];
   writeFileSync(join(dir, 'views.mjs'), `${bad.join('\n')}\n`);

@@ -4,11 +4,12 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { buildCorpus, CODENAME } from './fixtures/replay/corpus.mjs';
+import { removeTempDir } from './helpers/temp-dir.mjs';
 
 let fx;
 before(() => {
@@ -20,11 +21,7 @@ before(() => {
   writeFileSync(file, marked);
 });
 after(() => {
-  try {
-    rmSync(fx.root, { recursive: true, force: true });
-  } catch {
-    /* Windows can hold a lock on .git briefly */
-  }
+  removeTempDir(fx.root);
 });
 
 for (const mode of [{}, { hiddenSessions: 'redacted' }, { privateText: true }]) {

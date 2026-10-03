@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { runDiscover } from '../lib/discover.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const NOW = new Date('2024-06-19T12:00:00Z'); // completed week is 2024-06-10..16
 const SHA_NOTE = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
@@ -16,7 +16,7 @@ function makeIo() {
 }
 
 function workdir(config) {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-disc-'));
+  const dir = makeTempDir('hw-disc-');
   if (config) writeFileSync(join(dir, 'honestweek.config.json'), JSON.stringify(config));
   return dir;
 }
@@ -78,7 +78,7 @@ test('writes a redacted draft with header + week + sessions; attaches candidate 
     // git is invoked ONLY for the featured repo, never for the private session
     assert.deepEqual(calls, ['/work/r']);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -93,7 +93,7 @@ test('the whole digest is redacted before disk; SHAs and percentages are preserv
     assert.ok(text.includes(SHA_NOTE), 'git SHA spared');
     assert.ok(text.includes('87%'), 'plain percentage spared');
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -107,7 +107,7 @@ test('prints a summary: sessions, public/private split, candidate total, redacti
     assert.match(io.outBuf, /1 candidate commit/);
     assert.match(io.outBuf, /redaction/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -118,7 +118,7 @@ test('honestweek.draft.json is added to .gitignore', async () => {
     const gi = readFileSync(join(dir, '.gitignore'), 'utf8');
     assert.ok(gi.split(/\r?\n/).some((l) => l.trim() === 'honestweek.draft.json'));
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -131,7 +131,7 @@ test('re-running discover is deterministic (byte-identical draft for the same in
     const b = readFileSync(join(dir, 'honestweek.draft.json'), 'utf8');
     assert.equal(a, b);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -145,7 +145,7 @@ test('--week pointing at a future/in-progress week is rejected with a non-zero e
     assert.match(io.errBuf, /future|in-progress/);
     assert.ok(!existsSync(join(dir, 'honestweek.draft.json')), 'no draft written on a rejected week');
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -157,6 +157,6 @@ test('a missing config exits non-zero with a clear message (not a stack trace)',
     assert.equal(code, 1);
     assert.match(io.errBuf, /honestweek config/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });

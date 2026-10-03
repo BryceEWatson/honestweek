@@ -4,14 +4,14 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { codexAssistantText, codexUserText, createCodexTurnReader } from '../lib/codex-records.mjs';
 import { enumerateSessions, probeSession, streamSession } from '../lib/mine/corpus.mjs';
 import { scanPromptSources } from '../lib/prompt-adapters.mjs';
 import { normalizeConfig } from '../lib/config.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const jsonl = (...rows) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 const userMsg = (texts, timestamp = '2026-09-08T17:40:00.000Z') => ({
@@ -85,7 +85,7 @@ test('a turn written in both shapes is counted once, a repeated turn in one shap
 });
 
 test('the miner probe finds a first human turn past 64 KB', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'honestweek-codex-probe-'));
+  const dir = makeTempDir('honestweek-codex-probe-');
   try {
     const f = join(dir, 'rollout-a.jsonl');
     const plugins = userMsg(['<recommended_plugins>' + 'p'.repeat(40_000) + '</recommended_plugins>']);
@@ -97,23 +97,23 @@ test('the miner probe finds a first human turn past 64 KB', () => {
     assert.equal(probe.cwd, 'C:/repo');
     assert.equal(probe.isSubagent, false);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
 test('a session whose only user messages are machine-authored has no identity', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'honestweek-codex-delegated-'));
+  const dir = makeTempDir('honestweek-codex-delegated-');
   try {
     const f = join(dir, 'rollout-a.jsonl');
     writeFileSync(f, jsonl(bigMeta(), userMsg(['<codex_delegation>do it</codex_delegation>', 'please check the repo']), asstMsg('done')));
     assert.equal(probeSession('codex', f), null);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
 test('the miner stream reads current-shape human and assistant turns', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'honestweek-codex-stream-'));
+  const dir = makeTempDir('honestweek-codex-stream-');
   try {
     const f = join(dir, 'rollout-a.jsonl');
     writeFileSync(
@@ -132,12 +132,12 @@ test('the miner stream reads current-shape human and assistant turns', async () 
     assert.equal(events[0].text, 'work out why the service fails');
     assert.equal(events[3].isError, true);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
 test('the codex corpus is no longer blind on current-shape logs', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'honestweek-codex-corpus-'));
+  const dir = makeTempDir('honestweek-codex-corpus-');
   try {
     mkdirSync(join(dir, 'sessions', '2026', '09', '08'), { recursive: true });
     writeFileSync(join(dir, 'sessions', '2026', '09', '08', 'rollout-a.jsonl'), jsonl(bigMeta(), userMsg(['why does the tool crash'])));
@@ -147,12 +147,12 @@ test('the codex corpus is no longer blind on current-shape logs', () => {
     assert.ok(row, 'diagnostics row for the sessions root');
     assert.equal(row.probeFailed, 0);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
 test('the prompt collector reads current-shape Codex turns and numbers them once', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'honestweek-codex-prompts-'));
+  const root = makeTempDir('honestweek-codex-prompts-');
   try {
     const project = join(root, 'project');
     const codex = join(root, 'codex');
@@ -182,6 +182,6 @@ test('the prompt collector reads current-shape Codex turns and numbers them once
     });
     assert.deepEqual(got.prompts.map((p) => [p.text, p.turn]), [['first real request', 1], ['second real request', 2]]);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    removeTempDir(root);
   }
 });

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir, homedir } from 'node:os';
+import { writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, resolve, isAbsolute, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,9 +17,10 @@ import {
   OUTPUT_MODES,
   DEFAULT_OUTPUT_FILES,
 } from '../lib/config.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 function tempDir() {
-  return mkdtempSync(join(tmpdir(), 'honestweek-cfg-'));
+  return makeTempDir('honestweek-cfg-');
 }
 
 function writeConfig(dir, obj) {
@@ -59,7 +60,7 @@ test('minimal valid config loads', () => {
     assert.equal(cfg.output.mode, 'digest');
     assert.equal(cfg.output.file, DEFAULT_OUTPUT_FILES.digest);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -73,7 +74,7 @@ test('full valid config loads and exercises all roles', () => {
     assert.equal(cfg.output.mode, 'changelog');
     assert.equal(cfg.output.file, 'OUT.md');
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -128,7 +129,7 @@ for (const [name, cfg, pattern] of rejects) {
     try {
       assert.throws(() => loadConfig(writeConfig(dir, cfg)), pattern);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeTempDir(dir);
     }
   });
 }
@@ -145,7 +146,7 @@ test('malformed JSON produces a clear parse error naming the file', () => {
     writeFileSync(p, '{ not json ');
     assert.throws(() => loadConfig(p), /not valid JSON/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -287,7 +288,7 @@ test('goalsFile resolves relative to the config file, and ~ to the home folder',
     const abs = resolve(dir, 'abs.json');
     assert.equal(normalizeConfig({ ...minimalValid(), goalsFile: abs }).goalsFile, abs);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 

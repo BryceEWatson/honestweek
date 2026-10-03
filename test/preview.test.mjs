@@ -9,8 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -26,6 +25,7 @@ import * as digest from '../lib/emit/digest.mjs';
 import * as post from '../lib/emit/post.mjs';
 import * as report from '../lib/emit/report.mjs';
 import * as changelog from '../lib/emit/changelog.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 // --- fixtures ---------------------------------------------------------------
 
@@ -42,7 +42,7 @@ function model(overrides = {}) {
 }
 
 function tmp() {
-  return mkdtempSync(join(tmpdir(), 'hw-preview-'));
+  return makeTempDir('hw-preview-');
 }
 
 function fakeIo() {
@@ -259,7 +259,7 @@ test('runPreview exits 1 when there is no config and no --file', async () => {
     assert.equal(io.exitCode, 1);
     assert.match(io.errBuf, /no honestweek\.config\.json|--file/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -272,7 +272,7 @@ test('runPreview exits 1 when the output file is absent', async () => {
     assert.match(io.errBuf, /not found/);
     assert.match(io.errBuf, /build/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -288,7 +288,7 @@ test('runPreview rejects a bad --port (both spellings) before serving', async ()
       assert.match(io.errBuf, /--port must be an integer/);
     }
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -310,7 +310,7 @@ test('runPreview reports a clear error when the requested --port is already in u
     assert.match(io.errBuf, /already in use/);
   } finally {
     if (blocker) await blocker.close();
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -340,7 +340,7 @@ test('runPreview serves the rendered file on loopback and honors --no-open', asy
     assert.ok(!/https?:\/\//.test(res.body), 'served page references no external URL');
   } finally {
     if (handle) await handle.close();
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -364,7 +364,7 @@ test('runPreview opens the browser with the loopback URL when --no-open is absen
     assert.match(opened[0], /^http:\/\/127\.0\.0\.1:\d+\/$/);
   } finally {
     if (handle) await handle.close();
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -392,7 +392,7 @@ test('runPreview serves a `page` (.html) output VERBATIM under a script-permitti
     assert.ok(!/https?:\/\//.test(csp), 'no external source is whitelisted in the CSP');
   } finally {
     if (handle) await handle.close();
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -411,6 +411,6 @@ test('runPreview keeps the locked-down (no-script) CSP for a Markdown output', a
     assert.ok(!/script-src/.test(csp), 'a Markdown preview never permits inline script');
   } finally {
     if (handle) await handle.close();
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });

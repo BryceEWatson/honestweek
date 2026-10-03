@@ -5,8 +5,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, relative } from 'node:path';
 
 import { buildWorkHistory } from '../lib/replay/index.mjs';
@@ -16,6 +16,7 @@ import { sourceKey } from '../lib/replay/ids.mjs';
 import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { buildDemoWeek, CODEX_IDS, main as demoMain, ME, SESSION_IDS, WEEK } from '../tools/demo-week.mjs';
 import { main as inspect } from '../tools/replay-inspect.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 let d;
 let h;
@@ -24,7 +25,7 @@ const k = {};
 const scratch = [];
 
 const tmp = (prefix) => {
-  const dir = mkdtempSync(join(tmpdir(), prefix));
+  const dir = makeTempDir(prefix);
   scratch.push(dir);
   return dir;
 };
@@ -52,11 +53,7 @@ before(async () => {
 });
 after(() => {
   for (const dir of scratch) {
-    try {
-      rmSync(dir, { recursive: true, force: true });
-    } catch {
-      /* Windows can hold a lock on .git briefly */
-    }
+    removeTempDir(dir);
   }
 });
 

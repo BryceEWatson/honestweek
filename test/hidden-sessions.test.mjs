@@ -5,9 +5,9 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire, syncBuiltinESMExports } from 'node:module';
-import { homedir, tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { createRedactor } from '../lib/redact.mjs';
@@ -15,6 +15,7 @@ import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { buildCorpus, CODENAME, ME, PRIVATE_TEXT, at } from './fixtures/replay/corpus.mjs';
 import { buildDemoWeek, SESSION_IDS, WEEK } from '../tools/demo-week.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const require = createRequire(import.meta.url);
 const childProcess = require('node:child_process');
@@ -113,11 +114,7 @@ before(async () => {
 after(() => {
   for (const dir of [fx?.root, demoDir]) {
     if (!dir) continue;
-    try {
-      rmSync(dir, { recursive: true, force: true });
-    } catch {
-      /* Windows can hold a lock on .git briefly */
-    }
+    removeTempDir(dir);
   }
 });
 
@@ -230,7 +227,7 @@ test('"redacted": the history serializes; with privateText too it still refuses'
 });
 
 test('"redacted" over the demo week: the display-only site session and the outside session show, redacted', async () => {
-  demoDir = mkdtempSync(join(tmpdir(), 'hw-hidden-sessions-'));
+  demoDir = makeTempDir('hw-hidden-sessions-');
   const d = buildDemoWeek({ root: join(demoDir, 'week') });
   const config = { ...d.config, redaction: { codenames: [], names: [], terms: ['personal-site', 'screenshots'] } };
   const opts = { config, from: WEEK.from, to: WEEK.to, roots: d.roots, scope: 'all', goals: d.goalRecord };
