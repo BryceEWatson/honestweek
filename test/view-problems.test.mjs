@@ -3,10 +3,9 @@
 // the "Worth a look" strip read, the leak counter in both modes, the switch changing only text,
 // and the refusals.
 
-import { test, after } from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,12 +13,12 @@ import { createViewData, goalKey } from '../lib/view/data.mjs';
 import { createLeakCounter } from '../lib/view/leaks.mjs';
 import { redactAnswer, splitUrl } from '../lib/view/problems-route.mjs';
 import { buildViewWeek, PRIVATE_WORDS, SECRETS, WEEK } from './fixtures/view/week.mjs';
+import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const page = (f) => readFileSync(join(HERE, '..', 'lib', 'view', 'assets', f), 'utf8');
 
-const scratch = mkdtempSync(join(tmpdir(), 'hw-view-problems-'));
-after(() => rmSync(scratch, { recursive: true, force: true }));
+const scratch = makeTempDir('hw-view-problems-');
 
 const w = buildViewWeek(join(scratch, 'week'));
 const WINDOW = { from: WEEK.from, to: WEEK.to, timezone: 'UTC' };
