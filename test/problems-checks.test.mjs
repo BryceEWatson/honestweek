@@ -128,6 +128,13 @@ test('says done without checking: a landed pull request with no test run in its 
   };
   assert.equal(findingsOf(make(false), 'unverified-done-claim').filter((f) => f.check === 'pr-landed-without-tests').length, 1);
   assert.equal(findingsOf(make(true), 'unverified-done-claim').filter((f) => f.check === 'pr-landed-without-tests').length, 0);
+  // A pull request that landed after the window, in a session that started inside it, isn't this window's.
+  const late = history().session('s1').lookup(['s1']);
+  late.prompt('s1', min(0), 'Merge it.');
+  late.ev('outcome', 's1', Date.parse('2025-03-18T10:00:00.000Z'), { actor: 'git', facts: { outcome: 'pr-landed', pr: 13, repo: 'your-project' } });
+  const lr = run(late.build());
+  assert.equal(findingsOf(lr, 'unverified-done-claim').filter((f) => f.check === 'pr-landed-without-tests').length, 0);
+  assert.match(check(lr, 'pr-landed-without-tests').checked, /^0 landed pull requests/);
 });
 
 test('a success claim after a failed check, and a commit right after a failed run', () => {
@@ -302,6 +309,7 @@ test('a single step that grew the context by 20k tokens or more, with its carrie
   const big = findingsOf(make(25_000), 'oversized-tool-output');
   assert.equal(big.length, 1);
   assert.equal(big[0].kind, 'whole-file read');
+  assert.equal(big[0].verdictEvidence, 'inferred', "charging the growth to one result is the cost.step rule's reading");
   // The growth less the issuing call's own 100 output tokens is carried by the later call.
   assert.ok(big[0].estimate >= 25_000 - 100, 'the growth is carried by the later call');
   assert.equal(findingsOf(make(5_000), 'oversized-tool-output').length, 0);

@@ -121,6 +121,13 @@ test('cost: only the findings worth a look set the tier, and tokens spent rather
   assert.equal(priorityOf(found('efficiency-cost', { look: 5, tokens: 900, waste: false }), 'Efficiency and cost', 1000).tier, 'medium');
 });
 
+test("an estimate past the window's total says the estimates overlap, never a share over 100%", () => {
+  const over = priorityOf(found('efficiency-cost', { look: 40, tokens: 1480 }), 'Efficiency and cost', 1000);
+  assert.equal(over.tier, 'high');
+  assert.match(over.reason, /more than all the window's tokens, since estimates for neighbouring steps overlap/);
+  assert.doesNotMatch(over.reason, /\d{3}%/);
+});
+
 test('a share just under a line prints rounded down, never as the line itself', () => {
   const under = priorityOf(found('efficiency-cost', { look: 1, tokens: 496 }), 'Efficiency and cost', 10_000);
   assert.equal(under.tier, 'medium');
