@@ -124,7 +124,10 @@ The joining has to come first. The redactor finds a password only on the same li
 7. **The evidence key.** One key, used on every page, explains recorded, derived, inferred, missing and ambiguous in plain words. Every page uses those same five words.
 8. **Show private text.**
    - The switch appears only when the page comes from this command on your own machine.
-   - It's off every time you run the command. Each run gets a fresh random key, which the command puts in the address it opens and the page sends with every data request. The server refuses data requests without it, so another program on the machine can't read your data either. A switch setting counts only under the current run's key, so reloading a tab left open from an earlier run, even on the same port, opens redacted.
+   - It's off every time you run the command. Each run gets a fresh random key, which the command puts in the address it opens and the page sends with every data request. The server refuses data requests without it, so another program on the machine can't read your data either.
+   - The command prints that address, key included, every time it starts, because opening the browser can fail without saying so.
+   - A tab left open from an earlier run, a bookmark, or an address typed without the key shows no data, only a notice to open the address this run printed.
+   - A switch setting counts only under the run key it was saved with, so opening the new address in a tab where the switch was on before, even on the same port, opens redacted.
    - The address bar never holds what you typed or a goal's name, only made-up ids, because the browser keeps addresses in its history on disk. For the same reason, what you typed and any reference you clicked stay in the open page's memory only: browsers also save a tab's stored data to disk so they can restore it after a restart. The tab's stored data holds only the run key and the switch setting.
    - If the private version fails to build, the page keeps showing the redacted version and says the private one couldn't be built.
    - It changes only text, never which sessions link to which or which goals they join.
@@ -238,6 +241,8 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
 - **Run key:**
   - A data request without the run key is refused, even with a correct Host header.
   - The status answer doesn't reveal the key.
+  - A page opened with no key, or with an earlier run's key, shows the notice and no data.
+  - The command prints the keyed address with and without `--no-open`.
 - **Failed build:** a forced failure of the private build still serves the redacted answer, with a note, never an error or a hang.
 - **Address and browser storage:** the address never contains the typed words, a goal id or title, or a clicked reference's text. After a search and a reference click with the switch on, the tab's stored data holds nothing but the run key and the switch setting, and the browser's other storage is empty. This is checked both in the click-through test and by reading the page code.
 - **Privacy everywhere:**
@@ -348,7 +353,7 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
 
 - It binds to `127.0.0.1` only. It accepts only GET and HEAD, except one POST route that exists only with `--self-test`.
 - It answers 403 unless `Host` is `127.0.0.1:<port>` or `localhost:<port>`, and answers 403 on `/api/*` when `Sec-Fetch-Site` is `cross-site` or `same-site`.
-- The run key is 32 random bytes made at start with `crypto.randomBytes`. The opened address carries it in the fragment (`#k=`), so it never reaches the server's logs or the `Referer` header. The page moves it into `sessionStorage`, removes it from the address, and sends it as an `X-Honestweek-Key` header on every `/api` request. `/api/*` answers 403 without it, and it's compared in constant time. `--no-open` prints the full address, key included.
+- The run key is 32 random bytes made at start with `crypto.randomBytes`. The opened address carries it in the fragment (`#k=`), so it never reaches the server's logs or the `Referer` header. The page moves it into `sessionStorage`, removes it from the address, and sends it as an `X-Honestweek-Key` header on every `/api` request. `/api/*` answers 403 without it, and it's compared in constant time. The command prints the full address, key included, on every start, with or without `--no-open`, since `defaultOpener` can fail silently. A page whose `/api` request gets 403 for a missing or stale key shows the "open the address this run printed" notice and makes no further requests; the static files need no key, so the notice always loads.
 - Routes come from a fixed table. Assets come from a fixed list read once at start. Nothing joins a path from the address.
 - Every response carries:
   - the CSP `default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'`, plus `frame-src 'self'` with `--self-test`;
