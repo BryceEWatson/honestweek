@@ -34,7 +34,7 @@ I'll acknowledge a report as soon as I can, and I'll credit you in the fix unles
 
 ## The npm package
 
-honestweek is on npm as `honestweek`. It has no dependencies, so `npm install` and `npx` fetch honestweek's own files and no one else's code. I publish each version myself from `main`, and npm runs the whole test suite first, so a version with a failing test can't go out. [`CHANGELOG.md`](CHANGELOG.md) lists what changed in each version, and each one has a matching `v` tag here.
+honestweek's npm package is `honestweek`, starting with version 0.2.0. It has no dependencies, so `npm install` and `npx` fetch honestweek's own files and no one else's code. I publish each version myself from `main`, and `npm publish` runs the whole test suite before it uploads anything. [`CHANGELOG.md`](CHANGELOG.md) lists what changed in each version, and each version is tagged here as `v` plus its number.
 
 If a version on npm doesn't match its tag in this repository, or a package with a similar name claims to be honestweek, please report it privately as described above.
 
