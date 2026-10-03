@@ -1,6 +1,6 @@
 # Changelog
 
-What changed in each version of honestweek, newest first. Numbers in brackets are the pull requests on GitHub.
+What changed in each version of honestweek, newest first. Numbers in parentheses are the pull requests on GitHub.
 
 ## Unreleased (0.2.0)
 
@@ -21,14 +21,14 @@ This will be the first version on npm. 0.1.0 was released on GitHub, but its npm
 
 - Redaction is much faster on short text, and the prompt privacy check stays fast on large prompts with thousands of matches. What gets hidden is unchanged. (#77, #82)
 - New tests make sure two repositories that share a pull request number stay apart in lookups and goals. (#75)
-- The npm package has a new description and keywords, and runs the full test suite before every publish. CI now runs on Windows and macOS as well as Linux.
+- The npm package has a new description and keywords, and runs the full test suite before every publish. CI now runs on Windows and macOS as well as Linux. (#88)
 
 ### Fixed
 
 - honestweek reads the current Codex log format again. `mine`, `digest` and `prompts` had been seeing zero Codex sessions. (#61)
 - A commit id made only of digits stays a commit id, instead of showing as `[redacted:account]`. (#74)
 - The test suite no longer leaves folders in your system temp folder, and one slow test no longer looks through the whole temp folder. (#81, #86)
-- A session in another worktree of a configured repository counts toward it even when the repository is reached through a symlinked folder (as macOS does for its temp folder) or a shortened Windows folder name. Before, git's spelling of the path and yours didn't match and the session counted as "other".
+- A session in another worktree of a configured repository counts toward it even when the repository is reached through a symlinked folder (as macOS does for its temp folder) or a shortened Windows folder name. Before, git's spelling of the path and yours didn't match and the session counted as "other". (#88)
 
 ### Privacy
 

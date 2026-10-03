@@ -158,3 +158,28 @@ test('resolveWorkTrees: a repository reached through a symlinked folder keeps bo
     removeTempDir(base);
   }
 });
+
+// When the symlink's name matches its target's last folder (u/work -> disk/work), the
+// spellings agree on more than the link, and the leftover prefixes (u and disk) are wider
+// than the link. A worktree outside the linked folder must not be re-spelled into an
+// unrelated folder that happens to exist under u.
+test('resolveWorkTrees: a worktree outside the symlinked folder is not re-spelled into an unrelated folder', () => {
+  clearWorkTreeCache();
+  const base = makeTempDir('hw-wt-wide-');
+  try {
+    const disk = realpathSync.native(join(base));
+    makeRepo(join(disk, 'disk', 'work', 'alpha'));
+    git(join(disk, 'disk', 'work', 'alpha'), 'worktree', 'add', '-q', '--detach', join(disk, 'disk', 'tmp', 'wt'));
+    mkdirSync(join(disk, 'u', 'tmp', 'wt'), { recursive: true }); // unrelated, same tail
+    symlinkSync(join(disk, 'disk', 'work'), join(disk, 'u', 'work'), process.platform === 'win32' ? 'junction' : 'dir');
+
+    const set = resolveWorkTrees(join(disk, 'u', 'work', 'alpha'));
+    assert.ok(has(set, join(disk, 'disk', 'tmp', 'wt')), 'the worktree where it really is');
+    assert.ok(!has(set, join(disk, 'u', 'tmp', 'wt')), 'not the unrelated folder with the same tail');
+    const config = { repos: [{ label: 'alpha', path: join(disk, 'u', 'work', 'alpha'), resolvedPath: join(disk, 'u', 'work', 'alpha'), role: 'featured' }] };
+    assert.equal(matchRepo(join(disk, 'u', 'tmp', 'wt'), config), null, 'a session there stays unattributed');
+  } finally {
+    clearWorkTreeCache();
+    removeTempDir(base);
+  }
+});

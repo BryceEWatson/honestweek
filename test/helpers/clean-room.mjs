@@ -13,7 +13,12 @@
 //     field name doesn't match across spaces, since "work log" is ordinary prose where
 //     "work-log" is a field.
 //   - URL-encoded spaces: "Lark%20Board" is read as "Lark Board" as well
-// A match reports the file and line, never the word.
+//   - other gaps between the words: a non-breaking space or "&nbsp;", a "+" from a URL
+//     query, a slash, markdown marks ("**Lark** Board"), and a line break, as in a
+//     hard-wrapped paragraph or a comment that runs onto the next line
+//   - a Unicode dash read as a hyphen ("Lark–Board"), and invisible characters (soft
+//     hyphen, zero-width space) dropped
+// A match reports the file and line, never the word. findForbiddenPaths checks file paths.
 //
 // The scanner hashes every stretch of MIN_LEN to MAX_LEN letters and digits inside each
 // word, so a forbidden word must be that long in canonical form, or it only matches as a
@@ -110,28 +115,90 @@ function kindOf(candidate, forbidden) {
   return kind;
 }
 
-/** Adds the forbidden kinds in one line of text to `kinds`. */
-function scanLine(line, forbidden, acrossSpaces, kinds) {
+// What may sit between two words of a multi-word name: spaces, a `+` from a URL query, a
+// slash, and markdown emphasis or code marks around a word ("**Lark** Board", "`Lark` Board").
+const GAP_RE = /^[\s+/*_`~]+$/;
+// What may open a continuation line before its first word: indentation, comment and quote
+// marks, and list bullets.
+const LEAD_RE = /^[\s>#*/;+_`~-]*$/;
+
+/**
+ * A line as a reader sees it: invisible characters (soft hyphen, zero-width space and
+ * joiners, byte-order mark) removed, Unicode dashes read as "-", and every kind of space,
+ * including a non-breaking space or "&nbsp;", read as a plain space.
+ */
+function normalizeLine(line) {
+  return String(line)
+    .replace(/[­​-‍⁠﻿]/g, '')
+    .replace(/[‐-―−﹘﹣－]/g, '-')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/[^\S\n]/g, ' ');
+}
+
+function wordsOf(line) {
   const words = [];
   for (const m of line.matchAll(WORD_RE)) words.push({ c: canonical(m[0]), start: m.index, end: m.index + m[0].length });
+  return words;
+}
+
+/** The kind of a run of whole words joined together, or its plural, when it may match across a gap. */
+function runKind(joined, forbidden, acrossSpaces) {
+  for (const cand of new Set([joined, joined.replace(/s$/, ''), joined.replace(/es$/, '')])) {
+    const kind = kindOf(cand, forbidden);
+    if (kind && acrossSpaces(kind)) return kind;
+  }
+  return null;
+}
+
+/** Adds the forbidden kinds in one (normalized) line of text to `kinds`. */
+function scanLine(line, forbidden, acrossSpaces, kinds) {
+  const words = wordsOf(line);
   for (const { c } of words) {
     for (const cand of candidatesOf(c)) {
       const kind = kindOf(cand, forbidden);
       if (kind) kinds.add(kind);
     }
   }
-  // Two or three whole words in a row, separated only by spaces, and their plural.
+  // Two or three whole words in a row, separated only by a gap, and their plural.
   for (let i = 0; i < words.length; i++) {
     let joined = words[i].c;
     for (let j = i + 1; j < words.length && j - i < MAX_WORDS; j++) {
-      if (!/^[ \t]+$/.test(line.slice(words[j - 1].end, words[j].start))) break;
+      if (!GAP_RE.test(line.slice(words[j - 1].end, words[j].start))) break;
       joined += words[j].c;
-      for (const cand of new Set([joined, joined.replace(/s$/, ''), joined.replace(/es$/, '')])) {
-        const kind = kindOf(cand, forbidden);
-        if (kind && acrossSpaces(kind)) kinds.add(kind);
-      }
+      const kind = runKind(joined, forbidden, acrossSpaces);
+      if (kind) kinds.add(kind);
     }
   }
+}
+
+/**
+ * Adds the kinds of a multi-word name that a line break splits, as in a hard-wrapped
+ * paragraph or a comment that runs onto the next line: the last words of `line` joined
+ * with the first words of `next`. Only runs that cross the break count, so a name wholly
+ * on one line is reported on that line alone.
+ */
+function scanBreak(line, next, forbidden, acrossSpaces, kinds) {
+  const before = wordsOf(line).slice(-(MAX_WORDS - 1));
+  const after = wordsOf(next).slice(0, MAX_WORDS - 1);
+  if (!before.length || !after.length) return;
+  if (!/^[\s+/*_`~]*$/.test(line.slice(before[before.length - 1].end))) return;
+  if (!LEAD_RE.test(next.slice(0, after[0].start))) return;
+  // Keep only the words that run up to the break and on from it without another gap.
+  while (before.length > 1 && !GAP_RE.test(line.slice(before[0].end, before[1].start))) before.shift();
+  while (after.length > 1 && !GAP_RE.test(next.slice(after[0].end, after[1].start))) after.pop();
+  for (let a = 0; a < before.length; a++) {
+    for (let b = 1; b <= after.length && before.length - a + b <= MAX_WORDS; b++) {
+      const joined = before.slice(a).map((w) => w.c).join('') + after.slice(0, b).map((w) => w.c).join('');
+      const kind = runKind(joined, forbidden, acrossSpaces);
+      if (kind) kinds.add(kind);
+    }
+  }
+}
+
+/** A line with each %XX escape decoded, or null when it has none. */
+function urlDecoded(line) {
+  if (!/%[0-9A-Fa-f]{2}/.test(line)) return null;
+  return normalizeLine(line.replace(/%([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))));
 }
 
 /**
@@ -142,16 +209,33 @@ function scanLine(line, forbidden, acrossSpaces, kinds) {
  */
 export function findForbidden(text, forbidden, { acrossSpaces = (kind) => kind !== SITE_FIELD } = {}) {
   const found = [];
-  const lines = String(text).split(/\r?\n/);
+  const lines = String(text).split(/\r?\n/).map(normalizeLine);
+  const decoded = lines.map(urlDecoded);
   for (let i = 0; i < lines.length; i++) {
     const kinds = new Set();
     scanLine(lines[i], forbidden, acrossSpaces, kinds);
-    if (/%[0-9A-Fa-f]{2}/.test(lines[i])) {
-      const decoded = lines[i].replace(/%([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
-      scanLine(decoded, forbidden, acrossSpaces, kinds);
+    if (decoded[i] !== null) scanLine(decoded[i], forbidden, acrossSpaces, kinds);
+    if (i + 1 < lines.length) {
+      scanBreak(lines[i], lines[i + 1], forbidden, acrossSpaces, kinds);
+      if (decoded[i] !== null || decoded[i + 1] !== null) {
+        scanBreak(decoded[i] ?? lines[i], decoded[i + 1] ?? lines[i + 1], forbidden, acrossSpaces, kinds);
+      }
     }
     for (const kind of kinds) found.push({ line: i + 1, kind });
   }
+  return found;
+}
+
+/**
+ * Forbidden words in file paths, each path scanned on its own (folder names and the file
+ * name are words like any other). Returns one { index, kind } per offending path and kind,
+ * so a caller can report the path by its position without spelling it out.
+ */
+export function findForbiddenPaths(paths, forbidden, handle) {
+  const found = [];
+  paths.forEach((p, index) => {
+    for (const { kind } of findForbidden(stripOwnAddress(p, handle), forbidden)) found.push({ index, kind });
+  });
   return found;
 }
 

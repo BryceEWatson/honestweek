@@ -5,9 +5,11 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(resolve(ROOT, p), 'utf8');
@@ -61,8 +63,51 @@ test('the release workflow publishes only after its checks pass', () => {
   assert.match(wf, /TAG" != "v\$version"/, 'the release tag must match package.json');
   assert.match(wf, /npm view "honestweek@\$version"/, 'a version already on npm is not published again');
   assert.match(wf, /HAS_NPM_TOKEN: \$\{\{ secrets\.NPM_TOKEN != '' \}\}/, 'a missing token stops the run with a notice');
+  assert.match(wf, /PRERELEASE: \$\{\{ github\.event\.release\.prerelease \}\}/, 'a prerelease is never published');
   const publish = wf.slice(wf.indexOf('- name: Publish to npm'));
   assert.match(publish, /if: steps\.decide\.outputs\.publish == 'true'/, 'the publish step is gated on the checks');
+});
+
+/** The shell script of the release workflow's decide step, unindented. */
+function decideScript() {
+  const lines = read('.github/workflows/release.yml').split(/\r?\n/);
+  const step = lines.findIndex((l) => l.includes('id: decide'));
+  const start = lines.findIndex((l, i) => i > step && /^\s+run: \|\s*$/.test(l)) + 1;
+  const indent = lines[start].match(/^\s*/)[0];
+  const body = [];
+  for (let i = start; i < lines.length && (lines[i].startsWith(indent) || lines[i].trim() === ''); i++) body.push(lines[i].slice(indent.length));
+  return body.join('\n');
+}
+
+// The decide step run for real, with a stand-in `npm` that answers the version lookup.
+// Skipped on Windows, where `bash` may not be Git Bash; the workflow itself runs on Linux.
+test('the release workflow decides to publish only a full release, with a token, that npm lacks', { skip: process.platform === 'win32' }, () => {
+  const script = decideScript();
+  const run = ({ version = '0.2.0', tag = 'v0.2.0', prerelease = 'false', token = 'true', npm = 'missing' }) => {
+    const dir = makeTempDir('hw-release-decide-');
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'honestweek', version }));
+    const bin = join(dir, 'bin');
+    mkdirSync(bin);
+    const answers = {
+      found: `echo "${version}"`,
+      missing: 'echo "npm error code E404" >&2; exit 1',
+      offline: 'echo "npm error code ETIMEDOUT" >&2; exit 1',
+    };
+    writeFileSync(join(bin, 'npm'), `#!/bin/sh\n${answers[npm]}\n`);
+    chmodSync(join(bin, 'npm'), 0o755);
+    const output = join(dir, 'out');
+    writeFileSync(output, '');
+    const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, TAG: tag, PRERELEASE: prerelease, HAS_NPM_TOKEN: token, GITHUB_OUTPUT: output };
+    const r = spawnSync('bash', ['-c', script], { cwd: dir, env, encoding: 'utf8' });
+    return { status: r.status, publish: (readFileSync(output, 'utf8').match(/publish=(\w+)/) || [])[1] ?? null };
+  };
+  assert.deepEqual(run({}), { status: 0, publish: 'true' }, 'a full release npm lacks, with a token');
+  assert.deepEqual(run({ npm: 'found' }), { status: 0, publish: 'false' }, 'already on npm');
+  assert.deepEqual(run({ token: 'false' }), { status: 0, publish: 'false' }, 'no token');
+  assert.deepEqual(run({ prerelease: 'true' }), { status: 0, publish: 'false' }, 'marked a prerelease on GitHub');
+  assert.deepEqual(run({ version: '0.3.0-rc.1', tag: 'v0.3.0-rc.1' }), { status: 0, publish: 'false' }, 'a prerelease version number');
+  assert.equal(run({ tag: 'v0.2.1' }).status, 1, 'a tag that does not match package.json fails the run');
+  assert.deepEqual(run({ npm: 'offline' }), { status: 1, publish: null }, 'a failed npm lookup fails the run without deciding');
 });
 
 test('CI runs on Linux, Windows and macOS and installs nothing', () => {

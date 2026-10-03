@@ -12,7 +12,7 @@ The first version on npm is 0.2.0. Version 0.1.0 has a GitHub release, but its n
 
 **From GitHub, when a release is published.** The [release workflow](../.github/workflows/release.yml) can publish for me, but only with an npm token saved as the repository secret `NPM_TOKEN`. That token has to be a granular access token with publish rights and "bypass two-factor authentication" turned on, because npm refuses an ordinary token for a publish. The 0.1.0 run failed for exactly that reason (`403 Forbidden ... Two-factor authentication or granular access token with bypass 2fa enabled is required`). If I ever switch to this path, I save the token first, check that `gh secret list` shows `NPM_TOKEN` with today's date, and only then publish the GitHub release.
 
-The workflow is safe to leave on with the terminal path. When a release is published it checks three things before it does anything: the release tag matches the version in `package.json` (if not, it stops with an error and publishes nothing), that version isn't on npm already (if it is, it stops with a notice), and an `NPM_TOKEN` secret exists (if not, it stops with a notice). Because I publish to npm before I create the GitHub release, the workflow finds the version already there and does nothing.
+The workflow is safe to leave on with the terminal path. When a release is published it checks four things before it does anything: the release tag matches the version in `package.json` (if not, it stops with an error and publishes nothing), the release isn't a prerelease (if it is, it stops with a notice, because npm would make a prerelease the version everyone installs), that version isn't on npm already (if it is, it stops with a notice; if npm can't be reached, it stops with an error), and an `NPM_TOKEN` secret exists (if not, it stops with a notice). Because I publish to npm before I create the GitHub release, the workflow finds the version already there and does nothing.
 
 ## Once, before the first release
 
@@ -27,12 +27,12 @@ On a branch `feature/release-0.2.0` from `main`:
 1. Confirm the pull requests the changelog lists as "not merged yet" have merged (for 0.2.0, #84 and #87).
 2. Set the version to `0.2.0` in `package.json` and in `.claude-plugin/plugin.json`. A test checks the two match. `.claude-plugin/marketplace.json` has no version of its own, so it doesn't change.
 3. In `CHANGELOG.md`, rename `## Unreleased (0.2.0)` to `## 0.2.0 (<date>)`, drop the "not merged yet" notes, and add anything else merged since.
-4. In `README.md`, make `npx honestweek` the main way to run it (keep `npx github:BryceEWatson/honestweek` as the way to run unreleased code), add an npm version badge if you want one, and point the Releasing section at this page. `test/install.test.mjs` has a test that stops the README from advertising `npx honestweek` as working before it does. Update that test in the same pull request.
+4. In `README.md`, make `npx honestweek` the main way to run it (keep `npx github:BryceEWatson/honestweek` as the way to run unreleased code), and add an npm version badge if you want one. The Releasing section already points here. `test/install.test.mjs` has a test that stops the README from advertising `npx honestweek` as working before it does. Update that test in the same pull request.
 5. Run `node --test`, open the pull request, and merge it once CI is green on Linux, Windows and macOS.
 
 ## 2. Publish from a clean copy of main
 
-I publish from a fresh clone, so nothing from my everyday checkout (an untracked file under `lib/`, a local edit) can end up in the package. `test/package-contents.test.mjs` would stop a publish that includes a file git doesn't track, but a clean clone avoids the surprise.
+I publish from a fresh clone, so nothing from my everyday checkout (an untracked file under `lib/`, a local edit) can end up in the package. `test/package-contents.test.mjs` would stop a publish that includes a file under `bin/` or `lib/` that git doesn't track, but it can't see an uncommitted edit to a tracked file. A clean clone covers both.
 
 ```bash
 git clone https://github.com/BryceEWatson/honestweek.git honestweek-release
@@ -45,7 +45,7 @@ npm publish --dry-run
 The dry run runs the whole test suite first (about a minute), because `package.json` has a `prepublishOnly` script, and then prints what it would upload. Check:
 
 - `name: honestweek` and `version: 0.2.0`;
-- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (about 118 files, about 0.5 MB packed, with the `view` pages under `lib/view/assets/`);
+- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (96 files and about 0.36 MB packed before #84; more once #84 adds the `view` pages under `lib/view/assets/`, so check the list rather than the count);
 - nothing from `test/`, `docs/`, `tools/` or `.claude/`.
 
 Then publish for real:

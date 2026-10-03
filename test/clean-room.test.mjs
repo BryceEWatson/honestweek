@@ -22,6 +22,7 @@ import {
   canonical,
   candidatesOf,
   findForbidden,
+  findForbiddenPaths,
   hashName,
   ownerIdentity,
   privateForbidden,
@@ -60,6 +61,9 @@ test('the matcher catches a planted word in every spelling and never prints it',
     'the Quixel Mora team, and two Quixel Moras',
     'https://example.com/?q=Quixel%20Mora and %2Fquixelmora',
     String.raw`"line one\nquixelmora"`,
+    'the Quixel Mora team, Quixel–Mora and quix­el​mora',
+    'search?q=Quixel+Mora, Quixel/Mora, **Quixel** Mora and `Quixel` `Mora`',
+    'Quixel&nbsp;Mora in pasted HTML',
   ];
   writeFileSync(file, ['nothing to see here', ...caught, 'quixelmor is one letter short and passes', 'a quixel and a mora pass too'].join('\n'));
   const text = readFileSync(file, 'utf8');
@@ -69,6 +73,33 @@ test('the matcher catches a planted word in every spelling and never prints it',
   const report = scanText(text, 'fixture.txt', MADE_UP_FENCE, '');
   assert.deepEqual(report, lines.map((n) => `fixture.txt:${n} (a made-up word)`));
   assert.doesNotMatch(report.join('\n'), /quixel/i, 'a finding names the file and line, not the word');
+});
+
+test('a multi-word name split by a line break is caught, on the line where it starts', () => {
+  const text = [
+    'nothing here',
+    'a hard-wrapped paragraph about the Quixel',
+    'Mora roadmap and more',
+    '// a comment that names Quixel',
+    '//   Moras at the start of the next line',
+    'a list that ends with quixel',
+    '- mora as the next bullet',
+    'Quixel Mora wholly on one line',
+    'the next line starts Mora, unrelated',
+    'a comma after quixel,',
+    'mora after a comma stays apart',
+  ].join('\r\n');
+  assert.deepEqual(findForbidden(text, MADE_UP_FENCE).map((f) => f.line), [2, 4, 6, 8]);
+  const site = new Map([[sha256('work-item'), SITE_FIELD]]);
+  assert.deepEqual(findForbidden('the work\nitem in prose', site), [], 'a target-site field still never matches across a gap');
+});
+
+test('a file path that names a forbidden word is found by its position', () => {
+  const paths = ['lib/tool.mjs', 'docs/quixel-mora-notes.md', 'test/fixtures/Quixel Mora/a.json', 'lib/mora.mjs'];
+  assert.deepEqual(findForbiddenPaths(paths, MADE_UP_FENCE, ''), [
+    { index: 1, kind: 'a made-up word' },
+    { index: 2, kind: 'a made-up word' },
+  ]);
 });
 
 test('a target-site field matches inside a word but not as separate words of prose', () => {
@@ -120,7 +151,16 @@ test('no tracked file names a private project, and the owner appears only as the
   assert.ok(files.length > 100, 'expected the tracked files to be listed');
   const fence = privateForbidden(OWNER);
   const found = [];
-  for (const f of files) {
+  // The paths themselves are checked too, one per line. A path that names something
+  // forbidden is reported by its position in `git ls-files`, never spelled out, and so are
+  // the findings inside that file.
+  const badPath = new Set();
+  for (const { index, kind } of findForbiddenPaths(files, fence, OWNER.handle)) {
+    badPath.add(index);
+    found.push(`tracked file #${index + 1} in git ls-files: its path (${kind})`);
+  }
+  for (const [i, f] of files.entries()) {
+    const shown = badPath.has(i) ? `tracked file #${i + 1}` : f;
     let text;
     try {
       text = readFileSync(join(ROOT, f), 'utf8');
@@ -131,7 +171,7 @@ test('no tracked file names a private project, and the owner appears only as the
     const allowed = AUTHORSHIP_LINES.get(f);
     for (const { line, kind } of findForbidden(stripOwnAddress(text, OWNER.handle), fence)) {
       if (kind === OWNER_IDENTITY && allowed && allowed.test(lines[line - 1])) continue;
-      found.push(`${f}:${line} (${kind})`);
+      found.push(`${shown}:${line} (${kind})`);
     }
   }
   assert.deepEqual(found, []);

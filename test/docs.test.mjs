@@ -196,8 +196,8 @@ test('contributor docs: no dashes, links resolve, no personal data, private repo
   for (const f of files) {
     const text = readFileSync(resolve(ROOT, f), 'utf8');
     assert.doesNotMatch(text, /[\u2014\u2013]| -- /, `${f} uses an em or en dash`);
-    assert.doesNotMatch(text, /@(?:gmail|outlook|yahoo|proton|icloud)\.com/i, `${f} holds a personal email`);
-    assert.doesNotMatch(text, /\/home\/[a-z]+\/|C:\\Users\\[A-Za-z]+\\/, `${f} holds a personal path`);
+    assert.doesNotMatch(text, /@(?:gmail|outlook|yahoo|proton|icloud|hotmail)\.com/i, `${f} holds a personal email`);
+    assert.doesNotMatch(text, /\/home\/[a-z]+\/|\/Users\/[A-Za-z]+\/|[A-Z]:\\Users\\[A-Za-z]+\\/, `${f} holds a personal path`);
     for (const [, target] of text.matchAll(/\]\((?!https?:|#|mailto:)([^)#\s]+)/g)) {
       const linked = resolve(ROOT, dirname(f), target);
       assert.doesNotThrow(() => readFileSync(linked), `${f} links to ${target}, which doesn't exist`);
