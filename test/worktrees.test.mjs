@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -126,4 +126,33 @@ test('matchConfiguredRepo resolves dot segments before containment',()=>{
   const base=join(tmpdir(),'honestweek-configured-root');
   const config={repos:[{resolvedPath:join(base,'repo'),path:join(base,'repo'),label:'your-project',role:'featured'}]};
   assert.equal(matchConfiguredRepo(`${join(base,'repo')}/../private`,config),null);
+});
+
+// git writes a worktree's path with symlinks resolved, but the configured path (and a
+// session's working folder) can reach the same folder through a symlink: macOS's temp
+// folder is /var -> /private/var, and a projects folder can be a link too. Both spellings
+// must land in the same set, or a session in the other checkout falls into "other".
+test('resolveWorkTrees: a repository reached through a symlinked folder keeps both spellings', () => {
+  clearWorkTreeCache();
+  const base = makeTempDir('hw-wt-link-');
+  const real = join(base, 'real');
+  const link = join(base, 'link');
+  try {
+    makeRepo(join(real, 'alpha'));
+    git(join(real, 'alpha'), 'worktree', 'add', '-q', '--detach', join(real, 'alpha-weekly'));
+    symlinkSync(real, link, process.platform === 'win32' ? 'junction' : 'dir');
+
+    const set = resolveWorkTrees(join(link, 'alpha-weekly'));
+    assert.ok(has(set, join(link, 'alpha')), 'the primary checkout, spelled through the link');
+    assert.ok(has(set, join(real, 'alpha')), 'the primary checkout where it really is');
+    assert.ok(has(set, join(real, 'alpha-weekly')), 'the configured worktree where it really is');
+
+    const config = { repos: [{ label: 'alpha', path: join(link, 'alpha-weekly'), resolvedPath: join(link, 'alpha-weekly'), role: 'featured' }] };
+    assert.equal(matchRepo(join(link, 'alpha', 'src'), config)?.label, 'alpha');
+    assert.equal(matchRepo(join(real, 'alpha'), config)?.label, 'alpha');
+    assert.equal(matchRepo(join(base, 'elsewhere'), config), null, 'an unrelated folder stays unattributed');
+  } finally {
+    clearWorkTreeCache();
+    removeTempDir(base);
+  }
 });

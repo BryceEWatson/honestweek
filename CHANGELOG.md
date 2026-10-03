@@ -28,6 +28,7 @@ This will be the first version on npm. 0.1.0 was released on GitHub, but its npm
 - honestweek reads the current Codex log format again. `mine`, `digest` and `prompts` had been seeing zero Codex sessions. (#61)
 - A commit id made only of digits stays a commit id, instead of showing as `[redacted:account]`. (#74)
 - The test suite no longer leaves folders in your system temp folder, and one slow test no longer looks through the whole temp folder. (#81, #86)
+- A session in another worktree of a configured repository counts toward it even when the repository is reached through a symlinked folder, as macOS does for its temp folder. Before, git's spelling of the path and yours didn't match and the session counted as "other".
 
 ### Privacy
 
