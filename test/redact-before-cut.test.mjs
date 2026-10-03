@@ -195,8 +195,15 @@ test('a first-line excerpt shows nothing of the next line but the placeholder th
     const long = redactClipFirstLine(`${fill(max - 4)}${PAIR.replace(' ', '\n')} more`, max, r.redact);
     assert.ok(long.length <= max + 1 && long.endsWith('…') && !leaks(long), long);
   }
-  // A secret value on the next line hides it, and shows nothing after it.
-  assert.equal(redactClipFirstLine('token= \nhunter2-Zq9 then other words\n', 60, r.redact), 'token=[redacted:secret]');
+  // A key that ends the first line, with its value a line or more on, shows only the key
+  // or its placeholder, as cutting first did: nothing of the next lines.
+  assert.equal(redactClipFirstLine('token= \nhunter2-Zq9 then other words\n', 60, r.redact), 'token=');
+  for (const body of ['Refused: Bearer api_key=\nsecret-value then words', 'Refused: Bearer api_key=\n\nsecret-value then words from the third line']) {
+    assert.equal(redactClipFirstLine(body, 160, createRedactor({}).redact), 'Refused: Bearer [redacted:secret]');
+  }
+  // Lines read together that hide the first line's end differently, with no placeholder
+  // across the break: only what both readings share shows.
+  assert.equal(redactClipFirstLine('/home/Acme\rsuser:pass-p\ttoken=\r\ncurl -u https://u:pw@host\n', 30, createRedactor({}).redact), '[redacted:path]');
 });
 
 test('a first-line excerpt reads as when the engine cut first when nothing hidden takes the break', () => {
@@ -576,7 +583,7 @@ const ALLOWED = [
   ['parse-common.mjs', 's.slice(0, n).trimEnd() : s.slice(0, n)', 'the helper itself'],
   ['parse-common.mjs', 'piece.slice(0, piece.length - end.length)', 'the helper itself'],
   ['parse-common.mjs', "redact(lines.join('\\n')).split('\\n')[0]", 'the helper itself: the first line of the redacted lines'],
-  ['parse-common.mjs', 'first.slice(0, took.index + took[0].length)', 'the helper itself: the first line up to the placeholder that took its break'],
+  ['parse-common.mjs', 'first.slice(0, took ? took.index + took[0].length : at)', 'the helper itself: the first line up to the placeholder that took its break, or to where the readings part'],
   ['parse-common.mjs', 'whole.slice(0, placeholderSafeEnd(whole, max)).trimEnd()', 'the helper itself: a cut before any placeholder'],
   ['timeline.mjs', "k.split('|')[0]", 'an internal map key'],
   ['views.mjs', 'toISOString().slice(0, 10)', 'a date'],
