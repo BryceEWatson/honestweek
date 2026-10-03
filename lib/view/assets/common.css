@@ -110,7 +110,7 @@ button:focus-visible, [tabindex]:focus-visible, a:focus-visible, summary:focus-v
 
 /* The made-up-data notice, on every page in demo mode only. */
 .demo { margin: 0; padding: 8px 20px; background: var(--demo); border-bottom: 1px solid var(--demo-line); font-size: 13px; }
-.demo code { background: var(--raised); border: 1px solid var(--ring); border-radius: 4px; padding: 0 4px; white-space: nowrap; }
+.demo code { background: var(--raised); border: 1px solid var(--ring); border-radius: 4px; padding: 0 4px; overflow-wrap: anywhere; }
 /* Build progress, a failed private build, or any other note about this copy of the data. */
 .statusline { margin: 0; padding: 6px 20px; font-size: 13px; color: var(--ink-2); border-bottom: 1px solid var(--ring); }
 .statusline.bad { color: var(--critical); font-weight: 600; }

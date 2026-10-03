@@ -219,3 +219,16 @@ test('self-test: the search words come from /api/selftest, which exists only wit
   assert.match(ct, /info\.words/);
   assert.doesNotMatch(ct, /selfTest\?\.words|s\.demo === true/);
 });
+
+test('self-test references: a squash-merged commit and a file a prompt names, each found by its lookup', async () => {
+  const info = await body('/api/selftest');
+  assert.deepEqual(info.examples.map((x) => x.kind), ['commit', 'file'], 'the view week has both');
+  for (const x of info.examples) {
+    assert.ok(['commit', 'file'].includes(x.kind));
+    const a = await body('/api/lookup', { q: x.text });
+    assert.equal(a.kind, x.kind);
+    if (x.kind === 'commit') assert.ok(a.notes.some((n) => n.kind === 'squash-subject'), 'the commit is a squash merge');
+    else assert.ok(a.sessions.length > 0, 'the file has a session');
+  }
+  assert.match(page('selftest/clickthrough.js'), /info\.examples/);
+});
