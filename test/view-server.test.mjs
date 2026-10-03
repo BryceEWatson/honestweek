@@ -205,6 +205,18 @@ test('a code is traded for the key once', async () => {
   assert.match(t.address(), new RegExp(`^http://127\\.0\\.0\\.1:${t.port}/#c=[0-9a-f]{48}$`));
 });
 
+test('a code given a lifetime stops working when it ends, and is still used up', async () => {
+  const s = await start();
+  const late = s.issueCode('opener', { ttlMs: 50 });
+  const soon = s.issueCode('opener', { ttlMs: 60000 });
+  assert.equal((await raw(s.port, { path: '/api/claim', headers: { [CODE_HEADER]: soon } })).status, 200, 'within its lifetime it works');
+  await new Promise((done) => setTimeout(done, 120));
+  assert.equal((await raw(s.port, { path: '/api/claim', headers: { [CODE_HEADER]: late } })).status, 403, 'past it, it is refused');
+  assert.equal(s.pendingCodes(), 0, 'and the expired code is gone');
+  const fresh = new URL(s.address('opener', '', { ttlMs: 60000 })).hash.slice(3);
+  assert.equal((await raw(s.port, { path: '/api/claim', headers: { [CODE_HEADER]: fresh } })).status, 200);
+});
+
 test('a data request without the run key, or with a stale one, is refused even with a correct Host', async () => {
   const s = await start();
   const key = await keyOf(s);

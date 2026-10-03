@@ -42,11 +42,11 @@ function capture() {
   return { io: { out: (s) => out.push(s), err: (s) => err.push(s) }, out: () => out.join(''), err: () => err.join('') };
 }
 
-async function view(argv, { cwd = project, env = ENV, input = null, opener } = {}) {
+async function view(argv, { cwd = project, env = ENV, input = null, opener, openerTtlMs } = {}) {
   const c = capture();
   const opened = [];
   let handle = null;
-  const code = await runView({ argv, cwd, env, io: c.io, input, opener: opener ?? ((file, o) => opened.push({ file, o })), block: false, onServe: (h) => (handle = h) });
+  const code = await runView({ argv, cwd, env, io: c.io, input, opener: opener ?? ((file, o) => opened.push({ file, o })), block: false, onServe: (h) => (handle = h), ...(openerTtlMs ? { openerTtlMs } : {}) });
   if (handle) running.push(handle);
   return { code, handle, out: c.out, err: c.err, opened };
 }
@@ -157,6 +157,7 @@ test('the window: the last n days ending today in the timezone, or --from and --
   assert.equal(parseViewPort('0'), 0);
   assert.equal(parseViewPort('8080'), 8080);
   assert.throws(() => parseViewPort('65536'), /--port must be/);
+  assert.throws(() => parseViewPort('80'), /--port 80 won't work/);
   assert.throws(() => parseViewPort('8080.5'), /--port must be/);
 });
 
@@ -191,6 +192,18 @@ test('the opened page is a private redirect file, removed once its code is claim
   const s = await ready(r.handle.port, key);
   assert.equal(s.demo, null, 'no made-up-data notice outside the demo');
   assert.equal(s.goalList.given, true);
+  await r.handle.stop();
+});
+
+test("the redirect file and its code last only a short while when the browser doesn't use them", async () => {
+  const r = await view([...RANGE], { openerTtlMs: 150 });
+  const file = r.opened[0].file;
+  const [fromFile] = codesIn(readFileSync(file, 'utf8'));
+  const printed = codesIn(r.out());
+  await new Promise((done) => setTimeout(done, 400));
+  assert.equal(existsSync(dirname(file)), false, 'the file and its folder are gone');
+  assert.equal(await claim(fromFile.port, fromFile.code), null, "the file's code no longer works");
+  assert.match(await claim(printed[0].port, printed[0].code), /^[0-9a-f]{64}$/, 'the printed address still works');
   await r.handle.stop();
 });
 

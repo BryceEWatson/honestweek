@@ -13,10 +13,10 @@ import { join } from 'node:path';
 import { createRedactor, createSecretsOnlyRedactor } from '../lib/redact.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { createLeakCounter, EXEMPT_FIELDS, setAsideAllowed, stringsIn } from '../lib/view/leaks.mjs';
-import { createLru, createViewData, goalKey } from '../lib/view/data.mjs';
+import { createLru, createViewData, goalKey, memberCount } from '../lib/view/data.mjs';
 import { REPLAY_EVENT_FIELDS } from '../lib/view/replay-export.mjs';
 import { buildCorpus } from './fixtures/replay/corpus.mjs';
-import { buildViewWeek, EMAIL, OTHER_TERM, PRIVATE_WORDS, SECRETS, SEEDED, STRADDLE_WORD, TERM, WEEK } from './fixtures/view/week.mjs';
+import { buildViewWeek, EMAIL, LONG_WORD, OTHER_TERM, PRIVATE_WORDS, SECRETS, SEEDED, STRADDLE_WORD, SUMMARY_WORD, TERM, WEEK } from './fixtures/view/week.mjs';
 
 const scratch = mkdtempSync(join(tmpdir(), 'hw-view-data-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -164,6 +164,16 @@ test('a private term placed where an excerpt is cut leaves no part of itself', a
   }
 });
 
+test('search everywhere redacts a long prompt whole before cutting it, and leaves out compaction summaries', async () => {
+  for (const priv of [false, true]) {
+    const found = await body('/api/search', { q: LONG_WORD }, priv);
+    const snippets = found.results.flatMap((r) => r.snippets.map((s) => s.text));
+    assert.ok(snippets.some((t) => t.includes(LONG_WORD)), 'the long prompt is found by a word near its end');
+    for (const text of snippets) for (let i = 0; i + 8 <= SECRETS.github.length; i++) assert.ok(!text.includes(SECRETS.github.slice(i, i + 8)), `part of the token in ${text}`);
+    assert.equal((await body('/api/search', { q: SUMMARY_WORD }, priv)).results.length, 0, 'a compaction summary is not a prompt');
+  }
+});
+
 test('goal and replay answers carry no original log lines; none is read until a record is asked for', async () => {
   const before = recordReads;
   for (const a of [await body('/api/home'), await body('/api/goal', { key: goalKey('release-1-4') }), await body('/api/replay', { session: w.keys.featured }), await body('/api/lookup', { q: '#12' }), await body('/api/words', { q: 'release' }), await body('/api/search', { q: 'release' })]) {
@@ -292,6 +302,20 @@ test('a typed query is answered with an id, and the id answers with the query', 
   assert.equal((await body('/api/lookup', { q: '#12' })).queryId, (await body('/api/lookup', { q: '#12' })).queryId, 'the same words get the same id within a run');
 });
 
+test('words typed only with the switch on are never echoed to a request with it off', async () => {
+  for (const path of ['/api/lookup', '/api/words', '/api/search']) {
+    const typed = `${OTHER_TERM} plans ${path.slice(5)}`;
+    const on = await body(path, { q: typed }, true);
+    const off = await body(path, { id: on.queryId });
+    assert.equal(off.query, null, path);
+    assert.match(off.empty, /typed with Show private text on/, path);
+    assert.ok(!JSON.stringify(off).includes(OTHER_TERM), `${path} holds the typed word`);
+    assert.equal((await body(path, { id: on.queryId }, true)).query, typed, 'with the switch on it comes back');
+    await body(path, { q: typed });
+    assert.equal((await body(path, { id: on.queryId })).query, typed, 'once typed with the switch off too, it echoes with it off');
+  }
+});
+
 // ---- the switch and the cache ----------------------------------------------------------
 
 const shape = {
@@ -299,6 +323,7 @@ const shape = {
   lookup: (b) => ({ sessions: b.sessions.map((s) => [s.session, s.evidence, !!s.ambiguous, s.goals.map((g) => [g.key, g.evidence, g.ambiguous, g.assigned])]), goals: b.goals.map((g) => g.key) }),
   goal: (b) => ({ members: b.members.map((m) => [m.session, m.evidence, m.ambiguous, m.assigned, m.joins.map((j) => j.type)]), unmatched: b.unmatched.map((u) => u.kind), events: b.events.map((e) => e.id) }),
   replay: (b) => ({ thread: b.thread?.id, events: b.events.map((e) => [e.id, e.kind, e.ev, e.session]), sessions: b.sessions.map((s) => s.key), links: b.thread.links.length }),
+  words: (b) => ({ goals: b.goals.map((g) => g.key), sessions: b.sessions.map((s) => s.session), prompts: b.prompts.map((p) => p.event), similar: b.similar.map((p) => p.event) }),
 };
 
 test('the switch changes no session, link or goal', async () => {
@@ -307,6 +332,66 @@ test('the switch changes no session, link or goal', async () => {
   for (const q of ['#12', '#13', '#15', 'feature/group-by-scope']) assert.deepEqual(shape.lookup(await body('/api/lookup', { q }, true)), shape.lookup(await body('/api/lookup', { q })), q);
   for (const g of w.goalRecord.goals) assert.deepEqual(shape.goal(await body('/api/goal', { key: goalKey(g.id) }, true)), shape.goal(await body('/api/goal', { key: goalKey(g.id) })), g.id);
   for (const t of reference.threads) assert.deepEqual(shape.replay(await body('/api/replay', { thread: t.id }, true)), shape.replay(await body('/api/replay', { thread: t.id })), t.id);
+  // A private word finds its match only where the text shows it, so these words are plain ones.
+  for (const q of ['report', 'release']) assert.deepEqual(shape.words(await body('/api/words', { q }, true)), shape.words(await body('/api/words', { q })), q);
+});
+
+test('word lookups list only configured sessions, with the switch off or on', async () => {
+  let rows = 0;
+  for (const priv of [false, true]) {
+    for (const q of ['report', 'release', TERM]) {
+      const a = await body('/api/words', { q }, priv);
+      for (const r of [...a.prompts, ...a.sessions]) assert.equal(r.group, 'configured', `${q} (switch ${priv ? 'on' : 'off'}) lists a ${r.group} session`);
+      rows += a.prompts.length + a.sessions.length;
+      for (const p of a.prompts) for (const s of (await body('/api/words', { similar: p.event }, priv)).similar) assert.equal(s.group, 'configured', `similar to ${p.event}`);
+    }
+  }
+  assert.ok(rows > 0, 'the words find something');
+  const display = reference.events.find((e) => e.session === w.keys.display && e.kind === 'prompt');
+  assert.equal((await ask('/api/words', { similar: display.id }, true)).status, 404, "a display-only session's prompt isn't a base for similar prompts");
+});
+
+test("a goal member's counts are its own session's, never its whole thread's", async () => {
+  let checked = 0;
+  let shared = 0;
+  for (const g of w.goalRecord.goals) {
+    const a = await body('/api/goal', { key: goalKey(g.id) });
+    for (const s of a.sessions) {
+      const fr = a.frames[s.key];
+      if (!fr?.length) continue;
+      const own = reference.events.filter((e) => e.session === s.key && e.kind === 'prompt').length;
+      assert.equal(fr[fr.length - 1].prompts, own, `${g.id}: ${s.key}`);
+      checked += 1;
+      if ((reference.threads.find((t) => t.id === s.thread)?.sessions.length ?? 1) > 1) shared += 1;
+    }
+  }
+  assert.ok(checked > 0);
+  assert.ok(shared > 0, 'some member shares its thread with another session, the case this guards');
+});
+
+test("a count is no stronger than the weakest thing it counts", async () => {
+  const home = await body('/api/home');
+  let weak = 0;
+  for (const [i, { id }] of w.goalRecord.goals.entries()) {
+    const g = reference.goals[i];
+    const shown = home.goals.find((x) => x.key === goalKey(id));
+    const expectWeak = g.members.some((m) => m.evidence === 'inferred' || m.ambiguous === true);
+    assert.equal(shown.members.evidence, expectWeak ? 'inferred' : 'derived', id);
+    assert.equal(shown.recorded + shown.inferred + shown.ambiguous, shown.members.value, id);
+    if (expectWeak) weak += 1;
+  }
+  // The fixture's members each have a recorded or derived join, so the weaker case is
+  // checked on made-up members.
+  assert.equal(weak, 0);
+  const rule = { session: 'a', evidence: 'inferred', joins: [{ type: 'command-on-pr' }] };
+  const amb = { session: 'b', evidence: 'recorded', ambiguous: true, joins: [{ type: 'cited-pr' }] };
+  const mine = { session: 'c', evidence: 'recorded', joins: [{ type: 'cited-session' }] };
+  assert.deepEqual(memberCount([mine]), { value: 1, evidence: 'derived', recorded: 1, inferred: 0, ambiguous: 0, assigned: 1 });
+  assert.deepEqual(memberCount([mine, rule]), { value: 2, evidence: 'inferred', recorded: 1, inferred: 1, ambiguous: 0, assigned: 1 });
+  assert.deepEqual(memberCount([mine, amb]), { value: 2, evidence: 'inferred', recorded: 1, inferred: 0, ambiguous: 1, assigned: 1 });
+  const levels = new Map(home.recent.map((r) => [r.session, r.prompts.evidence]));
+  assert.equal(levels.get(w.keys.featured), 'inferred', 'a prompt whose author is only inferred makes the count inferred');
+  assert.ok([...levels.values()].includes('derived'), 'a session whose prompts all say who typed them stays derived');
 });
 
 test('a thread, record and goal opened with the switch on, then off, come back with zero private words', async () => {

@@ -65,9 +65,20 @@ const OUTPUT = ['TAP version 13', 'not ok 3 - parses dates', '# tests 3', '# pas
  *  the line. A step's description adds its own words after the command (" -> ok"). */
 export const HEADER_COMMAND = `curl -s https://api.example.com/v1/items -H Authorization: Bearer ${SECRETS.bearer}`;
 
-/** The long prompt whose excerpt cut falls on the private term. */
+/** The long prompt whose excerpt cut falls on the private term. The excerpt runs 160
+ *  characters from the search word, and the term sits inside one long path with no space
+ *  to step back to, at 155 to 163, so only redacting before cutting keeps all of it out. */
 export const STRADDLE_WORD = 'zephyrstraddle';
-export const STRADDLE = `${STRADDLE_WORD} ${'word '.repeat(31)}${TERM} and more words after it to keep going past the cut.`;
+export const STRADDLE = `${STRADDLE_WORD}/${'segment/'.repeat(17)}dir/${TERM}/plan.md and more words after it to keep going past the cut.`;
+
+/** A prompt longer than any cut, with a token starting 10 characters before its
+ *  20,000th: cut there before redacting, the piece left is too short for any rule. */
+export const LONG_WORD = 'quokkalongprompt';
+const LONG_HEAD = `${LONG_WORD} token `;
+export const LONG_PROMPT = `${'x'.repeat(19990 - LONG_HEAD.length - 1)} ${LONG_HEAD}${SECRETS.github} and the end.`;
+
+/** A word only a compaction summary holds: the model's account of earlier context. */
+export const SUMMARY_WORD = 'wombatsummary';
 
 const at = (hh, mm, ss = 0, ms = 0) => `2025-03-12T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}.${String(ms).padStart(3, '0')}Z`;
 
@@ -79,6 +90,7 @@ function claudeLog(id, cwd) {
     lines,
     title: (text) => lines.push(JSON.stringify({ type: 'ai-title', aiTitle: text, sessionId: id })),
     prompt: (ts, text, origin = { kind: 'human' }) => lines.push(JSON.stringify(base('user', ts, { message: { role: 'user', content: text }, ...(origin ? { origin } : {}) }))),
+    summary: (ts, text) => lines.push(JSON.stringify(base('user', ts, { message: { role: 'user', content: text }, isCompactSummary: true }))),
     say: (ts, content) => lines.push(JSON.stringify(base('assistant', ts, { message: { id: `msg_${n}`, type: 'message', role: 'assistant', model: 'model-a', content } }))),
     result: (ts, toolUseId, content, tur) => lines.push(JSON.stringify(base('user', ts, { message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, content }] }, toolUseResult: tur }))),
   };
@@ -116,6 +128,9 @@ export function buildViewWeek(root) {
   f.say(at(10, 8), [{ type: 'text', text: 'Tidied.' }]);
   f.say(at(10, 9), [{ type: 'tool_use', id: 'toolu_view_header', name: 'Bash', input: { command: HEADER_COMMAND } }]);
   f.result(at(10, 9, 5), 'toolu_view_header', 'ok', { stdout: 'ok', stderr: '', interrupted: false });
+  // A result whose content blocks split a password from its label.
+  f.say(at(10, 10), [{ type: 'tool_use', id: 'toolu_view_split', name: 'Bash', input: { command: 'cat login.txt' } }]);
+  f.result(at(10, 10, 5), 'toolu_view_split', [{ type: 'text', text: 'Login with Password:' }, { type: 'text', text: SECRETS.nextLine }], { stdout: 'printed', stderr: '', interrupted: false });
   writeFileSync(join(projects, dirs.lantern, `${IDS.featured}.jsonl`), `${f.lines.join('\n')}\n`);
   const sub = claudeLog(IDS.featured, lanternCwd);
   sub.prompt(at(10, 4, 30), 'Check the dates.', null);
@@ -138,6 +153,8 @@ export function buildViewWeek(root) {
   o.prompt(at(12, 0), SEEDED);
   o.prompt(at(12, 2), STRADDLE);
   o.say(at(12, 3), [{ type: 'text', text: 'Done.' }]);
+  o.prompt(at(12, 4), LONG_PROMPT);
+  o.summary(at(12, 5), `This session is being continued from an earlier one. The ${SUMMARY_WORD} covers the work so far.`);
   writeFileSync(join(projects, dirs.scratch, `${IDS.outside}.jsonl`), `${o.lines.join('\n')}\n`);
 
   // a non-interactive Codex run in lantern

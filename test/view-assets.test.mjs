@@ -167,6 +167,22 @@ test("the click-through's address check: a typed word counts only as a whole id-
   assert.equal(holds('replay.html?session=session', typed), true, 'a typed word as a value counts, even when it is also a name');
 });
 
+test("the pages say a prompt from a non-interactive run is a person's or a script's, inferred, never the agent's", () => {
+  const sandbox = { window: { HWE: { chips: () => '' }, HWP: {} }, document: { getElementById: () => null } };
+  runInNewContext(readFileSync(join(ASSETS, 'common.js'), 'utf8'), sandbox);
+  const HW = sandbox.window.HW;
+  const exec = { id: 'cx-abcdefghijkl.3.0', kind: 'prompt', actor: 'person-or-script', inferred: [{ key: 'authorship', value: 'person-or-script', rule: 'prompt.authorship.exec-session' }] };
+  for (const e of [exec, { ...exec, inferred: [] }]) {
+    const w = HW.who(e);
+    assert.equal(w.short, 'A person or a script', JSON.stringify(e.inferred));
+    assert.equal(w.level, 'inferred');
+  }
+  assert.deepEqual([HW.who(exec).rule], ['prompt.authorship.exec-session']);
+  const typed = HW.who({ id: 'cc-abcdefghijkl.1.0', kind: 'prompt', actor: 'person', inferred: [] });
+  assert.equal(typed.short, 'You');
+  assert.equal(typed.level, 'recorded');
+});
+
 test("the step list keeps each piece read from the logs in its own element, and cuts one only where the scrubber reads it the same", () => {
   // common.js, loaded the way a page loads it, over made-up answers.
   const sandbox = { window: { HWE: { chips: () => '' }, HWP: {} }, document: { getElementById: () => null } };
