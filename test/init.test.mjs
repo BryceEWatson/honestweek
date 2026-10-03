@@ -369,7 +369,7 @@ test('interactive: the names and client words given go into the config, and the 
     // The config now holds those words as written, so it goes into .gitignore.
     const ignored = readFileSync(join(t.cwd, '.gitignore'), 'utf8').split(/\r?\n/);
     assert.ok(ignored.includes('honestweek.config.json'));
-    assert.match(io.outBuf, /honestweek\.config\.json lists your private words, so it's in \.gitignore too/);
+    assert.match(io.outBuf, /honestweek\.config\.json lists your private words, so it's now in \.gitignore\. That keeps git from picking up a new file, not one it already tracks/);
   } finally {
     cleanup(t.parent);
   }
@@ -462,6 +462,18 @@ test('init run from a worktree of a display-only repository never asks that repo
     const inferEmail = (cwd, opts) => (seen.push(opts), ME);
     assert.equal(await runInit({ cwd: t.wt, argv: ['--yes', '--force'], io: fakeIo(), inferEmail }), 0);
     assert.deepEqual(seen, [{ isDisplay: true }]);
+    // The same repository by another of its folders: a second worktree whose config lists only
+    // the first one, and a subfolder of the repository itself.
+    const wt2 = join(t.parent, 'sibA-wt2');
+    git(t.sibA, ['worktree', 'add', '-q', wt2, '-b', 'side2']);
+    const sub = join(t.sibA, 'sub');
+    mkdirSync(sub);
+    for (const [cwd, listed] of [[wt2, t.wt], [sub, t.sibA]]) {
+      writeFileSync(join(cwd, 'honestweek.config.json'), JSON.stringify({ repos: [{ path: listed, label: 'x', role: 'display' }] }));
+      seen.length = 0;
+      await runInit({ cwd, argv: ['--yes', '--force'], io: fakeIo(), inferEmail });
+      assert.deepEqual(seen, [{ isDisplay: true }], cwd);
+    }
     // Failing-path partner: from the repository's own, configured folder it may.
     seen.length = 0;
     await runInit({ cwd: t.cwd, argv: ['--yes', '--force'], io: fakeIo(), inferEmail });

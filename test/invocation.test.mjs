@@ -44,19 +44,35 @@ test('on Linux and macOS npm runs its command through a link, which is followed 
   // npx runs <cache>/_npx/<hash>/node_modules/.bin/honestweek, a link to the package's script,
   // and node reports the link.
   const cache = at('npm-cache', '_npx', 'a1b2c3');
-  const script = join(cache, 'node_modules', 'honestweek', 'bin', 'honestweek.mjs');
+  // The links as npm writes them: relative to the folder the link sits in.
   const links = new Map([
-    [join(cache, 'node_modules', '.bin', 'honestweek'), script],
-    [at('usr', 'local', 'bin', 'honestweek'), at('usr', 'local', 'lib', 'node_modules', 'honestweek', 'bin', 'honestweek.mjs')],
+    [join(cache, 'node_modules', '.bin', 'honestweek'), '../honestweek/bin/honestweek.mjs'],
+    [at('usr', 'local', 'bin', 'honestweek'), '../lib/node_modules/honestweek/bin/honestweek.mjs'],
   ]);
-  const realpath = (p) => links.get(p) ?? noFile();
+  const readlink = (p) => links.get(p) ?? noFile();
   const readFile = () => JSON.stringify({ dependencies: { honestweek: 'github:your-org/honestweek' } });
   const env = { npm_command: 'exec' };
-  assert.equal(commandForm({ argv1: join(cache, 'node_modules', '.bin', 'honestweek'), env, cwd: at('project'), readFile, realpath }), 'npx github:your-org/honestweek');
+  assert.equal(commandForm({ argv1: join(cache, 'node_modules', '.bin', 'honestweek'), env, cwd: at('project'), readFile, readlink }), 'npx github:your-org/honestweek');
   // A global install's command on the PATH is a link into <prefix>/lib/node_modules.
-  assert.equal(commandForm({ argv1: at('usr', 'local', 'bin', 'honestweek'), env: {}, cwd: at('project'), readFile: noFile, realpath }), 'honestweek');
-  // Failing path: a path that can't be followed is read as it is.
-  assert.equal(commandForm({ argv1: at('clone', 'bin', 'honestweek.mjs'), env: {}, cwd: at('clone'), realpath: noFile }), 'node bin/honestweek.mjs');
+  assert.equal(commandForm({ argv1: at('usr', 'local', 'bin', 'honestweek'), env: {}, cwd: at('project'), readFile: noFile, readlink }), 'honestweek');
+  // Failing path: a path that isn't a link is read as it is.
+  assert.equal(commandForm({ argv1: at('clone', 'bin', 'honestweek.mjs'), env: {}, cwd: at('clone'), readlink: noFile }), 'node bin/honestweek.mjs');
+});
+
+test('a package folder npm links into its cache (npx ./folder) is named by its folder, not followed out of the cache', (t) => {
+  const dir = makeTempDir('hw-npx-folder-');
+  const cache = join(dir, '_npx', 'a1b2c3');
+  mkdirSync(join(dir, 'pkg', 'bin'), { recursive: true });
+  writeFileSync(join(dir, 'pkg', 'bin', 'honestweek.mjs'), '');
+  mkdirSync(join(cache, 'node_modules'), { recursive: true });
+  writeFileSync(join(cache, 'package.json'), JSON.stringify({ dependencies: { honestweek: 'file:../../pkg' } }));
+  try {
+    symlinkSync(join(dir, 'pkg'), join(cache, 'node_modules', 'honestweek'), process.platform === 'win32' ? 'junction' : 'dir');
+  } catch (err) {
+    t.skip(`no folder link here: ${err.code}`);
+    return;
+  }
+  assert.equal(commandForm({ argv1: join(cache, 'node_modules', 'honestweek', 'bin', 'honestweek.mjs'), env: { npm_command: 'exec' }, cwd: dir }), 'npx ./pkg');
 });
 
 test('a real npx cache with its .bin link prints the spec npx fetched', { skip: process.platform === 'win32' && 'symlinks need extra rights on Windows' }, () => {
