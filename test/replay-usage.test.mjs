@@ -155,8 +155,14 @@ test('keepRaw: raw inputs, full text and error text sit on a non-enumerable fiel
   assert.match(codexCall._raw.error ?? '', /1 failed/);
   const text = JSON.stringify(h);
   for (const s of [LONG_SENTINEL, ERROR_SENTINEL, '"_raw"']) assert.ok(!text.includes(s), `JSON holds no ${s}`);
+  // Each readable file's working folder sits on the history's own _raw, out of JSON too.
+  assert.ok(!Object.keys(h).includes('_raw'));
+  assert.equal(h._raw.cwdOfSource.get(lint.source), fx.repo.dir);
+  const hidden = h.sources.filter((s) => s.private).map((s) => s.key);
+  assert.ok(hidden.length && hidden.every((k) => !h._raw.cwdOfSource.has(k)), 'skeleton files keep no folder');
   // Skeleton sessions never get raw text, and a history without the option has none.
   for (const e of h.events.filter((x) => h.sessions.find((s) => s.key === x.session)?.private)) assert.equal(e._raw, undefined);
   const plain = await build();
   assert.ok(plain.events.every((e) => e._raw === undefined));
+  assert.equal(plain._raw, undefined);
 });
