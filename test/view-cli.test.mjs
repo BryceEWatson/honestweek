@@ -85,6 +85,7 @@ test('--help prints the help in the published voice and exits 0', async () => {
   assert.equal(r.code, 0);
   assert.equal(r.out(), HELP);
   assert.match(HELP, /^Usage:/m);
+  assert.match(HELP.replace(/\s+/g, ' '), /listed under "redaction" in your config, so until you list some, they show as written/, 'it says redaction hides only the words you list');
   for (const flag of ['--days', '--from', '--to', '--timezone', '--goals', '--config', '--port', '--no-open', '--demo', '--self-test']) assert.ok(HELP.includes(flag), flag);
   assert.doesNotMatch(HELP, /[—–]| -- /, 'no em or en dashes');
   assert.match(HELP, /n't|it's|you're/, 'contractions');
