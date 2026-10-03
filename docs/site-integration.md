@@ -4,8 +4,8 @@ How honestweek produces a **website-integrated** weekly artifact for a target
 project that contains a website, intelligently and generically, without ever
 weakening verify-or-abort, private-by-default, the human gate, or clean-room.
 
-This is the generic capability. brycewatson.com is the first real integration
-(see that repo's `honestweek.site.json` adapter); nothing here is specific to it.
+This is the generic capability. A personal site (your-site.example here) is the first real integration
+through its own committed `honestweek.site.json` adapter. Nothing here is specific to it.
 
 ## Status (branch `feature/site-integration`)
 
@@ -20,7 +20,7 @@ the `site` output-mode wiring (`config.mjs` `OUTPUT_MODES` + `output.adapter`;
 fence abort). Covered by `test/site-adapter`, `site-emit`, `site-fact-fence`,
 `site-sessions`, `site-derive`, `site-detect`, `site-cleanroom`, and `site-build`.
 
-**Pending (Phase B onward):** the brycewatson.com committed adapter + the
+**Pending (Phase B onward):** the your-site.example committed adapter + the
 parity-gate harness (Stage-1 pixel + Stage-2 content). One grammar increment is
 deliberately deferred to Phase B, where it can be designed against the real
 artifact: emitting a TRUSTED, value-free STRING structure (e.g. an author-email or
@@ -307,7 +307,7 @@ commit date (an item that cites no resolved commit has no day).
 
 ## Clean-room + tests (synthetic fixtures only)
 
-All Phase-A tests use a SYNTHETIC toy site/model/adapter — never brycewatson.com
+All Phase-A tests use a SYNTHETIC toy site/model/adapter — never a real site's
 field names — which doubles as the clean-room guarantee. The full Phase-A suite:
 - `test/site-adapter.test.mjs` — grammar validator (accept valid; reject numeric
   const, unknown source kind, literal in a derived slot, malformed array node, and
