@@ -15,6 +15,7 @@ import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { createLeakCounter, EXEMPT_FIELDS, setAsideAllowed, stringsIn, unglue } from '../lib/view/leaks.mjs';
 import { createLru, createViewData, goalKey, memberCount } from '../lib/view/data.mjs';
 import { REPLAY_EVENT_FIELDS } from '../lib/view/replay-export.mjs';
+import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { buildCorpus } from './fixtures/replay/corpus.mjs';
 import { buildViewWeek, EMAIL, LONG_WORD, NOT_PROMPT_WORDS, OTHER_TERM, PRIVATE_WORDS, QUEUED_WORD, SECRETS, SEEDED, STRADDLE_WORD, SUMMARY_WORD, TERM, WEEK } from './fixtures/view/week.mjs';
 
@@ -394,7 +395,10 @@ test("a count is no stronger than the weakest thing it counts", async () => {
   assert.deepEqual(memberCount([mine, rule]), { value: 2, evidence: 'inferred', recorded: 1, inferred: 1, ambiguous: 0, assigned: 1 });
   assert.deepEqual(memberCount([mine, amb]), { value: 2, evidence: 'inferred', recorded: 1, inferred: 0, ambiguous: 1, assigned: 1 });
   const levels = new Map(home.recent.map((r) => [r.session, r.prompts.evidence]));
-  assert.equal(levels.get(w.keys.featured), 'inferred', 'a prompt whose author is only inferred makes the count inferred');
+  // Home lists the twelve most recent sessions. The demo week's Saturday session, from an older
+  // Claude Code that records no prompt origin, is one of them.
+  const older = claudeSessionKey(w.d.ids.projectDirs.lantern, w.d.ids.claude.widthCheck);
+  assert.equal(levels.get(older), 'inferred', 'a prompt whose author is only inferred makes the count inferred');
   assert.ok([...levels.values()].includes('derived'), 'a session whose prompts all say who typed them stays derived');
 });
 
