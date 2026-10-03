@@ -6,11 +6,12 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, utimesSync } from 'node:fs';
+import { mkdirSync, writeFileSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { deriveSessions, isInteractiveFirstPrompt } from '../lib/site/sessions.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const WEEK_START = new Date('2024-06-10T00:00:00.000Z'); // Monday
 const WEEK_END = new Date('2024-06-16T23:59:59.999Z'); // Sunday
@@ -35,7 +36,7 @@ function session(dir, name, { cwd, ts, content }) {
 }
 
 function buildFixtures() {
-  const root = mkdtempSync(join(tmpdir(), 'hw-sessions-'));
+  const root = makeTempDir('hw-sessions-');
   const d = join(root, 'proj');
   mkdirSync(d);
   // 1+2: interactive, same day (Wed 06-12), two different project labels.
@@ -92,12 +93,12 @@ test('deriveSessions counts interactive sessions/day, dedupes resumes, windows, 
     assert.equal(s.max, 2);
     assert.deepEqual(s.projectTotals, { alpha: 1, beta: 1, other: 1 });
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    removeTempDir(root);
   }
 });
 
 test('deriveSessions: an mtime older than the week is pre-filtered out (never read)', () => {
-  const root = mkdtempSync(join(tmpdir(), 'hw-sessions-old-'));
+  const root = makeTempDir('hw-sessions-old-');
   try {
     const d = join(root, 'proj');
     mkdirSync(d);
@@ -109,12 +110,12 @@ test('deriveSessions: an mtime older than the week is pre-filtered out (never re
     assert.equal(s.filesScanned, 0, 'an ancient file is never opened');
     assert.equal(s.total, 0);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    removeTempDir(root);
   }
 });
 
 test('a worktree- or subdir-cwd session credits its parent repo (prefix attribution)', () => {
-  const root = mkdtempSync(join(tmpdir(), 'hw-sessions-sub-'));
+  const root = makeTempDir('hw-sessions-sub-');
   try {
     const d = join(root, 'proj');
     mkdirSync(d);
@@ -133,12 +134,12 @@ test('a worktree- or subdir-cwd session credits its parent repo (prefix attribut
     assert.deepEqual(s.days.find((x) => x.date === '2024-06-12').byProject, { alpha: 3, other: 1 });
     assert.deepEqual(s.projectTotals, { alpha: 3, other: 1 });
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    removeTempDir(root);
   }
 });
 
 test('a session whose encoded project-dir is an ephemeral temp location is excluded', () => {
-  const root = mkdtempSync(join(tmpdir(), 'hw-sessions-eph-'));
+  const root = makeTempDir('hw-sessions-eph-');
   try {
     // The encoded project-dir name embeds a temp cwd (capability/tooling probe).
     const d = join(root, 'C--Users-Dev-AppData-Local-Temp-probe123');
@@ -149,7 +150,7 @@ test('a session whose encoded project-dir is an ephemeral temp location is exclu
     assert.equal(s.filesFound, 1, 'filesFound counts the enumerated log (pre-ephemeral-filter), so an all-ephemeral root does NOT trip the no-logs warning');
     assert.equal(s.total, 0);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    removeTempDir(root);
   }
 });
 

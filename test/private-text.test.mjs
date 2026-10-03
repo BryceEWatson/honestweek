@@ -6,8 +6,7 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,6 +16,7 @@ import { parseClaudeSource } from '../lib/replay/claude.mjs';
 import { createWatch } from '../lib/replay/parse-common.mjs';
 import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { buildDemoWeek, SESSION_IDS, WEEK } from '../tools/demo-week.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -285,7 +285,7 @@ function seedSession(projectDir, cwd, id, { prompt = SEEDED, start = '10:00', su
 }
 
 before(async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-private-text-'));
+  const dir = makeTempDir('hw-private-text-');
   scratch.push(dir);
   d = buildDemoWeek({ root: join(dir, 'week') });
   const cwdOf = (projectDir, sessionId) => JSON.parse(readFileSync(join(d.roots.claude[0], projectDir, `${sessionId}.jsonl`), 'utf8').split('\n').find((l) => l.includes('"cwd"'))).cwd;
@@ -300,11 +300,7 @@ before(async () => {
 });
 after(() => {
   for (const dir of scratch) {
-    try {
-      rmSync(dir, { recursive: true, force: true });
-    } catch {
-      /* Windows can hold a lock on .git briefly */
-    }
+    removeTempDir(dir);
   }
 });
 

@@ -17,8 +17,7 @@
 
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -27,6 +26,7 @@ import { FOLDS_ONTO_ASCII, skipWords, termMatchers, termWords } from '../lib/red
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { buildDemoWeek, WEEK } from '../tools/demo-week.mjs';
 import { buildCorpus, CODENAME } from './fixtures/replay/corpus.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 // ---- the old step 10, word for word -------------------------------------------------
 
@@ -93,7 +93,7 @@ let oldLibrary = null;
 /** The library with the old step 10, built once by the first side-by-side test that asks. */
 function oldLib() {
   oldLibrary ??= (async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'hw-fast-path-'));
+    const dir = makeTempDir('hw-fast-path-');
     scratch.push(dir);
     const lib = join(dir, 'lib');
     cpSync(LIB, lib, { recursive: true });
@@ -108,11 +108,7 @@ function oldLib() {
 }
 after(() => {
   for (const dir of scratch) {
-    try {
-      rmSync(dir, { recursive: true, force: true });
-    } catch {
-      /* Windows can hold a lock on .git briefly */
-    }
+    removeTempDir(dir);
   }
 });
 
@@ -393,7 +389,7 @@ async function sameHistory(options, what) {
 const withTerms = (config, redaction) => ({ ...config, redaction: { ...config.redaction, ...redaction } });
 
 test('the demo week builds the same work history with the old and new term matching', async () => {
-  const root = join(mkdtempSync(join(tmpdir(), 'hw-fast-path-demo-')), 'week');
+  const root = join(makeTempDir('hw-fast-path-demo-'), 'week');
   scratch.push(join(root, '..'));
   const d = buildDemoWeek({ root });
   const options = { config: d.config, from: WEEK.from, to: WEEK.to, roots: d.roots };
@@ -404,7 +400,7 @@ test('the demo week builds the same work history with the old and new term match
 });
 
 test('the replay corpus builds the same work history with the old and new term matching', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'hw-fast-path-corpus-'));
+  const root = makeTempDir('hw-fast-path-corpus-');
   scratch.push(root);
   const fx = buildCorpus({ root, goals: true });
   const options = { config: fx.config, from: '2024-06-10', to: '2024-06-16', roots: { claude: [fx.claudeRoot], codex: [fx.codexRoot] } };

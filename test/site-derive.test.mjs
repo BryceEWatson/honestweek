@@ -7,11 +7,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { deriveChart, deriveProvenance, deriveProjectStats, reconcileGeneralizedSessionTotals, augmentSiteModel } from '../lib/site/derive.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'me@example.com';
 let counter = 0;
@@ -20,7 +20,7 @@ function git(dir, args, env) {
   return execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env: env ?? process.env, stdio: ['ignore', 'pipe', 'pipe'] });
 }
 function initRepo() {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-derive-repo-'));
+  const dir = makeTempDir('hw-derive-repo-');
   git(dir, ['init', '-q']);
   git(dir, ['config', 'user.email', ME]);
   git(dir, ['config', 'user.name', 'Dev']);
@@ -75,8 +75,8 @@ test('deriveChart buckets own commits per day; display repos are never git-read'
     // No display commit leaked into any day.
     assert.ok(chart.days.every((d) => !('disp' in d.byRepo)));
   } finally {
-    rmSync(featured, { recursive: true, force: true });
-    rmSync(display, { recursive: true, force: true });
+    removeTempDir(featured);
+    removeTempDir(display);
   }
 });
 
@@ -149,8 +149,8 @@ test('deriveChart charts FEATURED repos only (reference repos are verify-only, n
     assert.equal(chart.repoTotals.feat, 1);
     assert.equal('ref' in chart.repoTotals, false, 'a reference repo is not charted');
   } finally {
-    rmSync(featured, { recursive: true, force: true });
-    rmSync(reference, { recursive: true, force: true });
+    removeTempDir(featured);
+    removeTempDir(reference);
   }
 });
 
@@ -372,7 +372,7 @@ test('deriveProjectStats never credits the catch-all "other" session pool to a n
 
 test('augmentSiteModel attaches chart/sessions/provenance and places day items by date', () => {
   const featured = initRepo();
-  const emptySessions = mkdtempSync(join(tmpdir(), 'hw-derive-sess-'));
+  const emptySessions = makeTempDir('hw-derive-sess-');
   try {
     const sha = commit(featured, '2024-06-12T10:00:00Z', 'ship it');
     const config = {
@@ -398,7 +398,7 @@ test('augmentSiteModel attaches chart/sessions/provenance and places day items b
     // The same per-day items also reconnect the session hero.
     assert.deepEqual(out.sessions.days.find((d) => d.date === '2024-06-12').items, day12.items);
   } finally {
-    rmSync(featured, { recursive: true, force: true });
-    rmSync(emptySessions, { recursive: true, force: true });
+    removeTempDir(featured);
+    removeTempDir(emptySessions);
   }
 });

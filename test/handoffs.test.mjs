@@ -4,12 +4,12 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, utimesSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { extractHandoff, handoffTimestamp, discoverHandoffs } from '../lib/handoffs.mjs';
 import { createRedactor } from '../lib/redact.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 test('handoffTimestamp parses the filename timestamp, null otherwise', () => {
   assert.equal(handoffTimestamp('20260624T010817Z_slug.md'), Date.parse('2026-06-24T01:08:17Z'));
@@ -36,7 +36,7 @@ test('extractHandoff pulls tagged claims, reversals, and backtick SHAs only', ()
 });
 
 function repoWithHandoffs(role, files) {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-handoff-'));
+  const dir = makeTempDir('hw-handoff-');
   const hd = join(dir, '.claude', 'handoffs');
   mkdirSync(hd, { recursive: true });
   for (const [name, body] of Object.entries(files)) writeFileSync(join(hd, name), body);
@@ -62,7 +62,7 @@ test('discoverHandoffs reads in-window handoffs from featured repos and redacts 
     assert.doesNotMatch(e.claims[0].text, /Falcon/, 'the configured codename is redacted out of the claim');
     assert.match(e.id, /^\d{8}T\d{6}Z$/, 'id is the non-identifying timestamp token');
   } finally {
-    rmSync(repo.resolvedPath, { recursive: true, force: true });
+    removeTempDir(repo.resolvedPath);
   }
 });
 
@@ -74,7 +74,7 @@ test('discoverHandoffs NEVER reads a display-role repo', () => {
     const got = discoverHandoffs({ config: { repos: [repo] }, ...WEEK, redactor: createRedactor({}) });
     assert.deepEqual(got, [], 'a display repo contributes no handoff entries');
   } finally {
-    rmSync(repo.resolvedPath, { recursive: true, force: true });
+    removeTempDir(repo.resolvedPath);
   }
 });
 
@@ -87,6 +87,6 @@ test('discoverHandoffs falls back to mtime when the filename has no timestamp', 
     assert.equal(got.length, 1);
     assert.match(got[0].id, /^handoff-[0-9a-f]{8}$/, 'no-timestamp handoff gets a hashed id');
   } finally {
-    rmSync(repo.resolvedPath, { recursive: true, force: true });
+    removeTempDir(repo.resolvedPath);
   }
 });
