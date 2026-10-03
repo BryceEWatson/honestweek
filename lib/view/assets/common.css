@@ -161,8 +161,8 @@ button:focus-visible, [tabindex]:focus-visible, a:focus-visible, summary:focus-v
 .ambig-note { border-left: 3px solid var(--serious); padding-left: 8px; }
 
 /* The record panel: a dialog with the step's fields, each with its level, then the log line. */
-.drawer { position: fixed; right: 0; top: 0; bottom: 0; width: min(560px, 100vw); background: var(--raised); border-left: 1px solid var(--ring); box-shadow: -8px 0 24px rgba(0, 0, 0, 0.08); transform: translateX(100%); visibility: hidden; transition: transform 0.18s ease, visibility 0s linear 0.18s; z-index: 20; display: flex; flex-direction: column; }
-.drawer.open { transform: none; visibility: visible; transition: transform 0.18s ease; }
+.drawer { position: fixed; right: 0; top: 0; bottom: 0; width: min(560px, 100vw); background: var(--raised); border-left: 1px solid var(--ring); box-shadow: -8px 0 24px rgba(0, 0, 0, 0.08); transform: translateX(100%); visibility: hidden; transition: transform 0.18s ease, visibility 0s linear 0.18s; z-index: 20; pointer-events: none; display: flex; flex-direction: column; }
+.drawer.open { transform: none; visibility: visible; pointer-events: auto; transition: transform 0.18s ease; }
 .drawer header { padding: 14px 16px; border-bottom: 1px solid var(--ring); display: flex; gap: 10px; align-items: flex-start; }
 .drawer header .h { flex: 1; min-width: 0; }
 .drawer header h2 { font-size: 15px; margin: 0; }
