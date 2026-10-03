@@ -4,7 +4,7 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { buildWorkHistory, parseLookup } from '../lib/replay/index.mjs';
@@ -15,6 +15,7 @@ import { sourceKey } from '../lib/replay/ids.mjs';
 import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { at, buildCorpus, CODENAME, ME } from './fixtures/replay/corpus.mjs';
 import { main as inspect } from '../tools/replay-inspect.mjs';
+import { removeTempDir } from './helpers/temp-dir.mjs';
 
 let fx;
 let h;
@@ -32,11 +33,7 @@ before(async () => {
 });
 const allEntries = (g) => g.members.flatMap((m) => m.joins).filter((j) => j.type === 'wrote-entry' || j.type === 'created-goal').map((j) => j.detail.entry);
 after(() => {
-  try {
-    rmSync(fx.root, { recursive: true, force: true });
-  } catch {
-    /* Windows can hold a lock on .git briefly */
-  }
+  removeTempDir(fx.root);
 });
 
 // ---- goal membership --------------------------------------------------------
@@ -243,11 +240,7 @@ test('additive: without a goal record the rules table is the engine\'s event rul
     assert.ok(!('goals' in json));
     assert.ok(!JSON.stringify(json).includes('pr.gh-command'));
   } finally {
-    try {
-      rmSync(plain.root, { recursive: true, force: true });
-    } catch {
-      /* Windows can hold a lock on .git briefly */
-    }
+    removeTempDir(plain.root);
   }
 });
 

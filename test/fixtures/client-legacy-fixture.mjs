@@ -3,9 +3,9 @@
 // test/client-legacy.test.mjs builds it with today's code and compares the bytes with
 // client-legacy.html, which the client report produced before reader profiles existed.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { makeTempDir } from '../helpers/temp-dir.mjs';
 
 const ME = 'me@example.com';
 
@@ -14,7 +14,7 @@ function git(dir, args, env) {
 }
 
 export function buildLegacyFixture() {
-  const repo = mkdtempSync(join(tmpdir(), 'hw-legacy-repo-'));
+  const repo = makeTempDir('hw-legacy-repo-');
   git(repo, ['init', '-q', '-b', 'main']);
   git(repo, ['config', 'commit.gpgsign', 'false']);
   const shas = [];
@@ -30,7 +30,7 @@ export function buildLegacyFixture() {
     git(repo, ['commit', '-q', '-m', msg], env);
     shas.push(git(repo, ['rev-parse', 'HEAD']).trim());
   }
-  const work = mkdtempSync(join(tmpdir(), 'hw-legacy-work-'));
+  const work = makeTempDir('hw-legacy-work-');
   writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify({
     identity: { authorEmails: [ME] },
     week: { startsOn: 'monday', timezone: 'UTC' },

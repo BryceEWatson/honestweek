@@ -7,14 +7,14 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { enumerateSessions, humanText, isHumanText, probeSession, resolveCorpora, sessionKey, streamSession } from '../lib/mine/corpus.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 function tmp() {
-  return mkdtempSync(join(tmpdir(), 'hw-corpus-'));
+  return makeTempDir('hw-corpus-');
 }
 const jsonl = (...records) => records.map((r) => JSON.stringify(r)).join('\n') + '\n';
 
@@ -68,7 +68,7 @@ test('probeSession finds the first human turn in the array shape', () => {
   const p = probeSession('claude-code', f);
   assert.equal(p.firstPrompt, 'why will this not start');
   assert.equal(p.cwd, 'C:/repo');
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 test('probeSession skips past an automated probe to the real first prompt', () => {
@@ -76,7 +76,7 @@ test('probeSession skips past an automated probe to the real first prompt', () =
   const f = join(dir, 's.jsonl');
   writeFileSync(f, jsonl(userString('Project: thing (code)\nGit: branch main'), userString('now fix the service', '2026-06-01T10:05:00.000Z')));
   assert.equal(probeSession('claude-code', f).firstPrompt, 'now fix the service');
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 test('a session with no human turn is not a session', () => {
@@ -84,7 +84,7 @@ test('a session with no human turn is not a session', () => {
   const f = join(dir, 's.jsonl');
   writeFileSync(f, jsonl({ type: 'assistant', message: { content: [{ type: 'text', text: 'hi' }] } }));
   assert.equal(probeSession('claude-code', f), null);
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 test('the same session written twice is counted once', () => {
@@ -98,7 +98,7 @@ test('the same session written twice is counted once', () => {
   const { sessions, diagnostics } = enumerateSessions({ corpora: ['claude-code'], roots: { 'claude-code': join(dir, 'projects') } });
   assert.equal(sessions.length, 1);
   assert.equal(diagnostics.deduped, 1);
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 test('sessionKey is stable across two spellings of one session', () => {
@@ -115,7 +115,7 @@ test('diagnostics separate "looked and found nothing" from "did not look"', () =
   const d = diagnostics.corpora[0];
   assert.equal(d.present, true, 'the root exists');
   assert.equal(d.filesFound, 0, 'and yielded nothing — which the caller must be able to see');
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 // ---------------------------------------------------------------------------
@@ -137,7 +137,7 @@ test('streams a Claude Code session into normalized events', async () => {
   assert.deepEqual(events.map((e) => e.kind), ['human', 'tool_use', 'result']);
   assert.equal(events[1].text, 'Get-Service Acme');
   assert.equal(events[2].isError, true);
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 test('streams a Codex rollout, including its shell wrapper failure banner', async () => {
@@ -158,7 +158,7 @@ test('streams a Codex rollout, including its shell wrapper failure banner', asyn
   const { events } = await streamSession('codex', f);
   assert.deepEqual(events.map((e) => e.kind), ['human', 'tool_use', 'result']);
   assert.equal(events[2].isError, true, 'Codex has no is_error flag; its banner is the signal');
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 test('a Codex subagent fork is not counted as a session', () => {
@@ -172,7 +172,7 @@ test('a Codex subagent fork is not counted as a session', () => {
     ),
   );
   assert.equal(probeSession('codex', f).isSubagent, true);
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 test('a Cowork enqueue event is a human turn', async () => {
@@ -182,7 +182,7 @@ test('a Cowork enqueue event is a human turn', async () => {
   assert.equal(probeSession('cowork', f).firstPrompt, 'fix the workspace');
   const { events } = await streamSession('cowork', f);
   assert.deepEqual(events, [{ kind: 'human', text: 'fix the workspace' }]);
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 test('subagent transcripts are never enumerated as sessions', () => {
@@ -194,7 +194,7 @@ test('subagent transcripts are never enumerated as sessions', () => {
   const { sessions } = enumerateSessions({ corpora: ['claude-code'], roots: { 'claude-code': join(dir, 'projects') } });
   assert.equal(sessions.length, 1);
   assert.equal(sessions[0].firstPrompt, 'the real prompt');
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 test('codex archived sessions are part of the corpus', () => {
@@ -214,7 +214,7 @@ test('codex archived sessions are part of the corpus', () => {
   assert.equal(sessions[0].firstPrompt, 'why does the tool crash');
   assert.equal(diagnostics.corpora.length, 1, 'only roots that exist produce rows (plus one when none do)');
   assert.equal(diagnostics.corpora[0].accepted, 1);
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 test('resolveCorpora rejects an unknown kind instead of silently scanning nothing', () => {

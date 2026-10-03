@@ -10,10 +10,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, existsSync, rmSync, readFileSync, readdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BIN = resolve(HERE, '..', 'bin', 'honestweek.mjs');
@@ -27,7 +27,7 @@ function git(dir, args, env) {
   return execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env: env ?? process.env, stdio: ['ignore', 'pipe', 'pipe'] });
 }
 function initRepo() {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-demo-repo-'));
+  const dir = makeTempDir('hw-demo-repo-');
   git(dir, ['init', '-q']);
   git(dir, ['config', 'user.email', ME]);
   git(dir, ['config', 'user.name', 'Dev']);
@@ -52,7 +52,7 @@ function runBuildCli(workDir) {
 }
 
 function scenario({ repoDir, citedSha }) {
-  const work = mkdtempSync(join(tmpdir(), 'hw-demo-work-'));
+  const work = makeTempDir('hw-demo-work-');
   const outFile = join(work, 'weekly.md');
   writeFileSync(
     join(work, 'honestweek.config.json'),
@@ -75,7 +75,7 @@ function scenario({ repoDir, citedSha }) {
 }
 
 function cleanup(...dirs) {
-  for (const d of dirs) try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ }
+  for (const d of dirs) removeTempDir(d);
 }
 
 test('DEMO: build ABORTS (exit 2) and writes NOTHING when an item cites a fabricated commit', () => {
