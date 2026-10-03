@@ -7,6 +7,8 @@
 // module that another issue has not built yet — `--help` works from a fresh
 // clone with zero modules present.
 
+import { commandForm, setCommandForm } from '../lib/invocation.mjs';
+
 const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts', 'digest', 'mine', 'history', 'view'];
 
 // Subcommands that parse `--help` themselves and print their own richer text.
@@ -119,13 +121,24 @@ Options:
 
 const wantsHelp = (args) => args.some((a) => a === '--help' || a === '-h');
 
-const USAGE = `honestweek: honest, git-verified weekly summaries from your AI coding sessions.
+/** The top-level help. `cmd` is the command as the person typed it (lib/invocation.mjs). */
+function usage(cmd) {
+  return `honestweek: honest, git-verified weekly summaries from your AI coding sessions.
+
+Start here:
+  1. Look around a made-up week first. It sets nothing up:
+       ${cmd} view --demo
+  2. Set up honestweek.config.json in this folder. It asks before writing:
+       ${cmd} init
+  3. Find, check and replay your own sessions in your browser:
+       ${cmd} view
 
 Usage:
-  honestweek <command> [options]
+  ${cmd} <command> [options]
 
 Commands:
-  init        Scaffold honestweek.config.json (two-confirmation setup).
+  init        Set up honestweek.config.json from your git setup. It asks
+              before writing.
   discover    Read the last completed week's sessions into a redacted draft.
   prompts     Sync, review, control, and curate private Claude Code and Codex
               prompts for the existing weekly page.
@@ -152,15 +165,18 @@ Commands:
 Options:
   -h, --help  Show this help.
 
-Run "honestweek <command> --help" for command-specific help (where available).
+Run "${cmd} <command> --help" for command-specific help (where available).
 `;
+}
 
 function printUsage(stream = process.stdout) {
-  stream.write(USAGE);
+  stream.write(usage(commandForm()));
 }
 
 async function main(argv) {
   const [command, ...rest] = argv;
+  // Messages that name a next step name it the way this run was started.
+  setCommandForm(commandForm());
 
   if (command === undefined || command === '--help' || command === '-h') {
     printUsage(process.stdout);

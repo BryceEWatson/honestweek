@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { PassThrough } from 'node:stream';
 
 import {
   runInit,
@@ -12,7 +13,15 @@ import {
   buildConfig,
   ensureGitignore,
   inferAuthorEmail,
+  defaultIo,
+  findRepos,
+  parseNumbers,
+  parseWordList,
+  NAMES_QUESTION,
+  TERMS_QUESTION,
+  NO_PRIVATE_WORDS,
 } from '../lib/init.mjs';
+import { setCommandForm } from '../lib/invocation.mjs';
 import { loadConfig } from '../lib/config.mjs';
 
 const ME = 'me@example.com';
@@ -185,8 +194,8 @@ test('interactive: declining the FIRST confirmation writes nothing', async () =>
 test('interactive: declining the SECOND confirmation writes nothing', async () => {
   const t = setupTree();
   try {
-    // edit: accept (''), confirm1: 'y', confirm2: 'n'
-    const io = fakeIo(['', 'y', 'n']);
+    // edit: accept (''), confirm1: 'y', names and terms: skipped, confirm2: 'n'
+    const io = fakeIo(['', 'y', '', '', 'n']);
     const code = await runInit({ cwd: t.cwd, argv: [], io });
     assert.equal(code, 1);
     assert.ok(!existsSync(join(t.cwd, 'honestweek.config.json')));
@@ -253,5 +262,143 @@ test('no-email case: inferAuthorEmail returns null and runInit warns (config aut
     if (savedNoSystem === undefined) delete process.env.GIT_CONFIG_NOSYSTEM;
     else process.env.GIT_CONFIG_NOSYSTEM = savedNoSystem;
     cleanup(t.parent);
+  }
+});
+
+// ---- first run: worktrees, narrowing the list, private words, piped answers, next step ----
+
+/** setupTree plus a linked worktree of sibA, checked out beside it. */
+function setupTreeWithWorktree() {
+  const t = setupTree();
+  const wt = join(t.parent, 'sibA-wt');
+  git(t.sibA, ['worktree', 'add', '-q', wt, '-b', 'side']);
+  return { ...t, wt };
+}
+
+test('a linked worktree beside its repository folds into it, and the count says so', () => {
+  const t = setupTreeWithWorktree();
+  try {
+    const { repos, folded } = findRepos(t.cwd, ME);
+    assert.deepEqual(repos.map((r) => r.label).sort(), ['myproj', 'sibA']);
+    assert.equal(folded, 1);
+    assert.equal(repos.find((r) => r.label === 'sibA').path.toLowerCase(), t.sibA.toLowerCase(), 'the main working tree is the one configured');
+    // Failing-path partner: two separate clones stay two entries, with nothing folded.
+    const clone = join(t.parent, 'sibA-clone');
+    execFileSync('git', ['clone', '-q', t.sibA, clone], { stdio: 'ignore' });
+    const again = findRepos(t.cwd, ME);
+    assert.deepEqual(again.repos.map((r) => r.label).sort(), ['myproj', 'sibA', 'sibA-clone']);
+    assert.equal(again.folded, 1);
+  } finally {
+    cleanup(t.parent);
+  }
+});
+
+test('a worktree folder an existing config marks display-only makes its repository display-only, and git is never asked', () => {
+  const t = setupTreeWithWorktree();
+  try {
+    const asked = [];
+    const { repos } = findRepos(t.cwd, ME, { displayPaths: [t.wt], hasCommits: (p) => (asked.push(p.toLowerCase()), true) });
+    assert.equal(repos.find((r) => r.label === 'sibA').role, 'display');
+    assert.ok(!asked.includes(t.sibA.toLowerCase()) && !asked.includes(t.wt.toLowerCase()));
+  } finally {
+    cleanup(t.parent);
+  }
+});
+
+test('init run from inside a worktree configures the main repository, first and featured', () => {
+  const t = setupTreeWithWorktree();
+  try {
+    const { repos } = findRepos(t.wt, OTHER, { hasCommits: () => false });
+    assert.equal(repos[0].path.toLowerCase(), t.sibA.toLowerCase());
+    assert.equal(repos[0].role, 'featured');
+  } finally {
+    cleanup(t.parent);
+  }
+});
+
+test('parseNumbers reads lists and ranges, and refuses anything else', () => {
+  assert.deepEqual(parseNumbers('3'), [3]);
+  assert.deepEqual(parseNumbers('1 3 5-7'), [1, 3, 5, 6, 7]);
+  assert.deepEqual(parseNumbers('2,1, 2'), [1, 2]);
+  for (const bad of ['', 'x', '0', '5-3', '1-', '-2', '1.5']) assert.equal(parseNumbers(bad), null, bad);
+});
+
+test('parseWordList trims, drops blanks and one-letter entries, and keeps one of each word', () => {
+  assert.deepEqual(parseWordList(' Dana Doe, Acme ,, x, acme'), ['Dana Doe', 'Acme']);
+  assert.deepEqual(parseWordList(''), []);
+});
+
+test('interactive: keep and drop take lists and ranges, role takes a list, and a change that empties the list is refused', async () => {
+  const t = setupTreeWithWorktree();
+  try {
+    const third = join(t.parent, 'third');
+    mkdirSync(third);
+    initRepoWithCommit(third, ME);
+    const io = fakeIo(['drop 1-3', 'role 2,3 display', 'keep 1 3', 'drop 9', 'teleport 1', '', '', '', '', '']);
+    const code = await runInit({ cwd: t.cwd, argv: [], io });
+    assert.equal(code, 0);
+    const cfg = loadConfig(join(t.cwd, 'honestweek.config.json'));
+    assert.deepEqual(cfg.repos.map((r) => [r.label, r.role]), [['myproj', 'featured'], ['third', 'display']]);
+    assert.match(io.errBuf, /that leaves no repositories/);
+    assert.match(io.errBuf, /use numbers from 1 to 2/);
+    assert.match(io.errBuf, /not a change I know/);
+  } finally {
+    cleanup(t.parent);
+  }
+});
+
+test('interactive: the names and client words given go into the config, and the summary counts them instead of printing the file', async () => {
+  const t = setupTree();
+  try {
+    const io = fakeIo(['', 'y', 'Dana Doe, Sam Lee', 'Acme', 'y']);
+    const asked = [];
+    const prompt = io.prompt;
+    io.prompt = (q) => (asked.push(q), prompt(q));
+    assert.equal(await runInit({ cwd: t.cwd, argv: [], io }), 0);
+    assert.ok(asked.includes(NAMES_QUESTION) && asked.includes(TERMS_QUESTION), 'both private-word questions are asked');
+    const cfg = JSON.parse(readFileSync(join(t.cwd, 'honestweek.config.json'), 'utf8'));
+    assert.deepEqual(cfg.redaction, { codenames: [], names: ['Dana Doe', 'Sam Lee'], terms: ['Acme'] });
+    assert.match(io.outBuf, /Private words: 2 names, 1 client or project word\./);
+    assert.doesNotMatch(io.outBuf, /"curation"/, 'the whole file is not printed');
+    assert.doesNotMatch(io.outBuf, /No private words are set/);
+  } finally {
+    cleanup(t.parent);
+  }
+});
+
+test('init ends by pointing to view, in the form the person ran it, and notes when no private words are set', async () => {
+  const t = setupTree();
+  try {
+    setCommandForm('node bin/honestweek.mjs');
+    const io = fakeIo();
+    await runInit({ cwd: t.cwd, argv: ['--yes'], io });
+    const next = io.outBuf.slice(io.outBuf.indexOf('\nNext'));
+    assert.match(next, /^\nNext, find, check and replay your sessions in your browser:\n {2}node bin\/honestweek\.mjs view\n/);
+    assert.ok(next.indexOf(' view\n') < next.indexOf(' discover\n'), 'view comes before discover');
+    assert.ok(io.outBuf.includes(NO_PRIVATE_WORDS));
+    assert.doesNotMatch(io.outBuf, /\(\+honestweek\./, 'one line for the .gitignore entries, not one each');
+    assert.match(io.outBuf, /wrote \.gitignore \(\d+ entries for honestweek's private files\)/);
+  } finally {
+    setCommandForm('honestweek');
+    cleanup(t.parent);
+  }
+});
+
+test('answers piped in one chunk each reach their own question', async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  let shown = '';
+  output.on('data', (c) => (shown += c));
+  const io = defaultIo({ input, output, errput: output });
+  input.end('first\n\nthird\n');
+  try {
+    assert.equal(await io.prompt('One? '), 'first');
+    assert.equal(await io.prompt('Two? '), '');
+    assert.equal(await io.prompt('Three? '), 'third');
+    // Failing path: a question after the input has ended fails as stdin-ended, not a hang.
+    await assert.rejects(io.prompt('Four? '), (err) => err.code === 'HONESTWEEK_STDIN_EOF');
+    assert.match(shown, /One\? \nTwo\? \nThree\? \nFour\? $/);
+  } finally {
+    io.close();
   }
 });

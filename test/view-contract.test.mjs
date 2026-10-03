@@ -252,3 +252,22 @@ test('replay: an id this window doesn\'t hold is an empty result naming the wind
   // The replay page shows the window's empty state for it, with a way back to search.
   assert.match(page('assets/replay.js'), /if \(!D \|\| !D\.thread\)/);
 });
+
+test('status: the command a page names and the private-word note, and the pages read both', async () => {
+  const s = data.status();
+  assert.equal(s.command, 'honestweek', 'the plain command when none is given');
+  assert.ok(s.privateWords.count > 0, 'the seeded week lists private words');
+  assert.equal(s.privateWords.note, null);
+  const bare = createViewData({ config: { ...w.config, redaction: { codenames: [], names: [], terms: [] } }, roots: w.roots, ...WINDOW, command: 'npx github:your-org/honestweek' });
+  const b = bare.status();
+  assert.equal(b.command, 'npx github:your-org/honestweek');
+  assert.equal(b.privateWords.count, 0);
+  assert.ok(b.privateWords.note.includes('npx github:your-org/honestweek view again'), b.privateWords.note);
+  // The demo always lists its made-up word, so it never shows the note.
+  const demo = createViewData({ config: { ...w.config, redaction: { codenames: [], names: [], terms: [] } }, roots: w.roots, ...WINDOW, demo: true });
+  assert.equal(demo.status().privateWords.note, null);
+  const common = page('assets/common.js');
+  for (const name of ['showPrivateWords(s.privateWords)', 'shell.status?.command']) assert.ok(common.includes(name), `common.js reads ${name}`);
+  // No page names a bare `honestweek view` command any more; each reads the command.
+  for (const f of ['assets/common.js', 'assets/goal.js', 'assets/search.js', 'assets/replay.js']) assert.doesNotMatch(page(f), /<code>honestweek view/, f);
+});

@@ -68,6 +68,20 @@ node bin/honestweek.mjs --help
 
 Once it's published to npm (**not yet**; see [Releasing](#releasing-maintainers)), `npx honestweek` and `npm i -g honestweek` will work too.
 
+### Your first run
+
+However you run it, the first three commands are the same. Here they are with the standalone CLI; from a clone, put `node bin/honestweek.mjs` where it says `npx github:BryceEWatson/honestweek`, and once honestweek is installed as a command, plain `honestweek`:
+
+```bash
+npx github:BryceEWatson/honestweek view --demo   # look around a made-up week first; it sets nothing up
+npx github:BryceEWatson/honestweek init          # set up honestweek.config.json in this folder
+npx github:BryceEWatson/honestweek view          # find, check and replay your own sessions
+```
+
+`honestweek` with no command lists the same three. Every message that tells you what to run next names it the way you ran honestweek.
+
+Run `init` from your project folder, or from a new folder next to your projects. It lists the git repositories there and folds each extra working copy of one repository (a git worktree) into it, so one repository shows up once. Before it writes anything you can keep or drop repositories by number (`keep 1-5 9`, `drop 3 7-9`) or change a role (`role 2 display`). It then asks for people's names and client or project words to keep private. You can skip both, but until you list some, names in your logs show as written, and `view` says so in the terminal and on every page.
+
 The CLI surface is eleven subcommands: `init`, `discover`, `prompts`, `digest`, `validate`, `build`, `harvest`, `preview`, `mine`, `history`, and `view`. Every one answers `--help` without touching your files. The `mine` command (`node bin/honestweek.mjs mine --help`) is the separate "solved problems worth publishing" pass described under [Mining solved problems](#mining-solved-problems-worth-publishing-mine). The `digest` command (`node bin/honestweek.mjs digest --help`) prepares one receipt-bearing review across prompts, ideas, techniques, decisions, reversals, and next steps for `page` or `site` output. The `prompts` command (`node bin/honestweek.mjs prompts --help`) remains the private prompt inbox and prompt-only compatibility path. The `harvest` command (`node bin/honestweek.mjs harvest`) proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review). The `preview` command (`node bin/honestweek.mjs preview`) renders the built output as HTML and serves it on a local-only (`127.0.0.1`) server for you to read in your browser. The `view` command (`node bin/honestweek.mjs view --demo` to try it) opens a local page for finding and replaying the sessions behind your work, described under [Finding and replaying your work in the browser](#finding-and-replaying-your-work-in-the-browser-view).
 
 ## The flow
@@ -76,11 +90,11 @@ End-to-end happy path, in order. Each step names the artifact it produces.
 
 > Installed as the skill/plugin? Just run `/honestweek`: Claude drives these steps for you and resolves the CLI path automatically. The raw `node bin/honestweek.mjs …` commands below are for running the CLI directly **from a clone of the repo** (cwd = the repo root).
 
-1. **`init`** → writes `honestweek.config.json`, inferred from your git state (your `git config user.email` plus the nearby git repos it finds), for you to review and commit. It also drops `honestweek.config.example.json` if one isn't present. Two confirmations gate the write; accepting the defaults yields a valid config.
+1. **`init`** → writes `honestweek.config.json`, inferred from your git state (your `git config user.email` plus the nearby git repos it finds), for you to review and commit. It also drops `honestweek.config.example.json` if one isn't present. Two confirmations gate the write; accepting the defaults yields a valid config. Between them it asks for the names and client words to keep private, which go under `redaction` (either can be skipped), and before the second it shows a short summary of what the file will say.
    ```bash
    node bin/honestweek.mjs init
    ```
-   Those two confirmations need someone to answer them. In a script, in CI, or from an agent's shell nobody does, so `init` exits `2` rather than writing a config you never approved, and tells you to accept the inferred defaults instead:
+   Those questions need someone to answer them. Answers piped in on stdin work, one per line. In a script, in CI, or from an agent's shell where stdin ends before the last answer, `init` exits `2` rather than writing a config you never approved, and tells you to accept the inferred defaults instead:
    ```bash
    node bin/honestweek.mjs init --yes
    ```
@@ -350,7 +364,7 @@ node bin/honestweek.mjs view --from 2024-06-10 --to 2024-06-16 --goals goals.jso
 node bin/honestweek.mjs view --demo           # a made-up week, before you set anything up
 ```
 
-With no `honestweek.config.json`, it stops and points to `honestweek init` to set one up and `honestweek view --demo` to look around first. While it reads the logs, the page says what it's reading and for how long. Ctrl+C stops it.
+With no `honestweek.config.json`, it stops and points to `honestweek init` to set one up and `honestweek view --demo` to look around first. The commands it names, there and on the page, are written the way you ran honestweek. While it reads the logs, the page says what it's reading and for how long. When your config lists no private words, the terminal and every page say that names and client words show as written, and where to add them. Ctrl+C stops it.
 
 What's on the page:
 
