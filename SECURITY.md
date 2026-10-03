@@ -32,6 +32,12 @@ Please don't attach real session logs: a synthetic log line with the same shape 
 
 I'll acknowledge a report as soon as I can, and I'll credit you in the fix unless you'd rather I didn't.
 
+## The npm package
+
+honestweek is on npm as `honestweek`. It has no dependencies, so `npm install` and `npx` fetch honestweek's own files and no one else's code. I publish each version myself from `main`, and npm runs the whole test suite first, so a version with a failing test can't go out. [`CHANGELOG.md`](CHANGELOG.md) lists what changed in each version, and each one has a matching `v` tag here.
+
+If a version on npm doesn't match its tag in this repository, or a package with a similar name claims to be honestweek, please report it privately as described above.
+
 ## Supported versions
 
-Security fixes land on `main` and go into the next release. There's no long-term support for older versions yet.
+Security fixes land on `main` and go into the next npm release. Only the latest version gets fixes, so please check you're on it (`npx honestweek@latest`, or `npm install -g honestweek@latest`) before you report. There's no long-term support for older versions yet.

@@ -2,6 +2,8 @@
 
 honestweek reads your local AI coding session logs and turns them into accounts of your work that never claim more than the logs and git can back. I welcome contributions, from people and from coding agents. This page covers what you need to know before you open an issue or a pull request.
 
+Everyone who takes part, in issues, pull requests and reviews, follows the [code of conduct](CODE_OF_CONDUCT.md). It's short, and it says how to tell me privately if something goes wrong.
+
 ## The one rule that decides most reviews
 
 honestweek's value is that it refuses to state anything it can't back. A change that makes it faster, prettier or more featureful at the cost of that guarantee is a regression, not a tradeoff. When evidence is mixed, the weaker claim wins.
@@ -48,6 +50,14 @@ Pull request bodies open with an **In plain terms** section of two to four sente
 - One pull request per issue. I squash-merge them.
 - No secrets, debug code or scratch files.
 - Releases, tags and npm publishing are the maintainer's call; please don't include version bumps.
+
+## The npm package and releases
+
+honestweek's npm package is `honestweek`, and the first version on npm is 0.2.0. It has no dependencies, so installing it fetches honestweek's own files and nothing else, and a pull request that adds a dependency won't be merged.
+
+The `files` list in `package.json` decides what ships: the CLI in `bin/`, everything in `lib/`, `SKILL.md`, the example config and the plugin manifests. Tests, fixtures, docs and tools stay in the repository. `test/package-contents.test.mjs` pins that list. If you add a file the tool reads while it runs, put it under `lib/`: every file git tracks there ships, and the test checks it does.
+
+I cut releases myself. A release pull request bumps the version, then I publish to npm, tag the commit and write the GitHub release. [`docs/releasing.md`](docs/releasing.md) has the exact steps, and [`CHANGELOG.md`](CHANGELOG.md) lists what changed in each version.
 
 ## Reporting a bug without leaking your logs
 
