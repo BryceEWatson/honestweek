@@ -402,3 +402,9 @@ test('answers piped in one chunk each reach their own question', async () => {
     io.close();
   }
 });
+
+test('the private-words question says what Show private text is before the person has seen the page', async () => {
+  const { PRIVATE_WORDS_INTRO } = await import('../lib/init.mjs');
+  assert.match(PRIVATE_WORDS_INTRO, /Show private text, a switch on view's page,/);
+  assert.doesNotMatch(PRIVATE_WORDS_INTRO, /[—–]|`/, 'no dashes or code quotes in a terminal question');
+});
