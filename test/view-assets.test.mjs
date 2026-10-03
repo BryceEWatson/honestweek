@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runInNewContext } from 'node:vm';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS = join(HERE, '..', 'lib', 'view', 'assets');
@@ -131,6 +132,32 @@ test('assets: the address only ever gets ids, never typed or clicked text', () =
   // The click-through never takes a search word from its own address.
   const ct = readFileSync(join(SELFTEST, 'clickthrough.js'), 'utf8');
   assert.doesNotMatch(ct, /params\.get\('(term|q|word)'\)/);
+});
+
+test("the click-through's address check: a typed word counts only as a whole id-carrying part, never as a parameter's name or a number inside a step id", () => {
+  const ct = readFileSync(join(SELFTEST, 'clickthrough.js'), 'utf8');
+  const from = ct.indexOf('// ---- a typed word in an address');
+  const to = ct.indexOf('// ---- end of a typed word in an address');
+  assert.ok(from > 0 && to > from, 'the address check is marked off in clickthrough.js');
+  const sandbox = { URLSearchParams };
+  runInNewContext(`${ct.slice(from, to)}\nthis.typedInAddress = typedInAddress;`, sandbox);
+  const holds = (address, typed) => {
+    const u = new URL(address, 'http://127.0.0.1:1/');
+    return sandbox.typedInAddress(u.search, u.hash, typed);
+  };
+  // Made-up search words and references, as the self-test types them.
+  const typed = ['session', 'parser', '#123', 'feature/group-by-scope'];
+  // The replay a search result opens: its parameter is named "session", its step id holds line 123.
+  assert.equal(holds('replay.html?session=cc-abcdefghijkl#th-abcdefghijkl~cc-abcdefghijkl.123.0', typed), false);
+  assert.equal(holds('replay.html#th-abcdefghijkl~git-abcdefghijkl.pr.123', typed), false);
+  assert.equal(holds('search.html#q=qabcdefghijklmnop~w', typed), false);
+  assert.equal(holds('goal.html#gabcd~cc-abcdefghijkl', typed), false);
+  // A typed word put where an id goes is still found, whole or behind a kind prefix.
+  assert.equal(holds('search.html#q=parser~w', typed), true);
+  assert.equal(holds('goal.html#parser', typed), true);
+  assert.equal(holds('replay.html#th-parser', typed), true);
+  assert.equal(holds('replay.html?session=cc-parser', typed), true);
+  assert.equal(holds('replay.html?session=session', typed), true, 'a typed word as a value counts, even when it is also a name');
 });
 
 test('assets: the click-through counts policy violations as failures and keeps its named skip list', () => {
