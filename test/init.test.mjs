@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -14,6 +13,7 @@ import {
   inferAuthorEmail,
 } from '../lib/init.mjs';
 import { loadConfig } from '../lib/config.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'me@example.com';
 const OTHER = 'other@example.test';
@@ -35,7 +35,7 @@ function initRepoWithCommit(dir, email) {
 }
 
 function setupTree() {
-  const parent = mkdtempSync(join(tmpdir(), 'hw-init-'));
+  const parent = makeTempDir('hw-init-');
   const cwd = join(parent, 'myproj');
   const sibA = join(parent, 'sibA');
   const plain = join(parent, 'plaindir');
@@ -49,11 +49,7 @@ function setupTree() {
 }
 
 function cleanup(dir) {
-  try {
-    rmSync(dir, { recursive: true, force: true });
-  } catch {
-    /* ignore Windows lock on teardown */
-  }
+  removeTempDir(dir);
 }
 
 function fakeIo(answers = []) {
@@ -210,7 +206,7 @@ test('interactive: pressing through both confirmations (defaults) yields a valid
 });
 
 test('ensureGitignore creates, appends idempotently', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-gi-'));
+  const dir = makeTempDir('hw-gi-');
   try {
     assert.equal(ensureGitignore(dir, 'honestweek.draft.json'), true, 'creates and adds');
     assert.equal(ensureGitignore(dir, 'honestweek.draft.json'), false, 'idempotent on second call');

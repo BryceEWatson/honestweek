@@ -34,6 +34,8 @@ Run `node --test` from the repository root with no path argument (passing `test/
 
 Every change ships with tests, and the suite has to be green before review. Tests run over synthetic fixtures (for example `test/fixtures/replay/corpus.mjs` for the work-history engine). Please don't add real session logs to the repo, even redacted ones: build a synthetic line with the same shape instead. Test the failure path next to the success path. If you add a rule that interprets a record, add a case where the rule should not fire.
 
+When a test needs a folder on disk, make it with `makeTempDir(prefix)` from `test/helpers/temp-dir.mjs` instead of calling `mkdtempSync` yourself. Every folder it makes is removed when the test process exits, even when a test fails or throws, so a run leaves nothing in your system temp folder. To clean up sooner, call `removeTempDir(dir)` in a `finally` or `after`: it retries for up to about three seconds when Windows still has the folder busy (git can hold `.git` for a moment after it exits) and never throws. `test/temp-cleanup.test.mjs` fails if a test calls `mkdtemp` directly. It also runs one real test file, and a small test file that fails on purpose, against an empty temp folder and checks the folder is still empty afterwards.
+
 ## Writing
 
 Public text (the README, `SKILL.md`, `--help`, docs) is written in plain first person with contractions, states the point first, and defines a term the first time it's used. No em dashes, no marketing tone.

@@ -1,18 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync, unlinkSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, readFileSync, existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { runBuild } from '../lib/build.mjs';
 import { normalizeLayer, resolveProfile, loadReaderProfile, ReaderProfileError } from '../lib/reader.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'me@example.com';
 let counter = 0;
 const dirs = [];
 function tmp(prefix) {
-  const d = mkdtempSync(join(tmpdir(), prefix));
+  const d = makeTempDir(prefix);
   dirs.push(d);
   return d;
 }
@@ -38,7 +38,7 @@ async function build(work) {
   try { code = await runBuild({ cwd: work, io, now: new Date('2024-07-01T12:00:00Z') }); } catch (e) { if (!(e instanceof ExitError)) throw e; code = e.code; }
   return { code, io };
 }
-test.after(() => { for (const d of dirs) try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } });
+test.after(() => { for (const d of dirs) removeTempDir(d); });
 
 // A client repo where two changes name the reader's own issues in their commit messages.
 function fixture({ mode = 'client' } = {}) {

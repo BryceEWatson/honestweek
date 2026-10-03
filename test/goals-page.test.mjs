@@ -6,8 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -20,6 +19,7 @@ import {
 import { buildGoalsModel, render } from '../lib/emit/goals-page.mjs';
 import { startServer } from '../lib/preview.mjs';
 import { runBuild } from '../lib/build.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 // --- fixtures ---------------------------------------------------------------
 
@@ -274,7 +274,7 @@ function git(dir, args, env) {
   return execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env: env ?? process.env, stdio: ['ignore', 'pipe', 'pipe'] });
 }
 function initRepo() {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-goals-repo-'));
+  const dir = makeTempDir('hw-goals-repo-');
   git(dir, ['init', '-q']);
   git(dir, ['config', 'user.email', ME]);
   git(dir, ['config', 'user.name', 'Dev']);
@@ -297,7 +297,7 @@ function makeIo() {
   return io;
 }
 function cleanup(...dirs) {
-  for (const d of dirs) try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ }
+  for (const d of dirs) removeTempDir(d);
 }
 function setupPage(work, repoDir, { withRegistry = true, registryJson } = {}) {
   const reportFile = join(work, 'honestweek.report.html');
@@ -313,7 +313,7 @@ function setupPage(work, repoDir, { withRegistry = true, registryJson } = {}) {
 test('page mode WITH a registry writes report.html + goals.html, cross-linked', async () => {
   const repoDir = initRepo();
   const sha = commit(repoDir, { message: 'fix the thing' });
-  const work = mkdtempSync(join(tmpdir(), 'hw-goals-work-'));
+  const work = makeTempDir('hw-goals-work-');
   const reportFile = setupPage(work, repoDir);
   writeFileSync(join(work, 'honestweek.items.json'), JSON.stringify({
     week: { start: '2024-06-10', end: '2024-06-16' },
@@ -355,7 +355,7 @@ test('page mode WITH a registry writes report.html + goals.html, cross-linked', 
 test('page mode WITHOUT a registry stays single-page (no goals.html, no cross-link) — guards PR #42', async () => {
   const repoDir = initRepo();
   const sha = commit(repoDir, { message: 'plain change' });
-  const work = mkdtempSync(join(tmpdir(), 'hw-goals-nored-'));
+  const work = makeTempDir('hw-goals-nored-');
   const reportFile = setupPage(work, repoDir);
   writeFileSync(join(work, 'honestweek.items.json'), JSON.stringify({
     week: { start: '2024-06-10', end: '2024-06-16' },
@@ -376,7 +376,7 @@ test('page mode WITHOUT a registry stays single-page (no goals.html, no cross-li
 test('a registry alongside a NON-page mode is ignored (no goals page, no abort) — the mode gate', async () => {
   const repoDir = initRepo();
   const sha = commit(repoDir, { message: 'digest change' });
-  const work = mkdtempSync(join(tmpdir(), 'hw-goals-digest-'));
+  const work = makeTempDir('hw-goals-digest-');
   const outFile = join(work, 'out.md');
   writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify({
     identity: { authorEmails: [ME] },
@@ -405,7 +405,7 @@ test('a registry alongside a NON-page mode is ignored (no goals page, no abort) 
 test('page mode with an INVALID registry aborts (exit 2) and writes NOTHING', async () => {
   const repoDir = initRepo();
   const sha = commit(repoDir, { message: 'change' });
-  const work = mkdtempSync(join(tmpdir(), 'hw-goals-bad-'));
+  const work = makeTempDir('hw-goals-bad-');
   const reportFile = setupPage(work, repoDir);
   writeFileSync(join(work, 'honestweek.items.json'), JSON.stringify({
     week: { start: '2024-06-10', end: '2024-06-16' },

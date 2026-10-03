@@ -1,12 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { resolveWorkTrees, clearWorkTreeCache } from '../lib/worktrees.mjs';
 import { matchConfiguredRepo, matchRepo } from '../lib/claude-adapter.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 function norm(p) {
   return String(p).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
@@ -32,17 +33,17 @@ function makeRepo(dir) {
 
 test('resolveWorkTrees: a non-git path degrades to just that path', () => {
   clearWorkTreeCache();
-  const dir = mkdtempSync(join(tmpdir(), 'hw-wt-plain-'));
+  const dir = makeTempDir('hw-wt-plain-');
   try {
     assert.deepEqual(resolveWorkTrees(dir), [dir]);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
 test('resolveWorkTrees: primary and sibling worktrees resolve to the same set', () => {
   clearWorkTreeCache();
-  const base = mkdtempSync(join(tmpdir(), 'hw-wt-'));
+  const base = makeTempDir('hw-wt-');
   const primary = join(base, 'alpha');
   const sibling = join(base, 'alpha-task');
   const nested = join(primary, 'sub', 'wt');
@@ -66,13 +67,13 @@ test('resolveWorkTrees: primary and sibling worktrees resolve to the same set', 
       'a linked worktree resolves the same working-tree set as the primary'
     );
   } finally {
-    rmSync(base, { recursive: true, force: true });
+    removeTempDir(base);
   }
 });
 
 test('resolveWorkTrees: a separate clone at a sibling path is NOT a worktree', () => {
   clearWorkTreeCache();
-  const base = mkdtempSync(join(tmpdir(), 'hw-wt-clone-'));
+  const base = makeTempDir('hw-wt-clone-');
   const primary = join(base, 'alpha');
   const other = join(base, 'alpha-parity');
   try {
@@ -80,13 +81,13 @@ test('resolveWorkTrees: a separate clone at a sibling path is NOT a worktree', (
     makeRepo(other); // independent git database, same name prefix
     assert.ok(!has(resolveWorkTrees(primary), other), 'an independent repo never joins the set');
   } finally {
-    rmSync(base, { recursive: true, force: true });
+    removeTempDir(base);
   }
 });
 
 test('matchRepo: a session in a sibling worktree credits the configured repo', () => {
   clearWorkTreeCache();
-  const base = mkdtempSync(join(tmpdir(), 'hw-wt-match-'));
+  const base = makeTempDir('hw-wt-match-');
   const primary = join(base, 'alpha');
   const sibling = join(base, 'alpha-weekly');
   const foreign = join(base, 'alpha-parity');
@@ -104,7 +105,7 @@ test('matchRepo: a session in a sibling worktree credits the configured repo', (
     assert.equal(matchRepo(foreign, config), null, 'a separate clone stays unattributed');
   } finally {
     clearWorkTreeCache();
-    rmSync(base, { recursive: true, force: true });
+    removeTempDir(base);
   }
 });
 

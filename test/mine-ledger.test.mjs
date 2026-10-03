@@ -6,14 +6,14 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { backlog, errorSignal, loadLedger, mergeFindings, nextToDraft, recordRun, saveLedger, setStatus } from '../lib/mine/ledger.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 function tmp() {
-  return mkdtempSync(join(tmpdir(), 'hw-ledger-'));
+  return makeTempDir('hw-ledger-');
 }
 
 const finding = (key, score = 20) => ({
@@ -105,7 +105,7 @@ test('a malformed ledger is an error, never silently replaced', () => {
   assert.throws(() => loadLedger(p), /not valid JSON/);
   writeFileSync(p, '{"version":1}', 'utf8');
   assert.throws(() => loadLedger(p), /missing its "findings" array/);
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 test('an empty ledger file reads as empty rather than throwing', () => {
@@ -113,7 +113,7 @@ test('an empty ledger file reads as empty rather than throwing', () => {
   const p = join(dir, 'findings.json');
   writeFileSync(p, '   \n', 'utf8');
   assert.deepEqual(loadLedger(p).findings, []);
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 test('a saved ledger round-trips, decisions intact', () => {
@@ -130,7 +130,7 @@ test('a saved ledger round-trips, decisions intact', () => {
   assert.equal(back.findings.find((f) => f.key === 'b').status, 'declined');
   assert.equal(back.runs.length, 1);
   assert.equal(errorSignal(back).backlog, 1);
-  rmSync(dir, { recursive: true, force: true });
+  removeTempDir(dir);
 });
 
 test('run records are capped so the ledger stays a decision record', () => {

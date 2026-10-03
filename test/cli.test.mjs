@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BIN = resolve(HERE, '..', 'bin', 'honestweek.mjs');
@@ -15,8 +15,8 @@ const BIN = resolve(HERE, '..', 'bin', 'honestweek.mjs');
  * dir makes the test both slow and dependent on whatever else lives there.
  */
 function scratchCwd(t) {
-  const root = mkdtempSync(join(tmpdir(), 'honestweek-cli-'));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const root = makeTempDir('honestweek-cli-');
+  t.after(() => removeTempDir(root));
   const dir = join(root, 'workspace');
   mkdirSync(dir);
   return dir;

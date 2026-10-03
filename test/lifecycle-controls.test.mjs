@@ -1,10 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  closeSync, existsSync, fsyncSync, mkdirSync, mkdtempSync, openSync, readFileSync,
+  closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync,
   renameSync, rmSync, unlinkSync, writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { runBuild } from '../lib/build.mjs';
@@ -17,6 +16,7 @@ import { retiredRow, subjectFingerprint, validateLifecycleWeek, validateRetired 
 import { normalizeConfig } from '../lib/config.mjs';
 import { sha256 } from '../lib/prompt-identity.mjs';
 import { ensureGitignore } from '../lib/init.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const REPRESENTATIVE_PROOF = JSON.parse(readFileSync(
   new URL('./fixtures/representative-proof.expected.json', import.meta.url), 'utf8',
@@ -84,7 +84,7 @@ function writeWeekSources(fixture, index, humanA, finalA, humanB, finalB) {
 }
 
 function lifecycleFixture() {
-  const root = mkdtempSync(join(tmpdir(), 'honestweek-lifecycle-'));
+  const root = makeTempDir('honestweek-lifecycle-');
   const project = join(root, 'your-project');
   const claude = join(root, 'claude');
   const codex = join(root, 'codex');
@@ -194,7 +194,7 @@ test('a prompt tombstone retires a matching manual carry before it can regenerat
     else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME;
     else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive: true, force: true });
+    removeTempDir(f.root);
   }
 });
 
@@ -264,7 +264,7 @@ test('a prompt tombstone retires a cue-derived carry from the same transcript tu
     else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME;
     else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive: true, force: true });
+    removeTempDir(f.root);
   }
 });
 
@@ -336,7 +336,7 @@ test('a hidden current cue replacement retires its carried lineage before render
     else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME;
     else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive: true, force: true });
+    removeTempDir(f.root);
   }
 });
 
@@ -378,7 +378,7 @@ test('historical retirement audits stay readable after a stricter privacy config
 });
 
 test('carry gitignore updates are atomic at every file boundary', () => {
-  const root = mkdtempSync(join(tmpdir(), 'honestweek-gitignore-'));
+  const root = makeTempDir('honestweek-gitignore-');
   const path = join(root, '.gitignore');
   try {
     for (const boundary of ['openSync','writeFileSync','fsyncSync','renameSync']) {
@@ -387,7 +387,7 @@ test('carry gitignore updates are atomic at every file boundary', () => {
       assert.equal(readFileSync(path, 'utf8'), 'prior-rule\n', boundary);
     }
   } finally {
-    rmSync(root, { recursive:true, force:true });
+    removeTempDir(root);
   }
 });
 
@@ -406,7 +406,7 @@ test('digest and carry pending markers cannot be recovered as a mixed state', as
     assert.deepEqual(readFileSync(digestPendingPath), beforeDigest);
     assert.deepEqual(readFileSync(carryPendingPath), beforeCarry);
   } finally {
-    rmSync(f.root, { recursive:true, force:true });
+    removeTempDir(f.root);
   }
 });
 
@@ -642,7 +642,7 @@ test('thirteen dual-source weeks prove bounded carry, renewal, retirement, site 
   } finally {
     if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive: true, force: true });
+    removeTempDir(f.root);
   }
 });
 
@@ -730,7 +730,7 @@ test('carry transaction faults preserve or recover every documented atomic prefi
   } finally {
     if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive: true, force: true });
+    removeTempDir(f.root);
   }
 });
 
@@ -830,7 +830,7 @@ test('carry recovery accepts only recognized hashes and explicit discard preserv
   } finally {
     if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive: true, force: true });
+    removeTempDir(f.root);
   }
 });
 
@@ -916,7 +916,7 @@ test('bulk deletion and explicit reset keep tombstone regeneration fail-closed',
   } finally {
     if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive: true, force: true });
+    removeTempDir(f.root);
   }
 });
 
@@ -1023,7 +1023,7 @@ test('historical carry is re-evaluated under current privacy rules and rejects o
   } finally {
     if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive: true, force: true });
+    removeTempDir(f.root);
   }
 });
 
@@ -1060,7 +1060,7 @@ test('carry lineage validation rejects a self-consistent recurrence-window reset
       }], retired:[] },
     ], tombstones:[] };
     assert.throws(() => validateCarry(carry, config), /lineage continuity/);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('week reset preserves an older authoritative carry tombstone', async () => {
@@ -1106,7 +1106,7 @@ test('week reset preserves an older authoritative carry tombstone', async () => 
   } finally {
     if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive:true, force:true });
+    removeTempDir(f.root);
   }
 });
 
@@ -1136,7 +1136,7 @@ test('multiple current duplicates of one carried lineage abort without changing 
   } finally {
     if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive:true, force:true });
+    removeTempDir(f.root);
   }
 });
 
@@ -1173,7 +1173,7 @@ test('validate and build re-resolve carried receipts after prepare', async () =>
   } finally {
     if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive:true, force:true });
+    removeTempDir(f.root);
   }
 });
 
@@ -1253,7 +1253,7 @@ test('carry validation requires auditable replacement and retirement transitions
   } finally {
     if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive:true, force:true });
+    removeTempDir(f.root);
   }
 });
 
@@ -1300,7 +1300,7 @@ test('manual renewal admits a public-safe capacity omission for one digest', asy
   } finally {
     if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive:true, force:true });
+    removeTempDir(f.root);
   }
 });
 
@@ -1335,6 +1335,6 @@ test('one terminal receipt cannot retire multiple carried lineages', async () =>
   } finally {
     if (priorClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = priorClaude;
     if (priorCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = priorCodex;
-    rmSync(f.root, { recursive: true, force: true });
+    removeTempDir(f.root);
   }
 });

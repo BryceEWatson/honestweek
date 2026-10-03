@@ -4,16 +4,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { writeArchive } from '../lib/archive.mjs';
 import { normalizeConfig } from '../lib/config.mjs';
 import { runBuild } from '../lib/build.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 function tmp() {
-  return mkdtempSync(join(tmpdir(), 'hw-archive-'));
+  return makeTempDir('hw-archive-');
 }
 function readIndex(dir, sub = 'honestweek.archive') {
   return JSON.parse(readFileSync(join(dir, sub, 'index.json'), 'utf8'));
@@ -31,7 +31,7 @@ test('writeArchive writes a per-week snapshot and an index entry', () => {
     assert.equal(idx.weeks[0].items, 2);
     assert.equal(idx.weeks[0].mode, 'report');
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -48,7 +48,7 @@ test('writeArchive upserts the same week and sorts newest-first', () => {
     assert.deepEqual(idx.weeks.map((w) => w.week.start), ['2024-06-10', '2024-06-03'], 'newest first');
     assert.equal(idx.weeks[1].items, 5, 'the re-run updated the older week');
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -100,6 +100,6 @@ test('build writes a snapshot + index when output.archive is enabled', async () 
     assert.equal(readIndex(dir).weeks[0].week.start, '2024-06-10');
     assert.match(out.join(''), /Archived/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
