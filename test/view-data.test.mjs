@@ -187,6 +187,25 @@ test('a password on the line after its label is hidden in a record and in search
   for (const priv of [false, true]) assert.ok(!JSON.stringify(await body('/api/search', { q: 'Password' }, priv)).includes(SECRETS.nextLine));
 });
 
+test("a step's description is scrubbed as the whole it becomes: a hidden header value at the end of a command doesn't run on into \" -> ok\"", async () => {
+  // The engine describes a step from fields it already redacted, then adds its own words
+  // after them. Read whole, `Authorization: [redacted:secret] -> ok` is a header whose value
+  // runs to the end of the line, so the description is scrubbed again as that text.
+  const contoso = goalKey('client-contoso');
+  for (const priv of [false, true]) {
+    const count = (s) => (priv ? leaks.secrets(s) : leaks.redacted(s)).total;
+    const replay = await body('/api/replay', { session: w.keys.featured }, priv);
+    const step = replay.events.find((e) => e.kind === 'action' && /Authorization/.test(e.facts?.command ?? ''));
+    assert.ok(step, 'the header command is a step');
+    const seen = [step.text, (await body('/api/record', { event: step.id }, priv)).event.text, (await body('/api/goal', { key: contoso }, priv)).events.find((e) => e.id === step.id).text];
+    for (const text of seen) {
+      assert.match(text, /^Bash \(shell\) curl -s https:\/\/api\.example\.com\/v1\/items -H Authorization: \[redacted:secret\]/);
+      assert.ok(!text.includes(SECRETS.bearer));
+      assert.equal(count(text), 0, `with the switch ${priv ? 'on' : 'off'}, the leak counter reads ${JSON.stringify(text)} as a secret`);
+    }
+  }
+});
+
 // ---- the leak counter -------------------------------------------------------------------
 
 test('the leak counter: the only expected switch-off differences are plain-word credentials and markup-only values', () => {

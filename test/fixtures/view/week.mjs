@@ -7,8 +7,9 @@
 //             term, a name, an email, a home folder and secrets (a password on the line
 //             after its label among them); a test run whose output holds them too; a
 //             call that carries a goal entry id at a time the entry wasn't written; a
-//             prompt with no recorded origin; a line with no time of its own; and a
-//             sub-agent whose first line is stamped before the call that started it.
+//             prompt with no recorded origin; a line with no time of its own; a
+//             sub-agent whose first line is stamped before the call that started it; and a
+//             command that ends in a header's value.
 //   display   the same seeded prompt and output in the display-only site repository.
 //   outside   the seeded prompt in a folder outside the config, plus a long prompt that
 //             puts the private term right where a search excerpt is cut.
@@ -60,6 +61,10 @@ export const SEEDED = [
 
 const OUTPUT = ['TAP version 13', 'not ok 3 - parses dates', '# tests 3', '# pass 2', '# fail 1', `${TERM} build read ${HOME_PATH} for ${EMAIL}`, `token: ${SECRETS.github}`, 'Password:', SECRETS.nextLine].join('\n');
 
+/** A command whose last field is a header's value, which the redactor hides to the end of
+ *  the line. A step's description adds its own words after the command (" -> ok"). */
+export const HEADER_COMMAND = `curl -s https://api.example.com/v1/items -H Authorization: Bearer ${SECRETS.bearer}`;
+
 /** The long prompt whose excerpt cut falls on the private term. */
 export const STRADDLE_WORD = 'zephyrstraddle';
 export const STRADDLE = `${STRADDLE_WORD} ${'word '.repeat(31)}${TERM} and more words after it to keep going past the cut.`;
@@ -109,6 +114,8 @@ export function buildViewWeek(root) {
   // An older prompt record with no origin field: "You", by a named rule.
   f.prompt(at(10, 7), 'Now tidy the changelog wording.', null);
   f.say(at(10, 8), [{ type: 'text', text: 'Tidied.' }]);
+  f.say(at(10, 9), [{ type: 'tool_use', id: 'toolu_view_header', name: 'Bash', input: { command: HEADER_COMMAND } }]);
+  f.result(at(10, 9, 5), 'toolu_view_header', 'ok', { stdout: 'ok', stderr: '', interrupted: false });
   writeFileSync(join(projects, dirs.lantern, `${IDS.featured}.jsonl`), `${f.lines.join('\n')}\n`);
   const sub = claudeLog(IDS.featured, lanternCwd);
   sub.prompt(at(10, 4, 30), 'Check the dates.', null);
