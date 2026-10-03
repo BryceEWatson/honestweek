@@ -271,3 +271,13 @@ test('status: the command a page names and the private-word note, and the pages 
   // No page names a bare `honestweek view` command any more; each reads the command.
   for (const f of ['assets/common.js', 'assets/goal.js', 'assets/search.js', 'assets/replay.js']) assert.doesNotMatch(page(f), /<code>honestweek view/, f);
 });
+
+test('the demo notice names init and view the way the person ran honestweek, before the plugin', () => {
+  const d = createViewData({ config: w.config, roots: w.roots, ...WINDOW, demo: true, command: 'node bin/honestweek.mjs' });
+  const cmds = d.status().demo.commands.map((c) => c.command);
+  assert.deepEqual(cmds.slice(0, 2), ['node bin/honestweek.mjs init', 'node bin/honestweek.mjs view']);
+  assert.ok(cmds.slice(2).every((c) => c.startsWith('claude plugin')), 'the plugin, for the weekly summary, comes after');
+  // Failing-path partner: with no command given, the notice still names a runnable one.
+  const plain = createViewData({ config: w.config, roots: w.roots, ...WINDOW, demo: true });
+  assert.equal(plain.status().demo.commands[0].command, 'honestweek init');
+});

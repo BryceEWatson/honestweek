@@ -38,7 +38,7 @@ node bin/honestweek.mjs view --demo --self-test --no-open
 
 ## What each page does
 
-Every page's header shows the window it covers, the Show private text switch, the notice about private words when my config lists none, and the evidence key: the five words recorded, derived, inferred, missing and ambiguous, each with a one-line meaning. A count is no stronger than the weakest thing it counts: a goal's session count is inferred when a session joins it only by a rule or ambiguously, and a session's prompt count is inferred when the engine only infers who wrote one of them. While the data is still being read, the page says what it's reading and for how long. In demo mode every page carries a notice that the data is made up, with the commands to install honestweek, set it up with `honestweek init`, and run `honestweek view` on my own logs.
+Every page's header shows the window it covers, the Show private text switch, the notice about private words when my config lists none, and the evidence key: the five words recorded, derived, inferred, missing and ambiguous, each with a one-line meaning. A count is no stronger than the weakest thing it counts: a goal's session count is inferred when a session joins it only by a rule or ambiguously, and a session's prompt count is inferred when the engine only infers who wrote one of them. While the data is still being read, the page says what it's reading and for how long. In demo mode every page carries a notice that the data is made up, with the commands to set honestweek up with `init` and run `view` on my own logs, written the way I ran honestweek, and then the Claude Code plugin's install commands, for the weekly summary inside Claude Code.
 
 **Search.** One box takes either a reference or words.
 
