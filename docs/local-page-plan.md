@@ -126,11 +126,14 @@ A step's original record is the exception: it keeps its line breaks so it reads 
 7. **The evidence key.** One key, used on every page, explains recorded, derived, inferred, missing and ambiguous in plain words. Every page uses those same five words.
 8. **Show private text.**
    - The switch appears only when the page comes from this command on your own machine.
-   - It's off every time you run the command. Each run gets a fresh random key, which the command puts in the address it opens and the page sends with every data request. The server refuses data requests without it, so another program on the machine can't read your data either.
-   - The command prints that address, key included, every time it starts, because opening the browser can fail without saying so.
-   - A tab left open from an earlier run, a bookmark, or an address typed without the key shows no data, only a notice to open the address this run printed.
-   - A switch setting counts only under the run key it was saved with, so opening the new address in a tab where the switch was on before, even on the same port, opens redacted.
-   - The address bar never holds what you typed or a goal's name, only made-up ids, because the browser keeps addresses in its history on disk. For the same reason, what you typed and any reference you clicked stay in the open page's memory only: browsers also save a tab's stored data to disk so they can restore it after a restart. The tab's stored data holds only the run key and the switch setting.
+   - It's off every time you run the command. Each run gets a fresh random key, which the page sends with every data request. The server refuses data requests without it, so another program or another account on the machine can't read your data either.
+   - The key never appears in an address. The address the command opens carries a one-time code instead, which the page trades for the key once; after that the code stops working. That matters because on some systems other accounts can see the command that opens your browser, address included.
+   - The command also prints an address with its own one-time code every time it starts, because opening the browser can fail without saying so.
+   - A new tab opened from a page of this run, such as a replay link opened in a new tab, gets the key from this run's other open tabs, never from disk.
+   - A tab with no way to get the key, such as one left open from an earlier run or a bookmark, shows no data, only a notice to open the address this run printed. If the command has stopped, the page says so and stops asking.
+   - A switch setting counts only under the run key it was saved with, so a tab where the switch was on in an earlier run opens redacted.
+   - The address bar never holds what you typed or a goal's name, only made-up ids, because the browser keeps addresses in its history on disk. A search gets a made-up id too: the command keeps what you typed in its own memory for this run, and the address carries only the id, so the Back button, a reload or turning the switch on brings your search back.
+   - Browsers also save a tab's stored data to disk so they can restore it after a restart. So that stored data holds only the run key and the switch setting, never what you typed or clicked.
    - If the private version fails to build, the page keeps showing the redacted version and says the private one couldn't be built.
    - It changes only text, never which sessions link to which or which goals they join.
    - The private version is built in memory the first time you turn the switch on, and it's never written to disk.
@@ -243,10 +246,12 @@ The test data includes made-up private terms, made-up secrets (including a passw
 - **Run key:**
   - A data request without the run key is refused, even with a correct Host header.
   - The status answer doesn't reveal the key.
-  - A page opened with no key, or with an earlier run's key, shows the notice and no data.
-  - The command prints the keyed address with and without `--no-open`.
+  - The browser opener's arguments and the printed address never contain the key, and a one-time code works only once.
+  - The command prints an address with a working code, with and without `--no-open`.
+  - With a keyed tab open, a replay address opened in a second tab loads that replay.
+  - A page with no key and no other tab, or with an earlier run's key, shows the notice and no data. A page whose command has stopped says so and stops asking.
 - **Failed build:** a forced failure of the private build still serves the redacted answer, with a note, never an error or a hang.
-- **Address and browser storage:** the address never contains the typed words, a goal id or title, or a clicked reference's text. After a search and a reference click with the switch on, the tab's stored data holds nothing but the run key and the switch setting, and the browser's other storage is empty. This is checked both in the click-through test and by reading the page code.
+- **Address and browser storage:** the address never contains the typed words, a goal id or title, or a clicked reference's text. After a search and a reference click with the switch on, the tab's stored data holds nothing but the run key and the switch setting, and the browser's other storage is empty. Search, open a result's replay and press Back, and the same results show; turn the switch on, and the search stays. This is checked both in the click-through test and by reading the page code.
 - **Privacy everywhere:**
   - Every redacted answer the command can give has zero leaks.
   - With the switch off, a display-only or outside session's replay and record (command output included) carry only the kind and time of each step, and no text. With it on, they carry text.
@@ -361,7 +366,10 @@ The test data includes made-up private terms, made-up secrets (including a passw
 
 - It binds to `127.0.0.1` only. It accepts only GET and HEAD, except one POST route that exists only with `--self-test`.
 - It answers 403 unless `Host` is `127.0.0.1:<port>` or `localhost:<port>`, and answers 403 on `/api/*` when `Sec-Fetch-Site` is `cross-site` or `same-site`.
-- The run key is 32 random bytes made at start with `crypto.randomBytes`. The opened address carries it in the fragment (`#k=`), so it never reaches the server's logs or the `Referer` header. The page moves it into `sessionStorage`, removes it from the address, and sends it as an `X-Honestweek-Key` header on every `/api` request. `/api/*` answers 403 without it, and it's compared in constant time. The command prints the full address, key included, on every start, with or without `--no-open`, since `defaultOpener` can fail silently. A page whose `/api` request gets 403 for a missing or stale key shows the "open the address this run printed" notice and makes no further requests; the static files need no key, so the notice always loads.
+- The run key is 32 random bytes made at start with `crypto.randomBytes`. It never goes in an address or a process argument: `defaultOpener` passes the URL as an argument (`xdg-open <url>` on Linux), and on Linux other accounts can read `/proc/<pid>/cmdline` by default.
+- The opened address carries a one-time code in the fragment (`#c=`), so the code never reaches the server's logs or the `Referer` header. The page trades it for the key with one `GET /api/claim` (code in a header), removes it from the address, keeps the key in `sessionStorage`, and sends it as an `X-Honestweek-Key` header on every other `/api` request. A code works once; unused codes live in server memory only. Every `/api` route but `/api/claim` answers 403 without the key, and the key is compared in constant time.
+- The command prints a second address with its own code on every start, with or without `--no-open`, since `defaultOpener` can fail silently.
+- A page with no key asks this run's other open tabs for it over a `BroadcastChannel` (same origin, memory only) and waits briefly. If no tab answers, or `/api` answers 403 for a stale key, it shows the "open the address this run printed" notice and makes no further requests. If a fetch fails because the server is gone, it says the run has stopped and stops polling `/api/status`. The static files need no key, so either notice always loads.
 - Routes come from a fixed table. Assets come from a fixed list read once at start. Nothing joins a path from the address.
 - Every response carries:
   - the CSP `default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'`, plus `frame-src 'self'` with `--self-test`;
@@ -375,6 +383,8 @@ The test data includes made-up private terms, made-up secrets (including a passw
 - It holds one engine build per mode, `buildWorkHistory({config, roots, from, to, timezone, scope: 'all', goals, privateText})`, with `roots` and the window always passed in explicitly. The private build starts on the first `private=1` request. Any other value, or none, gives the redacted build.
 - The replay cache holds 32 threads per mode.
 - Routes:
+  - `/api/claim`: trades a one-time code for the run key, once.
+  - `/api/lookup`, `/api/words` and `/api/search` take `q=` or `id=`. The server keeps each query it receives in a per-run in-memory map under a random letter-hash id. An answer to `q=` carries that id; an answer to `id=` carries the query text, so the page can refill its search box. An unknown id, such as one from an earlier run, finds nothing.
   - `/api/status`: build state and elapsed time, plus `failed` with a short, redacted reason when a build throws. A failed private build leaves `private=1` requests served from the redacted build, with a note. It never returns the run key.
   - Goals are addressed by a goal key: a letter hash of the raw goal id, computed in `data.mjs` from the raw goal record, and the same in both builds. The redacted id is never used as a key. That matters because `h.goals` ids pass through the redactor, so two ids can redact to the same text and a redacted id isn't found in the private build. Goals attached to lookup and word results come from session membership in `h.goals[i]`, whose order `goalMembership` keeps the same in both builds.
   - `/api/home`:
@@ -421,7 +431,7 @@ The test data includes made-up private terms, made-up secrets (including a passw
 - Inline scripts move into files. Every `<style>` block moves into `common.css`, and every static `style=` attribute becomes a class. Geometry that changes at run time is set through `el.style` or SVG attributes, which the content policy allows.
 - Data loads with `fetch`. The switch lives in `sessionStorage` under the current run key, so a key from an earlier run finds nothing.
 - `sessionStorage` holds only the run key and the switch setting. Chromium and Firefox write it to the profile for session restore, so nothing typed or shown goes there.
-- Addresses hold only letter-hash ids (thread, session, event and goal key). The typed query and any clicked reference text stay in page memory only: never in `location`, `history.state`, `sessionStorage` or `localStorage`. A reload or another page starts with an empty search box. The prototype's `#q=` step is dropped.
+- Addresses hold only letter-hash ids (thread, session, event, goal key and query id). The typed query and any clicked reference text never go in `location`, `history.state`, `sessionStorage` or `localStorage`. The search page keeps `#q=<query id>` in its address and, on load, asks for the results by id, so Back, a reload and the switch's reload restore the search. The prototype's `#q=<text>` step becomes `#q=<query id>`.
 - In-browser lookup and goal-membership code is replaced by the routes above.
 
 **Self-test: `lib/view/selftest/clickthrough.{html,js}`**
