@@ -160,6 +160,17 @@ test("the click-through's address check: a typed word counts only as a whole id-
   assert.equal(holds('replay.html?session=session', typed), true, 'a typed word as a value counts, even when it is also a name');
 });
 
+test('the click-through sends the leak check each shown string and value on its own, never one joined text', () => {
+  const ct = readFileSync(join(SELFTEST, 'clickthrough.js'), 'utf8');
+  assert.match(ct, /api\('leak-check', \{ parts: 1 \}, \{ method: 'POST', body: JSON\.stringify\(parts\) \}\)/);
+  const calls = [...ct.matchAll(/noLeaks\(([^\n]*)\);?\n/g)].map((m) => m[1]);
+  assert.ok(calls.length >= 5, 'the leak checks were found');
+  for (const c of calls) {
+    assert.doesNotMatch(c, /\.join\(|text\((?:d|doc\(\)|r)\.|JSON\.stringify/, `a leak check joins its text: noLeaks(${c})`);
+  }
+  assert.doesNotMatch(ct, /JSON\.stringify\(e\.facts/, "a step's fields are sent as they are, not as JSON text");
+});
+
 test('assets: the click-through counts policy violations as failures and keeps its named skip list', () => {
   const ct = readFileSync(join(SELFTEST, 'clickthrough.js'), 'utf8');
   assert.match(ct, /addEventListener\('securitypolicyviolation'/);

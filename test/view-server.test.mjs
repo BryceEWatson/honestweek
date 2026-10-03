@@ -40,7 +40,7 @@ const stub = {
     if (path === '/api/boom') throw new Error(`boom in /home/dana/secret for ${TERM}`);
     return { status: 200, body: { path, asked: params.get('private') === '1' ? 'private' : 'redacted' } };
   },
-  leakCheck: (text) => ({ chars: text.length, mode: 'redacted', total: 0 }),
+  leakCheck: (text) => (text === 'not a list' ? { error: 'With parts=1 the text must be a JSON list.' } : { chars: text.length, mode: 'redacted', total: 0 }),
 };
 
 async function start(options = {}) {
@@ -251,6 +251,9 @@ test('the leak check exists only with --self-test, needs the key, and answers co
   assert.equal((await raw(t.port, { method: 'POST', path: '/api/leak-check', body: 'abc' })).status, 403);
   const r = await raw(t.port, { method: 'POST', path: '/api/leak-check', headers: { [KEY_HEADER]: await keyOf(t) }, body: 'abc' });
   assert.deepEqual(r.json, { chars: 3, mode: 'redacted', total: 0 });
+  // Text the counter can't read as asked is refused, never counted as nothing found.
+  const bad = await raw(t.port, { method: 'POST', path: '/api/leak-check?parts=1', headers: { [KEY_HEADER]: await keyOf(t) }, body: 'not a list' });
+  assert.equal(bad.status, 400);
 });
 
 test('private text is asked for only by the private=1 parameter', async () => {

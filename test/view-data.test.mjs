@@ -228,6 +228,35 @@ test('the leak counter: the only expected switch-off differences are plain-word 
   assert.equal(leaks.secrets('Password:\nhunter2go').secrets, 1);
 });
 
+test('the self-test\'s leak check reads each shown string and value on its own, and still finds a secret, a private word or a sensitive key in any one', () => {
+  const full = createRedactor(w.config).redact;
+  const check = (parts, priv = false) => data.leakCheck(JSON.stringify(parts), params({ parts: '1', ...(priv ? { private: '1' } : {}) }));
+  // Two pieces a page shows apart: a step whose command ends in a hidden header, then a chip.
+  const step = full(`Bash (shell) curl -s https://api.example.com -H Authorization: Bearer ${SECRETS.bearer}`);
+  assert.equal(step, 'Bash (shell) curl -s https://api.example.com -H Authorization: [redacted:secret]');
+  // Joined into one text, the chip reads as the rest of the header's value.
+  assert.equal(leaks.redacted(`${step}\nrecorded`).secrets, 1);
+  // A step's fields, as JSON text: a value glued to the next field, and an escaped quote.
+  const facts = { command: full(`deploy AUTH=${SECRETS.password}`), description: 'Ship it', note: full(`say "Authorization: Bearer ${SECRETS.bearer}"`) };
+  assert.equal(leaks.redacted(JSON.stringify(facts)).secrets, 1, 'the JSON text reads as a leak');
+  for (const priv of [false, true]) {
+    assert.equal(check([step, 'recorded', { text: step, facts }], priv).total, 0, `each piece is clean on its own (switch ${priv ? 'on' : 'off'})`);
+    // Any one piece that shows a secret still counts, and so does a value under a sensitive key.
+    assert.equal(check([step, 'recorded', `token=${SECRETS.github}`], priv).secrets, 1);
+    assert.equal(check([{ text: step, facts: { ...facts, token: SECRETS.password } }], priv).secrets, 1);
+    assert.equal(check([{ facts: { auth: { value: SECRETS.password } } }], priv).secrets, 1, "inside a sensitive key's object");
+    assert.equal(check([{ facts: { password: 12345678 } }], priv).secrets, 1, 'a long number under a password key');
+  }
+  // What the redacted view's own key rule leaves: a placeholder, a flag word, an empty value.
+  assert.equal(check([{ facts: { token: '[redacted:secret]', auth: 'true', password: '' } }]).total, 0);
+  assert.equal(check([`Ship the ${TERM} report`]).terms, 1);
+  assert.equal(check([EMAIL]).emails, 1);
+  // The top-level query exemption is an answer's, never a list item's.
+  assert.equal(check([{ query: TERM }]).terms, 1);
+  assert.ok(check({ not: 'a list' }).error);
+  assert.ok(data.leakCheck('[not json', params({ parts: '1' })).error);
+});
+
 test('the leak counter exempts only an answer\'s top-level query field', async () => {
   const keys = new Set();
   const walk = (v) => {
