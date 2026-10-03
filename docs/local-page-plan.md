@@ -16,7 +16,7 @@ This plan adds a new honestweek command, `honestweek view`. It opens a page in y
   An **ambiguous** link is one the records fit more than one way, such as a pull request number that two repositories share. The page shows it as ambiguous, whatever its level.
 - **Redaction** replaces private text with markers such as `[redacted:term]`. The **redactor** is the code that does it. The **redacted view** is what every page shows unless you turn on the switch below.
 - **Show private text** is a switch on the page. When it's on, your own screen shows names, client words and folders that redaction would hide. Keys, tokens and passwords stay hidden either way.
-- A **display-only** repository is one marked `display` in the config: honestweek never runs git against it. An **outside** session is one whose folder isn't in your config at all. With the switch off, the engine shows both kinds of session as **skeletons**: the kind and time of each step, without its text.
+- A **display-only** repository is one marked `display` in the config: honestweek never runs git against it. An **outside** session is one whose folder isn't in your config at all. Both kinds stay out of every link the engine draws between sessions, goals and pull requests. Today the engine shows them as **skeletons**: the kind and time of each step, without its text. This plan adds a way to show their text with private words hidden instead, which the page uses.
 - A **goal list** is the file of goals and goal changes the engine reads, called a goal record in the engine docs. It's not the goals-page list that `honestweek build` uses; the two have different formats.
 - The **prototype** is the private set of pages this plan replaces. It lives in a git-ignored folder and is never committed.
 - The **click-through test** is a test page that drives the real pages the way a person would, by clicking and typing, and reports each step as pass, fail or skip.
@@ -67,11 +67,22 @@ The redactor is honestweek's privacy core. A change there gets its own review an
 
 ## Pull request 2: redact before cutting
 
-**What changes.** The engine shortens long text, such as a prompt or a command's output, before it hides private words in it. A private name that straddles the cut point loses its end, so the redactor no longer recognises it, and its start shows on screen. The engine will hide private words in the whole text first, then cut, stepping the cut back so it never splits a `[redacted:…]` marker.
+**What changes.** The engine shortens long text, such as a prompt, a command's output, a person's answer to a question, or a citation in a goal list, before it hides private words in it. A private name that straddles the cut point loses its end, so the redactor no longer recognises it, and its start shows on screen. The engine will first join the text onto one line, as it does today, then hide private words in the whole line, then cut, stepping the cut back so it never splits a `[redacted:…]` marker. Every place the engine shortens text changes this way, not only the main one. That includes the places that keep only a text's first line, which cut a name written across a line break in half the same way.
+
+The joining has to come first. The redactor finds a password only on the same line as its label, so hiding private words in the raw text first would let through a password written on the line after its label, which today's order hides.
+
+A step's original record is the exception: it keeps its line breaks so it reads as written. There the engine hides private words in each piece of text, joins the result onto one line, and hides private words again. If that second pass hides something more, such as a password on the line after its label, the record shows the twice-hidden one-line copy instead. Hiding before and after joining matters: joining alone can also make the redactor miss a value it finds today, such as a token under a label that sits on its own line.
 
 **Why now.** No shipped command shows this text today, so nothing published is affected. The page will be the first to put it on screen.
 
-**How it's checked.** A test places a made-up private name across every cut point the engine uses, and no part of the name may reach the output. The engine's output for text with no private word straddling a cut stays byte-identical.
+**How it's checked.**
+
+- A test places a made-up private name across every cut point the engine uses, in every kind of text it cuts, including a name broken by the line break where a first-line cut falls, and no part of the name may reach the output.
+- A test puts a made-up password on the line after its label and checks it stays hidden in every excerpt and in a step's original record, with the switch off and on.
+- A guard test reads the engine's code and fails if any part of it, other than the one shared helper, shortens text or keeps only its first line. A short list of cuts that never see free text, such as shortening a commit id, is allowed by name.
+- Output stays byte-identical for text the redactor leaves unchanged. Two things do change: text with something hidden before the cut point, because a marker isn't the same length as what it replaces, and a goal-list citation with repeated spaces, which now collapse to one. No shipped command shows either.
+
+**Also in this pull request: showing hidden sessions redacted.** An additive engine option, `hiddenSessions: 'redacted'` (default `'skeleton'`, so existing output stays the same), shows display-only and outside sessions' text through the full redactor instead of as skeletons. They stay out of every link, goal and lookup exactly as they do with private text, and no git command runs against a display-only repository. Tests check byte-identity without the option, the same sessions, links and goal members with it, zero leaks, and no git call against a display-only repository.
 
 ## Pull request 3: the page
 
@@ -95,7 +106,7 @@ The redactor is honestweek's privacy core. A change there gets its own review an
 4. **Search everywhere.** Below the lookups, the same words search the prompts of every session on the machine in the window, including display-only repositories and outside folders.
    - Each result says which of those three groups it belongs to.
    - With the switch off, excerpts are redacted before they're cut, so a cut can never expose half a private word. This is the `keep` decision.
-   - Opening a result's replay uses the same build as everything else. A display-only or outside session therefore shows as a skeleton with the switch off, and in full with it on.
+   - Opening a result's replay uses the same build as everything else. A display-only or outside session shows its text with private words hidden when the switch is off, and in full when it's on (the `show-redacted` decision, 3 October). Either way it stays out of every link and goal, and a display-only repository is never git-read.
 5. **Goals.** Each goal in your goal list shows the sessions working toward it on a shared timeline. You can play, pause and scrub it, and open any step's record.
    - Each session's place in the goal shows its evidence level (recorded, derived or inferred), whether it's ambiguous, and whether it's your own assignment.
    - Citations in your goal list that the logs don't back are listed too, as missing, each with the engine's reason. Examples: a session that isn't readable in this window, or a session named only in words. They're labelled as your own assignment, so nothing you cited vanishes without a trace.
@@ -117,8 +128,15 @@ The redactor is honestweek's privacy core. A change there gets its own review an
 7. **The evidence key.** One key, used on every page, explains recorded, derived, inferred, missing and ambiguous in plain words. Every page uses those same five words.
 8. **Show private text.**
    - The switch appears only when the page comes from this command on your own machine.
-   - It's off every time you run the command. Each run gets a fresh random key, which the command puts in the address it opens and the page sends with every data request. The server refuses data requests without it, so another program on the machine can't read your data either. A switch setting counts only under the current run's key, so reloading a tab left open from an earlier run, even on the same port, opens redacted.
-   - The address bar never holds what you typed or a goal's name, only made-up ids, because the browser keeps addresses in its history on disk.
+   - It's off every time you run the command. Each run gets a fresh random key, which the page sends with every data request. The server refuses data requests without it, so another program or another account on the machine can't read your data either.
+   - The key never appears in an address. The address the command opens carries a one-time code instead, which the page trades for the key once; after that the code stops working. That matters because on some systems other accounts can see the command that opens your browser, address included.
+   - The command also prints an address with its own one-time code every time it starts, because opening the browser can fail without saying so. Pressing Enter in the terminal where it runs prints a fresh one, so you can always get back in after the codes are used.
+   - The browser is opened through a small file only your account can read, which forwards to the address with the code. So the code never appears in the command that opens the browser either.
+   - A new tab opened from a page of this run, such as a replay link opened in a new tab, gets the key from this run's other open tabs, never from disk.
+   - A tab with no way to get the key, such as one left open from an earlier run or a bookmark, shows no data, only a notice to open the address this run printed. If the command has stopped, the page says so and stops asking.
+   - A switch setting counts only under the run key it was saved with, so a tab where the switch was on in an earlier run opens redacted.
+   - The address bar never holds what you typed or a goal's name, only made-up ids, because the browser keeps addresses in its history on disk. A search gets a made-up id too: the command keeps what you typed in its own memory for this run, and the address carries only the id, so the Back button, a reload or turning the switch on brings your search back.
+   - Browsers also save a tab's stored data to disk so they can restore it after a restart. So that stored data holds only the run key and the switch setting, never what you typed or clicked.
    - If the private version fails to build, the page keeps showing the redacted version and says the private one couldn't be built.
    - It changes only text, never which sessions link to which or which goals they join.
    - The private version is built in memory the first time you turn the switch on, and it's never written to disk.
@@ -145,7 +163,7 @@ These came from simulated users who tried the prototype pages. Each fix has a na
   - The prototype sends its data as scripts and doesn't check who's asking. A website you visit while it runs could probably load your search data, private version included. That's derived from reading the code, not tested.
   - The command sends data in a form other sites can't read. It refuses requests from other sites or other addresses, and it sets a strict policy so each page loads only from the command itself.
 - **Private by default.** The prototype served private text when a request left out the private setting. The command serves the redacted view unless a request asks for private text.
-- **Display-only sessions readable with the switch off.** To show an outside or display-only session's replay, the prototype rebuilt it as if it were an ordinary repository, so its text showed with the switch off. The command uses one build per switch setting, so those sessions stay skeletons until you turn the switch on. That build never runs git against a display-only repository.
+- **Display-only sessions readable with the switch off.** To show an outside or display-only session's replay, the prototype rebuilt it as if it were an ordinary repository, so its text showed with the switch off. That also pulled them into links and could read a display-only repository's git data. The command uses one build per switch setting: with the switch off, those sessions show their text with private words hidden, through a new engine option; with it on, private text. Either way they stay out of every link and goal, and no build runs git against a display-only repository.
 - **No real data in the code.** The prototype had one machine's folders and dates written into it. The command takes everything from the config and the command line.
 - **Memory that only grows.** The prototype kept every replay it built. The command keeps a fixed number, separately for each switch setting, so a private replay can never be handed to a redacted request.
 - **Records built up front.** The prototype read and redacted the original log line for every step before showing anything. The command reads a step's record only when its panel opens.
@@ -182,7 +200,9 @@ The pull request reports the measured times. If any page takes more than twice i
 
 **Pull request 2**
 
-- The straddling-name test passes at every cut point.
+- The straddling-name test passes at every cut point, in every kind of text the engine cuts.
+- The password-on-the-next-line test passes in every excerpt and in a step's record, with the switch off and on.
+- The guard test finds no cut outside the shared helper and its named list.
 - `node --test` passes, and checks pass on Node 18, 20 and 22.
 - An independent review comes back clean.
 
@@ -206,10 +226,12 @@ The pull request reports the measured times. If any page takes more than twice i
 
 One function, used by both the node tests and the self-test:
 
-- With the switch off, it counts configured terms, names and codenames (including inside longer words), home-folder paths, and email addresses.
-- With the switch on, it runs the secrets-only redactor over the answer a second time. Zero means the second pass changes nothing. Counting pattern matches doesn't work here, because correctly hidden text and the ids the switch is meant to show, such as session ids and commit ids, still match those patterns.
+- With the switch on or off, it runs the secrets-only redactor over the answer a second time, on each piece of text as it is and on a copy joined onto one line, so a password on the line after its label counts. Zero means the second pass changes nothing. This is how both settings keep their promise that keys, tokens and passwords stay hidden. Counting pattern matches doesn't work here, because correctly hidden text and the ids the switch is meant to show, such as session ids and commit ids, still match those patterns.
+- With the switch off, there are two known differences to allow for. The redacted view leaves an ordinary word after "Basic" or "Bearer", as in "basic validation", and a value made only of stars or underscores, as in a bold Markdown label; the secrets-only redactor hides both. The counter skips exactly those, by the redacted view's own rules, and counts any other difference as a leak.
+- With the switch off, it also counts configured terms, names and codenames (including inside longer words), home-folder paths, and email addresses.
+- In the node tests, it also checks that no made-up secret placed in the test data appears anywhere in any answer.
 
-The test data includes made-up private terms, made-up secrets, and the ids the switch is meant to show, so a zero means something.
+The test data includes made-up private terms, made-up secrets (including a password on the line after its label), and the ids the switch is meant to show, so a zero means something.
 
 **Pull request 3: named tests**
 
@@ -229,11 +251,15 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
 - **Run key:**
   - A data request without the run key is refused, even with a correct Host header.
   - The status answer doesn't reveal the key.
+  - The browser opener's arguments and the printed address never contain the key, and a one-time code works only once.
+  - The command prints an address with a working code, with and without `--no-open`.
+  - With a keyed tab open, a replay address opened in a second tab loads that replay.
+  - A page with no key and no other tab, or with an earlier run's key, shows the notice and no data. A page whose command has stopped says so and stops asking.
 - **Failed build:** a forced failure of the private build still serves the redacted answer, with a note, never an error or a hang.
-- **Address:** the address never contains the typed words, a goal id or title, or a clicked reference's text. This is checked both in the click-through test and by reading the page code.
+- **Address and browser storage:** the address never contains the typed words, a goal id or title, or a clicked reference's text. After a search and a reference click with the switch on, the tab's stored data holds nothing but the run key and the switch setting, and the browser's other storage is empty. Search, open a result's replay and press Back, and the same results show; turn the switch on, and the search stays. This is checked both in the click-through test and by reading the page code.
 - **Privacy everywhere:**
   - Every redacted answer the command can give has zero leaks.
-  - With the switch off, a display-only or outside session's replay and record (command output included) carry only the kind and time of each step, and no text. With it on, they carry text.
+  - With the switch off, a display-only or outside session's replay and record (command output included) carry text with private words hidden, with zero leaks. With it on, they carry private text. In both, the sessions, links and goal members match the default engine build exactly.
   - A made-up private term placed across the point where an excerpt is cut leaves no part of itself in the excerpt.
   - The goal and replay data carry no original log lines. The goal page reads none until a record is asked for.
 - **Search and goals:**
@@ -258,6 +284,7 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
 - **Pages:** no shipped page or script contains an inline style, an inline script, or an inline event handler.
 - **Record panel:**
   - A record for a command step includes its shortened, redacted output.
+  - A record whose command output holds a made-up password on the line after its label has zero leaks, with the switch off and on.
   - A count's level equals the engine's level.
   - A prompt with a recorded human origin says "You".
   - A prompt from a non-interactive run says "a person or a script".
@@ -306,9 +333,19 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
 
 **Pull request 2, on branch `feature/redact-before-cut`**
 
-- `lib/replay/claude.mjs:132` and the matching line in `lib/replay/codex.mjs` (`red(clip(s, max))`) become: redact the whole string, then clip it with a helper that steps the cut back to before any `[redacted:` marker it would split. The helper goes in `lib/replay/parse-common.mjs`.
-- `record()` in `lib/replay/index.mjs` redacts before `project()` cuts at 2,000 characters, using the same helper.
-- New `test/redact-before-cut.test.mjs` covers the straddling name at each cut length (600, 400, 300, 160 and 2,000), plus byte-identity on the demo week and corpus.
+- A new helper in `lib/replay/parse-common.mjs` does what `clip()` does today in a safe order: collapse whitespace and trim (`clip()`'s `\s+` to one space), redact the one-line result, then cut it, stepping the cut back to before any `[redacted:` marker it would split. Collapsing first matters because the secret-field rules in `lib/redaction-patterns.mjs` match only within one line (`docs/work-history-engine.md` already says the engine relies on this); measured on main, `password:\n  <value>` comes out hidden under clip-then-redact and in clear text under redact-then-clip.
+- Every cut-then-redact site in `lib/replay/` moves to the helper, not only the `text()` helpers (`claude.mjs:132`, `codex.mjs:142`). On main that is:
+  - every `red(clip(` call (`claude.mjs` 258, 295, 436, 465, 489, 495, 498, 520 and 529; `codex.mjs` 197 and 212);
+  - every bare `clip()` whose result is redacted later by the facts backstop (`e.facts = deep(e.facts)` in `index.mjs`), such as `claude.mjs` 650 and 658;
+  - `clipRef` in `lib/replay/goals.mjs:59`, which cuts a words-only citation at 80 characters before the goal list is redacted;
+  - the first-line cuts `text(body.split('\n')[0], SHORT)` at `claude.mjs:465` and the words-only citation refs built from `.split(/\r?\n/)[0]` at `goals.mjs:100`, which become redact the whole text, then take its first line. Measured with names `['Jane Doe']`: `blocked by Jane\nDoe rule` redacts whole, but its first line alone keeps `Jane`. Session-id and commit-id matching at `goals.mjs:100-108` keeps reading the raw first line, because the full redactor turns a UUID into `[redacted:secret]` and a `session:<uuid>` citation would stop matching in the redacted build only.
+- `clip` and `clipRef` are no longer called outside the helper.
+- `record()` in `lib/replay/index.mjs` redacts before `project()` cuts at 2,000 characters, stepping the cut back the same way. A record keeps its line breaks, which the secret-field rules can't see across, so for each string `s` it also computes `u = redact(collapse(redact(s)))`; when `u !== collapse(redact(s))`, the record shows `u`. Measured on main under both redactors: `deepRedact({output: 'password:\n  <value>'})` leaves the value in clear, and `redact(collapse(s))` alone shows the token in `auth:\n  token: <value>` that `redact(s)` hides; `u` hides both.
+- New `test/redact-before-cut.test.mjs`:
+  - the straddling name at every cut length the engine uses (600, 400, 300, 160, 120, 80, 60, 40, 30, 20 and 2,000; the test checks this list against the adapters' source), driven through a normal prompt, a mid-turn prompt, a person's answers, a command, a short harness fact, a goal-list words citation and a step's record, plus a two-word name broken across the first line break of a hook reason and of a `session:` citation;
+  - a made-up secret on the line after its key (newline or tab between them, and a header value on the next line) stays hidden in every excerpt and in `record()`, under `createRedactor` and `createSecretsOnlyRedactor`;
+  - a guard that scans `lib/replay/` and fails on any `clip(`, `clipRef(`, `.slice(0, …)` of text or `split(…)[0]` of text outside the helper and `project()`, except a named allowlist in the test file;
+  - byte-identity on the demo week and corpus for every excerpt the redactor leaves unchanged.
 
 **Pull request 3, on branch `feature/local-page`: the command (`lib/view.mjs`)**
 
@@ -334,7 +371,12 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
 
 - It binds to `127.0.0.1` only. It accepts only GET and HEAD, except one POST route that exists only with `--self-test`.
 - It answers 403 unless `Host` is `127.0.0.1:<port>` or `localhost:<port>`, and answers 403 on `/api/*` when `Sec-Fetch-Site` is `cross-site` or `same-site`.
-- The run key is 32 random bytes made at start with `crypto.randomBytes`. The opened address carries it in the fragment (`#k=`), so it never reaches the server's logs or the `Referer` header. The page moves it into `sessionStorage`, removes it from the address, and sends it as an `X-Honestweek-Key` header on every `/api` request. `/api/*` answers 403 without it, and it's compared in constant time. `--no-open` prints the full address, key included.
+- The run key is 32 random bytes made at start with `crypto.randomBytes`. It never goes in an address or a process argument: `defaultOpener` passes the URL as an argument (`xdg-open <url>` on Linux), and on Linux other accounts can read `/proc/<pid>/cmdline` by default.
+- The opened address carries a one-time code in the fragment (`#c=`), so the code never reaches the server's logs or the `Referer` header. The page trades it for the key with one `GET /api/claim` (code in a header), removes it from the address, keeps the key in `sessionStorage`, and sends it as an `X-Honestweek-Key` header on every other `/api` request. A code works once; unused codes live in server memory only. Every `/api` route but `/api/claim` answers 403 without the key, and the key is compared in constant time.
+- The command prints a second address with its own code on every start, with or without `--no-open`, since `defaultOpener` can fail silently. While running, Enter on standard input prints a fresh address with a new code.
+- The opener never sees the code: the command writes a mode-0600 HTML file in a fresh `mkdtemp` folder that redirects to the address with `#c=<code>`, opens that file's path, and deletes it after the code is claimed or on exit. Tests check the opener's argument holds no code or key, the file's mode (skipped on Windows, where a user's temp folder is already private), and its removal.
+- The page's key logic lives in `lib/view/assets/key.js`, a plain script that also loads in Node with stand-ins for `fetch`, `sessionStorage`, `BroadcastChannel`, `location` and `history`. `test/view-key.test.mjs` drives the cases a same-tab iframe can't: a second tab, no other tab, a stale key, and a stopped run.
+- A page with no key asks this run's other open tabs for it over a `BroadcastChannel` (same origin, memory only) and waits briefly. If no tab answers, or `/api` answers 403 for a stale key, it shows the "open the address this run printed" notice and makes no further requests. If a fetch fails because the server is gone, it says the run has stopped and stops polling `/api/status`. The static files need no key, so either notice always loads.
 - Routes come from a fixed table. Assets come from a fixed list read once at start. Nothing joins a path from the address.
 - Every response carries:
   - the CSP `default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'`, plus `frame-src 'self'` with `--self-test`;
@@ -345,9 +387,11 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
 **Data: `lib/view/data.mjs`**
 
 - It's the only file that turns `private=1` into `privateText`. Browser files never use that name.
-- It holds one engine build per mode, `buildWorkHistory({config, roots, from, to, timezone, scope: 'all', goals, privateText})`, with `roots` and the window always passed in explicitly. The private build starts on the first `private=1` request. Any other value, or none, gives the redacted build.
+- It holds one engine build per mode: `buildWorkHistory({config, roots, from, to, timezone, scope: 'all', goals, hiddenSessions: 'redacted'})` for the redacted view and `buildWorkHistory({..., privateText: true})` for private text, with `roots` and the window always passed in explicitly. The private build starts on the first `private=1` request. Any other value, or none, gives the redacted build.
 - The replay cache holds 32 threads per mode.
 - Routes:
+  - `/api/claim`: trades a one-time code for the run key, once.
+  - `/api/lookup`, `/api/words` and `/api/search` take `q=` or `id=`. The server keeps each query it receives in a per-run in-memory map under a random letter-hash id. An answer to `q=` carries that id; an answer to `id=` carries the query text in a field named `query`, so the page can refill its search box. An unknown id, such as one from an earlier run, finds nothing. The `query` field is the person's own typed input, never text from a log, and goes only to a tab holding this run's key, so the leak counter exempts it by name, and a test checks no other field is exempt.
   - `/api/status`: build state and elapsed time, plus `failed` with a short, redacted reason when a build throws. A failed private build leaves `private=1` requests served from the redacted build, with a note. It never returns the run key.
   - Goals are addressed by a goal key: a letter hash of the raw goal id, computed in `data.mjs` from the raw goal record, and the same in both builds. The redacted id is never used as a key. That matters because `h.goals` ids pass through the redactor, so two ids can redact to the same text and a redacted id isn't found in the private build. Goals attached to lookup and word results come from session membership in `h.goals[i]`, whose order `goalMembership` keeps the same in both builds.
   - `/api/home`:
@@ -368,13 +412,15 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
 
 - It's given the same `roots` and window as the build, and reads prompts and titles line by line. The text stays in memory only.
 - A hit's label (configured, display or outside) and its session key come from the build's `sessions[]` (`repoRole`, `private`, `h.sourceSession`), not from a second folder matcher.
-- Snippets are redacted whole before they're cut: `createRedactor(config)` with the switch off, `createSecretsOnlyRedactor()` with it on.
+- Snippets go through the pull request 2 helper (collapse whitespace, redact, then cut): `createRedactor(config)` with the switch off, `createSecretsOnlyRedactor()` with it on.
 - A hit with no session in the build says "not in this window". No second history is ever built.
 
 **The leak counter: `lib/view/leaks.mjs`**
 
-- Switch off: `termMatchers` over the configured terms, names and codenames, plus the home-path and email patterns from `lib/redaction-patterns.mjs`.
-- Switch on: `createSecretsOnlyRedactor().redact(text) === text` over every string in the answer, comparing text rather than `.count`, since the count isn't stable on its own output.
+- Both modes: `createSecretsOnlyRedactor().redact(x) === x` for every string in the answer and for its whitespace-collapsed copy, comparing text rather than `.count`, since the count isn't stable on its own output.
+- Switch off: the two redactors differ on two known points, both in `hideSecretFields` in the full redactor, which `createSecretsOnlyRedactor` doesn't share. It leaves a `Basic`/`Bearer` credential that `plainWords()` (`lib/redaction-patterns.mjs:142`) calls prose, and a field value that `markupOnly()` (`lib/redaction-patterns.mjs:297`) finds is only `*` or `_`. Measured on main: the full redactor leaves `Add basic validation to the form`, `password: ****` and `**Token:** see below`, and the secrets-only pass then hides part of each. The counter ignores a change only where the hidden span passes one of those two predicates in its position; any other difference is a leak to fix, not a check to loosen. A side-by-side test pins that these are the only differences, over generated secret-field shapes (every sensitive key spelling and separator, `Basic`/`Bearer` followed by plain words and by real token shapes, markup-only values, and next-line values) as well as the pull request 1 generator.
+- Switch off, in addition: `termMatchers` over the configured terms, names and codenames, plus the home-path and email patterns from `lib/redaction-patterns.mjs`.
+- Node tests only: each planted secret value is searched for literally in every string of every answer.
 
 **Fences**
 
@@ -393,7 +439,8 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
 - Ports of the prototype's `search.html`, `goal.html`, `lanes.html` (renamed `replay.html`), `common.css`, `common.js`, `evidence.js` and `private-text.js`.
 - Inline scripts move into files. Every `<style>` block moves into `common.css`, and every static `style=` attribute becomes a class. Geometry that changes at run time is set through `el.style` or SVG attributes, which the content policy allows.
 - Data loads with `fetch`. The switch lives in `sessionStorage` under the current run key, so a key from an earlier run finds nothing.
-- Addresses hold only letter-hash ids (thread, session, event and goal key). The typed query and any clicked reference text stay in memory or `sessionStorage`, never in `location`. The prototype's `#q=` step is dropped.
+- `sessionStorage` holds only the run key and the switch setting. Chromium and Firefox write it to the profile for session restore, so nothing typed or shown goes there.
+- Addresses hold only letter-hash ids (thread, session, event, goal key and query id). The typed query and any clicked reference text never go in `location`, `history.state`, `sessionStorage` or `localStorage`. The search page keeps `#q=<query id>` in its address and, on load, asks for the results by id, so Back, a reload and the switch's reload restore the search. The prototype's `#q=<text>` step becomes `#q=<query id>`.
 - In-browser lookup and goal-membership code is replaced by the routes above.
 
 **Self-test: `lib/view/selftest/clickthrough.{html,js}`**
