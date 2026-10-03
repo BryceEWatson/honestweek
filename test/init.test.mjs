@@ -483,6 +483,30 @@ test('init run from a worktree of a display-only repository never asks that repo
   }
 });
 
+test('a display-only repository whose git folder lives elsewhere is one repository with its worktree, and git is never asked about either', async () => {
+  const t = setupTree();
+  try {
+    // `git init --separate-git-dir` leaves a .git file in the checkout that names its git folder.
+    const client = join(t.parent, 'client');
+    mkdirSync(client);
+    initRepoWithCommit(client, OTHER);
+    execFileSync('git', ['init', '-q', `--separate-git-dir=${join(t.parent, 'client-gitdir')}`, client], { stdio: 'ignore' });
+    const wt = join(t.parent, 'client-wt');
+    git(client, ['worktree', 'add', '-q', wt, '-b', 'side']);
+    const asked = [];
+    const { repos } = findRepos(t.cwd, ME, { displayPaths: [client], hasCommits: (p) => (asked.push(basename(p)), true) });
+    assert.deepEqual(repos.filter((r) => r.label.startsWith('client')).map((r) => [r.label, r.role]), [['client', 'display'], ['client-wt', 'display']]);
+    assert.ok(!asked.some((p) => p.startsWith('client')), `git was asked about ${asked.join(', ')}`);
+    // From the worktree, its email comes from the global git config, not the repository.
+    writeFileSync(join(wt, 'honestweek.config.json'), JSON.stringify({ repos: [{ path: client, label: 'client', role: 'display' }] }));
+    const seen = [];
+    await runInit({ cwd: wt, argv: ['--yes', '--force'], io: fakeIo(), inferEmail: (cwd, opts) => (seen.push(opts), ME) });
+    assert.deepEqual(seen, [{ isDisplay: true }]);
+  } finally {
+    cleanup(t.parent);
+  }
+});
+
 test('init in a folder with no git repositories near it writes nothing and says where to run it', async () => {
   const parent = makeTempDir('hw-init-empty-');
   const lonely = join(parent, 'lonely');
