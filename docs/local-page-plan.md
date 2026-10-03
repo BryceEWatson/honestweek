@@ -218,10 +218,10 @@ The pull request reports the measured times. If any page takes more than twice i
 
 One function, used by both the node tests and the self-test:
 
-- With the switch off, it counts configured terms, names and codenames (including inside longer words), home-folder paths, and email addresses.
-- With the switch on, it runs the secrets-only redactor over the answer a second time. Zero means the second pass changes nothing. Counting pattern matches doesn't work here, because correctly hidden text and the ids the switch is meant to show, such as session ids and commit ids, still match those patterns.
+- With the switch on or off, it runs the secrets-only redactor over the answer a second time. Zero means the second pass changes nothing. This is how both settings keep their promise that keys, tokens and passwords stay hidden. Counting pattern matches doesn't work here, because correctly hidden text and the ids the switch is meant to show, such as session ids and commit ids, still match those patterns.
+- With the switch off, it also counts configured terms, names and codenames (including inside longer words), home-folder paths, and email addresses.
 
-The test data includes made-up private terms, made-up secrets, and the ids the switch is meant to show, so a zero means something.
+The test data includes made-up private terms, made-up secrets (including a password on the line after its label), and the ids the switch is meant to show, so a zero means something.
 
 **Pull request 3: named tests**
 
@@ -392,8 +392,8 @@ The test data includes made-up private terms, made-up secrets, and the ids the s
 
 **The leak counter: `lib/view/leaks.mjs`**
 
-- Switch off: `termMatchers` over the configured terms, names and codenames, plus the home-path and email patterns from `lib/redaction-patterns.mjs`.
-- Switch on: `createSecretsOnlyRedactor().redact(text) === text` over every string in the answer, comparing text rather than `.count`, since the count isn't stable on its own output.
+- Both modes: `createSecretsOnlyRedactor().redact(text) === text` over every string in the answer, comparing text rather than `.count`, since the count isn't stable on its own output. The full redactor and the secrets-only one share their secret-field rules through `lib/redaction-patterns.mjs`, so a redacted answer should pass unchanged; if one doesn't, that's a leak to fix, not a check to loosen.
+- Switch off, in addition: `termMatchers` over the configured terms, names and codenames, plus the home-path and email patterns from `lib/redaction-patterns.mjs`.
 
 **Fences**
 
