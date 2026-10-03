@@ -3,11 +3,11 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { harvestNouns, harvestFromDigest, runHarvest } from '../lib/harvest.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 test('harvestNouns proposes CamelCase / ALLCAPS / capitalized tokens and counts them', () => {
   const counts = harvestNouns('ShopForge shipped. ShopForge again. ACME and Zephyr. The Monday build.');
@@ -44,7 +44,7 @@ test('harvestFromDigest walks nested strings and excludes listed terms + repo la
 });
 
 test('runHarvest writes a gitignored sidecar with candidates and prints only the count', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-harvest-'));
+  const dir = makeTempDir('hw-harvest-');
   try {
     writeFileSync(join(dir, 'honestweek.config.json'), JSON.stringify({
       identity: { authorEmails: ['me@example.com'] },
@@ -69,6 +69,6 @@ test('runHarvest writes a gitignored sidecar with candidates and prints only the
 
     assert.match(readFileSync(join(dir, '.gitignore'), 'utf8'), /honestweek\.harvest\.json/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });

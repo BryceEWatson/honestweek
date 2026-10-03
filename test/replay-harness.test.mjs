@@ -3,12 +3,13 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync, rmSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { main } from '../tools/replay-inspect.mjs';
 import { buildCorpus, CODENAME, ME, SECRET_REASONING } from './fixtures/replay/corpus.mjs';
+import { removeTempDir } from './helpers/temp-dir.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
@@ -26,11 +27,7 @@ before(() => {
   fx = buildCorpus();
 });
 after(() => {
-  try {
-    rmSync(fx.root, { recursive: true, force: true });
-  } catch {
-    /* ignore */
-  }
+  removeTempDir(fx.root);
 });
 
 test('walk proves overview -> thread -> session -> turn -> event -> record, then scrubs time', async () => {

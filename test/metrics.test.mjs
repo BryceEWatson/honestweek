@@ -4,14 +4,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { repoMetricsInWindow } from '../lib/git.mjs';
 import { assembleReportModel } from '../lib/build.mjs';
 import { formatMetrics } from '../lib/emit/_shared.mjs';
 import { render as renderDigest } from '../lib/emit/digest.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'me@example.com';
 const OTHER = 'someone@else.test';
@@ -20,7 +20,7 @@ function git(dir, args, env) {
   return execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env: env ?? process.env, stdio: ['ignore', 'pipe', 'pipe'] });
 }
 function initRepo() {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-metrics-'));
+  const dir = makeTempDir('hw-metrics-');
   git(dir, ['init', '-q']);
   git(dir, ['config', 'user.email', ME]);
   git(dir, ['config', 'commit.gpgsign', 'false']);
@@ -35,7 +35,7 @@ function commit(dir, { email, message, dateISO }) {
   git(dir, ['commit', '-q', '-m', message], env);
 }
 function cleanup(dir) {
-  try { rmSync(dir, { recursive: true, force: true }); } catch { /* Windows lock */ }
+  removeTempDir(dir);
 }
 
 const WIN = ['2024-06-10T00:00:00Z', '2024-06-16T23:59:59Z'];
@@ -54,7 +54,7 @@ test('repoMetricsInWindow counts my in-window commits and distinct active days',
 });
 
 test('repoMetricsInWindow returns null for an unreadable repo (never a fabricated 0)', () => {
-  const notRepo = mkdtempSync(join(tmpdir(), 'hw-metrics-norepo-'));
+  const notRepo = makeTempDir('hw-metrics-norepo-');
   try {
     assert.equal(repoMetricsInWindow(notRepo, [ME], ...WIN), null);
   } finally { cleanup(notRepo); }

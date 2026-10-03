@@ -5,15 +5,16 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { detectSite } from '../lib/site/detect.mjs';
 import { inferSchema } from '../lib/site/inspect.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 function tmp() {
-  return mkdtempSync(join(tmpdir(), 'hw-detect-'));
+  return makeTempDir('hw-detect-');
 }
 
 test('detectSite finds a framework by dependency + lists data artifacts', () => {
@@ -35,7 +36,7 @@ test('detectSite finds a framework by dependency + lists data artifacts', () => 
     assert.deepEqual(r.dataArtifacts, ['src/data/toy.json']);
     assert.equal(r.packageName, 'toy-site');
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    removeTempDir(root);
   }
 });
 
@@ -48,7 +49,7 @@ test('detectSite returns isSite=false for a non-site directory', () => {
     assert.equal(r.isSite, false);
     assert.deepEqual(r.frameworks, []);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    removeTempDir(root);
   }
 });
 

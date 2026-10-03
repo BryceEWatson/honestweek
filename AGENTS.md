@@ -40,6 +40,10 @@ Run it from the repository root, with no path argument (passing `test/` fails: N
 module specifier). `npm test` runs the same thing. Every change ships with tests, and the suite must
 be green before you report the work done.
 
+Make a test's temp folders with `makeTempDir` from `test/helpers/temp-dir.mjs`, never `mkdtempSync`
+directly. The helper removes every folder it made when the test process exits, pass or fail, and
+`test/temp-cleanup.test.mjs` fails on a direct `mkdtemp` call.
+
 ## Invariants that must not break
 
 1. **A receipt on every line.** Every emitted item points to its source, a commit SHA or a session

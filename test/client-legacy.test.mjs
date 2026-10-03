@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, rmSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { runBuild } from '../lib/build.mjs';
 import { buildLegacyFixture } from './fixtures/client-legacy-fixture.mjs';
+import { removeTempDir } from './helpers/temp-dir.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -20,7 +21,7 @@ test('without reader inputs the client report is byte-identical to the report be
     assert.equal(code, 0, err);
     assert.deepEqual(readFileSync(f.out), readFileSync(join(HERE, 'fixtures', 'client-legacy.html')));
   } finally {
-    rmSync(f.repo, { recursive: true, force: true });
-    rmSync(f.work, { recursive: true, force: true });
+    removeTempDir(f.repo);
+    removeTempDir(f.work);
   }
 });

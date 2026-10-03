@@ -2,8 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { readBytesAt, readJsonlRecords } from '../lib/replay/jsonl.mjs';
@@ -12,6 +11,7 @@ import { commitSummaryShas, isGitCommitCommand, isRevertCommand, parseTestSummar
 import { outputNominations } from '../lib/replay/parse-common.mjs';
 import { enumerateClaudeSources } from '../lib/replay/sources.mjs';
 import { createRedactor } from '../lib/redact.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 async function collect(file, opts) {
   const out = [];
@@ -20,7 +20,7 @@ async function collect(file, opts) {
 }
 
 test('the reader addresses each line by byte offset, across CRLF, multi-byte text, and no final newline', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-jsonl-'));
+  const dir = makeTempDir('hw-jsonl-');
   try {
     const file = join(dir, 'a.jsonl');
     const lines = ['{"a":1}', '{"b":"héllo – 日本"}', '', '{"c":3}'];
@@ -30,12 +30,12 @@ test('the reader addresses each line by byte offset, across CRLF, multi-byte tex
     for (const r of recs) assert.equal(readBytesAt(file, r.offset, r.length).toString('utf8'), r.text);
     assert.equal(recordDigest(readBytesAt(file, recs[1].offset, recs[1].length)), recordDigest(recs[1].bytes));
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
 test('a record over the size cap is skipped and reported, and the lines after it still read', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-jsonl-'));
+  const dir = makeTempDir('hw-jsonl-');
   try {
     const file = join(dir, 'b.jsonl');
     writeFileSync(file, `{"x":1}\n{"big":"${'z'.repeat(5000)}"}\n{"y":2}\n`);
@@ -43,7 +43,7 @@ test('a record over the size cap is skipped and reported, and the lines after it
     assert.deepEqual(recs.map((r) => (r.oversized ? `L${r.line}:oversized` : `L${r.line}:${r.text}`)), ['L1:{"x":1}', 'L2:oversized', 'L3:{"y":2}']);
     assert.equal(readBytesAt(file, recs[2].offset, recs[2].length).toString(), '{"y":2}');
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -119,7 +119,7 @@ test('output nominates only what a git commit or gh pr create printed about itse
 });
 
 test('a file is found by the timestamps inside it, even past a single huge record', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-probe-'));
+  const dir = makeTempDir('hw-probe-');
   try {
     const proj = join(dir, 'p');
     const { mkdirSync } = await import('node:fs');
@@ -136,7 +136,7 @@ test('a file is found by the timestamps inside it, even past a single huge recor
     assert.equal(sources[0].firstAt, '2024-06-09T10:00:00.000Z');
     assert.equal(sources[0].lastAt, '2024-06-12T11:00:00.000Z', 'the started-before-the-window session that worked inside it is kept');
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
