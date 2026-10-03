@@ -10,6 +10,7 @@ import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
+import { createRedactor } from '../lib/redact.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { buildCorpus, CODENAME, ME, PRIVATE_TEXT, at } from './fixtures/replay/corpus.mjs';
@@ -18,12 +19,13 @@ import { buildDemoWeek, SESSION_IDS, WEEK } from '../tools/demo-week.mjs';
 const require = createRequire(import.meta.url);
 const childProcess = require('node:child_process');
 
-// Made up for this test: a client name, a person, their address, and a folder under the
-// home directory of whoever runs the suite (built at run time, never written here).
+// Made up for this test: a client name, a person, their address, and a file in a home
+// folder. The folder is a fixed one rather than the home of whoever runs the suite, whose
+// shape (such as /root) the redactor may not know as a home folder.
 const CLIENT = 'Quillon Labs';
 const PERSON = 'Pat Vexmoor';
 const ADDRESS = 'pat.vexmoor@example.net';
-const HOME_FILE = join(homedir(), 'notes', 'quillon-plan.md');
+const HOME_FILE = '/home/alex/notes/quillon-plan.md';
 const OUTSIDE_ID = '12121212-3434-4565-8787-909090909090';
 
 let fx;
@@ -79,6 +81,8 @@ function writeOutsideSession() {
     rec('user', { message: { role: 'user', content: prompt }, origin: { kind: 'human' } }, at(60), 1),
     rec('assistant', { message: { id: 'msg-outside-1', model: 'model-a', role: 'assistant', content: [{ type: 'text', text: `Drafted the plan for ${CLIENT}; mailed ${ADDRESS}.` }, { type: 'tool_use', id: 'tu-outside-1', name: 'Bash', input: { command: `cat ${HOME_FILE} && gh pr view 7`, description: `Read ${PERSON}'s notes` } }] } }, at(61), 2),
     rec('user', { message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu-outside-1', content: 'ok' }] }, toolUseResult: { stdout: 'ok', stderr: '', interrupted: false } }, at(62), 3),
+    rec('assistant', { message: { id: 'msg-outside-2', model: 'model-a', role: 'assistant', content: [{ type: 'tool_use', id: 'tu-outside-2', name: 'Read', input: { file_path: HOME_FILE } }] } }, at(63), 4),
+    rec('user', { message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu-outside-2', content: 'notes' }] } }, at(64), 5),
   ];
   mkdirSync(join(fx.claudeRoot, 'proj-outside'), { recursive: true });
   writeFileSync(join(fx.claudeRoot, 'proj-outside', `${OUTSIDE_ID}.jsonl`), `${lines.join('\n')}\n`);
@@ -124,10 +128,13 @@ const promptOf = (h, session) => h.events.find((e) => e.session === session && e
  *  and the home folder in either slash direction. */
 function assertNothingPrivate(text, where) {
   const lower = text.toLowerCase();
-  for (const word of [CODENAME, 'Quillon', 'Vexmoor', ADDRESS, ME]) assert.ok(!lower.includes(word.toLowerCase()), `${where} shows ${word}`);
-  const home = homedir();
-  for (const h of [home, home.replace(/\\/g, '/'), home.replace(/\\/g, '\\\\'), JSON.stringify(home).slice(1, -1)]) assert.ok(!lower.includes(h.toLowerCase()), `${where} shows the home folder`);
+  for (const word of [CODENAME, 'Quillon', 'Vexmoor', ADDRESS, ME, '/home/alex']) assert.ok(!lower.includes(word.toLowerCase()), `${where} shows ${word}`);
+  if (!SUITE_HOME) return;
+  for (const h of [SUITE_HOME, SUITE_HOME.replace(/\\/g, '/'), SUITE_HOME.replace(/\\/g, '\\\\'), JSON.stringify(SUITE_HOME).slice(1, -1)]) assert.ok(!lower.includes(h.toLowerCase()), `${where} shows the home folder`);
 }
+// The suite's own home folder, which fixture folders can sit under, checked when the
+// redactor knows its shape as a home folder.
+const SUITE_HOME = createRedactor({}).redact(homedir()) === homedir() ? null : homedir();
 
 test('hiddenSessions absent or "skeleton" builds the same history, byte for byte', async () => {
   assert.equal(JSON.stringify(await buildWorkHistory({ ...base, hiddenSessions: 'skeleton' })), JSON.stringify(plain));
@@ -168,6 +175,16 @@ test('"redacted": no configured word, address or home folder in any string the h
   for (const value of [CLIENT, PERSON, ADDRESS, CODENAME]) assert.ok(raw.includes(value), value);
   assert.ok(raw.includes(JSON.stringify(HOME_FILE).slice(1, -1)));
   assert.throws(() => assertNothingPrivate(raw, 'the raw log'));
+});
+
+test('"redacted": a hidden session keeps no hash of a raw path or prompt', () => {
+  const hashes = (h, keys) => h.events.filter((e) => keys.includes(e.session) && ['fileKey', 'fileKeys', 'promptDigest'].some((x) => x in e.facts));
+  const read = shown.events.find((e) => e.session === k.outside && e.facts.tool === 'Read');
+  assert.equal(typeof read?.facts.file, 'string', 'the outside session shows its read, path cut to its shape');
+  assert.deepEqual(hashes(shown, PRIVATE_SESSIONS()), []);
+  // Failing-path partner: a configured session keeps them, since lookup by file reads them.
+  const configured = shown.sessions.filter((s) => !s.private).map((s) => s.key);
+  assert.ok(hashes(shown, configured).length > 0);
 });
 
 test('"redacted": the sessions, links, threads, goal members and lookups are the default build\'s', () => {

@@ -120,6 +120,36 @@ test('a token across a cut stays hidden whole (secrets-only scrubber)', () => {
   assert.ok(oldLeaks > 0, 'cutting first showed the start of the token');
 });
 
+test('a cut leaving a piece the redactor hides on its own stays hidden, as cutting first hid it', () => {
+  const r = createRedactor({ redaction: { codenames: ['Quillon'], names: ['Pat'], terms: [] } });
+  // `word` starts `at` characters in, so the cut at 160 keeps `kept` of it.
+  const text = (at, word) => `${'x'.repeat(at - 1)} ${word} and the rest of the text.`;
+  const cases = [
+    ['a codename, plural', text(153, 'Quillons'), 'Quillon'],
+    ['a name inside a longer word', text(157, 'patterns'), 'pat'],
+    ['a key id with a letter glued on', text(140, 'AKIAIOSFODNN7EXAMPLEx'), 'AKIAIOSFODNN7EXAMPLE'],
+    ['account digits glued to letters', text(150, '1234567890ab'), '1234567890'],
+  ];
+  for (const [name, s, kept] of cases) {
+    // The whole text spares the longer form; the piece the cut leaves is hidden.
+    assert.ok(r.redact(s).includes(kept), `${name}: the whole redaction spares it`);
+    const was = cutThenRedact(s, 160, r.redact);
+    assert.ok(!was.includes(kept), `${name}: cutting first hid it`);
+    assert.equal(redactClip(s, 160, r.redact), was, name);
+  }
+});
+
+test('a first-line excerpt reads as when the engine cut first, with something hidden earlier in the line', () => {
+  const r = full();
+  const body = `Refused by ${TERM} policy: ${fill(300)}\nsecond line`;
+  const out = redactClipFirstLine(body, 160, r.redact);
+  assert.equal(out, cutThenRedact(body.split('\n')[0], 160, r.redact));
+  assert.ok(out.startsWith('Refused by [redacted:term] policy: the build') && out.endsWith('…'), out);
+  // The goal list's words citation is a first-line excerpt too.
+  const ref = redactClipFirstLine(`session:${TERM} ${fill(120)}\nnext`, 80, r.redact);
+  assert.equal(ref, cutThenRedact(`session:${TERM} ${fill(120)}`, 80, r.redact));
+});
+
 test('whatever it cuts is a start of the whole redaction and never splits a placeholder', () => {
   let seed = 7;
   const rand = (n) => {
@@ -135,7 +165,11 @@ test('whatever it cuts is a start of the whole redaction and never splits a plac
       const out = redactClip(text, max, r.redact);
       const whole = r.redact(text.replace(/\s+/g, ' ').trim());
       const body = out.endsWith('…') ? out.slice(0, -1) : out;
-      assert.ok(whole.startsWith(body), `${name}: ${JSON.stringify(out)} isn't a start of ${JSON.stringify(whole.slice(0, max + 20))}`);
+      // A cut of the whole redaction is read again, which can hide the piece it ends on, or
+      // something the first reading spared, such as digits glued to a hidden word: so it's
+      // a start of the whole redaction, or of that redaction read again.
+      const start = body.replace(/\[redacted:[a-z]+\]$/, '');
+      assert.ok(whole.startsWith(start) || r.redact(whole).startsWith(start), `${name}: ${JSON.stringify(out)} isn't a start of ${JSON.stringify(whole.slice(0, max + 20))}`);
       assert.ok(!/\[redacted:[a-z]*$/.test(body), `${name}: a split placeholder in ${JSON.stringify(out)}`);
     }
   }
@@ -282,7 +316,8 @@ function writeStraddlingSessions() {
   const sites = {
     prompt: [600, s(600)],
     midTurnPrompt: [600, s(600)],
-    absorbedPrompt: [600, s(600)],
+    // Its own text: a queued prompt the mid-turn one repeats is folded into it.
+    absorbedPrompt: [600, straddling(600, TERM, 5)],
     message: [400, s(400)],
     command: [300, s(300)],
     description: [160, s(160)],
@@ -410,6 +445,8 @@ test('no start of the name reaches the history, its records, or its goal list', 
   const cutTexts = texts.filter((t) => t.endsWith('…'));
   assert.ok(cutTexts.length >= Object.keys(sites).length - 1, `${cutTexts.length} cut excerpts`);
   for (const t of cutTexts) assert.ok(!endsWithStartOf(t, TERM), t.slice(-30));
+  const queued = mine.find((e) => e.kind === 'prompt' && e.facts.evidencedBy === 'queue-record');
+  assert.ok(queued?.facts.text.endsWith('…'), 'the absorbed queued prompt is its own cut excerpt');
   const records = mine.map((e) => JSON.stringify(h.record(e.id)));
   assert.ok(records.some((r) => /the build[^"]*… \[\d+ more characters\]/.test(r)), 'a record string was cut at 2,000');
   const unmatched = h.goals[0].unmatched.map((u) => u.ref);
@@ -495,14 +532,24 @@ const ALLOWED = [
   ['classify.mjs', "t.slice(0, t.indexOf('='))", "an environment variable's name, read by a rule"],
   ['classify.mjs', "t.split('=')[0]", "an environment variable's name, read by a rule"],
   ['goals.mjs', 'rest.split(/\\r?\\n/)[0]', 'the raw first line ids are matched on, never shown'],
+  ['lookup.mjs', ".split(/[\\\\/]/).pop()", "a repository's name, matched on, never shown"],
   ['outcomes.mjs', 'found.sha.slice(0, 12)', 'a commit id'],
   ['outcomes.mjs', 'sha: landed.sha.slice(0, 12)', 'a commit id'],
   ['outcomes.mjs', 'value: landed.sha.slice(0, 12)', 'a commit id'],
   ['parse-common.mjs', 's.slice(0, n).trimEnd() : s.slice(0, n)', 'the helper itself'],
   ['parse-common.mjs', 'piece.slice(0, piece.length - end.length)', 'the helper itself'],
   ['parse-common.mjs', 'redact(s).split(/\\r?\\n/)[0]', 'the helper itself: the first line of redacted text'],
+  ['parse-common.mjs', 'collapse(s.split(/\\r?\\n/)[0])', 'the helper itself: the raw first line, cut only by redactThenCut'],
   ['timeline.mjs', "k.split('|')[0]", 'an internal map key'],
   ['views.mjs', 'toISOString().slice(0, 10)', 'a date'],
+];
+
+// The ways a line of the engine cuts a string or takes a piece of it: the old helpers, a
+// slice from the start or the end, substring and substr, and the first or last part of a
+// split (by index, shift or pop, a limit of 1, or destructuring).
+const CUT_FORMS = [
+  /\bclip\(/, /\bclipRef\(/, /\.slice\(\s*0\s*,/, /\.slice\(\s*-/, /\.substring\(/, /\.substr\(/,
+  /\.split\([^)]*\)\[0\]/, /\.split\([^)]*\)\.(shift|pop)\(/, /\.split\([^)]*,\s*1\s*\)/, /\[\s*\w+\s*\]\s*=\s*[^;]*\.split\(/,
 ];
 
 /** Every line of the modules in `dir` that cuts a string or takes its first line, and
@@ -512,7 +559,7 @@ function cutsIn(dir) {
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.mjs')).sort()) {
     readFileSync(join(dir, file), 'utf8').split('\n').forEach((line, i) => {
       if (/^\s*(\/\/|\*)/.test(line)) return;
-      if ([/\bclip\(/, /\bclipRef\(/, /\.slice\(0,/, /\.substring\(/, /\.substr\(/, /\.split\([^)]*\)\[0\]/].some((re) => re.test(line))) hits.push({ file, line: i + 1, text: line.trim() });
+      if (CUT_FORMS.some((re) => re.test(line))) hits.push({ file, line: i + 1, text: line.trim() });
     });
   }
   const unexplained = hits.filter((h) => !ALLOWED.some(([file, part]) => file === h.file && h.text.includes(part)));
@@ -529,7 +576,7 @@ test('shown text is cut only by the helper: no other cut or first line in lib/re
 test('the scan finds a cut, a first line and the old helpers outside the allowed list (failing-path partner)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hw-scan-'));
   scratch.push(dir);
-  const bad = ['const t = text.slice(0, 80);', "const first = body.split('\\n')[0];", 'const c = clip(s, 40);', 'const r = clipRef(s);', '// text.slice(0, 80) in a comment is fine'];
+  const bad = ['const t = text.slice(0, 80);', "const first = body.split('\\n')[0];", 'const c = clip(s, 40);', 'const r = clipRef(s);', 'const end = text.slice(-80);', "const top = body.split('\\n').shift();", "const [line] = body.split('\\n');", "const one = body.split('\\n', 1);", '// text.slice(0, 80) in a comment is fine'];
   writeFileSync(join(dir, 'views.mjs'), `${bad.join('\n')}\n`);
-  assert.deepEqual(cutsIn(dir).unexplained, bad.slice(0, 4).map((l, i) => `views.mjs:${i + 1} ${l}`));
+  assert.deepEqual(cutsIn(dir).unexplained, bad.slice(0, -1).map((l, i) => `views.mjs:${i + 1} ${l}`));
 });
