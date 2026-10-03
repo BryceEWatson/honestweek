@@ -1,8 +1,10 @@
 name: Release
 
-# Publishes to npm when you publish a GitHub Release. Requires an NPM_TOKEN
-# repository secret (an npm automation token). Until then, this workflow is
-# dormant and nothing is published.
+# Runs when a GitHub Release is published. It publishes to npm only when an NPM_TOKEN
+# repository secret is set and the release's version isn't on npm yet. Otherwise it
+# says why on the run page and stops without failing. The usual way to publish is
+# from your own terminal, as docs/releasing.md describes, and then this workflow
+# finds the version already on npm and does nothing.
 
 on:
   release:
@@ -21,9 +23,31 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+      - name: Decide whether this release publishes to npm
+        id: decide
+        env:
+          HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::The release tag is $TAG but package.json says $version. Nothing was published."
+            exit 1
+          fi
+          if npm view "honestweek@$version" version > /dev/null 2>&1; then
+            echo "::notice::honestweek $version is already on npm, so there's nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif [ "$HAS_NPM_TOKEN" != "true" ]; then
+            echo "::notice::No NPM_TOKEN secret is set, so this run doesn't publish. Publish from your own terminal (docs/releasing.md)."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Verify the suite is green before publishing
+        if: steps.decide.outputs.publish == 'true'
         run: node --test
       - name: Publish to npm
+        if: steps.decide.outputs.publish == 'true'
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
