@@ -217,3 +217,13 @@ test('the package an install would get holds the entry point and the pages', (t)
   }
   assert.ok(!files.some((f) => f.startsWith('test/') || f.startsWith('.claude/')), 'no tests or local work in the package');
 });
+
+test('a command that needs the config, run before init, says to run init in the form it was run', () => {
+  const { workspace } = tree('no-config-harvest');
+  for (const cmd of ['harvest', 'discover']) {
+    const r = cli([cmd], { cwd: workspace });
+    assert.notEqual(r.code, 0, cmd);
+    assert.ok(r.err.includes(`Run ${FORM} init in that folder to set one up.`), `${cmd}: ${r.err}`);
+  }
+  assert.deepEqual(readdirSync(workspace), [], 'nothing is written');
+});
