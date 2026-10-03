@@ -17,6 +17,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS = join(HERE, '..', 'lib', 'view', 'assets');
 const SELFTEST = join(HERE, '..', 'lib', 'view', 'selftest');
 const PAGES = ['search.html', 'goal.html', 'replay.html'];
+// The package author's name, read from package.json so this test doesn't spell out a real name.
+const OWNER_WORDS = String(JSON.parse(readFileSync(join(HERE, '..', 'package.json'), 'utf8')).author ?? '')
+  .split(/\s+/)
+  .filter((w) => /^[A-Za-z]{3,}$/.test(w));
 const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js'];
 const files = () => [...readdirSync(ASSETS).map((f) => ({ name: f, path: join(ASSETS, f) })), ...readdirSync(SELFTEST).map((f) => ({ name: `selftest/${f}`, path: join(SELFTEST, f) }))].map((f) => ({ ...f, text: readFileSync(f.path, 'utf8') }));
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
@@ -246,7 +250,7 @@ test('assets: the click-through counts policy violations as failures and keeps i
 // test/site-cleanroom.test.mjs, which keeps that list in one place; this checks the shapes.
 test('assets: no real data: names, home folders, addresses or codenames', () => {
   for (const f of files()) {
-    assert.doesNotMatch(f.text, /\bBryce\b/i, `${f.name}: an operator account name`);
+    for (const word of OWNER_WORDS) assert.doesNotMatch(f.text, new RegExp(`\\b${word}\\b`, 'i'), `${f.name}: the package author's name`);
     assert.doesNotMatch(f.text, /[A-Za-z]:\\\\?Users\\\\?|\/Users\/[A-Za-z]|\/home\/[a-z]/, `${f.name}: a home folder`);
     for (const m of f.text.matchAll(/[\w.+-]+@[\w-]+\.[\w.]+/g)) assert.match(m[0], /@example\.(com|org)$/, `${f.name}: an email address`);
     assert.doesNotMatch(f.text, /\bprivateText\b|createSecretsOnlyRedactor/, `${f.name}: the engine's private-text names stay on the server`);
