@@ -349,8 +349,8 @@ test('a date or phone-shaped number right before a flag doesn\'t let the audit p
 });
 
 test('deepRedact hides everything beneath a sensitive key, in both scrubbers', () => {
-  const record = { token: { value: 'hunter2', kind: 'bearer' }, apiKeys: [{ value: 'hunter3' }, 'hunter4'], credentials: { db: { password: 'x', host: 'db.internal' } }, note: { value: 'kept' }, fileKey: 'k-abc' };
-  const want = { token: { value: '[redacted:secret]', kind: '[redacted:secret]' }, apiKeys: [{ value: '[redacted:secret]' }, '[redacted:secret]'], credentials: { db: { password: '[redacted:secret]', host: '[redacted:secret]' } }, note: { value: 'kept' }, fileKey: 'k-abc' };
+  const record = { token: { value: 'hunter2', kind: 'bearer', otp: 123456789012, ttl: 30 }, apiKeys: [{ value: 'hunter3' }, 'hunter4'], credentials: { db: { password: 'x', host: 'db.internal' } }, note: { value: 'kept' }, fileKey: 'k-abc' };
+  const want = { token: { value: '[redacted:secret]', kind: '[redacted:secret]', otp: '[redacted:secret]', ttl: 30 }, apiKeys: [{ value: '[redacted:secret]' }, '[redacted:secret]'], credentials: { db: { password: '[redacted:secret]', host: '[redacted:secret]' } }, note: { value: 'kept' }, fileKey: 'k-abc' };
   assert.deepEqual(createRedactor({}).deepRedact(record), want);
   assert.deepEqual(createSecretsOnlyRedactor().deepRedact(record), want);
 });
@@ -362,9 +362,11 @@ test('field values cut at a quote are stable under a second pass (the second rev
     'Authorization: x="token="',
     'Cookie: prefs="token=""x; theme=dark',
     'Auth:r =token="',
+    "Auth:r =user=''Password===''qk9mp2qrz7 more",
   ]) {
     const once = r.redact(raw);
     assert.equal(r.redact(once), once, raw);
+    assert.ok(!once.includes('qk9mp2qrz7'), once);
   }
 });
 
