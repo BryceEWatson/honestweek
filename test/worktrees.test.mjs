@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -153,6 +153,28 @@ test('resolveWorkTrees: a repository reached through a symlinked folder keeps bo
     assert.equal(matchRepo(join(link, 'alpha', 'src'), config)?.label, 'alpha');
     assert.equal(matchRepo(join(real, 'alpha'), config)?.label, 'alpha');
     assert.equal(matchRepo(join(base, 'elsewhere'), config), null, 'an unrelated folder stays unattributed');
+  } finally {
+    clearWorkTreeCache();
+    removeTempDir(base);
+  }
+});
+
+// A week's summary often runs after its worktrees are cleaned up. A removed worktree's
+// folder is gone, but sessions recorded it through the link, so that spelling must stay.
+test('resolveWorkTrees: a removed worktree keeps its spelling through the symlink', () => {
+  clearWorkTreeCache();
+  const base = makeTempDir('hw-wt-gone-');
+  const link = join(base, 'link');
+  try {
+    makeRepo(join(base, 'real', 'alpha'));
+    const real = realpathSync.native(join(base, 'real'));
+    git(join(real, 'alpha'), 'worktree', 'add', '-q', '--detach', join(real, 'alpha-gone'));
+    symlinkSync(real, link, process.platform === 'win32' ? 'junction' : 'dir');
+    rmSync(join(real, 'alpha-gone'), { recursive: true, force: true });
+
+    const set = resolveWorkTrees(join(link, 'alpha'));
+    assert.ok(has(set, join(real, 'alpha-gone')), 'where git recorded it');
+    assert.ok(has(set, join(link, 'alpha-gone')), 'through the link the sessions used');
   } finally {
     clearWorkTreeCache();
     removeTempDir(base);

@@ -61,9 +61,9 @@ test('the matcher catches a planted word in every spelling and never prints it',
     'the Quixel Mora team, and two Quixel Moras',
     'https://example.com/?q=Quixel%20Mora and %2Fquixelmora',
     String.raw`"line one\nquixelmora"`,
-    'the Quixel Mora team, Quixel–Mora and quix­el​mora',
+    'the Quixel\u00a0Mora team, Quixel\u2013Mora and quix\u00adel\u200bmora',
     'search?q=Quixel+Mora, Quixel/Mora, **Quixel** Mora and `Quixel` `Mora`',
-    'Quixel&nbsp;Mora in pasted HTML',
+    'Quixel&nbsp;Mora, Quixel&#160;Mora, Quixel&#xA0;Mora and Quixel&ndash;Mora in pasted HTML',
   ];
   writeFileSync(file, ['nothing to see here', ...caught, 'quixelmor is one letter short and passes', 'a quixel and a mora pass too'].join('\n'));
   const text = readFileSync(file, 'utf8');

@@ -3,10 +3,11 @@ name: Release
 # Runs when a GitHub Release is published. It publishes to npm only when the release is
 # a full release (not a prerelease), its tag matches package.json, an NPM_TOKEN
 # repository secret is set and the version isn't on npm yet. A tag that doesn't match,
-# or an npm lookup that fails for any reason other than "not found", fails the run with
-# an error. Otherwise it says why on the run page and stops without failing. The usual way to publish is
-# from your own terminal, as docs/releasing.md describes, and then this workflow
-# finds the version already on npm and does nothing.
+# or an npm lookup that fails for any reason other than "not found" while a token is
+# set, fails the run with an error. Otherwise it says why on the run page and stops
+# without failing. The usual way to publish is from your own terminal, as
+# docs/releasing.md describes, and then this workflow finds the version already on npm
+# and does nothing.
 
 on:
   release:
@@ -46,6 +47,10 @@ jobs:
             on_npm=true
           elif printf '%s' "$lookup" | grep -q 'E404'; then
             on_npm=false
+          elif [ "$HAS_NPM_TOKEN" != "true" ]; then
+            echo "::notice::Couldn't check npm for honestweek $version, and no NPM_TOKEN secret is set, so this run doesn't publish either way."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
           else
             echo "::error::Couldn't check npm for honestweek $version, so nothing was published: $lookup"
             exit 1

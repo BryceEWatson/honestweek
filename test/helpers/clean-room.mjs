@@ -13,7 +13,7 @@
 //     field name doesn't match across spaces, since "work log" is ordinary prose where
 //     "work-log" is a field.
 //   - URL-encoded spaces: "Lark%20Board" is read as "Lark Board" as well
-//   - other gaps between the words: a non-breaking space or "&nbsp;", a "+" from a URL
+//   - other gaps between the words: a non-breaking space (or its HTML entity), a "+" from a URL
 //     query, a slash, markdown marks ("**Lark** Board"), and a line break, as in a
 //     hard-wrapped paragraph or a comment that runs onto the next line
 //   - a Unicode dash read as a hyphen ("Lark–Board"), and invisible characters (soft
@@ -125,13 +125,18 @@ const LEAD_RE = /^[\s>#*/;+_`~-]*$/;
 /**
  * A line as a reader sees it: invisible characters (soft hyphen, zero-width space and
  * joiners, byte-order mark) removed, Unicode dashes read as "-", and every kind of space,
- * including a non-breaking space or "&nbsp;", read as a plain space.
+ * including a non-breaking space, read as a plain space. HTML entities for a character
+ * ("&nbsp;", "&#160;", "&#x2013;", "&shy;") are read as that character first.
  */
 function normalizeLine(line) {
   return String(line)
-    .replace(/[­​-‍⁠﻿]/g, '')
-    .replace(/[‐-―−﹘﹣－]/g, '-')
-    .replace(/&nbsp;/gi, ' ')
+    .replace(/&#x([0-9a-f]{1,6});/gi, (_, hex) => String.fromCodePoint(Math.min(parseInt(hex, 16), 0x10ffff)))
+    .replace(/&#([0-9]{1,7});/g, (_, dec) => String.fromCodePoint(Math.min(parseInt(dec, 10), 0x10ffff)))
+    .replace(/&(nbsp|ensp|emsp|thinsp);/gi, ' ')
+    .replace(/&(ndash|mdash|hyphen|dash|minus);/gi, '-')
+    .replace(/&shy;/gi, '')
+    .replace(/[\u00AD\u200B-\u200D\u2060\uFEFF]/g, '')
+    .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, '-')
     .replace(/[^\S\n]/g, ' ');
 }
 

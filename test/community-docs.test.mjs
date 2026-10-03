@@ -107,7 +107,8 @@ test('the release workflow decides to publish only a full release, with a token,
   assert.deepEqual(run({ prerelease: 'true' }), { status: 0, publish: 'false' }, 'marked a prerelease on GitHub');
   assert.deepEqual(run({ version: '0.3.0-rc.1', tag: 'v0.3.0-rc.1' }), { status: 0, publish: 'false' }, 'a prerelease version number');
   assert.equal(run({ tag: 'v0.2.1' }).status, 1, 'a tag that does not match package.json fails the run');
-  assert.deepEqual(run({ npm: 'offline' }), { status: 1, publish: null }, 'a failed npm lookup fails the run without deciding');
+  assert.deepEqual(run({ npm: 'offline' }), { status: 1, publish: null }, 'a failed npm lookup with a token fails the run without deciding');
+  assert.deepEqual(run({ npm: 'offline', token: 'false' }), { status: 0, publish: 'false' }, 'with no token a failed lookup changes nothing');
 });
 
 test('CI runs on Linux, Windows and macOS and installs nothing', () => {
