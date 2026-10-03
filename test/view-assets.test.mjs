@@ -210,6 +210,12 @@ test("the step list keeps each piece read from the logs in its own element, and 
   assert.equal(leaks.redacted(cut).total, 0);
   assert.ok(!cut.includes('worker7f3e'), 'the cut stops before the id');
   assert.equal(HW.clip('see password: [redacted:secret] then more', 22), 'see password:');
+  // A cut that falls inside a quoted hidden value drops the quote it would leave open.
+  const quoted = 'curl -s https://api.example.com -H "Authorization: [redacted:secret]" -d token="[redacted:secret]"';
+  assert.equal(full(quoted), quoted, 'the scrubber leaves it as it is');
+  assert.equal(leaks.redacted(quoted.slice(0, quoted.lastIndexOf('[redacted'))).secrets, 1, 'token=" reads as a field whose value is the quote');
+  assert.equal(HW.clip(quoted, quoted.length - 5), 'curl -s https://api.example.com -H "Authorization: [redacted:secret]" -d token=');
+  assert.equal(leaks.redacted(HW.clip(quoted, quoted.length - 5)).total, 0);
   assert.equal(HW.clip('a'.repeat(200), 50), 'a'.repeat(200));
   assert.equal(HW.clip('short', 50), 'short');
   // A chart label's cut keeps a placeholder whole, and its "…" stands apart.
