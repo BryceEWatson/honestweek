@@ -7,9 +7,13 @@
 //
 // The old step 10 is kept below, word for word. The side-by-side tests copy lib/ into a
 // scratch folder, put the old step back into the copy's redact.mjs, and run the copy beside
-// the real one. A later change that means to alter what step 10 hides should put its own
-// starting step 10 in OLD_STEP_10 (or retire the side-by-side tests); the tests of the facts
-// the skip rests on don't read the old step and stand either way.
+// the real one. They find their place by text: the headings of steps 10 and 10b, the
+// createRedactor and createSecretsOnlyRedactor declarations, and createRedactor's
+// `let count = 0;`. The old step reads terms, redaction, sentinelRe, redactTo and
+// termMatchers, so renaming one of those means updating OLD_SETUP or OLD_STEP_10 to match.
+// A change that alters what step 10 hides can't pass a byte-for-byte comparison, so it should
+// retire or rewrite the side-by-side tests; the tests of the facts the skip rests on don't
+// read the old step and stand either way.
 
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,7 +23,7 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { createRedactor } from '../lib/redact.mjs';
-import { FOLDS_ONTO_ASCII, termMatchers, termWords } from '../lib/redaction-patterns.mjs';
+import { FOLDS_ONTO_ASCII, skipWords, termMatchers, termWords } from '../lib/redaction-patterns.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { buildDemoWeek, WEEK } from '../tools/demo-week.mjs';
 import { buildCorpus, CODENAME } from './fixtures/replay/corpus.mjs';
@@ -262,6 +266,8 @@ test("a term's word pattern is made of exactly the words termWords gives", () =>
   const spell = (w) => [...w].map((c) => (/[A-Za-z]/.test(c) ? `[${c.toLowerCase()}${c.toUpperCase()}]` : c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).join('');
   assert.deepEqual(termWords(' Ada\tKing '), ['Ada', 'King']);
   assert.deepEqual(termWords('Kim  Lee'), ['Kim', 'Lee']);
+  assert.deepEqual(skipWords(' Ada\tKing '), ['ada', 'king']);
+  assert.equal(skipWords('Zoë'), null);
   for (const t of everyTerm.filter(isAscii)) {
     const patterns = termMatchers([t]);
     const word = patterns.at(-1);
@@ -290,9 +296,8 @@ test("a plain English term's patterns match only a text that holds each of its w
   let texts = 0;
   let skipping = 0;
   CONFIGS.forEach((config, i) => {
-    const ascii = allTerms(config).filter(isAscii);
-    if (!ascii.length) return;
-    const terms = ascii.map((t) => ({ t, words: termWords(t).map((w) => w.toLowerCase()), patterns: termMatchers([t], config.names) }));
+    const terms = allTerms(config).map((t) => ({ t, words: skipWords(t), patterns: termMatchers([t], config.names) })).filter((x) => x.words !== null);
+    if (!terms.length) return;
     const next = generator(0xfac7 + i, allTerms(config));
     for (let n = 0; n < 1500; n += 1) {
       const text = next();
@@ -310,8 +315,9 @@ test("a plain English term's patterns match only a text that holds each of its w
       if (skipped && !FOLDS_ONTO_ASCII.test(text)) skipping += 1;
     }
   });
-  // Most generated texts let the redactor skip a term, so the side-by-side tests below
-  // exercise the skip and not only the full run.
+  // Most generated texts would let the redactor skip a term, judged on the text as generated
+  // (step 10 sees it after the earlier steps), so the side-by-side tests below exercise the
+  // skip and not only the full run.
   assert.ok(skipping > texts / 2, `the redactor should skip a term in most generated texts (${skipping} of ${texts})`);
 });
 
