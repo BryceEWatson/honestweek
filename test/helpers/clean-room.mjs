@@ -1,15 +1,24 @@
 // The clean-room scanner the fence tests share. It finds forbidden words in a file without
 // the test naming them: each forbidden word is kept only as the SHA-256 hash of its
-// lowercased form, and every candidate in the text is hashed and looked up.
+// canonical form (lowercased, letters and digits only, so "Lark-Board", "lark_board" and
+// "LarkBoard" are all "larkboard"), and stretches of the text are hashed and looked up.
 //
-// What counts as a candidate:
-//   - every word (letters, digits, underscores)
-//   - every run of words joined by hyphens or dots, and each stretch of up to four of its
-//     parts ("a-b-c" also yields "a-b" and "b-c"; "name.example" also yields "name")
-//   - every stretch of up to four camelCase or snake_case pieces inside a word, glued back
-//     together ("useNameTool" also yields "name", "usename" and "nametool")
-// A forbidden word glued to other lowercase letters with no boundary ("nameish") is not
-// split out. A match reports the file and line, never the word.
+// For a forbidden word "larkboard", it catches:
+//   - any case, with or without hyphens, dots or underscores inside it: LARK_BOARD,
+//     lark-board, lark.board
+//   - glued to other letters or digits: larkboards, useLarkBoardPanel, mylarkboardapp,
+//     larkboard.example, a URL-encoded "%2Flarkboard", an escaped "\nlarkboard"
+//   - two or three whole words in a row, with a plural: "Lark Board", "Lark Boards"
+//     ("Lark Board's" is caught too, because the apostrophe ends the word). A target-site
+//     field name doesn't match across spaces, since "work log" is ordinary prose where
+//     "work-log" is a field.
+//   - URL-encoded spaces: "Lark%20Board" is read as "Lark Board" as well
+// A match reports the file and line, never the word.
+//
+// The scanner hashes every stretch of MIN_LEN to MAX_LEN letters and digits inside each
+// word, so a forbidden word must be that long in canonical form, or it only matches as a
+// whole word. Print a new word's hash with `node test/helpers/clean-room.mjs <word>`,
+// which refuses a word outside those bounds.
 //
 // The owner's own name and GitHub handle are not hashed here: a short given name is easy
 // to reverse from its hash, and package.json already publishes both (the author field
@@ -18,12 +27,13 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Private project, repository and client names that must never appear anywhere in the
 // repo. test/clean-room.test.mjs holds this fence over every tracked file.
 export const PRIVATE_NAME_HASHES = [
   '93fbf825b24ef850162bbe52e83a0fbf3743926bdd679ec65581c71619ad89b7',
-  'd2120f5bbcab07282e76e6df71d47a4e444c1119556bda60a657bac582446863',
+  'dd0203d8bf083d78258590e16f0852dc87d18eefc4533172c88e275a938da73d',
   'af8e15666cd7df43f293c583c405548dec84484e5ffedde3d678cd37160eba45',
   'd70829acb490fe758d854d7b1e2a6204b0394961edbfc79ff470ab646a08651d',
   'b1a31ad3b246d899b693546bd6a23057fffc5c7d3c89b521b5d0b89e180b5596',
@@ -35,10 +45,10 @@ export const PRIVATE_NAME_HASHES = [
 // of these are fine in honestweek's own page code, so test/site-cleanroom.test.mjs fences
 // them out of the generic subsystems only, not the whole repo.
 export const SITE_FIELD_HASHES = [
-  'a20a97aae8c1acaa081b46a90a889ffe04a41ca1df195fa66768abb0b81d7553',
+  'adc9982af5a72f3bf5ad97faa58cc2178be35c285777dc61d3c0dea2f1e61924',
   '9a34a1fe18920a27921f5a76582c0195876c474f58fbf31791215d7d21ad0b01',
-  'bbf796e19929c23308fb8d0b18dd754a021000e725a5bd471187eacca81d027b',
-  '6a2dea1ac8ffca6ba47dbf0541a6c3b9e256be7c7d382d8adc1a589afbf37f1b',
+  'fb0272f25f8455c8af4c313a997d4ed0fbc53b0d185542eab779e6edbefe5342',
+  '092b4394b86a41b4cb02ecf5aa8ba39dccbc16c51b6db9b1f7927cb74d6b4dd6',
   '35fd7737632fcd84bfff4631036f6128e50e0a76c58fc165e5d31551287c48f2',
   '0b32f13ac90081829e371a06b99f2436e416e398d218bcf16ae3552d01b2b677',
   '3f5dcb46d4381c493d386708b01a8d0a1a07e15a3ae635bf4c151fa1e2226361',
@@ -50,62 +60,95 @@ export const PRIVATE_NAME = 'a private project name';
 export const OWNER_IDENTITY = "the owner's name or handle";
 export const SITE_FIELD = 'a target-site field name';
 
-const MAX_PARTS = 4;
-const RUN_RE = /[A-Za-z0-9_]+(?:[.-][A-Za-z0-9_]+)*/g;
-const PIECE_SPLIT_RE = /_+|(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/;
+export const MIN_LEN = 4;
+export const MAX_LEN = 24;
 
-const digests = new Map();
+// A word: letters and digits, joined by hyphens, dots or underscores.
+const WORD_RE = /[A-Za-z0-9]+(?:[._-]+[A-Za-z0-9]+)*/g;
+const MAX_WORDS = 3;
 
-/** SHA-256 (hex) of a word's lowercased form. */
-export function sha256(word) {
-  const key = String(word).toLowerCase();
-  let d = digests.get(key);
-  if (!d) {
-    d = createHash('sha256').update(key).digest('hex');
-    digests.set(key, d);
-  }
-  return d;
+/** A word's canonical form: lowercased, letters and digits only. */
+export function canonical(word) {
+  return String(word).toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-/** Every candidate string in one hyphen- or dot-joined run, lowercased. */
-export function candidatesOf(run) {
-  const out = new Set();
-  const parts = run.split(/[.-]/);
-  const seps = run.match(/[.-]/g) || [];
-  for (let i = 0; i < parts.length; i++) {
-    let joined = parts[i];
-    out.add(joined);
-    for (let j = i + 1; j < parts.length && j - i < MAX_PARTS; j++) {
-      joined += seps[j - 1] + parts[j];
-      out.add(joined);
-      out.add(joined.replace(/[._]/g, '-'));
+/** SHA-256 (hex) of a word's canonical form. */
+export function sha256(word) {
+  return createHash('sha256').update(canonical(word)).digest('hex');
+}
+
+/** The hash to list for a new forbidden word. Refuses a word the scanner can't find glued. */
+export function hashName(word) {
+  const c = canonical(word);
+  if (c.length < MIN_LEN || c.length > MAX_LEN) {
+    throw new RangeError(`a forbidden word must be ${MIN_LEN} to ${MAX_LEN} letters and digits long`);
+  }
+  return sha256(c);
+}
+
+/** Every candidate inside one word, canonical: the whole word and each stretch MIN_LEN..MAX_LEN long. */
+export function candidatesOf(word) {
+  const c = canonical(word);
+  const out = new Set([c]);
+  for (let len = MIN_LEN; len <= Math.min(MAX_LEN, c.length); len++) {
+    for (let i = 0; i + len <= c.length; i++) out.add(c.slice(i, i + len));
+  }
+  return [...out];
+}
+
+// The kind (or null) of each candidate already looked up, per fence, so a stretch that
+// recurs across thousands of lines is hashed once.
+const looked = new WeakMap();
+function kindOf(candidate, forbidden) {
+  let memo = looked.get(forbidden);
+  if (!memo) looked.set(forbidden, (memo = new Map()));
+  let kind = memo.get(candidate);
+  if (kind === undefined) {
+    kind = forbidden.get(createHash('sha256').update(candidate).digest('hex')) ?? null;
+    memo.set(candidate, kind);
+  }
+  return kind;
+}
+
+/** Adds the forbidden kinds in one line of text to `kinds`. */
+function scanLine(line, forbidden, acrossSpaces, kinds) {
+  const words = [];
+  for (const m of line.matchAll(WORD_RE)) words.push({ c: canonical(m[0]), start: m.index, end: m.index + m[0].length });
+  for (const { c } of words) {
+    for (const cand of candidatesOf(c)) {
+      const kind = kindOf(cand, forbidden);
+      if (kind) kinds.add(kind);
     }
-    const pieces = parts[i].split(PIECE_SPLIT_RE).filter(Boolean);
-    for (let a = 0; a < pieces.length; a++) {
-      let glued = '';
-      for (let b = a; b < pieces.length && b - a < MAX_PARTS; b++) {
-        glued += pieces[b];
-        out.add(glued);
+  }
+  // Two or three whole words in a row, separated only by spaces, and their plural.
+  for (let i = 0; i < words.length; i++) {
+    let joined = words[i].c;
+    for (let j = i + 1; j < words.length && j - i < MAX_WORDS; j++) {
+      if (!/^[ \t]+$/.test(line.slice(words[j - 1].end, words[j].start))) break;
+      joined += words[j].c;
+      for (const cand of new Set([joined, joined.replace(/s$/, ''), joined.replace(/es$/, '')])) {
+        const kind = kindOf(cand, forbidden);
+        if (kind && acrossSpaces(kind)) kinds.add(kind);
       }
     }
   }
-  return [...out].map((c) => c.toLowerCase());
 }
 
 /**
  * Finds forbidden words in `text`. `forbidden` maps a SHA-256 hash to a short description
- * of the kind of word it is. Returns one { line, kind } per offending line and kind.
+ * of the kind of word it is. `acrossSpaces(kind)` says whether that kind also matches as
+ * separate words; by default a target-site field doesn't. Returns one { line, kind } per
+ * offending line and kind.
  */
-export function findForbidden(text, forbidden) {
+export function findForbidden(text, forbidden, { acrossSpaces = (kind) => kind !== SITE_FIELD } = {}) {
   const found = [];
   const lines = String(text).split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
     const kinds = new Set();
-    for (const [run] of lines[i].matchAll(RUN_RE)) {
-      for (const c of candidatesOf(run)) {
-        const kind = forbidden.get(sha256(c));
-        if (kind) kinds.add(kind);
-      }
+    scanLine(lines[i], forbidden, acrossSpaces, kinds);
+    if (/%[0-9A-Fa-f]{2}/.test(lines[i])) {
+      const decoded = lines[i].replace(/%([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+      scanLine(decoded, forbidden, acrossSpaces, kinds);
     }
     for (const kind of kinds) found.push({ line: i + 1, kind });
   }
@@ -163,4 +206,9 @@ export function stripOwnAddress(text, handle) {
     .replace(new RegExp(`github\\.com[/:]${h}\\b`, 'gi'), 'github.com/OWNER')
     .replace(new RegExp(`github:${h}\\b`, 'gi'), 'github:OWNER')
     .replace(new RegExp(`\\b${h}(\\\\?/honestweek)\\b`, 'gi'), 'OWNER$1');
+}
+
+// `node test/helpers/clean-room.mjs <word>...` prints the hash to list for each word.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  for (const word of process.argv.slice(2)) console.log(hashName(word));
 }

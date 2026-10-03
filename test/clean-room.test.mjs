@@ -14,9 +14,15 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 import {
+  MAX_LEN,
+  MIN_LEN,
   OWNER_IDENTITY,
+  PRIVATE_NAME,
+  SITE_FIELD,
+  canonical,
   candidatesOf,
   findForbidden,
+  hashName,
   ownerIdentity,
   privateForbidden,
   readOwner,
@@ -42,32 +48,46 @@ const MADE_UP_FENCE = new Map([[sha256(MADE_UP), 'a made-up word']]);
 test('the matcher catches a planted word in every spelling and never prints it', () => {
   const dir = makeTempDir('hw-clean-room-');
   const file = join(dir, 'fixture.txt');
-  writeFileSync(
-    file,
-    [
-      'nothing to see here',
-      'Quixelmora shipped on Tuesday.',
-      'const useQuixelmoraPanel = true;',
-      'see my-quixelmora-tool for details',
-      'docs live at https://quixelmora.example/start',
-      'QUIXELMORA_API_KEY=placeholder',
-      'quixelmor is one letter short and passes',
-    ].join('\n'),
-  );
+  const caught = [
+    'Quixelmora shipped on Tuesday.',
+    'const useQuixelmoraPanel = true;',
+    'see my-quixelmora-tool for details',
+    'docs live at https://quixelmora.example/start',
+    'QUIXELMORA_API_KEY=placeholder',
+    "two Quixelmoras and the Quixelmora's roadmap",
+    'myquixelmoraapp and quixelmora2 are glued on',
+    'Quixel-Mora, quixel_mora and quixel.mora',
+    'the Quixel Mora team, and two Quixel Moras',
+    'https://example.com/?q=Quixel%20Mora and %2Fquixelmora',
+    String.raw`"line one\nquixelmora"`,
+  ];
+  writeFileSync(file, ['nothing to see here', ...caught, 'quixelmor is one letter short and passes', 'a quixel and a mora pass too'].join('\n'));
   const text = readFileSync(file, 'utf8');
-  assert.deepEqual(findForbidden(text, MADE_UP_FENCE).map((f) => f.line), [2, 3, 4, 5, 6]);
+  const lines = caught.map((_, i) => i + 2);
+  assert.deepEqual(findForbidden(text, MADE_UP_FENCE).map((f) => f.line), lines);
 
   const report = scanText(text, 'fixture.txt', MADE_UP_FENCE, '');
-  assert.deepEqual(report, [2, 3, 4, 5, 6].map((n) => `fixture.txt:${n} (a made-up word)`));
-  assert.doesNotMatch(report.join('\n'), new RegExp(MADE_UP, 'i'), 'a finding names the file and line, not the word');
+  assert.deepEqual(report, lines.map((n) => `fixture.txt:${n} (a made-up word)`));
+  assert.doesNotMatch(report.join('\n'), /quixel/i, 'a finding names the file and line, not the word');
 });
 
-test('a file without the word passes, and joined spellings are found', () => {
-  assert.deepEqual(findForbidden('plain prose with a quixel and a mora', MADE_UP_FENCE), []);
-  const hyphenFence = new Map([[sha256('work-item'), 'a made-up compound']]);
-  assert.deepEqual(findForbidden('see build-work-item-list\nwork item', hyphenFence).map((f) => f.line), [1]);
-  assert.ok(candidatesOf('a.b-c').includes('b-c'));
-  assert.ok(candidatesOf('nextUpItems').includes('nextup'));
+test('a target-site field matches inside a word but not as separate words of prose', () => {
+  const site = new Map([[sha256('work-item'), SITE_FIELD]]);
+  assert.deepEqual(findForbidden('see build-work-item-list\nthe workItems field\na work item in prose', site).map((f) => f.line), [1, 2]);
+  const named = new Map([[sha256('work-item'), PRIVATE_NAME]]);
+  assert.deepEqual(findForbidden('a work item in prose', named).map((f) => f.line), [1], 'a private name matches as separate words');
+});
+
+test('candidates cover every stretch inside a word, and a new word must be long enough to find glued', () => {
+  assert.equal(canonical('Quixel-Mora_2'), 'quixelmora2');
+  assert.equal(sha256('Quixel-Mora'), sha256('quixelmora'));
+  const c = candidatesOf('nextUpItems');
+  assert.ok(c.includes('nextupitems') && c.includes('upit') && c.includes('items'));
+  assert.ok(!c.includes('ite'), `stretches shorter than ${MIN_LEN} are not hashed`);
+  assert.ok(candidatesOf('x'.repeat(MAX_LEN + 5)).every((s) => s.length <= MAX_LEN || s.length === MAX_LEN + 5));
+  assert.equal(hashName('Quixel Mora'), sha256('quixelmora'));
+  assert.throws(() => hashName('abc'), RangeError);
+  assert.throws(() => hashName('x'.repeat(MAX_LEN + 1)), RangeError);
 });
 
 test('the owner identity comes from the author field and the repository URL', () => {
