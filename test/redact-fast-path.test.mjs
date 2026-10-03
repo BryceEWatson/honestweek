@@ -5,12 +5,15 @@
 // old one over many generated texts, and that the demo week and the replay corpus build the
 // same work history either way.
 //
-// The old step 10 is kept below, word for word. The tests copy lib/ into a scratch folder,
-// put the old step back into the copy's redact.mjs, and run the copy beside the real one.
+// The old step 10 is kept below, word for word. The side-by-side tests copy lib/ into a
+// scratch folder, put the old step back into the copy's redact.mjs, and run the copy beside
+// the real one. A later change that means to alter what step 10 hides should put its own
+// starting step 10 in OLD_STEP_10 (or retire the side-by-side tests); the tests of the facts
+// the skip rests on don't read the old step and stand either way.
 
-import { test, before, after } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -79,30 +82,26 @@ function withOldStep10(source) {
   return src.slice(0, countAt) + OLD_SETUP + src.slice(countAt, from) + OLD_STEP_10 + src.slice(to);
 }
 
-function copyTree(from, to) {
-  mkdirSync(to, { recursive: true });
-  for (const entry of readdirSync(from, { withFileTypes: true })) {
-    if (entry.isDirectory()) copyTree(join(from, entry.name), join(to, entry.name));
-    else if (entry.isFile()) copyFileSync(join(from, entry.name), join(to, entry.name));
-  }
-}
-
 const LIB = fileURLToPath(new URL('../lib/', import.meta.url));
 const scratch = [];
-let old = null;
+let oldLibrary = null;
 
-before(async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-fast-path-'));
-  scratch.push(dir);
-  const lib = join(dir, 'lib');
-  copyTree(LIB, lib);
-  const redactFile = join(lib, 'redact.mjs');
-  writeFileSync(redactFile, withOldStep10(readFileSync(redactFile, 'utf8')));
-  old = {
-    createRedactor: (await import(pathToFileURL(redactFile).href)).createRedactor,
-    buildWorkHistory: (await import(pathToFileURL(join(lib, 'replay', 'index.mjs')).href)).buildWorkHistory,
-  };
-});
+/** The library with the old step 10, built once by the first side-by-side test that asks. */
+function oldLib() {
+  oldLibrary ??= (async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hw-fast-path-'));
+    scratch.push(dir);
+    const lib = join(dir, 'lib');
+    cpSync(LIB, lib, { recursive: true });
+    const redactFile = join(lib, 'redact.mjs');
+    writeFileSync(redactFile, withOldStep10(readFileSync(redactFile, 'utf8')));
+    return {
+      createRedactor: (await import(pathToFileURL(redactFile).href)).createRedactor,
+      buildWorkHistory: (await import(pathToFileURL(join(lib, 'replay', 'index.mjs')).href)).buildWorkHistory,
+    };
+  })();
+  return oldLibrary;
+}
 after(() => {
   for (const dir of scratch) {
     try {
@@ -284,9 +283,42 @@ test('FOLDS_ONTO_ASCII holds exactly the characters that lowercase or case-fold 
   assert.deepEqual(listed.sort((x, y) => x - y), found);
 });
 
+test("a plain English term's patterns match only a text that holds each of its words", () => {
+  // The skip's whole promise, checked on the patterns alone: whenever the lowercased text
+  // lacks one of a plain English term's words, none of the term's patterns matches it. The
+  // texts with a fold character stay in, so this holds without FOLDS_ONTO_ASCII's guard.
+  let texts = 0;
+  let skipping = 0;
+  CONFIGS.forEach((config, i) => {
+    const ascii = allTerms(config).filter(isAscii);
+    if (!ascii.length) return;
+    const terms = ascii.map((t) => ({ t, words: termWords(t).map((w) => w.toLowerCase()), patterns: termMatchers([t], config.names) }));
+    const next = generator(0xfac7 + i, allTerms(config));
+    for (let n = 0; n < 1500; n += 1) {
+      const text = next();
+      const lower = text.toLowerCase();
+      let skipped = false;
+      for (const { t, words, patterns } of terms) {
+        if (words.every((w) => lower.includes(w))) continue;
+        skipped = true;
+        for (const re of patterns) {
+          re.lastIndex = 0;
+          assert.equal(re.test(text), false, `${JSON.stringify(t)} matched ${JSON.stringify(text)} without all its words`);
+        }
+      }
+      texts += 1;
+      if (skipped && !FOLDS_ONTO_ASCII.test(text)) skipping += 1;
+    }
+  });
+  // Most generated texts let the redactor skip a term, so the side-by-side tests below
+  // exercise the skip and not only the full run.
+  assert.ok(skipping > texts / 2, `the redactor should skip a term in most generated texts (${skipping} of ${texts})`);
+});
+
 // ---- the old and new step 10, side by side ------------------------------------------
 
-test('the old and new term matching give the same text and the same count over generated texts', () => {
+test('the old and new term matching give the same text and the same count over generated texts', async () => {
+  const old = await oldLib();
   let compared = 0;
   CONFIGS.forEach((config, i) => {
     const oldR = old.createRedactor({ redaction: config });
@@ -308,7 +340,8 @@ test('the old and new term matching give the same text and the same count over g
   assert.equal(compared, CONFIGS.length * 5000);
 });
 
-test('the old and new term matching agree on hand-picked edge cases', () => {
+test('the old and new term matching agree on hand-picked edge cases', async () => {
+  const old = await oldLib();
   const config = { codenames: ['kestrel', 'mosswood'], names: ['Iris', 'Jane Doe'], terms: ['Ada\tKing', 'Zo\u00eb', '\u017Ftar'] };
   const cases = [
     'kestrel', '\u212Aestrel', 'KESTREL \u212A', 'mo\u017F\u017Fwood', 'MOSSWOOD', '\u0130ris', 'iris \u0130', 'IRIS',
@@ -338,6 +371,7 @@ function sameText(now, was, what) {
 
 /** Builds the history with the new and old libraries, and checks record() against a scan. */
 async function sameHistory(options, what) {
+  const old = await oldLib();
   const now = await buildWorkHistory(options);
   const was = await old.buildWorkHistory(options);
   sameText(JSON.stringify(now), JSON.stringify(was), what);
@@ -364,8 +398,9 @@ test('the demo week builds the same work history with the old and new term match
 });
 
 test('the replay corpus builds the same work history with the old and new term matching', async () => {
-  const fx = buildCorpus({ root: mkdtempSync(join(tmpdir(), 'hw-fast-path-corpus-')), goals: true });
-  scratch.push(fx.root);
+  const root = mkdtempSync(join(tmpdir(), 'hw-fast-path-corpus-'));
+  scratch.push(root);
+  const fx = buildCorpus({ root, goals: true });
   const options = { config: fx.config, from: '2024-06-10', to: '2024-06-16', roots: { claude: [fx.claudeRoot], codex: [fx.codexRoot] } };
   const plain = await sameHistory({ ...options, goals: fx.goalRecord }, 'replay corpus');
   assert.ok(JSON.stringify(plain).includes('[redacted:term]'), `${CODENAME} should be hidden`);
