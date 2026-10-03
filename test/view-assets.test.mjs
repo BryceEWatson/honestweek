@@ -183,6 +183,16 @@ test("the pages say a prompt from a non-interactive run is a person's or a scrip
   assert.equal(typed.level, 'recorded');
 });
 
+test("a goal's session count on a page is no stronger than its weakest session", () => {
+  const sandbox = { window: { HWE: { chips: () => '' }, HWP: {} }, document: { getElementById: () => null } };
+  runInNewContext(readFileSync(join(ASSETS, 'common.js'), 'utf8'), sandbox);
+  const { memberLevel } = sandbox.window.HW;
+  assert.equal(memberLevel([{ evidence: 'recorded' }, { evidence: 'derived' }]), 'derived');
+  assert.equal(memberLevel([{ evidence: 'recorded' }, { evidence: 'inferred' }]), 'inferred');
+  assert.equal(memberLevel([{ evidence: 'recorded', ambiguous: true }]), 'inferred');
+  assert.equal(memberLevel([{ evidence: 'missing' }]), 'inferred');
+});
+
 test("the step list keeps each piece read from the logs in its own element, and cuts one only where the scrubber reads it the same", () => {
   // common.js, loaded the way a page loads it, over made-up answers.
   const sandbox = { window: { HWE: { chips: () => '' }, HWP: {} }, document: { getElementById: () => null } };

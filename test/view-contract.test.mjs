@@ -90,7 +90,16 @@ test('home: recent sessions keyed by `session`, with their goals; the goal-list 
   assert.deepEqual(Object.keys(h.goalList).sort(), ['given', 'note']);
   assert.equal(h.goalList.given, true);
   for (const k of ['sessionsRead', 'configured', 'display', 'outside', 'filesUnnamed']) assert.ok(isCount(h.coverage[k]), `coverage.${k}`);
-  for (const g of h.goals) assert.ok(isCount(g.members) && typeof g.key === 'string');
+  for (const g of h.goals) {
+    assert.ok(isCount(g.members) && typeof g.key === 'string');
+    // The home goal card's split, and its count's level: the weakest of its sessions.
+    for (const k of ['recorded', 'inferred', 'ambiguous', 'assigned']) assert.ok(Number.isInteger(g[k]), `goals[].${k}`);
+    assert.equal(g.recorded + g.inferred + g.ambiguous, g.members.value);
+  }
+  assert.match(page('assets/search.js'), /num\(g\.recorded\)[\s\S]*num\(g\.inferred\)[\s\S]*num\(g\.ambiguous\)[\s\S]*g\.assigned/);
+  // A goal's session count reads the same level on every page that shows it.
+  assert.match(page('assets/goal.js'), /chip\(HW\.memberLevel\(goal\.members\)\)/);
+  assert.match(page('assets/search.js'), /chip\(members \? HW\.memberLevel\(members\)/);
   for (const t of h.try) assert.equal(typeof t.text, 'string');
   const search = page('assets/search.js');
   assert.match(search, /h\?\.recent/);

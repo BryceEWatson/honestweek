@@ -16,7 +16,7 @@ import { createLeakCounter, EXEMPT_FIELDS, setAsideAllowed, stringsIn } from '..
 import { createLru, createViewData, goalKey, memberCount } from '../lib/view/data.mjs';
 import { REPLAY_EVENT_FIELDS } from '../lib/view/replay-export.mjs';
 import { buildCorpus } from './fixtures/replay/corpus.mjs';
-import { buildViewWeek, EMAIL, LONG_WORD, OTHER_TERM, PRIVATE_WORDS, SECRETS, SEEDED, STRADDLE_WORD, SUMMARY_WORD, TERM, WEEK } from './fixtures/view/week.mjs';
+import { buildViewWeek, EMAIL, LONG_WORD, OTHER_TERM, PRIVATE_WORDS, QUEUED_WORD, SECRETS, SEEDED, STRADDLE_WORD, SUMMARY_WORD, TERM, WEEK } from './fixtures/view/week.mjs';
 
 const scratch = mkdtempSync(join(tmpdir(), 'hw-view-data-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -171,6 +171,9 @@ test('search everywhere redacts a long prompt whole before cutting it, and leave
     assert.ok(snippets.some((t) => t.includes(LONG_WORD)), 'the long prompt is found by a word near its end');
     for (const text of snippets) for (let i = 0; i + 8 <= SECRETS.github.length; i++) assert.ok(!text.includes(SECRETS.github.slice(i, i + 8)), `part of the token in ${text}`);
     assert.equal((await body('/api/search', { q: SUMMARY_WORD }, priv)).results.length, 0, 'a compaction summary is not a prompt');
+    const busy = await body('/api/search', { q: QUEUED_WORD }, priv);
+    assert.equal(busy.results.length, 1, 'a prompt typed while the agent was busy is searched');
+    assert.equal(busy.results[0].session, w.keys.outside);
   }
 });
 

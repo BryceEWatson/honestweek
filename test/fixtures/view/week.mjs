@@ -80,6 +80,9 @@ export const LONG_PROMPT = `${'x'.repeat(19990 - LONG_HEAD.length - 1)} ${LONG_H
 /** A word only a compaction summary holds: the model's account of earlier context. */
 export const SUMMARY_WORD = 'wombatsummary';
 
+/** A word only a prompt typed while the agent was busy holds. */
+export const QUEUED_WORD = 'numbatqueued';
+
 const at = (hh, mm, ss = 0, ms = 0) => `2025-03-12T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}.${String(ms).padStart(3, '0')}Z`;
 
 function claudeLog(id, cwd) {
@@ -91,6 +94,7 @@ function claudeLog(id, cwd) {
     title: (text) => lines.push(JSON.stringify({ type: 'ai-title', aiTitle: text, sessionId: id })),
     prompt: (ts, text, origin = { kind: 'human' }) => lines.push(JSON.stringify(base('user', ts, { message: { role: 'user', content: text }, ...(origin ? { origin } : {}) }))),
     summary: (ts, text) => lines.push(JSON.stringify(base('user', ts, { message: { role: 'user', content: text }, isCompactSummary: true }))),
+    queued: (ts, text) => lines.push(JSON.stringify(base('attachment', ts, { attachment: { type: 'queued_command', prompt: text, commandMode: 'prompt' } }))),
     say: (ts, content) => lines.push(JSON.stringify(base('assistant', ts, { message: { id: `msg_${n}`, type: 'message', role: 'assistant', model: 'model-a', content } }))),
     result: (ts, toolUseId, content, tur) => lines.push(JSON.stringify(base('user', ts, { message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, content }] }, toolUseResult: tur }))),
   };
@@ -155,6 +159,9 @@ export function buildViewWeek(root) {
   o.say(at(12, 3), [{ type: 'text', text: 'Done.' }]);
   o.prompt(at(12, 4), LONG_PROMPT);
   o.summary(at(12, 5), `This session is being continued from an earlier one. The ${SUMMARY_WORD} covers the work so far.`);
+  o.say(at(12, 6), [{ type: 'tool_use', id: 'toolu_view_busy', name: 'Bash', input: { command: 'sleep 1' } }]);
+  o.queued(at(12, 6, 30), `Also check the ${QUEUED_WORD} list while that runs.`);
+  o.result(at(12, 7), 'toolu_view_busy', 'done', { stdout: 'done', stderr: '', interrupted: false });
   writeFileSync(join(projects, dirs.scratch, `${IDS.outside}.jsonl`), `${o.lines.join('\n')}\n`);
 
   // a non-interactive Codex run in lantern
