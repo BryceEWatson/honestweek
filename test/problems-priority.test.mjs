@@ -167,6 +167,20 @@ test('risky commands: only a git command that runs with the flag counts, never a
   assert.deepEqual(kinds('git branch -D old'), ['branch-delete']);
 });
 
+test('risky commands: a wrapper, a prefix or a short-flag group still runs the command', () => {
+  const kinds = (c) => riskyKinds(c, false).map((k) => k.kind + (k.look ? '*' : ''));
+  for (const c of ['bash -lc git push -f origin main', 'bash -c "git push -f"', "sh -c 'cd /path/to/your/repo && git push --force'", 'pwsh -NoProfile -Command "git push -f"', 'eval "git push -f"', 'sudo git push -f', 'git --no-pager push -f', 'git.exe push --force', '/usr/bin/git push --force', 'echo hi | xargs git push -f', 'echo `git push -f`', 'git push -fu origin main', 'git push origin +main']) {
+    assert.deepEqual(kinds(c), ['force-push*'], c);
+  }
+  for (const c of ["sh -c 'git commit --no-verify -m x'", 'bash -lc git commit --no-verify -m x', 'git commit -n -m x', 'git commit -nm x', 'git -c core.hooksPath="" commit -m x', 'git config core.hooksPath /dev/null']) {
+    assert.deepEqual(kinds(c), ['skip-checks*'], c);
+  }
+  for (const c of ['bash -lc git clean -fdx', 'pwsh -Command "git clean -fdx"', 'git clean -fd -e -n', 'git clean -f -- -n']) assert.deepEqual(kinds(c), ['git-clean*'], c);
+  for (const quiet of ['git push -n -f', 'git push --dry-run --force', 'git commit -m n', 'git commit -mn', 'git merge -n main', 'git branch -d old', `rg "bash -c 'git push -f'" docs`, "bash -lc git commit -m 'x --no-verify'", 'cat <<EOF\ngit push -f\nEOF']) {
+    assert.deepEqual(kinds(quiet), [], quiet);
+  }
+});
+
 test("completion claims: a hand-off to you or work still to do isn't a flat claim", () => {
   const hand = classifyAgentText("I've added debug logging around the retry path. Can you run it again and paste the output?");
   assert.equal(hand.admitsNoCheck, true, 'asking you to run it is the honest hand-off');
@@ -174,6 +188,21 @@ test("completion claims: a hand-off to you or work still to do isn't a flat clai
     assert.equal(classifyAgentText(s).flat, false, s);
   }
   for (const s of ['The fix is in place.', 'Done. All tests pass.', "I've implemented the parser.", 'Everything is ready.']) assert.equal(classifyAgentText(s).flat, true, s);
+});
+
+test('completion claims: work left in another sentence, a readiness clause or an unrelated question keeps the claim', () => {
+  const pushed = classifyAgentText("I've implemented the change and all tests pass. I haven't pushed yet.");
+  assert.equal(pushed.flat, true);
+  assert.equal(pushed.testsPass, true, 'the tests claim stands in its own sentence');
+  for (const s of ["The bug is fixed. I haven't changed the docs.", "I've implemented the feature. You still need to restart the server.", "It's fixed. Let me know when you've deployed it, it works now.", "Done.\nWhen you're back: the fix is complete."]) {
+    assert.equal(classifyAgentText(s).flat, true, s);
+  }
+  for (const s of ['The bug is fixed and works now. Could you confirm which branch you want the PR against?', "Done. Everything is working. Can you check whether you'd like a changelog entry?", 'Fixed. Please verify the copy reads well to you.']) {
+    const r = classifyAgentText(s);
+    assert.equal(r.flat, true, s);
+    assert.equal(r.admitsNoCheck, false, `a question about something else isn't a hand-off: ${s}`);
+  }
+  for (const s of ['Could you run the tests on your machine?', 'Can you try it again?', 'Please verify the fix on staging.', 'Could you confirm it works?']) assert.equal(classifyAgentText(s).admitsNoCheck, true, s);
 });
 
 test("secret-shaped fields use the redactor's own list of sensitive names", () => {
