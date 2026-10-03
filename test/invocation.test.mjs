@@ -33,7 +33,7 @@ test('npx prints the package spec it fetched, read from its cache folder', () =>
   assert.equal(commandForm({ argv1, env, cwd: at('project'), readFile: readWith('^0.1.0') }), 'npx honestweek');
   // A local tarball resolves against the cache folder, then prints relative to where I am.
   const tgz = commandForm({ argv1, env, cwd: at('npm-cache'), readFile: readWith('file:../../pkgs/honestweek-0.1.0.tgz') });
-  assert.equal(tgz, 'npx pkgs/honestweek-0.1.0.tgz');
+  assert.equal(tgz, 'npx ./pkgs/honestweek-0.1.0.tgz', 'with the ./ npx needs to read it as a file');
   // Failing path: an unreadable cache manifest still names npx, never a bare command.
   assert.equal(commandForm({ argv1, env, cwd: at('project'), readFile: noFile }), 'npx honestweek');
 });
