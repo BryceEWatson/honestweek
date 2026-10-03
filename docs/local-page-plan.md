@@ -223,8 +223,10 @@ The pull request reports the measured times. If any page takes more than twice i
 
 One function, used by both the node tests and the self-test:
 
-- With the switch on or off, it runs the secrets-only redactor over the answer a second time. Zero means the second pass changes nothing. This is how both settings keep their promise that keys, tokens and passwords stay hidden. Counting pattern matches doesn't work here, because correctly hidden text and the ids the switch is meant to show, such as session ids and commit ids, still match those patterns.
+- With the switch on or off, it runs the secrets-only redactor over the answer a second time, on each piece of text as it is and on a copy joined onto one line, so a password on the line after its label counts. Zero means the second pass changes nothing. This is how both settings keep their promise that keys, tokens and passwords stay hidden. Counting pattern matches doesn't work here, because correctly hidden text and the ids the switch is meant to show, such as session ids and commit ids, still match those patterns.
+- With the switch off, there's one known difference to allow for. The redacted view leaves an ordinary word after "Basic" or "Bearer", as in "basic validation", and the secrets-only redactor hides it. The counter skips exactly those words, by the redacted view's own rule, and counts any other difference as a leak.
 - With the switch off, it also counts configured terms, names and codenames (including inside longer words), home-folder paths, and email addresses.
+- In the node tests, it also checks that no made-up secret placed in the test data appears anywhere in any answer.
 
 The test data includes made-up private terms, made-up secrets (including a password on the line after its label), and the ids the switch is meant to show, so a zero means something.
 
@@ -410,8 +412,10 @@ The test data includes made-up private terms, made-up secrets (including a passw
 
 **The leak counter: `lib/view/leaks.mjs`**
 
-- Both modes: `createSecretsOnlyRedactor().redact(text) === text` over every string in the answer, comparing text rather than `.count`, since the count isn't stable on its own output. The full redactor and the secrets-only one share their secret-field rules through `lib/redaction-patterns.mjs`, so a redacted answer should pass unchanged; if one doesn't, that's a leak to fix, not a check to loosen.
+- Both modes: `createSecretsOnlyRedactor().redact(x) === x` for every string in the answer and for its whitespace-collapsed copy, comparing text rather than `.count`, since the count isn't stable on its own output.
+- Switch off: the two redactors differ on one known point. `hideSecretFields` in the full redactor leaves a `Basic`/`Bearer` credential that `plainWords()` (`lib/redaction-patterns.mjs:142`) calls prose; `createSecretsOnlyRedactor` hides it. Measured on main: the full redactor leaves `Add basic validation to the form`, and the secrets-only pass then hides `validation`. The counter ignores a change only where the hidden span follows `Basic` or `Bearer` and passes `plainWords()`; any other difference is a leak to fix, not a check to loosen. A side-by-side test over the pull request 1 generator pins that this is the only difference.
 - Switch off, in addition: `termMatchers` over the configured terms, names and codenames, plus the home-path and email patterns from `lib/redaction-patterns.mjs`.
+- Node tests only: each planted secret value is searched for literally in every string of every answer.
 
 **Fences**
 
