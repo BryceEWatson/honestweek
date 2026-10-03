@@ -335,6 +335,39 @@ test('emailSpans finds exactly what a global search with the email pattern finds
   }
 });
 
+test('a date or phone-shaped number right before a flag doesn\'t let the audit publish the flag\'s value', () => {
+  for (const raw of [
+    'please rerun the importer with node import.js --since 2024-06-10 --token xk9mp2qrz7 and tell me whether the totals still match',
+    'Get-Report -Day 2024-06-10 -Password xk9mp2qrz7 and send me the totals from the export',
+    'the log shows 123456789--password xk9mp2qrz7 when the job retries after the timeout',
+  ]) {
+    const got = redactWithAudit(raw, {});
+    assert.ok(!got.text.includes('xk9mp2qrz7'), got.text);
+    assert.equal(replayRedactions(raw, got.redactionOps), got.text);
+    assert.ok(!createRedactor({}).redact(raw).includes('xk9mp2qrz7'));
+  }
+});
+
+test('deepRedact hides everything beneath a sensitive key, in both scrubbers', () => {
+  const record = { token: { value: 'hunter2', kind: 'bearer' }, apiKeys: [{ value: 'hunter3' }, 'hunter4'], credentials: { db: { password: 'x', host: 'db.internal' } }, note: { value: 'kept' }, fileKey: 'k-abc' };
+  const want = { token: { value: '[redacted:secret]', kind: '[redacted:secret]' }, apiKeys: [{ value: '[redacted:secret]' }, '[redacted:secret]'], credentials: { db: { password: '[redacted:secret]', host: '[redacted:secret]' } }, note: { value: 'kept' }, fileKey: 'k-abc' };
+  assert.deepEqual(createRedactor({}).deepRedact(record), want);
+  assert.deepEqual(createSecretsOnlyRedactor().deepRedact(record), want);
+});
+
+test('field values cut at a quote are stable under a second pass (the second review\'s inputs)', () => {
+  const r = createRedactor({});
+  for (const raw of [
+    'please refactor Authorization: Basic x="token=""abc so it takes the header from the config',
+    'Authorization: x="token="',
+    'Cookie: prefs="token=""x; theme=dark',
+    'Auth:r =token="',
+  ]) {
+    const once = r.redact(raw);
+    assert.equal(r.redact(once), once, raw);
+  }
+});
+
 test('the published redactor and the audit stay fast on long adversarial inputs', () => {
   const B = '\\';
   // The secrets-only scrubber's adversarial inputs (test/private-text.test.mjs), and a few for
