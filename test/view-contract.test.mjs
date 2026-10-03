@@ -232,3 +232,14 @@ test('self-test references: a squash-merged commit and a file a prompt names, ea
   }
   assert.match(page('selftest/clickthrough.js'), /info\.examples/);
 });
+
+test('replay: an id this window doesn\'t hold is an empty result naming the window, not an error', async () => {
+  for (const q of [{ thread: 'th-pppppppppp' }, { session: 'cc-pppppppppp' }]) {
+    const a = await body('/api/replay', q);
+    assert.equal(a.thread, null);
+    assert.match(a.empty, new RegExp(`between ${WEEK.from} and ${WEEK.to}`));
+  }
+  assert.equal((await data.route('/api/replay', params({ thread: 'not an id!' }))).status, 400, 'a malformed id is still refused');
+  // The replay page shows the window's empty state for it, with a way back to search.
+  assert.match(page('assets/replay.js'), /if \(!D \|\| !D\.thread\)/);
+});
