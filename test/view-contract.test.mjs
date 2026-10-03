@@ -281,3 +281,10 @@ test('the demo notice names init and view the way the person ran honestweek, bef
   const plain = createViewData({ config: w.config, roots: w.roots, ...WINDOW, demo: true });
   assert.equal(plain.status().demo.commands[0].command, 'honestweek init');
 });
+
+test('session rows carry startedBy, and the search page shows it in place of "0 prompts"', async () => {
+  const home = await body('/api/home');
+  for (const r of home.recent) assert.ok('startedBy' in r, 'every recent row says what opened a session with no prompt, or null');
+  const search = page('assets/search.js');
+  for (const name of ['s.startedBy ?? row.startedBy', 'prompted(b) - prompted(a)', "data-cover=\"head\"", "<details data-cover=\"more\">"]) assert.ok(search.includes(name), `search.js has ${name}`);
+});

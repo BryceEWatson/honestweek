@@ -679,3 +679,36 @@ test('the leak counter reads a JSON line break as a break, so a commit id after 
   assert.equal(unglue('a\\nb'), 'a\\ b');
   assert.equal(unglue('a\\\\\\nb'), 'a\\\\\\ b', 'an odd run of backslashes ends in an escape');
 });
+
+test('a session with no prompt says what opened it, from its records, and sessions with a prompt come first', async () => {
+  // The fixture's history, with three made-up configured sessions added that have no prompt:
+  // one a person opened with a command, one a schedule opened, and one with no opening record.
+  const base = reference.sessions.find((s) => s.private === false);
+  const late = '2099-01-01T00:00:00.000Z';
+  const extra = ['cmd', 'sched', 'bare'].map((k, i) => ({ ...base, key: `cc-zz${k}`, thread: null, title: null, firstAt: late, lastAt: `2099-01-01T00:0${i + 1}:00.000Z` }));
+  const ev = (session, kind, actor, facts) => ({ id: `${session}.1.0`, kind, at: late, t: Date.parse(late), timeFrom: 'record', source: session, session, agent: null, actor, evidence: 'recorded', refs: [], facts, derived: {}, inferred: [], missing: [], turn: null });
+  // Two configured sessions with prompts, so all five fit in the list of twelve.
+  const kept = new Set(reference.sessions.filter((s) => s.private === false).slice(0, 2).map((s) => s.key));
+  const own = (list) => list.filter((e) => kept.has(e.session));
+  const h = { ...reference, sessions: [...reference.sessions.filter((s) => kept.has(s.key)), ...extra], events: [...own(reference.events), ev('cc-zzcmd', 'command', 'person', { name: '/review' }), ev('cc-zzsched', 'agent-message', 'harness', { direction: 'inbound', from: 'scheduled-task' })] };
+  const d = createViewData({ config: w.config, roots: w.roots, ...WINDOW, goalRecord: w.goalRecord, buildHistory: async () => h });
+  await d.start();
+  const home = (await d.route('/api/home', params())).body;
+  const recent = home.recent;
+  const firstEmpty = recent.findIndex((r) => r.prompts.value === 0);
+  assert.ok(firstEmpty > 0, 'the newest sessions have no prompt, yet a session with one comes first');
+  assert.ok(recent.slice(firstEmpty).every((r) => r.prompts.value === 0), 'every session with a prompt comes before every one without');
+  const by = Object.fromEntries(recent.filter((r) => r.session.startsWith('cc-zz')).map((r) => [r.session, r.startedBy]));
+  assert.deepEqual(by['cc-zzcmd'], { text: 'started with a command you typed (/review), no prompt', evidence: 'recorded' });
+  assert.deepEqual(by['cc-zzsched'], { text: 'started by a schedule, no prompt', evidence: 'recorded' });
+  assert.deepEqual(by['cc-zzbare'], { text: `no prompt between ${WINDOW.from} and ${WINDOW.to}`, evidence: 'derived' });
+  for (const r of recent.filter((x) => x.session.startsWith('cc-zz'))) assert.equal(r.title, null, 'no title is made up');
+  // Failing-path partner: a session with a prompt has no startedBy label.
+  assert.ok(recent.filter((r) => r.prompts.value > 0).every((r) => r.startedBy === null));
+  // A command name that isn't a plain slash command, such as one redaction changed, isn't shown.
+  const h2 = { ...h, events: [...own(reference.events), ev('cc-zzcmd', 'command', 'person', { name: '[redacted:term]' })] };
+  const d2 = createViewData({ config: w.config, roots: w.roots, ...WINDOW, buildHistory: async () => h2 });
+  await d2.start();
+  const r2 = (await d2.route('/api/home', params())).body.recent.find((r) => r.session === 'cc-zzcmd');
+  assert.equal(r2.startedBy.text, 'started with a command you typed, no prompt');
+});

@@ -15,7 +15,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildDemoWeek, WEEK } from '../lib/demo/week.mjs';
-import { NAMES_QUESTION, NO_PRIVATE_WORDS, TERMS_QUESTION } from '../lib/init.mjs';
+import { NAMES_QUESTION, TERMS_QUESTION } from '../lib/init.mjs';
+import { privateWordsNote } from '../lib/private-words.mjs';
 import { pageCommand } from '../lib/invocation.mjs';
 import { CODE_HEADER, KEY_HEADER } from '../lib/view/server.mjs';
 
@@ -31,6 +32,7 @@ after(() => {
 // Every run here starts outside the repository, so the entry point prints its own path whole.
 const slashed = BIN.replace(/\\/g, '/');
 const FORM = `node ${/\s/.test(slashed) ? `"${slashed}"` : slashed}`;
+const NO_PRIVATE_WORDS = privateWordsNote(FORM, { restart: false });
 
 // A git identity of our own, and log folders with nothing in them.
 const gitconfig = join(scratch, 'gitconfig');
@@ -132,6 +134,20 @@ test('init with every question skipped says no private words are set, and still 
   assert.ok(c.err.includes(`${FORM} init --yes`), c.err);
   assert.deepEqual(readdirSync(cut.workspace), []);
   skipped = t;
+});
+
+test("the note's way to get candidate private words works from a fresh setup: discover, then harvest", () => {
+  assert.ok(skipped, 'the init test above wrote the config');
+  const early = cli(['harvest'], { cwd: skipped.workspace });
+  assert.equal(early.code, 1);
+  assert.ok(early.err.includes(`Run ${FORM} discover first.`), early.err);
+  const d = cli(['discover'], { cwd: skipped.workspace });
+  assert.equal(d.code, 0, d.err);
+  const h = cli(['harvest'], { cwd: skipped.workspace });
+  assert.equal(h.code, 0, h.err);
+  assert.match(h.out, /candidate noun\(s\) written to honestweek\.harvest\.json/);
+  assert.match(h.out, /"names" for people, "terms" for clients and projects/);
+  assert.ok(Array.isArray(JSON.parse(readFileSync(join(skipped.workspace, 'honestweek.harvest.json'), 'utf8')).candidates));
 });
 
 function get(port, path, headers = {}) {

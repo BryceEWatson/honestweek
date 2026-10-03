@@ -283,6 +283,8 @@ details.catalog summary { cursor: pointer; color: var(--ink-2); }
 [data-page="search"] .hint { color: var(--muted); font-size: 12.5px; margin: 6px 0 2px; }
 [data-page="search"] .hint button { font-size: 12px; padding: 1px 8px; margin: 2px 2px 0 0; }
 [data-page="search"] .coverage { color: var(--muted); font-size: 12px; margin: 4px 0 16px; }
+[data-page="search"] .coverage summary { cursor: pointer; width: fit-content; }
+[data-page="search"] .coverage details p { margin: 4px 0 0; }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
 [data-page="search"] h2 { font-size: 13px; color: var(--ink-2); font-weight: 600; margin: 18px 0 8px; }
 [data-page="search"] .lead { font-size: 14px; margin: 14px 0 4px; }

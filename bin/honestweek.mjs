@@ -115,9 +115,10 @@ Options:
 Usage:
   honestweek harvest
 
-Reads honestweek.draft.json and writes candidate private nouns to the
-gitignored honestweek.harvest.json. Only the count is printed; the nouns stay
-local for you to review and promote into your config's redaction lists.
+Reads honestweek.draft.json (run discover first) and writes candidate private
+nouns, most frequent first, to the gitignored honestweek.harvest.json. Only the
+count is printed; the nouns stay local for you to review and add to your
+config's redaction lists: "names" for people, "terms" for clients and projects.
 
 Options:
   -h, --help  Show this help.

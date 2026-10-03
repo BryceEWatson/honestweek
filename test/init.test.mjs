@@ -19,9 +19,9 @@ import {
   parseWordList,
   NAMES_QUESTION,
   TERMS_QUESTION,
-  NO_PRIVATE_WORDS,
 } from '../lib/init.mjs';
 import { setCommandForm } from '../lib/invocation.mjs';
+import { privateWordsNote } from '../lib/private-words.mjs';
 import { loadConfig } from '../lib/config.mjs';
 
 const ME = 'me@example.com';
@@ -375,7 +375,7 @@ test('init ends by pointing to view, in the form the person ran it, and notes wh
     const next = io.outBuf.slice(io.outBuf.indexOf('\nNext'));
     assert.match(next, /^\nNext, find, check and replay your sessions in your browser:\n {2}node bin\/honestweek\.mjs view\n/);
     assert.ok(next.indexOf(' view\n') < next.indexOf(' discover\n'), 'view comes before discover');
-    assert.ok(io.outBuf.includes(NO_PRIVATE_WORDS));
+    assert.ok(io.outBuf.includes(privateWordsNote('node bin/honestweek.mjs', { restart: false })), 'the note names discover and harvest the way it was run');
     assert.doesNotMatch(io.outBuf, /\(\+honestweek\./, 'one line for the .gitignore entries, not one each');
     assert.match(io.outBuf, /wrote \.gitignore \(\d+ entries for honestweek's private files\)/);
   } finally {
