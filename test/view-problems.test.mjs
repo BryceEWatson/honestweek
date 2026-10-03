@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 import { createViewData, goalKey } from '../lib/view/data.mjs';
 import { createLeakCounter } from '../lib/view/leaks.mjs';
-import { redactAnswer, splitUrl } from '../lib/view/problems-route.mjs';
+import { createProblemsRoute, redactAnswer, splitUrl } from '../lib/view/problems-route.mjs';
 import { buildViewWeek, PRIVATE_WORDS, SECRETS, WEEK } from './fixtures/view/week.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 
@@ -117,4 +117,30 @@ test('redactAnswer keeps ids, times and dates by key and shape, and redacts ever
   const out = redactAnswer({ session: 'cc-abcd', event: 'cc-abcd.12.0', at: '2025-03-10T09:00:00.000Z', from: '2025-03-10', note: 'Northwind', title: 'cc-abcd Northwind', events: ['cc-abcd.1.0'], timezone: 'America/Los_Angeles', id: 'Northwind report' }, red);
   assert.deepEqual(out, { session: 'cc-abcd', event: 'cc-abcd.12.0', at: '2025-03-10T09:00:00.000Z', from: '2025-03-10', note: '[redacted:term]', title: 'cc-abcd [redacted:term]', events: ['cc-abcd.1.0'], timezone: 'America/Los_Angeles', id: '[redacted:term] report' });
   assert.deepEqual(splitUrl('https://example.com/a/b?c=1#d'), ['https://example.com', '/a', '/b', '?c=1', '#d']);
+});
+
+test("every rule a check or a finding names is defined in the answer, the engine's included", () => {
+  const ids = new Set(whole.rules.map((r) => r.id));
+  for (const id of ['shell.test', 'prompt.approval', 'problems.risky-command', 'cost.step']) assert.ok(ids.has(id), id);
+  for (const f of allFindings(whole)) {
+    for (const id of String(f.rule ?? '').match(/\b[a-z]+\.[a-z][a-z-]*\b/g) ?? []) assert.ok(ids.has(id), `${id} (named by ${f.check})`);
+  }
+});
+
+test('the checks run as of when the build read the logs, and a failure answers 500 with its message redacted', () => {
+  let seen = null;
+  const word = PRIVATE_WORDS[0];
+  const route = createProblemsRoute({
+    now: () => 9e12,
+    run: (h, { builtT }) => {
+      seen = builtT;
+      throw new Error(`stopped near ${word}`);
+    },
+  });
+  const ctx = { mode: 'redacted', redact: (s) => String(s).split(word).join('[redacted:term]') };
+  const r = route(ctx, new URLSearchParams(), { redactedH: { rules: {} }, builtT: 1234, goalsOf: () => [], membersOfGoal: () => null, evidenceKey: {}, idOk: () => true });
+  assert.equal(seen, 1234, "the build's own time, not the first request's");
+  assert.equal(r.status, 500);
+  assert.ok(!r.body.error.includes(word));
+  assert.match(r.body.error, /couldn't run/);
 });

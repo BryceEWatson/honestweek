@@ -7,6 +7,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { runProblems, priorityOf } from '../lib/problems/index.mjs';
+import { CHECKS, runChecks } from '../lib/problems/checks.mjs';
+import { createContext } from '../lib/problems/context.mjs';
 
 const T0 = Date.parse('2025-03-10T09:00:00.000Z');
 const WINDOW = { from: '2025-03-10', to: '2025-03-16', timezone: 'UTC', startAt: '2025-03-10T00:00:00.000Z', endAt: '2025-03-17T00:00:00.000Z', startT: Date.parse('2025-03-10T00:00:00.000Z'), endT: Date.parse('2025-03-17T00:00:00.000Z') };
@@ -252,7 +254,17 @@ test('a background sub-agent with no completion notice; one with a notice is qui
     return run(h.build());
   };
   assert.equal(looks(make(null), 'subagent-handoff-loss').length, 1);
+  // The hand-back is absent from the logs: missing, the weakest level, never worked out from facts.
+  assert.equal(looks(make(null), 'subagent-handoff-loss')[0].verdictEvidence, 'missing');
+  assert.equal(make(null).patterns.find((p) => p.id === 'subagent-handoff-loss').countEvidence, 'missing');
   assert.equal(findingsOf(make({ at: 'x', status: 'completed' }), 'subagent-handoff-loss').length, 0);
+  // In a session that may still be running, the sub-agent may still hand back: a note.
+  const recent = history().session('s2', { lastAt: '2025-03-16T23:30:00.000Z' });
+  recent.prompt('s2', min(0), 'Check it.');
+  const start = recent.ev('action', 's2', min(1), { facts: { tool: 'Agent', category: 'delegate', result: 'ok' }, end: { t: min(1, 1) } });
+  recent.agent('bg2', 's2', { spawnedBy: start.id, requestShape: 'background', completion: null });
+  const rr = runProblems(recent.build(), { builtT: Date.parse('2025-03-16T23:59:00.000Z') });
+  assert.deepEqual(findingsOf(rr, 'subagent-handoff-loss').map((f) => [f.severity, f.stillRunning]), [['note', true]]);
 });
 
 test('context past 150k: thirty more calls after crossing is worth a look; twenty-nine is not; no token counts means no check', () => {
@@ -290,8 +302,25 @@ test('a single step that grew the context by 20k tokens or more, with its carrie
   const big = findingsOf(make(25_000), 'oversized-tool-output');
   assert.equal(big.length, 1);
   assert.equal(big[0].kind, 'whole-file read');
-  assert.ok(big[0].estimate >= 25_000, 'the growth is carried by the later call');
+  // The growth less the issuing call's own 100 output tokens is carried by the later call.
+  assert.ok(big[0].estimate >= 25_000 - 100, 'the growth is carried by the later call');
   assert.equal(findingsOf(make(5_000), 'oversized-tool-output').length, 0);
+});
+
+test("a call's own large output isn't charged to its small result", () => {
+  const make = (output) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Write it.');
+    h.call('s1:main', 's1', 2, min(1), 30_000, output);
+    const r = h.read('s1', min(1, 1), `${CWD}/small.txt`);
+    r.refs[0].line = 2;
+    // The context grows by the first call's output plus 1k of result.
+    h.call('s1:main', 's1', r.end.ref.line + 1, min(2), 30_000 + output + 1_000);
+    h.call('s1:main', 's1', r.end.ref.line + 2, min(3), 30_000 + output + 1_100);
+    return run(h.build({ usage: true }));
+  };
+  assert.equal(findingsOf(make(25_000), 'oversized-tool-output').length, 0, 'the 25k is the call writing, not the result');
+  assert.equal(findingsOf(make(100), 'oversized-tool-output').length, 0);
 });
 
 test('a file read three times with no change between; an edit between starts over', () => {
@@ -366,6 +395,8 @@ test('a session that ends on a call with no result; one that ends on a turn end 
     return run(h.build());
   };
   assert.equal(looks(make('last-record-is-a-call-without-result'), 'premature-stop').length, 1);
+  // The end state is the engine's, but reading it as an early stop is a proxy: inferred.
+  assert.equal(looks(make('last-record-is-a-call-without-result'), 'premature-stop')[0].verdictEvidence, 'inferred');
   assert.equal(findingsOf(make('last-turn-ended'), 'premature-stop').length, 0);
   // A session that may still be running gets a note, not a look.
   const recent = history().session('s2', { endState: 'last-record-is-a-call-without-result', lastAt: '2025-03-16T23:30:00.000Z' });
@@ -462,4 +493,18 @@ test('priority: a check that needs nothing it lacks feeds the stated rule', () =
   assert.equal(p.status, 'found');
   assert.deepEqual(p.priority, priorityOf(p, 'Process', r.coverage.tokens.value));
   assert.equal(p.priority.tier, 'low');
+});
+
+test('a check that throws is reported as not run, and the other checks still report', () => {
+  const h = history().session('s1');
+  h.prompt('s1', min(0), 'Go.');
+  h.shell('s1', min(1), 'git push --force origin main');
+  const c = createContext(h.build(), { builtT: BUILT });
+  const boom = { id: 'boom', title: 'A check that stops', evidence: 'derived', needs: [], how: 'Throws.', run: () => { throw new Error('an unexpected record'); } };
+  const [stopped, risky] = runChecks(c, [boom, CHECKS.find((d) => d.id === 'risky-command')]);
+  assert.equal(stopped.ran, false);
+  assert.match(stopped.notRun, /stopped on something/);
+  assert.deepEqual(stopped.findings, []);
+  assert.equal(risky.ran, true);
+  assert.equal(risky.findings.length, 1, 'the other checks still report');
 });

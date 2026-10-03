@@ -5,11 +5,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { classifyAgentText, classifyPrompt, checkClass, endsWithQuestion, errorClass, errorLine, riskyKinds, secretShapes, statusOfShell, testEditCounts } from '../lib/problems/classify.mjs';
-import { loadCatalog, PATTERN_CHECKS, priorityOf, PRIORITY_RULE } from '../lib/problems/index.mjs';
-import { CHECKS } from '../lib/problems/checks.mjs';
+import { loadCatalog, PATTERN_CHECKS, priorityOf, PRIORITY, PRIORITY_RULE } from '../lib/problems/index.mjs';
+import { CHECKS, fmt } from '../lib/problems/checks.mjs';
+import { THRESHOLDS } from '../lib/problems/context.mjs';
 import { DRAFTS } from '../lib/problems/drafts.mjs';
 
-const found = (group, { look = 0, notes = 0, derived = 0, tokens = null, strength = 'reported' } = {}) => ({ status: 'found', group, look, notesFound: notes, derivedFound: derived, tokens: tokens == null ? null : { tokens }, strength });
+const found = (group, { look = 0, notes = 0, derived = 0, tokens = null, lookTokens = tokens, waste = true, strength = 'reported' } = {}) => ({ status: 'found', group, look, notesFound: notes, derivedFound: derived, tokens: tokens == null ? null : { tokens, lookTokens, waste }, strength });
 
 test('harm: one finding worked out from the facts is high; one or two by a rule are medium; three by a rule are high', () => {
   assert.equal(priorityOf(found('safety', { look: 1, derived: 1 }), 'Safety', 0).tier, 'high');
@@ -24,7 +25,7 @@ test('cost: by share of the window tokens, 5% high, 1% medium, under 1% low, no 
   assert.equal(priorityOf(found('efficiency-cost', { look: 1, tokens: 5 }), 'Efficiency and cost', 1000).tier, 'low');
   const none = priorityOf(found('efficiency-cost', { look: 4 }), 'Efficiency and cost', 1000);
   assert.equal(none.tier, 'low');
-  assert.match(none.reason, /with no token measure/);
+  assert.match(none.reason, /with no token estimate/);
   assert.match(priorityOf(found('efficiency-cost', { look: 1, tokens: 1_200_000 }), 'Efficiency and cost', 10_000_000).reason, /^1\.2M tokens/);
 });
 
@@ -87,7 +88,9 @@ test('classifiers: check steps, status calls and risky commands, each with a par
   assert.equal(checkClass('git status'), null);
   assert.equal(statusOfShell('gh pr checks 12 | head -3')?.cls, 'CI or pull request status');
   assert.equal(statusOfShell('npm run build && gh pr checks 12'), null);
-  assert.deepEqual(riskyKinds('git push --force-with-lease origin x', false).map((k) => k.kind), ['force-push']);
+  // --force-with-lease refuses to overwrite work it hasn't seen: a routine note, not worth a look.
+  assert.deepEqual(riskyKinds('git push --force-with-lease origin x', false).map((k) => [k.kind, k.look]), [['force-with-lease', false]]);
+  assert.deepEqual(riskyKinds('git push --force origin main', false).map((k) => [k.kind, k.look]), [['force-push', true]]);
   assert.deepEqual(riskyKinds('git push origin x', false), []);
   assert.deepEqual(riskyKinds('rm -rf build', false).map((k) => [k.kind, k.look]), [['recursive-delete', false]]);
 });
@@ -103,4 +106,77 @@ test('classifiers: test-weakening counts, error signatures and secret shapes', (
   assert.deepEqual(secretShapes({ password: 'q7Zx2LmP9vR4tY8wK3' }), { field: 1 });
   assert.deepEqual(secretShapes({ password: '${PASSWORD}' }), {});
   assert.deepEqual(secretShapes('const token = readToken(file);'), {});
+});
+
+test('cost: only the findings worth a look set the tier, and tokens spent rather than wasted never do', () => {
+  // 20% of the window in all, but only 3% in findings worth a look: medium, not high.
+  const p = priorityOf(found('efficiency-cost', { look: 1, notes: 30, tokens: 200, lookTokens: 30 }), 'Efficiency and cost', 1000);
+  assert.equal(p.tier, 'medium');
+  assert.match(p.reason, /estimated for the findings worth a look, 3\.0% of the window's/);
+  assert.equal(priorityOf(found('efficiency-cost', { look: 0, notes: 30, tokens: 900, lookTokens: 0 }), 'Efficiency and cost', 1000).tier, 'low');
+  // Spending (small sub-agents): the count sets the tier, as for a friction pattern.
+  const spent = priorityOf(found('efficiency-cost', { look: 2, tokens: 900, waste: false }), 'Efficiency and cost', 1000);
+  assert.equal(spent.tier, 'low');
+  assert.match(spent.reason, /tokens spent, not an estimate of waste/);
+  assert.equal(priorityOf(found('efficiency-cost', { look: 5, tokens: 900, waste: false }), 'Efficiency and cost', 1000).tier, 'medium');
+});
+
+test('a share just under a line prints rounded down, never as the line itself', () => {
+  const under = priorityOf(found('efficiency-cost', { look: 1, tokens: 496 }), 'Efficiency and cost', 10_000);
+  assert.equal(under.tier, 'medium');
+  assert.match(under.reason, /4\.9% of the window's/);
+  assert.equal(priorityOf(found('efficiency-cost', { look: 1, tokens: 500 }), 'Efficiency and cost', 10_000).tier, 'high');
+  const low = priorityOf(found('efficiency-cost', { look: 1, tokens: 996 }), 'Efficiency and cost', 100_000);
+  assert.equal(low.tier, 'low');
+  assert.match(low.reason, /0\.9% of the window's/);
+});
+
+test('the stated rule and the checks state the numbers the code applies', () => {
+  const tiers = PRIORITY_RULE.tiers.map((t) => t.text).join(' ');
+  assert.ok(tiers.includes(`${PRIORITY.harmHighCount} or more worth a look`));
+  assert.ok(tiers.includes(`${PRIORITY.highShare * 100}% or more`));
+  assert.ok(tiers.includes(`${PRIORITY.mediumShare * 100}% to ${PRIORITY.highShare * 100}%`));
+  assert.ok(tiers.includes(`${PRIORITY.frictionMediumCount} or more worth a look`));
+  assert.match(PRIORITY_RULE.classes.find((c) => c.id === 'cost').text, /estimate/);
+  assert.doesNotMatch(JSON.stringify(PRIORITY_RULE), /measured/, 'token figures are estimates, never called measured');
+  const how = (id) => { const c = CHECKS.find((x) => x.id === id); return `${c.title} ${c.how}`; };
+  const relation = (id) => PATTERN_CHECKS[id].map((m) => m.relation).join(' ');
+  const minutes = (ms) => `${ms / 60_000} minutes`;
+  assert.ok(how('long-sessions').includes(fmt(THRESHOLDS.longCtx)));
+  assert.ok(relation('context-bloat').includes(fmt(THRESHOLDS.longCtx)) && relation('context-bloat').includes(`${THRESHOLDS.longAfterCalls} or more calls`));
+  assert.ok(relation('repeated-file-reads').includes(`${THRESHOLDS.rereadMin} or more times`));
+  assert.ok(relation('action-loop').includes(`${THRESHOLDS.loopMin} or more identical calls`));
+  assert.ok(relation('busy-polling').includes(`${THRESHOLDS.pollMin} or more times, each within ${minutes(THRESHOLDS.pollGapMs)}`));
+  assert.ok(relation('repeated-tool-error').includes(`${THRESHOLDS.errorRunMin} or more times`));
+  assert.ok(relation('oversized-tool-output').includes(`${fmt(THRESHOLDS.bigAdd)} tokens or more`));
+  assert.ok(relation('subagent-overuse').includes(`${THRESHOLDS.smallSubagentCalls} or fewer tool calls`));
+});
+
+test('risky commands: only a git command that runs with the flag counts, never a mention in quoted text', () => {
+  const kinds = (c) => riskyKinds(c, false).map((k) => k.kind + (k.look ? '*' : ''));
+  for (const quiet of ['grep -rn -- "--no-verify" docs/', 'git log --grep="--no-verify"', 'git commit -m "docs: never use --no-verify"', 'gh pr create --body "Never skip hooks (--no-verify)."', 'git -c core.hooksPath=.githooks commit -m x', 'git clean -fdn', 'git clean -f --dry-run', 'git commit -m "push --force fix"', 'echo "rm -rf /"']) {
+    assert.deepEqual(kinds(quiet), [], quiet);
+  }
+  assert.deepEqual(kinds('git commit --no-verify -m x'), ['skip-checks*']);
+  assert.deepEqual(kinds('git -C /path/to/your/repo push --no-verify'), ['skip-checks*']);
+  assert.deepEqual(kinds('git -c core.hooksPath=/dev/null commit -m x'), ['skip-checks*']);
+  assert.deepEqual(kinds('git push -f'), ['force-push*']);
+  assert.deepEqual(kinds('git push --force-with-lease && git push -f'), ['force-push*'], 'one plain force-push among them is worth a look');
+  assert.deepEqual(kinds('git clean -fd'), ['git-clean*']);
+  assert.deepEqual(kinds('rm -fr dist && npm i'), ['recursive-delete']);
+  assert.deepEqual(kinds('git branch -D old'), ['branch-delete']);
+});
+
+test("completion claims: a hand-off to you or work still to do isn't a flat claim", () => {
+  const hand = classifyAgentText("I've added debug logging around the retry path. Can you run it again and paste the output?");
+  assert.equal(hand.admitsNoCheck, true, 'asking you to run it is the honest hand-off');
+  for (const s of ["I've added the new option, but I haven't wired the UI yet. Want me to continue?", "Let me know when you are ready and I'll run the suite.", "Run the tests once you're all set on the config."]) {
+    assert.equal(classifyAgentText(s).flat, false, s);
+  }
+  for (const s of ['The fix is in place.', 'Done. All tests pass.', "I've implemented the parser.", 'Everything is ready.']) assert.equal(classifyAgentText(s).flat, true, s);
+});
+
+test("secret-shaped fields use the redactor's own list of sensitive names", () => {
+  for (const s of ['MYSQL_PWD=Xk9fQ2mL7pR4sT8vB3', 'LICENSE_KEY=Xk9fQ2mL7pR4sT8vB3', 'GPG_KEY: Xk9fQ2mL7pR4sT8vB3']) assert.equal(secretShapes(s).field, 1, s);
+  assert.deepEqual(secretShapes('name=Xk9fQ2mL7pR4sT8vB3'), {});
 });
