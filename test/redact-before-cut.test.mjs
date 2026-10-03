@@ -201,8 +201,11 @@ test('a first-line excerpt shows nothing of the next line but the placeholder th
   for (const body of ['Refused: Bearer api_key=\nsecret-value then words', 'Refused: Bearer api_key=\n\nsecret-value then words from the third line']) {
     assert.equal(redactClipFirstLine(body, 160, createRedactor({}).redact), 'Refused: Bearer [redacted:secret]');
   }
-  // Lines read together that hide the first line's end differently, with no placeholder
-  // across the break: only what both readings share shows.
+  // With a placeholder before the break on the first line and another hidden word on the
+  // next line, it's the placeholder that took the break that ends the excerpt.
+  assert.equal(redactClipFirstLine(`Pat ${TERM} said ${PAIR.replace(' ', '\n')} policy then ${TERM} more`, 160, r.redact), 'Pat [redacted:term] said [redacted:term]');
+  // A path placeholder that, read with the next line, takes the rest of the first line and
+  // the break with it: only the placeholder shows.
   assert.equal(redactClipFirstLine('/home/Acme\rsuser:pass-p\ttoken=\r\ncurl -u https://u:pw@host\n', 30, createRedactor({}).redact), '[redacted:path]');
 });
 
