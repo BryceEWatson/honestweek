@@ -57,6 +57,7 @@
   "voice": {
     "denyMeta": false
   },
+  "goalsFile": "honestweek.goals.json",
   "mine": {
     "ledger": "honestweek.findings.json",
     "ownRepos": ["your-org/your-repo"],

@@ -271,3 +271,29 @@ test('voice rejects non-array / non-string deny/allow phrases (fail-loud, names 
   assert.throws(() => normalizeConfig({ ...minimalValid(), voice: { denyPhrases: 'nope' } }), /"voice\.denyPhrases" must be an array/);
   assert.throws(() => normalizeConfig({ ...minimalValid(), voice: { allowPhrases: [42] } }), /"voice\.allowPhrases\[0\]" must be a string/);
 });
+
+// --- goalsFile: the goal list `honestweek view` reads ---------------------------
+
+test('goalsFile is optional and additive: a config without it normalizes as before', () => {
+  const c = normalizeConfig(minimalValid());
+  assert.ok(!('goalsFile' in c));
+});
+
+test('goalsFile resolves relative to the config file, and ~ to the home folder', () => {
+  const dir = tempDir();
+  try {
+    const cfg = loadConfig(writeConfig(dir, { ...minimalValid(), goalsFile: 'goals/list.json' }));
+    assert.equal(cfg.goalsFile, join(dir, 'goals', 'list.json'));
+    assert.equal(normalizeConfig({ ...minimalValid(), goalsFile: '~/goals.json' }).goalsFile, resolve(homedir(), 'goals.json'));
+    const abs = resolve(dir, 'abs.json');
+    assert.equal(normalizeConfig({ ...minimalValid(), goalsFile: abs }).goalsFile, abs);
+  } finally {
+    removeTempDir(dir);
+  }
+});
+
+test('goalsFile must be a non-empty string', () => {
+  for (const bad of ['', '   ', 42, ['a.json'], {}]) {
+    assert.throws(() => normalizeConfig({ ...minimalValid(), goalsFile: bad }), /"goalsFile" must be a non-empty string/);
+  }
+});
