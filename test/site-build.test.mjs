@@ -8,11 +8,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { runBuild } from '../lib/build.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'me@example.com';
 let counter = 0;
@@ -21,7 +21,7 @@ function git(dir, args, env) {
   return execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env: env ?? process.env, stdio: ['ignore', 'pipe', 'pipe'] });
 }
 function initRepo() {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-site-repo-'));
+  const dir = makeTempDir('hw-site-repo-');
   git(dir, ['init', '-q']);
   git(dir, ['config', 'user.email', ME]);
   git(dir, ['config', 'user.name', 'Dev']);
@@ -83,9 +83,9 @@ function toyAdapter(headline = 'a steady week') {
 function setup({ headline } = {}) {
   const repoDir = initRepo();
   const sha = commit(repoDir, '2024-06-12T10:00:00Z', 'fix the login redirect');
-  const work = mkdtempSync(join(tmpdir(), 'hw-site-work-'));
+  const work = makeTempDir('hw-site-work-');
   // Synthetic, empty sessions root -> deterministic hero count of 0.
-  const cfgDir = mkdtempSync(join(tmpdir(), 'hw-site-claude-'));
+  const cfgDir = makeTempDir('hw-site-claude-');
   mkdirSync(join(cfgDir, 'projects'));
 
   writeFileSync(join(work, 'honestweek.site.json'), JSON.stringify(toyAdapter(headline)));
@@ -108,7 +108,7 @@ function setup({ headline } = {}) {
 }
 
 function cleanup(...dirs) {
-  for (const d of dirs) try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ }
+  for (const d of dirs) removeTempDir(d);
 }
 
 function withSessionsRoot(cfgDir, fn) {
@@ -192,7 +192,7 @@ test('site mode ABORTS (exit 2) and writes nothing when authored prose states an
 });
 
 test('site mode requires output.adapter (config validation)', async () => {
-  const work = mkdtempSync(join(tmpdir(), 'hw-site-noadapter-'));
+  const work = makeTempDir('hw-site-noadapter-');
   try {
     const config = { identity: { authorEmails: [ME] }, repos: [{ path: '/x', label: 'r', role: 'featured' }], output: { mode: 'site' } };
     writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify(config));

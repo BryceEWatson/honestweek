@@ -6,8 +6,7 @@
 
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { createRedactor, createSecretsOnlyRedactor } from '../lib/redact.mjs';
@@ -17,8 +16,9 @@ import { createLru, createViewData, goalKey, memberCount } from '../lib/view/dat
 import { REPLAY_EVENT_FIELDS } from '../lib/view/replay-export.mjs';
 import { buildCorpus } from './fixtures/replay/corpus.mjs';
 import { buildViewWeek, EMAIL, LONG_WORD, NOT_PROMPT_WORDS, OTHER_TERM, PRIVATE_WORDS, QUEUED_WORD, SECRETS, SEEDED, STRADDLE_WORD, SUMMARY_WORD, TERM, WEEK } from './fixtures/view/week.mjs';
+import { makeTempDir } from './helpers/temp-dir.mjs';
 
-const scratch = mkdtempSync(join(tmpdir(), 'hw-view-data-'));
+const scratch = makeTempDir('hw-view-data-');
 after(() => rmSync(scratch, { recursive: true, force: true }));
 
 const w = buildViewWeek(join(scratch, 'week'));

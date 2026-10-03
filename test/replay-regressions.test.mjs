@@ -6,8 +6,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { normalizeConfig } from '../lib/config.mjs';
@@ -22,6 +21,7 @@ import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { sourceKey } from '../lib/replay/ids.mjs';
 import { describe } from '../lib/replay/views.mjs';
 import { main as inspect } from '../tools/replay-inspect.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'you@example.com';
 const T0 = Date.parse('2024-06-11T15:00:00.000Z');
@@ -71,7 +71,7 @@ let key;
 const of = (session, kind) => h.events.filter((e) => e.session === session && (!kind || e.kind === kind));
 
 before(async () => {
-  root = mkdtempSync(join(tmpdir(), 'hw-replay-reg-'));
+  root = makeTempDir('hw-replay-reg-');
   const site = join(root, 'site');
   repo(site, 'https://github.com/example/your-project.git');
   const shaA = commit(site, 'a.txt', 'Add the parser', at(5));
@@ -233,11 +233,7 @@ before(async () => {
   h = await buildWorkHistory({ config, from: '2024-06-10', to: '2024-06-16', roots: { claude: [claudeRoot], codex: [codexRoot] } });
 });
 after(() => {
-  try {
-    rmSync(root, { recursive: true, force: true });
-  } catch {
-    /* Windows can hold a lock on .git briefly */
-  }
+  removeTempDir(root);
 });
 
 test('a private skeleton keeps no MCP server, custom tool, or custom agent type name', () => {

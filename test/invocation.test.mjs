@@ -3,11 +3,11 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { commandForm, currentCommand, pageCommand, setCommandForm } from '../lib/invocation.mjs';
+import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const root = resolve('/work');
 const at = (...p) => join(root, ...p);
@@ -60,7 +60,7 @@ test('on Linux and macOS npm runs its command through a link, which is followed 
 });
 
 test('a real npx cache with its .bin link prints the spec npx fetched', { skip: process.platform === 'win32' && 'symlinks need extra rights on Windows' }, () => {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-npx-'));
+  const dir = makeTempDir('hw-npx-');
   try {
     const cache = join(dir, '_npx', 'a1b2c3');
     mkdirSync(join(cache, 'node_modules', 'honestweek', 'bin'), { recursive: true });

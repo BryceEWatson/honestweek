@@ -4,17 +4,17 @@
 
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { connect } from 'node:net';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { ASSETS_DIR, CODE_HEADER, CSP, CSP_SELF_TEST, KEY_HEADER, readAssets, SELFTEST_DIR, startViewServer } from '../lib/view/server.mjs';
 import { createViewData } from '../lib/view/data.mjs';
 import { buildViewWeek, TERM, WEEK } from './fixtures/view/week.mjs';
+import { makeTempDir } from './helpers/temp-dir.mjs';
 
-const scratch = mkdtempSync(join(tmpdir(), 'hw-view-server-'));
+const scratch = makeTempDir('hw-view-server-');
 const servers = [];
 after(async () => {
   for (const s of servers) await s.close();

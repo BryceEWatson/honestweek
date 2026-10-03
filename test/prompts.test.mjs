@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as nodeFs from 'node:fs';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 
 import { normalizeConfig } from '../lib/config.mjs';
 import { createRedactor, redactWithAudit, replayRedactions } from '../lib/redact.mjs';
@@ -19,6 +18,7 @@ import { localDateRangeInstants } from '../lib/resolve-week.mjs';
 import { atomicWriteText } from '../lib/atomic-json.mjs';
 import { loadSiteAdapter } from '../lib/site/load-adapter.mjs';
 import { readBoundedJsonlLines } from '../lib/bounded-jsonl.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 function makeIo(){let stdout='',stderr='',exit=null;return{out:(s)=>{stdout+=s},err:(s)=>{stderr+=s},exit:(c)=>{exit=c;return c},get stdout(){return stdout},get stderr(){return stderr},get exitCode(){return exit}};}
 function jsonl(path,rows){mkdirSync(join(path,'..'),{recursive:true});writeFileSync(path,rows.map((x)=>JSON.stringify(x)).join('\n')+'\n');}
@@ -130,7 +130,7 @@ test('hidden and private prompts cannot supply recurrence evidence to a public p
 });
 
 test('source wrappers are excluded while unknown user-authored XML remains eligible',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-wrappers-'));
+  const root=makeTempDir('honestweek-wrappers-');
   try{
     const project=join(root,'project'),claude=join(root,'claude'),codex=join(root,'codex');mkdirSync(project,{recursive:true});
     jsonl(join(claude,'p','s.jsonl'),[{type:'user',sessionId:'c',timestamp:'2024-06-11T00:00:00.000Z',cwd:project,message:{content:'<command-message>ignore</command-message>'}},{type:'user',sessionId:'c',timestamp:'2024-06-11T00:01:00.000Z',cwd:project,message:{content:'<custom-note>keep this user-authored request</custom-note>'}}]);
@@ -139,11 +139,11 @@ test('source wrappers are excluded while unknown user-authored XML remains eligi
     const got=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':claude,codex},now:new Date('2024-06-17T00:00:00Z')});
     assert.deepEqual(got.prompts.map((p)=>p.text),['<custom-note>keep this user-authored request</custom-note>','ordinary user request stays']);
     assert.deepEqual(got.prompts.map((p)=>p.turn),[1,1]);
-  }finally{rmSync(root,{recursive:true,force:true});}
+  }finally{removeTempDir(root);}
 });
 
 test('observed verification requires a recognized command and explicit success',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-verification-command-'));
+  const root=makeTempDir('honestweek-verification-command-');
   try{
     const project=join(root,'project'),claude=join(root,'claude'),codex=join(root,'codex');mkdirSync(project,{recursive:true});
     jsonl(join(claude,'p','s.jsonl'),[
@@ -178,11 +178,11 @@ test('observed verification requires a recognized command and explicit success',
     const config=normalizeConfig({identity:{authorEmails:['you@example.com']},week:{timezone:'UTC'},repos:[{path:project,label:'your-project',role:'featured'}]},{configDir:root});
     const got=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':claude,codex},now:new Date('2024-06-17T00:00:00Z')});
     assert.deepEqual(got.prompts.map((prompt)=>prompt.observedVerification),[false,true,false,true,false,false,false,false]);
-  }finally{rmSync(root,{recursive:true,force:true});}
+  }finally{removeTempDir(root);}
 });
 
 test('current Codex exec wrappers are classified only from one literal shell command and linked success',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-custom-exec-'));
+  const root=makeTempDir('honestweek-custom-exec-');
   try{
     const project=join(root,'project'),codex=join(root,'codex');mkdirSync(project,{recursive:true});
     const wrapper=(command,tail='')=>`const result = await tools.shell_command({command:${JSON.stringify(command)},workdir:"/path/to/your/repo"}); ${tail} text(result);`;
@@ -227,11 +227,11 @@ test('current Codex exec wrappers are classified only from one literal shell com
     const got=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':join(root,'missing'),codex},now:new Date('2024-06-17T00:00:00Z')});
     assert.deepEqual(got.prompts.map((prompt)=>prompt.observedVerification),[true,true,false,false,false,false,false,false,false,false,false]);
     assert.doesNotMatch(JSON.stringify(got),/custom_tool_call|shell_command|string-output|object-output/);
-  }finally{rmSync(root,{recursive:true,force:true});}
+  }finally{removeTempDir(root);}
 });
 
 test('Codex Voice metadata is discarded while transcribed session turns follow ordinary privacy and recurrence rules',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-codex-voice-'));
+  const root=makeTempDir('honestweek-codex-voice-');
   try{
     const project=join(root,'project'),outside=join(root,'outside'),codex=join(root,'codex');
     mkdirSync(project,{recursive:true});mkdirSync(outside,{recursive:true});
@@ -268,11 +268,11 @@ test('Codex Voice metadata is discarded while transcribed session turns follow o
     const publicResult=privateCounterfactual.find((value)=>value.p.ref===publicPrompts[1].ref);
     assert.equal(publicResult.codes.includes('recurs'),false);
     assert.equal(publicResult.decision,'below-automatic-floor');
-  }finally{rmSync(root,{recursive:true,force:true});}
+  }finally{removeTempDir(root);}
 });
 
 test('follow-on correction signals require the next prompt to remain public and visible after controls merge',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-correction-'));
+  const root=makeTempDir('honestweek-correction-');
   try{
     const project=join(root,'project'),outside=join(root,'outside'),codex=join(root,'codex');
     mkdirSync(project,{recursive:true});mkdirSync(outside,{recursive:true});
@@ -299,21 +299,21 @@ test('follow-on correction signals require the next prompt to remain public and 
     const merged=mergePromptStore(first,scanned,new Date('2024-06-17T00:01:00Z'));
     assert.equal(merged.prompts.find((prompt)=>prompt.ref===hiddenPrior.ref).followOnCorrection,false);
     assert.equal(merged.prompts.find((prompt)=>prompt.ref===hiddenNext.ref).state,'hidden');
-  }finally{rmSync(root,{recursive:true,force:true});}
+  }finally{removeTempDir(root);}
 });
 
 test('atomic writes preserve prior bytes at open, write, flush, and rename faults',()=>{
   for(const method of ['openSync','writeFileSync','fsyncSync','renameSync']){
-    const root=mkdtempSync(join(tmpdir(),'honestweek-atomic-'));const file=join(root,'artifact.txt');writeFileSync(file,'prior');
+    const root=makeTempDir('honestweek-atomic-');const file=join(root,'artifact.txt');writeFileSync(file,'prior');
     try{const fs={...nodeFs,[method]:(...args)=>{if(method==='openSync'&&args[1]!=='wx')return nodeFs.openSync(...args);throw new Error(`fault:${method}`);}};assert.throws(()=>atomicWriteText(file,'next',fs),new RegExp(`fault:${method}`));assert.equal(readFileSync(file,'utf8'),'prior');assert.equal(nodeFs.readdirSync(root).length,1);}
-    finally{rmSync(root,{recursive:true,force:true});}
+    finally{removeTempDir(root);}
   }
 });
 
 test('static adapter preflight rejects an invalid grammar before sidecar work',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-adapter-'));const file=join(root,'adapter.json');
+  const root=makeTempDir('honestweek-adapter-');const file=join(root,'adapter.json');
   try{writeFileSync(file,JSON.stringify({artifact:'out.json'}));await assert.rejects(()=>loadSiteAdapter(file),/invalid.*tree/);}
-  finally{rmSync(root,{recursive:true,force:true});}
+  finally{removeTempDir(root);}
 });
 
 test('curate setup preflights exit 1 and write no prompt sidecars',async()=>{
@@ -323,19 +323,19 @@ test('curate setup preflights exit 1 and write no prompt sidecars',async()=>{
     {name:'invalid site adapter',output:{mode:'site',adapter:'adapter.json'},adapter:{artifact:'out.json'}},
   ];
   for(const c of cases){
-    const root=mkdtempSync(join(tmpdir(),'honestweek-preflight-'));
+    const root=makeTempDir('honestweek-preflight-');
     try{
       if(c.objectives)writeFileSync(join(root,'honestweek.objectives.json'),'{}\n');
       if(c.adapter)writeFileSync(join(root,'adapter.json'),`${JSON.stringify(c.adapter)}\n`);
       writeFileSync(join(root,'honestweek.config.json'),JSON.stringify({identity:{authorEmails:['you@example.com']},week:{timezone:'UTC'},repos:[{path:root,label:'your-project',role:'featured'}],output:c.output}));
       const io=makeIo();assert.equal(await runPrompts({cwd:root,argv:['curate'],now:new Date('2024-06-17T00:00:00Z'),io,roots:{'claude-code':join(root,'missing-c'),codex:join(root,'missing-x')}}),1,c.name);
       assert.equal(existsSync(join(root,'honestweek.prompts.json')),false,c.name);assert.equal(existsSync(join(root,'honestweek.prompt-items.json')),false,c.name);
-    }finally{rmSync(root,{recursive:true,force:true});}
+    }finally{removeTempDir(root);}
   }
 });
 
 test('dual-source prompt lane reaches validate and the existing standalone page',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-prompts-'));
+  const root=makeTempDir('honestweek-prompts-');
   const oldClaude=process.env.CLAUDE_CONFIG_DIR,oldCodex=process.env.CODEX_HOME;
   try{
     const project=join(root,'project');mkdirSync(project,{recursive:true});
@@ -414,34 +414,34 @@ test('dual-source prompt lane reaches validate and the existing standalone page'
   }finally{
     if(oldClaude===undefined)delete process.env.CLAUDE_CONFIG_DIR;else process.env.CLAUDE_CONFIG_DIR=oldClaude;
     if(oldCodex===undefined)delete process.env.CODEX_HOME;else process.env.CODEX_HOME=oldCodex;
-    rmSync(root,{recursive:true,force:true});
+    removeTempDir(root);
   }
 });
 
 test('prompt scan uses local Monday and next-Monday instants with global turn ordinals',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-timezone-'));
+  const root=makeTempDir('honestweek-timezone-');
   try{
     const codex=join(root,'codex'),project=join(root,'project');mkdirSync(project,{recursive:true});
     jsonl(join(codex,'sessions','x.jsonl'),[{type:'session_meta',payload:{id:'s',cwd:project}},...['2024-06-10T06:59:59.999Z','2024-06-10T07:00:00.000Z','2024-06-17T06:59:59.999Z','2024-06-17T07:00:00.000Z'].map((timestamp,i)=>({type:'event_msg',timestamp,payload:{type:'user_message',message:`prompt number ${i} with enough neutral words for review`}}))]);
     const config=normalizeConfig({identity:{authorEmails:['you@example.com']},week:{timezone:'America/Los_Angeles'},repos:[{path:project,label:'private phrase',role:'featured'}],redaction:{terms:['private phrase']}},{configDir:root});
     const range=localDateRangeInstants('2024-06-10','2024-06-16',config.week.timezone);const got=await scanPromptSources({config,...{weekStart:range.start,weekEnd:range.endExclusive},roots:{'claude-code':join(root,'missing'),codex},now:new Date('2024-06-17T12:00:00Z')});
     assert.deepEqual(got.prompts.map((p)=>p.turn),[2,3]);assert.deepEqual(got.prompts.map((p)=>p.timestamp),['2024-06-10T07:00:00.000Z','2024-06-17T06:59:59.999Z']);assert.equal(got.prompts.every((p)=>p.project==='[redacted:term]'),true);
-  }finally{rmSync(root,{recursive:true,force:true});}
+  }finally{removeTempDir(root);}
 });
 
 test('malformed rows make a source unreadable instead of shifting receipt ordinals',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-malformed-'));
+  const root=makeTempDir('honestweek-malformed-');
   try{
     const codex=join(root,'codex');jsonl(join(codex,'sessions','x.jsonl'),[{type:'session_meta',payload:{id:'s',cwd:root}}]);
     const file=join(codex,'sessions','x.jsonl');writeFileSync(file,readFileSync(file,'utf8')+'{bad json\n'+JSON.stringify({type:'event_msg',timestamp:'2024-06-11T00:00:00.000Z',payload:{type:'user_message',message:'valid later prompt'}})+'\n');
     const config=normalizeConfig({identity:{authorEmails:['you@example.com']},week:{timezone:'UTC'},repos:[{path:root,label:'your-project',role:'featured'}]},{configDir:root});
     const got=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':join(root,'missing'),codex},now:new Date('2024-06-17T00:00:00Z')});
     assert.equal(got.sourceStatus.codex.state,'unreadable');assert.equal(got.sourceStatus.codex.malformedLines,1);assert.equal(got.prompts.length,0);
-  }finally{rmSync(root,{recursive:true,force:true});}
+  }finally{removeTempDir(root);}
 });
 
 test('an oversized JSONL record makes the primary source unreadable before parsing',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-oversized-'));
+  const root=makeTempDir('honestweek-oversized-');
   try{
     const codex=join(root,'codex'),file=join(codex,'sessions','x.jsonl');
     mkdirSync(join(file,'..'),{recursive:true});
@@ -450,11 +450,11 @@ test('an oversized JSONL record makes the primary source unreadable before parsi
     const got=await scanPromptSources({config,weekStart:new Date('2024-06-10T00:00:00Z'),weekEnd:new Date('2024-06-17T00:00:00Z'),roots:{'claude-code':join(root,'missing'),codex},now:new Date('2024-06-17T00:00:00Z')});
     assert.equal(got.sourceStatus.codex.state,'unreadable');
     assert.equal(got.prompts.length,0);
-  }finally{rmSync(root,{recursive:true,force:true});}
+  }finally{removeTempDir(root);}
 });
 
 test('bounded JSONL reads measure UTF-8 bytes consistently across LF and CRLF',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-bounded-jsonl-')),file=join(root,'records.jsonl');
+  const root=makeTempDir('honestweek-bounded-jsonl-'),file=join(root,'records.jsonl');
   try{
     writeFileSync(file,'ab\r\nc\n');
     const lines=[];for await(const line of readBoundedJsonlLines(file,{maxBytes:2}))lines.push(line);
@@ -467,26 +467,26 @@ test('bounded JSONL reads measure UTF-8 bytes consistently across LF and CRLF',a
     const boundary='x'.repeat(65535);writeFileSync(file,`${boundary}\r\n`);
     const split=[];for await(const line of readBoundedJsonlLines(file,{maxBytes:65535}))split.push(line);
     assert.deepEqual(split,[boundary]);
-  }finally{rmSync(root,{recursive:true,force:true});}
+  }finally{removeTempDir(root);}
 });
 
 test('prompt store lock rejects a concurrent writer',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-lock-'));
+  const root=makeTempDir('honestweek-lock-');
   try{await withPromptLock(root,async()=>{await assert.rejects(()=>withPromptLock(root,async()=>{}),/another honestweek prompts command/);});}
-  finally{rmSync(root,{recursive:true,force:true});}
+  finally{removeTempDir(root);}
 });
 
 test('stale prompt locks fail closed instead of racing automatic reclamation',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-stale-lock-'));const lock=join(root,'honestweek.prompts.json.lock');
+  const root=makeTempDir('honestweek-stale-lock-');const lock=join(root,'honestweek.prompts.json.lock');
   try{writeFileSync(lock,'999999 0\n');await assert.rejects(()=>withPromptLock(root,async()=>{}),/remove the stale lock file after confirming no command is running/);assert.equal(existsSync(lock),true);}
-  finally{rmSync(root,{recursive:true,force:true});}
+  finally{removeTempDir(root);}
 });
 
 test('prompt lock cleanup failure is reported instead of returning success',async()=>{
-  const root=mkdtempSync(join(tmpdir(),'honestweek-lock-cleanup-'));const lock=join(root,'honestweek.prompts.json.lock');
+  const root=makeTempDir('honestweek-lock-cleanup-');const lock=join(root,'honestweek.prompts.json.lock');
   const fs={...nodeFs,unlinkSync(){const err=new Error('injected sharing violation');err.code='EBUSY';throw err;}};
   try{await assert.rejects(()=>withPromptLock(root,async()=>42,{ensureIgnored:false,fs}),/could not remove its prompt lock/);assert.equal(existsSync(lock),true);}
-  finally{if(existsSync(lock))nodeFs.unlinkSync(lock);rmSync(root,{recursive:true,force:true});}
+  finally{if(existsSync(lock))nodeFs.unlinkSync(lock);removeTempDir(root);}
 });
 
 test('curation and privacy defaults are explicit and bounded',()=>{

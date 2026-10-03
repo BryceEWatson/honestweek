@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpathSync, rmdirSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync, readFileSync, existsSync, realpathSync, rmdirSync, symlinkSync, unlinkSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { PassThrough } from 'node:stream';
 
@@ -23,6 +22,7 @@ import {
 import { setCommandForm } from '../lib/invocation.mjs';
 import { privateWordsNote } from '../lib/private-words.mjs';
 import { loadConfig } from '../lib/config.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'me@example.com';
 const OTHER = 'other@example.test';
@@ -44,7 +44,7 @@ function initRepoWithCommit(dir, email) {
 }
 
 function setupTree() {
-  const parent = mkdtempSync(join(tmpdir(), 'hw-init-'));
+  const parent = makeTempDir('hw-init-');
   const cwd = join(parent, 'myproj');
   const sibA = join(parent, 'sibA');
   const plain = join(parent, 'plaindir');
@@ -58,11 +58,7 @@ function setupTree() {
 }
 
 function cleanup(dir) {
-  try {
-    rmSync(dir, { recursive: true, force: true });
-  } catch {
-    /* ignore Windows lock on teardown */
-  }
+  removeTempDir(dir);
 }
 
 function fakeIo(answers = []) {
@@ -219,7 +215,7 @@ test('interactive: pressing through both confirmations (defaults) yields a valid
 });
 
 test('ensureGitignore creates, appends idempotently', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-gi-'));
+  const dir = makeTempDir('hw-gi-');
   try {
     assert.equal(ensureGitignore(dir, 'honestweek.draft.json'), true, 'creates and adds');
     assert.equal(ensureGitignore(dir, 'honestweek.draft.json'), false, 'idempotent on second call');
@@ -476,7 +472,7 @@ test('init run from a worktree of a display-only repository never asks that repo
 });
 
 test('init in a folder with no git repositories near it writes nothing and says where to run it', async () => {
-  const parent = mkdtempSync(join(tmpdir(), 'hw-init-empty-'));
+  const parent = makeTempDir('hw-init-empty-');
   const lonely = join(parent, 'lonely');
   mkdirSync(lonely);
   try {
