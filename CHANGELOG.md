@@ -44,6 +44,7 @@ This will be the first version on npm. 0.1.0 was released on GitHub, but its npm
 - The engine can build a history for your own screen where names and folders show as written and secrets stay hidden. No command writes it to a file, and the engine refuses to turn it into JSON whole. (#73)
 - The root account's home folder, `/root/…`, is hidden like any other home folder. Codex's agent addresses, like `/root/wide_fixtures`, stay readable in the history. (#85)
 - Two rare redactor gaps are closed: text glued after a header's placeholder (`Authorization=[redacted:secret]'…`) is hidden, and text the redactor used to change on a second pass, like JSON-escaped keys nested in each other, is settled on the first, so fewer digest items are held back. (#80)
+- `init`, Setup and Settings refuse a display-only folder inside a repository git reads, and a read repository inside a display-only folder, since git reading the outer one would read the other too. Folders are compared by their real paths, so a link can't hide it. (#103)
 
 ## 0.1.0 (14 August 2026)
 
