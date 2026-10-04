@@ -4,11 +4,11 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 
 ## Unreleased (0.2.0)
 
-This will be the first version on npm. 0.1.0 was released on GitHub, but its npm publish failed, so `npx honestweek` has never worked before this version. Two pull requests this version waits for haven't merged yet; they're marked "not merged yet" below.
+This will be the first version on npm. 0.1.0 was released on GitHub, but its npm publish failed, so `npx honestweek` has never worked before this version. One pull request this version waits for hasn't merged yet; it's marked "not merged yet" below.
 
 ### Added
 
-- **`honestweek view`, a page in your browser served only from your own machine.** Find the sessions and goals behind a pull request, a commit, a file, a branch or a few words, see each goal's sessions on a timeline, and replay any session step by step. Every link, count and time says how it's known. Text is redacted by default, and a "Show private text" switch shows names and client words on your own screen while keys, tokens and passwords stay hidden. `honestweek view --demo` shows it all on a made-up week. (#84, not merged yet)
+- **`honestweek view`, a page in your browser served only from your own machine.** Find the sessions and goals behind a pull request, a commit, a file, a branch or a few words, see each goal's sessions on a timeline, and replay any session step by step. Every link, count and time says how it's known. Text is redacted by default, and a "Show private text" switch shows names and client words on your own screen while keys, tokens and passwords stay hidden. `honestweek view --demo` shows it all on a made-up week. (#84)
 - **An easier first run.** Messages name the command the way you ran it, so every next step can be copied. With no arguments, honestweek prints three first steps. `init` explains repository roles, asks which names and client words to keep private, prints a short summary instead of the whole config, and points you to `view`. (#87, not merged yet)
 - **A work-history engine.** It reads your local Claude Code and Codex logs and rebuilds a timeline you can replay to any moment, down to the log line behind each step. Every step says whether a record shows it, it was computed from records, a named rule inferred it, or the evidence is missing. It never invents working time, causes or reasons. (#67)
 - **Finding the sessions behind your work.** The engine can list the sessions that worked toward a goal, and the sessions behind a pull request, a commit, a file or a branch. A link it can't settle is marked as ambiguous instead of guessed. (#70)

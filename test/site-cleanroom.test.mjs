@@ -11,7 +11,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PRIVATE_NAME_HASHES, SITE_FIELD, SITE_FIELD_HASHES, privateForbidden, readOwner, scanText } from './helpers/clean-room.mjs';
@@ -75,7 +75,19 @@ test('lib/replay, its harness, fixtures and doc are clean-room', () => {
 
 // The demo week is invented end to end, so the same fence holds over it.
 test('the demo week, its test and its doc are clean-room', () => {
-  assertCleanRoom([join(ROOT, 'tools', 'demo-week.mjs'), join(HERE, 'demo-week.test.mjs'), join(ROOT, 'docs', 'demo-week.md')], 'demo week');
+  const files = [...allFiles(join(ROOT, 'lib', 'demo')), join(ROOT, 'tools', 'demo-week.mjs'), join(HERE, 'demo-week.test.mjs'), join(ROOT, 'docs', 'demo-week.md')];
+  assert.ok(files.length >= 4, 'expected the demo week builder to be present');
+  assertCleanRoom(files, 'demo week');
+});
+
+// The local page: the command, its server and data, every page and script it serves
+// (assets/ and selftest/), its tests, and its doc once the plan has become one.
+test('honestweek view, its pages, its tests and its doc are clean-room', () => {
+  const doc = ['local-page.md', 'local-page-plan.md'].map((f) => join(ROOT, 'docs', f)).filter((f) => existsSync(f));
+  const tests = readdirSync(HERE).filter((f) => /^view-.*\.test\.mjs$/.test(f)).map((f) => join(HERE, f));
+  const files = [...allFiles(join(ROOT, 'lib', 'view')), join(ROOT, 'lib', 'view.mjs'), ...allFiles(join(HERE, 'fixtures', 'view')), ...tests, ...doc];
+  assert.ok(files.length >= 8, 'expected the view modules to be present');
+  assertCleanRoom(files, 'honestweek view');
 });
 
 test('the shipped docs and example config are clean-room too', () => {

@@ -24,7 +24,7 @@ The workflow is safe to leave on with the terminal path. When a release is publi
 
 On a branch `feature/release-0.2.0` from `main`:
 
-1. Confirm the pull requests the changelog lists as "not merged yet" have merged (for 0.2.0, #84 and #87).
+1. Confirm the pull requests the changelog lists as "not merged yet" have merged (for 0.2.0, #87; #84 has merged).
 2. Set the version to `0.2.0` in `package.json` and in `.claude-plugin/plugin.json`. A test checks the two match. `.claude-plugin/marketplace.json` has no version of its own, so it doesn't change.
 3. In `CHANGELOG.md`, rename `## Unreleased (0.2.0)` to `## 0.2.0 (<date>)`, drop the "not merged yet" notes, and add anything else merged since.
 4. In `README.md`, make `npx honestweek` the main way to run it (keep `npx github:BryceEWatson/honestweek` as the way to run unreleased code), and add an npm version badge if you want one. The Releasing section already points here. `test/install.test.mjs` has a test that stops the README from advertising `npx honestweek` as working before it does. Update that test in the same pull request.
@@ -45,7 +45,7 @@ npm publish --dry-run
 The dry run runs the whole test suite first (about a minute), because `package.json` has a `prepublishOnly` script, and then prints what it would upload. Check:
 
 - `name: honestweek` and `version: 0.2.0`;
-- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (96 files and about 0.36 MB packed before #84; more once #84 adds the `view` pages under `lib/view/assets/`, so check the list rather than the count);
+- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (116 files and about 0.5 MB packed when #84 merged, with the `view` pages under `lib/view/assets/`; later changes move the count, so check the list rather than the number);
 - nothing from `test/`, `docs/`, `tools/` or `.claude/`.
 
 Then publish for real:
