@@ -630,6 +630,22 @@ test('a value after a name that was itself a value, or after a key split from it
   assert.equal(r.count, 2);
 });
 
+test('every spelling of a sensitive key is still read as an outer or an inner name', () => {
+  // sourceFieldSpans skips a text that holds none of a short list of words. Each kind of name
+  // the rules call sensitive must hold one, or its nested value would show again.
+  for (const key of ['api_key', 'apiKeys', 'ACCESS_KEY', 'privateKey', 'passphrase', 'pass', 'Authorization', 'auth', 'Cookie', 'credentials', 'X-Amz-Signature', 'sig',
+    'dbPassword', 'PASSWD', 'authToken', 'client_secret', 'secretKey', 'MYSQL_PWD', 'ENCRYPTION_KEY', 'signingKey', 'master-key', 'license_key', 'serviceKey', 'DEPLOY_KEY',
+    'SESSION_SECRET_KEY', 'ssh_key', 'gpgKey', 'PGP_KEY', 'hmacKey', 'JWT_KEY', 'aes-key', 'APP_KEY']) {
+    // A header's own value is its whole line, which the rules hide: nothing is left to find.
+    const header = /^(?:Authorization|Cookie)$/.test(key);
+    for (const input of [`${key}=token: ${LV}`, `token: ${key}: "${LV}"`]) {
+      assert.deepEqual(sourceFieldSpans(input).map(([a, b]) => input.slice(a, b)), header && input.startsWith(key) ? [] : [LV], input);
+      for (const out of threeWays(input).out) assert.ok(!out.includes(LV), `${input} -> ${out}`);
+    }
+  }
+  assert.deepEqual(sourceFieldSpans('a.'.repeat(1000)), []);
+});
+
 test('ordinary text with a colon or a line break after a name reads as it did', () => {
   // None of these names a secret first, or they hold no value after the inner name.
   for (const input of [
