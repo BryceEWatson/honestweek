@@ -249,6 +249,7 @@ details.fold > .foldbody { padding: 4px 20px 16px; }
 .pagehead h1 { font-size: 22px; font-weight: 600; margin: 0; }
 .ph-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ph-title .eyebrow { font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+.ph-title .ph-big { font-size: 22px; font-weight: 600; }
 .ph-title .ph-sub { font-size: 14px; font-weight: 400; color: var(--ink-2); letter-spacing: 0; }
 .ph-title .tmeta { font-size: 14px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
 #title { overflow-wrap: anywhere; }
@@ -259,7 +260,7 @@ details.fold > .foldbody { padding: 4px 20px 16px; }
 .find h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.015em; margin: 0 0 8px; }
 .find-sub { margin: 0 0 22px; color: var(--ink-2); }
 .searchbox { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
-.searchbox input { flex: 1 1 320px; min-width: 0; font: inherit; font-size: 17px; padding: 13px 16px; min-height: 52px; border: 1px solid var(--field); border-radius: 10px; background: var(--raised); color: var(--ink); }
+.searchbox input { flex: 1 1 200px; min-width: 0; font: inherit; font-size: 17px; padding: 13px 16px; min-height: 52px; border: 1px solid var(--field); border-radius: 10px; background: var(--raised); color: var(--ink); }
 .searchbox input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .searchbox .btn { min-height: 52px; border-radius: 10px; padding: 0 22px; font-size: 16px; justify-content: center; }
 [data-page="search"] .hint { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; margin: 14px auto 0; font-size: 14px; color: var(--muted); max-width: none; }
@@ -277,7 +278,7 @@ details.fold > .foldbody { padding: 4px 20px 16px; }
 .keyside { position: sticky; top: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; font-size: 14px; }
 .keyside-h { font-size: 15px; font-weight: 600; margin: 0 0 10px; }
 .keyside-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.keyside-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; color: var(--ink-2); }
+.keyside-list li { display: grid; grid-template-columns: 100px minmax(0, 1fr); align-items: baseline; gap: 10px; color: var(--ink-2); }
 .keyside-list .chip { font-weight: 600; color: var(--ink); }
 .keyside .kbd { margin: 10px 0 0; }
 /* The three cards on the home view. */
@@ -293,6 +294,9 @@ a.hitem:hover .hname { color: var(--accent); }
 .hitem .prio { margin-top: 2px; flex: 0 0 auto; }
 .hname { font-weight: 500; display: block; }
 .hsub { font-size: 13px; color: var(--muted); display: block; }
+.hmain { display: flex; flex-direction: column; min-width: 0; }
+a.goalitem { display: block; }
+.hcard-list > li.row { border-top: 1px solid var(--line-soft); }
 .hcard-foot { margin-top: 8px; padding-top: 4px; font-size: 14px; font-weight: 500; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
 .hcard-foot .linklike { font-weight: 500; text-decoration: none; }
 .hcard .empty { padding: 8px 0; }
@@ -347,6 +351,13 @@ mark { background: var(--accent-wash); color: inherit; padding: 0 1px; border-ra
 .pcardrow { padding: 12px 20px; border-bottom: 1px solid var(--line-soft); }
 .pcardrow:last-child { border-bottom: 0; }
 .pcardrow .meta { font-size: 13px; color: var(--muted); }
+.foldbody { display: flex; flex-direction: column; gap: 12px; }
+.foldbody > .rsec { border: 0; border-radius: 0; }
+.foldbody > .rsec > h2 { padding-left: 0; padding-right: 0; }
+.foldbody .rrow, .foldbody .gcard, .foldbody .pcardrow { padding-left: 0; padding-right: 0; }
+.branchlead { padding: 10px 20px 0; font-size: 14px; font-weight: 500; }
+.leadblock { display: flex; flex-direction: column; gap: 2px; }
+.leadblock .notes { margin-top: 6px; }
 .everywhere .hint { color: var(--ink-2); font-size: 13px; padding: 10px 20px 4px; margin: 0; }
 .everywhere .pcardrow .t { font-weight: 500; }
 
@@ -381,7 +392,8 @@ li.run .st { color: var(--accent); }
 .pwrap { max-width: 1240px; margin: 0 auto; padding: 32px 24px 24px; display: flex; flex-direction: column; gap: 24px; }
 .phead { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 32px; }
 .phead h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.015em; margin: 0 0 4px; }
-.phead .lead { color: var(--ink-2); max-width: 70ch; }
+.phead > div { flex: 1 1 520px; min-width: 0; }
+.phead .lead { color: var(--ink-2); max-width: 72ch; }
 .phead .lead .fine { display: block; font-size: 13px; color: var(--muted); margin-top: 4px; }
 details.prirule { max-width: 460px; font-size: 14px; }
 details.prirule > summary { color: var(--accent); font-weight: 500; }
@@ -485,6 +497,9 @@ details.dismissed > summary h2 { display: inline; font-size: 14px; font-weight: 
 .restlists .ghead p { margin: 0; padding: 10px 20px 4px; color: var(--muted); font-size: 13px; }
 .pchecks > summary { padding: 4px 0; }
 .pchecks > summary h2 { display: inline; }
+.restlists { padding: 12px 20px; border-top: 1px solid var(--line-soft); }
+.pprio, .pname { min-width: 0; }
+.pname .kbd { margin-left: 4px; }
 .pwrap .sh { font-size: 16px; font-weight: 600; margin: 0; }
 #checks > .lead { margin: 10px 0; color: var(--ink-2); font-size: 14px; }
 .pcheck { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin: 6px 0; }
@@ -642,6 +657,10 @@ details.legendbox > summary, details.catalog > summary { color: var(--ink-2); }
 .wl-badge:hover { background: var(--high-wash); color: var(--ink); }
 .wl-badge.none { border-color: var(--line); background: var(--surface); color: var(--ink-2); }
 .wl-badge.none::before { background: var(--line); }
+.wl-rec { border: 1px solid var(--high-line); background: var(--high-soft); border-radius: 10px; padding: 12px 14px; margin: 0 0 12px; }
+.wl-rec p { margin: 0 0 6px; color: var(--ink-2); }
+.wl-rec .wl-rec-h { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--ink); }
+.wl-rec a { font-weight: 500; }
 .mark.wl-target { outline: 2px solid var(--critical); outline-offset: 2px; stroke: var(--critical); stroke-width: 2; }
 .wl-card { position: absolute; z-index: 30; width: min(380px, calc(100vw - 16px)); background: var(--surface); border: 1px solid var(--high-line); border-radius: 10px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18); padding: 10px 14px 12px; font-size: 14px; }
 .wl-card:focus { outline: none; }
