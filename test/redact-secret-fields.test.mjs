@@ -496,6 +496,29 @@ test("a field nested in another field's value keeps its own value hidden", () =>
   }
 });
 
+// A closed quoted value whose last word is a field with its separator after it (`"hello token":`)
+// runs on to cover that field's value, quotes and all, where it used to stop at its closing
+// quote and leave the value shown. A dotted key such as `api.key` is a field now, so without
+// this it showed values main hid. A field whose value starts inside the quotes ends with them.
+// Made-up values. [input, the published output]
+const CLOSED_QUOTE_THEN_FIELD = [
+  [`api.key: "hello token": "${LV}"`, 'api.key: [redacted:secret]'],
+  [`api.key: 'hello token': '${LV}'`, 'api.key: [redacted:secret]'],
+  [`api.key="hello token"="${LV}"`, 'api.key=[redacted:secret]'],
+  [`api_key: "hello token": "${LV}"`, 'api_key: [redacted:secret]'],
+  [`-Dapi.key='token='${LV}`, '-Dapi.key=[redacted:secret]'],
+  [`api.key='token='${LV}`, 'api.key=[redacted:secret]'],
+  [`api.key='token: '${LV}`, 'api.key=[redacted:secret]'],
+  [`{\\"api.key\\": \\"my token\\": \\"${LV}\\"}`, '{\\"api.key\\": [redacted:secret]}'],
+  [`password: 'api.key=${LV}' ok`, `password: '[redacted:secret]' ok`],
+];
+
+test('a closed quoted value ending on a field covers that field\'s value', () => {
+  agreeOn(CLOSED_QUOTE_THEN_FIELD, [], LV);
+  // A word in the value that isn't followed by a separator leaves the value as it was.
+  assert.equal(createRedactor().redact('api_key: "my token", region: eu'), 'api_key: "[redacted:secret]", region: eu');
+});
+
 test('a record key that is a code file or a length keeps its value; a dotted key named for a credential hides it', () => {
   const shown = { 'auth.ts': 'ordinary contents', 'token.js': 'ordinary contents', 'password.length': '8', 'auth.test.mjs': 'ordinary contents' };
   // A data file named for a secret may hold the secret itself, so its value stays hidden.
