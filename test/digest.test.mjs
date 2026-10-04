@@ -21,6 +21,7 @@ import { curatePrompts } from '../lib/prompt-curation.mjs';
 import { hasRecurringText } from '../lib/curation-similarity.mjs';
 import { loadConfig, OUTPUT_MODES } from '../lib/config.mjs';
 import { createRedactor } from '../lib/redact.mjs';
+import { SETTLED_HINT, unsettledSample } from './helpers/unsettled-text.mjs';
 import { isReservedDigestItem } from '../lib/digest-schema.mjs';
 import { buildPageModel, render as renderPage } from '../lib/emit/page.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
@@ -1319,9 +1320,11 @@ test('disabled public renditions withhold every otherwise visible category', asy
   } finally { removeTempDir(f.root); }
 });
 
-// A prompt whose redacted text the published redactor changes again on a second pass: the
-// first pass leaves `-token` and `=ssh.key` on two lines, the second reads them as one field.
-const UNSETTLED_PROMPT = 'please keep the local gate honest "api.key"==a.b.secret.key = -token\n=ssh.key here';
+// A prompt whose redacted text the published redactor changes again on a second pass. Which
+// text does that depends on the redactor, so the sample isn't fixed here: it's the first shape
+// in test/helpers/unsettled-text.mjs that is still unsettled, set in a plain sentence.
+const UNSETTLED_FRAME = (core) => `please keep the unsettled sample honest ${core} here`;
+const UNSETTLED_MARK = 'unsettled sample honest';
 const HELD_BACK_TEXT = '[redacted:secret]';
 
 test('one prompt with unsettled redaction is held back as high risk and the week still builds', async () => {
@@ -1335,19 +1338,23 @@ test('one prompt with unsettled redaction is held back as high risk and the week
 
     process.env.CLAUDE_CONFIG_DIR = f.claude; process.env.CODEX_HOME = f.codex;
     verifiedCommit(f.project);
+    const sample = unsettledSample(loadConfig(join(f.root, 'honestweek.config.json')), UNSETTLED_FRAME);
+    // Nothing of the prompt may be written: not its sentence, not what its first pass left shown.
+    const written = new RegExp(`${UNSETTLED_MARK}|${sample.leak.source}`);
     jsonl(join(f.claude, 'projects', 'p', 'unsettled.jsonl'), [
-      { type:'user', sessionId:'unsettled-session', timestamp:'2024-06-13T10:00:00.000Z', cwd:f.project, message:{ content:UNSETTLED_PROMPT } },
+      { type:'user', sessionId:'unsettled-session', timestamp:'2024-06-13T10:00:00.000Z', cwd:f.project, message:{ content:sample.raw } },
     ]);
     const { config, promptStore } = await scanFixture(f);
-    const scanned = promptStore.prompts.filter((prompt) => prompt.text.includes('=ssh.key'));
+    const scanned = promptStore.prompts.filter((prompt) => prompt.text.includes(UNSETTLED_MARK));
     assert.equal(scanned.length, 1, 'the scan reads the prompt with its first-pass redaction');
-    assert.notEqual(createRedactor(config).redact(scanned[0].text), scanned[0].text, 'a second pass still changes it');
+    assert.match(scanned[0].text, sample.leak, 'the scanned text still shows part of the sample');
+    assert.notEqual(createRedactor(config).redact(scanned[0].text), scanned[0].text, `a second pass still changes it: ${SETTLED_HINT}`);
 
     output = io();
     assert.equal(await runDigest({ cwd:f.root, argv:['prepare'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
     assert.match(output.stdout, /Privacy withheld: private-source=0, high-risk=1, /);
     const names = ['honestweek.prompts.json','honestweek.curated.json','honestweek.prompt-items.json'];
-    for (const name of names) assert.doesNotMatch(readFileSync(join(f.root, name), 'utf8'), /ssh\.key|api\.key|-token/, name);
+    for (const name of names) assert.doesNotMatch(readFileSync(join(f.root, name), 'utf8'), written, name);
     const store = JSON.parse(readFileSync(join(f.root, 'honestweek.prompts.json'), 'utf8'));
     const review = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
     const lane = JSON.parse(readFileSync(join(f.root, 'honestweek.prompt-items.json'), 'utf8'));
@@ -1378,7 +1385,7 @@ test('one prompt with unsettled redaction is held back as high risk and the week
     assert.equal(await runDigest({ cwd:f.root, argv:['prepare'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
     output = io(); assert.equal(await runValidate({ cwd:f.root, now:f.now, io:output }), 0, output.stderr);
     output = io(); assert.equal(await runBuild({ cwd:f.root, now:f.now, io:output }), 0, output.stderr);
-    for (const name of [...names, 'report.html']) assert.doesNotMatch(readFileSync(join(f.root, name), 'utf8'), /ssh\.key|api\.key|-token/, name);
+    for (const name of [...names, 'report.html']) assert.doesNotMatch(readFileSync(join(f.root, name), 'utf8'), written, name);
   } finally {
     if (oldClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = oldClaude;
     if (oldCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = oldCodex;
@@ -1399,12 +1406,15 @@ test('a week with no unsettled text keeps its prompt store, and an unsettled cue
 
     const unsettledDigest = structuredClone(digest);
     const cue = unsettledDigest.evidence.find((value) => value.category === 'decisions');
-    cue.text = createRedactor(config).redact(UNSETTLED_PROMPT.replace('\n=ssh.key', '')).replace('-token', '-token\n=ssh.key');
+    // A cue whose text has had its first pass and still changes on a second.
+    const sample = unsettledSample(config, UNSETTLED_FRAME);
+    cue.text = sample.once;
     cue.contentHash = sha256(cue.text);
-    assert.notEqual(createRedactor(config).redact(cue.text), cue.text);
+    assert.match(cue.text, sample.leak, 'the cue still shows part of the sample');
+    assert.notEqual(createRedactor(config).redact(cue.text), cue.text, `a second pass still changes the cue: ${SETTLED_HINT}`);
     const result = curateDigest(promptStore, unsettledDigest, config, week, f.now, options);
     assert.equal(result.promptStore, promptStore);
-    assert.doesNotMatch(JSON.stringify(result), /ssh\.key/);
+    assert.doesNotMatch(JSON.stringify(result), new RegExp(`${UNSETTLED_MARK}|${sample.leak.source}`));
     const held = result.review.candidates.filter((candidate) => candidate.decision === 'high-risk');
     assert.deepEqual(held.map((candidate) => [candidate.category, candidate.text, candidate.privacy.renditionHash]),
       [['decisions', HELD_BACK_TEXT, sha256(HELD_BACK_TEXT)]]);
