@@ -9,16 +9,16 @@ import { request } from 'node:http';
 import { connect } from 'node:net';
 import { join } from 'node:path';
 
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 import { ASSETS_DIR, CODE_HEADER, CSP, CSP_SELF_TEST, KEY_HEADER, readAssets, SELFTEST_DIR, startViewServer } from '../lib/view/server.mjs';
 import { createViewData } from '../lib/view/data.mjs';
 import { buildViewWeek, TERM, WEEK } from './fixtures/view/week.mjs';
-import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const scratch = makeTempDir('hw-view-server-');
 const servers = [];
 after(async () => {
   for (const s of servers) await s.close();
-  rmSync(scratch, { recursive: true, force: true });
+  removeTempDir(scratch);
 });
 
 const assets = join(scratch, 'assets');

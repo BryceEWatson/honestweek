@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -126,4 +126,82 @@ test('matchConfiguredRepo resolves dot segments before containment',()=>{
   const base=join(tmpdir(),'honestweek-configured-root');
   const config={repos:[{resolvedPath:join(base,'repo'),path:join(base,'repo'),label:'your-project',role:'featured'}]};
   assert.equal(matchConfiguredRepo(`${join(base,'repo')}/../private`,config),null);
+});
+
+// git writes a worktree's path with symlinks resolved, but the configured path (and a
+// session's working folder) can reach the same folder through a symlink: macOS's temp
+// folder is /var -> /private/var, and a projects folder can be a link too. Both spellings
+// must land in the same set, or a session in the other checkout falls into "other".
+test('resolveWorkTrees: a repository reached through a symlinked folder keeps both spellings', () => {
+  clearWorkTreeCache();
+  const base = makeTempDir('hw-wt-link-');
+  const link = join(base, 'link');
+  try {
+    makeRepo(join(base, 'real', 'alpha'));
+    // Where the folder really is: the temp folder itself can be a symlink (macOS) or a
+    // Windows short name, which git writes out in full.
+    const real = realpathSync.native(join(base, 'real'));
+    git(join(real, 'alpha'), 'worktree', 'add', '-q', '--detach', join(real, 'alpha-weekly'));
+    symlinkSync(real, link, process.platform === 'win32' ? 'junction' : 'dir');
+
+    const set = resolveWorkTrees(join(link, 'alpha-weekly'));
+    assert.ok(has(set, join(link, 'alpha')), 'the primary checkout, spelled through the link');
+    assert.ok(has(set, join(real, 'alpha')), 'the primary checkout where it really is');
+    assert.ok(has(set, join(real, 'alpha-weekly')), 'the configured worktree where it really is');
+
+    const config = { repos: [{ label: 'alpha', path: join(link, 'alpha-weekly'), resolvedPath: join(link, 'alpha-weekly'), role: 'featured' }] };
+    assert.equal(matchRepo(join(link, 'alpha', 'src'), config)?.label, 'alpha');
+    assert.equal(matchRepo(join(real, 'alpha'), config)?.label, 'alpha');
+    assert.equal(matchRepo(join(base, 'elsewhere'), config), null, 'an unrelated folder stays unattributed');
+  } finally {
+    clearWorkTreeCache();
+    removeTempDir(base);
+  }
+});
+
+// A week's summary often runs after its worktrees are cleaned up. A removed worktree's
+// folder is gone, but sessions recorded it through the link, so that spelling must stay.
+test('resolveWorkTrees: a removed worktree keeps its spelling through the symlink', () => {
+  clearWorkTreeCache();
+  const base = makeTempDir('hw-wt-gone-');
+  const link = join(base, 'link');
+  try {
+    makeRepo(join(base, 'real', 'alpha'));
+    const real = realpathSync.native(join(base, 'real'));
+    git(join(real, 'alpha'), 'worktree', 'add', '-q', '--detach', join(real, 'alpha-gone'));
+    symlinkSync(real, link, process.platform === 'win32' ? 'junction' : 'dir');
+    rmSync(join(real, 'alpha-gone'), { recursive: true, force: true });
+
+    const set = resolveWorkTrees(join(link, 'alpha'));
+    assert.ok(has(set, join(real, 'alpha-gone')), 'where git recorded it');
+    assert.ok(has(set, join(link, 'alpha-gone')), 'through the link the sessions used');
+  } finally {
+    clearWorkTreeCache();
+    removeTempDir(base);
+  }
+});
+
+// When the symlink's name matches its target's last folder (u/work -> disk/work), the
+// spellings agree on more than the link, and the leftover prefixes (u and disk) are wider
+// than the link. A worktree outside the linked folder must not be re-spelled into an
+// unrelated folder that happens to exist under u.
+test('resolveWorkTrees: a worktree outside the symlinked folder is not re-spelled into an unrelated folder', () => {
+  clearWorkTreeCache();
+  const base = makeTempDir('hw-wt-wide-');
+  try {
+    const disk = realpathSync.native(join(base));
+    makeRepo(join(disk, 'disk', 'work', 'alpha'));
+    git(join(disk, 'disk', 'work', 'alpha'), 'worktree', 'add', '-q', '--detach', join(disk, 'disk', 'tmp', 'wt'));
+    mkdirSync(join(disk, 'u', 'tmp', 'wt'), { recursive: true }); // unrelated, same tail
+    symlinkSync(join(disk, 'disk', 'work'), join(disk, 'u', 'work'), process.platform === 'win32' ? 'junction' : 'dir');
+
+    const set = resolveWorkTrees(join(disk, 'u', 'work', 'alpha'));
+    assert.ok(has(set, join(disk, 'disk', 'tmp', 'wt')), 'the worktree where it really is');
+    assert.ok(!has(set, join(disk, 'u', 'tmp', 'wt')), 'not the unrelated folder with the same tail');
+    const config = { repos: [{ label: 'alpha', path: join(disk, 'u', 'work', 'alpha'), resolvedPath: join(disk, 'u', 'work', 'alpha'), role: 'featured' }] };
+    assert.equal(matchRepo(join(disk, 'u', 'tmp', 'wt'), config), null, 'a session there stays unattributed');
+  } finally {
+    clearWorkTreeCache();
+    removeTempDir(base);
+  }
 });

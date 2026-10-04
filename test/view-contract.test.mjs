@@ -6,22 +6,22 @@
 
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, rmSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { createViewData, goalKey } from '../lib/view/data.mjs';
 import { EXEMPT_FIELDS } from '../lib/view/leaks.mjs';
 import { REPLAY_EVENT_FIELDS } from '../lib/view/replay-export.mjs';
 import { buildViewWeek, WEEK } from './fixtures/view/week.mjs';
-import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const page = (f) => readFileSync(join(HERE, '..', 'lib', 'view', f), 'utf8');
 
 const scratch = makeTempDir('hw-view-contract-');
-after(() => rmSync(scratch, { recursive: true, force: true }));
+after(() => removeTempDir(scratch));
 
 const w = buildViewWeek(join(scratch, 'week'));
 const WINDOW = { from: WEEK.from, to: WEEK.to, timezone: 'UTC' };
