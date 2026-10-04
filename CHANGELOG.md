@@ -23,6 +23,7 @@ This will be the first version on npm. 0.1.0 was released on GitHub, but its npm
 
 ### Changed
 
+- **Codex's current log format.** Since August 2026 Codex runs each step as a small program, and honestweek now reads the commands, exit codes and file edits inside those programs, so Problems and the replay work on today's Codex the way they do on Claude Code. A missing hook record no longer counts as evidence for a Codex finding, because Codex runs hooks without recording them.
 - Redaction is much faster on short text, and the prompt privacy check stays fast on large prompts with thousands of matches. What gets hidden is unchanged. (#77, #82)
 - New tests make sure two repositories that share a pull request number stay apart in lookups and goals. (#75)
 - The npm package has a new description and keywords, and runs the full test suite before every publish. CI now runs on Windows and macOS as well as Linux. (#88)
