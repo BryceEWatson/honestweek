@@ -3,7 +3,7 @@
 [![CI](https://github.com/BryceEWatson/honestweek/actions/workflows/ci.yml/badge.svg)](https://github.com/BryceEWatson/honestweek/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-See exactly where your Claude Code and Codex sessions went wrong, then browse every step, prompt and token behind it, and fix it. All on your machine.
+See where your Claude Code and Codex sessions went wrong, open the exact steps behind each problem, and check every count yourself. No AI reads your logs; nothing leaves your machine.
 
 honestweek works with the session logs that Claude Code and Codex already keep on your computer. It does three things with them, all on your own machine:
 
@@ -11,24 +11,24 @@ honestweek works with the session logs that Claude Code and Codex already keep o
 - **Find and replay your work.** Its Find page, one click away, takes a pull request number, a commit, a file, a branch or a few words and shows the sessions behind it, then lets you replay any session step by step. Every link and count says how it's known: recorded in a log or by git, computed from records, inferred by a named rule, or missing.
 - **Write an honest weekly summary.** A short pipeline turns a finished week into a summary you review and publish yourself. It checks every commit the summary cites against your real git history first, and it stops rather than write a claim it can't back.
 
-It's for developers who do much of their work through an AI coding agent and want to find, check or show that work later. Nothing leaves your machine: there's no account, no telemetry and no network call. The names and client words you list stay hidden on the page unless you turn on its Show private text switch, on your own screen, and keys, tokens and passwords stay hidden either way.
+It's for developers who do much of their work through an AI coding agent and want to find, check or show that work later. Nothing leaves your machine: there's no account, no telemetry and no network call, unless you turn on Include /insights and press Run /insights or Run with Codex, which send your sessions to Claude or OpenAI on your own plan. The names and client words you list stay hidden on the page unless you turn on its Show private text switch, on your own screen, and keys, tokens and passwords stay hidden either way.
 
-To see it with nothing to set up, run `npx github:BryceEWatson/honestweek view --demo`: a made-up week opens in your browser.
+To see it with nothing to set up, run `npx honestweek view --demo`: a made-up week opens in your browser.
 
 ## Try it
 
-You need Node 18 or later and git. Nothing is on npm yet, so run it straight from GitHub with `npx`, with no install step:
+You need Node 18 or later and git. honestweek is on npm, so `npx` runs it with no install step:
 
 ```bash
-npx github:BryceEWatson/honestweek view --demo   # a made-up week in your browser; it sets nothing up
-npx github:BryceEWatson/honestweek view          # set up in your browser, then your own last 7 days
+npx honestweek view --demo   # a made-up week in your browser; it sets nothing up
+npx honestweek view          # set up in your browser, then your own last 7 days
 ```
 
 The first time you run `view` in a folder with no `honestweek.config.json`, the page that opens is Setup. It shows the git repositories it found nearby, each with its role in plain words, and lets you add one by its folder path. It fills in your email from git and your timezone, asks which names and client or project words to keep private, and takes an optional goal list. It asks how far back to look (the last week unless you pick more), shows you the config it'll write, and when you press Save it writes it and goes straight on to your week, without restarting anything. Later, the Settings page in the header changes how far back, the repositories and their roles, your emails, the private words and the goal list, the same way. For scripts and CI, `init` asks the same questions in a terminal (`init --yes` takes the defaults).
 
 The demo opens a page with four parts: Find (type one of the examples it offers, or a few words), Goals (each goal in a goal list, a small JSON file of your goals, with its sessions on one timeline you can play), Replay (one session step by step, each step with the log line behind it), and Problems (known ways AI coding agents go wrong, and which of them showed up in the week), which is the page it opens on. Press Ctrl+C in the terminal to stop it.
 
-If you'd rather have a plain `honestweek` command, install it from GitHub with `npm install -g github:BryceEWatson/honestweek` and write `honestweek` where it says `npx github:BryceEWatson/honestweek`. From a clone of this repository, write `node bin/honestweek.mjs` there instead. `honestweek` with no command lists its first steps. The messages you meet first (that list, Setup, `init`, `view` and its pages) name each next step the way you ran honestweek.
+If you'd rather have a plain `honestweek` command, install it with `npm install -g honestweek` and write `honestweek` where it says `npx honestweek`. From a clone of this repository, write `node bin/honestweek.mjs` there instead. To run unreleased code (what's on `main` and not in an npm version yet), write `npx github:BryceEWatson/honestweek`. `honestweek` with no command lists its first steps. The messages you meet first (that list, Setup, `init`, `view` and its pages) name each next step the way you ran honestweek.
 
 Run `view` (or `init`) from your project folder, or from a new folder next to your projects. Either one lists the git repositories there and folds each extra working copy of one repository (a git worktree) into it, so one repository shows up once. Before it writes anything you can remove repositories or change a role (on the Setup page with a Remove button and a role menu; in `init` by number, `keep 1-5 9`, `drop 3 7-9` or `role 2 display`; the roles are explained under [Config reference](#config-reference)). It then asks for people's names and client or project words to keep private, and reads back what it'll store. When you give some, it also adds `honestweek.config.json` to `.gitignore`, since the file then lists them. You can skip both, but until you list some, names in your logs show as written, and `view` says so in the terminal and on every page, with an example of where to list them. For candidates, run `discover` and then `harvest`: it writes the capitalised words that survived redaction in last week's sessions, most frequent first, to `honestweek.harvest.json`.
 
@@ -48,7 +48,7 @@ Your commits show what shipped. Your sessions show what you *figured out*: the d
 - **Node ≥ 18**
 - The system **`git` CLI** on your `PATH`
 - **Zero runtime dependencies**: Node built-ins plus `git` only
-- Runs **entirely locally**. No telemetry, no network egress. The optional `preview` and `view` servers bind to loopback (`127.0.0.1`) only.
+- Runs **entirely locally**. No telemetry, and honestweek itself makes no network call. The two optional buttons under Include /insights run your own `claude` or `codex`, which do send sessions to Claude or OpenAI, only when you press them. The optional `preview` and `view` servers bind to loopback (`127.0.0.1`) only.
 
 ## Install
 
@@ -84,11 +84,18 @@ Either way, when you run `/honestweek` the skill invokes its bundled CLI by a **
 
 ### As a standalone CLI
 
-Run it straight from GitHub. No install, no clone (zero dependencies, so it's quick):
+Run it from npm with `npx`. No install, no clone (zero dependencies, so it's quick):
 
 ```bash
-npx github:BryceEWatson/honestweek --help
-npx github:BryceEWatson/honestweek init
+npx honestweek --help
+npx honestweek init
+```
+
+Or install it as a `honestweek` command:
+
+```bash
+npm install -g honestweek
+honestweek --help
 ```
 
 Or from a clone of the repo:
@@ -98,14 +105,12 @@ Or from a clone of the repo:
 node bin/honestweek.mjs --help
 ```
 
-Or install it from GitHub as a `honestweek` command:
+To run unreleased code, meaning what's on `main` and not in an npm version yet, run it straight from GitHub:
 
 ```bash
-npm install -g github:BryceEWatson/honestweek
-honestweek --help
+npx github:BryceEWatson/honestweek --help
+npm install -g github:BryceEWatson/honestweek   # or install that code as the honestweek command
 ```
-
-Once it's published to npm (**not yet**; see [Releasing](#releasing-maintainers)), `npx honestweek` and `npm i -g honestweek` will work too.
 
 The CLI surface is eleven subcommands: `init`, `discover`, `prompts`, `digest`, `validate`, `build`, `harvest`, `preview`, `mine`, `history`, and `view`. Every one answers `--help` without touching your files. The `mine` command (`node bin/honestweek.mjs mine --help`) is the separate "solved problems worth publishing" pass described under [Mining solved problems](#mining-solved-problems-worth-publishing-mine). The `digest` command (`node bin/honestweek.mjs digest --help`) prepares one receipt-bearing review across prompts, ideas, techniques, decisions, reversals, and next steps for `page` or `site` output. The `prompts` command (`node bin/honestweek.mjs prompts --help`) remains the private prompt inbox and prompt-only compatibility path. The `harvest` command (`node bin/honestweek.mjs harvest`) proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review). The `preview` command (`node bin/honestweek.mjs preview`) renders the built output as HTML and serves it on a local-only (`127.0.0.1`) server for you to read in your browser. The `view` command (`node bin/honestweek.mjs view --demo` to try it) opens a local page for finding and replaying the sessions behind your work, described under [Finding and replaying your work in the browser](#finding-and-replaying-your-work-in-the-browser-view).
 
@@ -130,7 +135,7 @@ What's on the page:
 - *Replay.* Any session, step by step. Each step opens a panel with what happened and who did it ("You", the main agent, or a named sub-agent; what a `codex exec` run was told is the agent's), the original log line checked against its fingerprint, a command's output, and how its time is known.
 - *Problems.* The page `view` opens on. 41 known ways AI coding agents go wrong or waste time and tokens, and which of them showed up in your sessions. Claims the agent couldn't back come first. The main list holds only findings worked out from the log itself; ones that rest on a rule's guess wait under a closed "Possible" fold that says how many. Each row shows its count against the window just before it (say "4 before, 1 now"), each count with how it's known, and opens to a fix you can copy (a hook or an instruction line, never applied for you), a suggested prompt that should trigger the problem so you can watch the fix catch it, and each finding linked to its step in the replay. The replay and goal timelines can mark the same findings. To see it on the made-up week, run `node bin/honestweek.mjs view --demo`.
 - *Include /insights.* An optional toggle on Problems, off by default and saved as `"insights": true` in the config, that adds what Claude Code's own `/insights` command wrote about these sessions as a separate group labelled AI-written, never counted with honestweek's findings; a Run /insights button starts `claude -p /insights` on your machine after asking, since it uses your Claude plan and sends your sessions to Claude.
-- *Facts and Run with Codex.* Replay and Problems have a closed "Facts" fold with the plain facts `/insights` keeps about a session, worked out from your logs for Claude Code and Codex alike, each saying how it's known or "not recorded". With Include /insights on, "Run with Codex" has your own `codex` write the AI-written half for your Codex sessions, kept beside your config and shown as its own group.
+- *Facts and Run with Codex.* Replay and Problems have a closed "Facts" fold with the plain facts `/insights` keeps about a session, worked out from your logs for Claude Code and Codex alike, each saying how it's known or "not recorded". With Include /insights on, "Run with Codex" has your own `codex` write the AI-written half for your Codex sessions, kept beside your config and shown as its own group. It asks first, since it uses your Codex plan and sends your Codex sessions to OpenAI, and Codex can read files you can read while it judges.
 - *One evidence key.* Every link, count and step says how it's known: **recorded** (a log line or git says so), **derived** (computed from recorded facts), **inferred** (a named rule's best reading, and the rule is named), **missing** (the log doesn't say), or **ambiguous** (the records fit more than one way). A goal you assigned a session to yourself, by citing it in your goal list, is labelled as yours.
 
 Options: `--days <n>`, or `--from` with `--to`, picks the dates; `--timezone <zone>` reads them in another timezone; `--goals <file>` names your goal list; `--config <file>` reads another config; `--port <n>` picks the port (a free one otherwise); `--no-open` only prints the address; `--self-test` adds a page that clicks through every page in your browser and reports each step as pass, fail or skip, and prints that page's address too; a step's note can quote what the page showed, so read it before you share it. `--demo` uses only its own made-up logs, config, goal list and week, so it refuses `--config`, `--goals`, `--days`, `--from`, `--to` and `--timezone`.
@@ -538,7 +543,7 @@ Your `honestweek.config.json` mirrors `honestweek.config.example.json`. Whether 
 - **Only your own allowlisted repos are read.** Nothing outside your `repos` list is ever touched.
 - **`display`-role repos are summarized generically and NEVER git-read.** There is no code path that runs `git` against a `display` repo.
 - **Output stays local until you publish it.** honestweek writes local files only.
-- **No telemetry, no network egress.** The optional `preview` server is loopback-only (`127.0.0.1`): it serves your already-built output to your own browser, and nothing leaves your machine. The `view` page is loopback-only too, answers only the page it opened, and keeps what it reads in memory; see [What `view` keeps private](#what-view-keeps-private).
+- **No telemetry, no network egress.** honestweek makes no network call. The one exception is yours to start: with Include /insights on, Run /insights and Run with Codex run your own `claude` or `codex`, which send your sessions to Claude or OpenAI after asking. The optional `preview` server is loopback-only (`127.0.0.1`): it serves your already-built output to your own browser, and nothing leaves your machine. The `view` page is loopback-only too, answers only the page it opened, and keeps what it reads in memory; see [What `view` keeps private](#what-view-keeps-private).
 - **Nothing is auto-published.** honestweek produces a draft; *you* are the publisher.
 
 ### What the scrubber catches, and what it doesn't
@@ -568,7 +573,7 @@ honestweek's two non-negotiable promises:
 
 ## Releasing (maintainers)
 
-honestweek isn't on npm yet; the first version there will be 0.2.0. I publish each version from my own terminal and then tag it, in the order [docs/releasing.md](docs/releasing.md) sets out. The `files` allowlist in `package.json` decides what ships (`bin/`, `lib/`, `SKILL.md`, the example config and the plugin manifests), and `test/package-contents.test.mjs` pins it.
+honestweek is on npm, starting with version 0.2.0. I publish each version from my own terminal and then tag it, in the order [docs/releasing.md](docs/releasing.md) sets out. The `files` allowlist in `package.json` decides what ships (`bin/`, `lib/`, `SKILL.md`, the example config and the plugin manifests), and `test/package-contents.test.mjs` pins it.
 
 ## Contributing and security
 

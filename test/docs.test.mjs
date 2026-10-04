@@ -222,7 +222,7 @@ test('a newcomer meets the demo, then view with its Setup page, before the weekl
   assert.ok(tryIt > 0 && tryIt < README.indexOf('## Install') && tryIt < README.indexOf('## The flow'), 'Try it comes before Install and the weekly flow');
   const block = README.slice(tryIt, README.indexOf('```', README.indexOf('```bash', tryIt) + 7));
   // view sets itself up in the browser the first time, so init is no longer a step of its own.
-  const steps = ['npx github:BryceEWatson/honestweek view --demo', 'npx github:BryceEWatson/honestweek view '];
+  const steps = ['npx honestweek view --demo', 'npx honestweek view '];
   assert.ok(!block.includes('honestweek init '), 'Try it leads with view, not init');
   assert.match(README.slice(tryIt, tryIt + 3000), /the page that opens is Setup[^]*For scripts and CI, `init`/);
   let at = -1;
