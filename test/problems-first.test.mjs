@@ -112,7 +112,7 @@ test('every pattern with a check has a short, safe test prompt; patterns without
 // ---- Copy ------------------------------------------------------------------------------------
 test('Copy copies the fix and the prompt exactly as the server sent them, and never a redacted one', () => {
   const js = readFileSync(join(ASSETS_DIR, 'problems.js'), 'utf8');
-  assert.match(js, /const copySource = \(p, what\) => \(what === 'fix' \? p\.draft\?\.text : p\.testPrompt\) \?\? null;/);
+  assert.match(js, /const copySource = \(p, what\) => \(what === 'fix' \? p\.draft\?\.text : what === 'codex' \? p\.draft\?\.codex\?\.text : p\.testPrompt\) \?\? null;/);
   // The click copies copySource's text, never the page's markup.
   assert.match(js, /const text = p \? copySource\(p, cb\.dataset\.copy\) : null;\s+if \(text\) copyText\(text, cb,/);
   // Clipboard first (no permission prompt for a click on this page), then the copy command, then selecting the text.
@@ -121,4 +121,12 @@ test('Copy copies the fix and the prompt exactly as the server sent them, and ne
   // Text with a redaction marker isn't offered for copying: it wouldn't be the fix.
   assert.match(js, /if \(HIDDEN\.test\(t\)\) return `<span class="muted"/);
   assert.doesNotMatch(js, /fetch\(|XMLHttpRequest/, 'no request of its own');
+});
+
+test("Try it names Codex only where the pattern's check runs on Codex's logs", () => {
+  const js = readFileSync(join(ASSETS_DIR, 'problems.js'), 'utf8');
+  // The one place the page tells you to paste into Codex is the branch for a check that runs there.
+  assert.equal(js.split('Claude Code or Codex').length - 1, 1, 'one "Claude Code or Codex" in the page');
+  assert.match(js, /const tryWhere = onCodex\?\.status === 'runs'\s+\? '<p>Paste it into Claude Code or Codex /);
+  assert.match(js, /: `<p>Paste it into Claude Code after adding the fix/);
 });

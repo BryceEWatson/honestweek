@@ -69,6 +69,15 @@
           "The agent said plainly that it did not run a check and why, which is the honest outcome."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "partial",
+          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs. Codex logs no hook runs, and a shell read after the edit keeps a finding a guess"
+        }
+      },
       "mitigation": [
         {
           "kind": "hook",
@@ -245,6 +254,16 @@
           "PR descriptions that summarize above the file level, or cover commits made in an earlier session."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "instruction",
@@ -387,6 +406,15 @@
           "Flaky tests the agent re-ran outside the log."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "partial",
+          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs, results and exit codes included. Codex logs no hook runs, so fewer findings are worked out"
+        }
+      },
       "mitigation": [
         {
           "kind": "instruction",
@@ -526,6 +554,15 @@
           "Deleting a test for code that was deliberately removed."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "partial",
+          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs: edits made inside them"
+        }
+      },
       "mitigation": [
         {
           "kind": "hook",
@@ -653,6 +690,16 @@
           "Legitimate test-mode configuration."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "instruction",
@@ -764,6 +811,16 @@
           "Missing dependencies in the environment rather than invented names."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "instruction",
@@ -859,6 +916,16 @@
           "Mocks and fixtures in test files.",
           "Scaffolding the user asked for, or TODOs the agent lists in its report as open work."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
       },
       "mitigation": [
         {
@@ -967,6 +1034,16 @@
           "Ignore directives for known false positives in the linter."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "instruction",
@@ -1065,6 +1142,16 @@
           "Later edits for unrelated reasons; normal iteration on a feature."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "A log can't show this, so nothing checks it"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "A log can't show this, so nothing checks it"
+        }
+      },
       "mitigation": [
         {
           "kind": "workflow",
@@ -1142,6 +1229,16 @@
         "falsePositives": [
           "Flaky tests; intentional behavior changes the user asked for."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
       },
       "mitigation": [
         {
@@ -1228,6 +1325,14 @@
           "One deep problem where the history really helps; the docs say sometimes you should let context accumulate.",
           "Cache reads are cheap per token, so token totals overstate dollar cost; report both."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "runs"
+        }
       },
       "mitigation": [
         {
@@ -1361,6 +1466,16 @@
           "Re-reading after compaction is often the right move; flag only repeats that lead to repeated work or a broken rule."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "instruction",
@@ -1486,6 +1601,15 @@
           "Harness rules that require a fresh read before an edit."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "The check counts Claude Code's file-read tool; Codex reads files through the shell"
+        }
+      },
       "mitigation": [
         {
           "kind": "instruction",
@@ -1588,6 +1712,16 @@
         "falsePositives": [
           "Onboarding or architecture questions where breadth is the point; exploration done in a sub-agent is the recommended pattern, not a failure."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
       },
       "mitigation": [
         {
@@ -1699,6 +1833,15 @@
         "falsePositives": [
           "Polling a running process (see busy-polling); retrying a flaky network call; re-running tests after real edits, which is iteration, not a loop."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "partial",
+          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs. An edit undone and redone is read from Claude Code's edits only"
+        }
       },
       "mitigation": [
         {
@@ -1814,6 +1957,15 @@
           "Expected failures while probing (checking whether a file exists)."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "partial",
+          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs: their error results"
+        }
+      },
       "mitigation": [
         {
           "kind": "hook",
@@ -1917,6 +2069,15 @@
           "A single short wait for a server to start; polling done by a harness monitor, which costs nothing until it fires."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "partial",
+          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs: the commands inside them"
+        }
+      },
       "mitigation": [
         {
           "kind": "workflow",
@@ -2006,6 +2167,14 @@
           "A large read that was genuinely needed once (for example a schema the whole task depends on)."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "runs"
+        }
+      },
       "mitigation": [
         {
           "kind": "hook",
@@ -2091,6 +2260,14 @@
         "falsePositives": [
           "Large, independent, parallel investigations, which are the intended use; sub-agents used deliberately to keep verbose output out of the main context."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "runs"
+        }
       },
       "mitigation": [
         {
@@ -2217,6 +2394,15 @@
           "Sub-agents the user stopped on purpose; a parent re-reading the one file it is about to edit."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "The check skips Codex child threads"
+        }
+      },
       "mitigation": [
         {
           "kind": "instruction",
@@ -2335,6 +2521,16 @@
           "Review steps you configured on purpose (for example a review hook), which count as your own cost, not the agent's."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "setting",
@@ -2445,6 +2641,16 @@
           "Ordinary iteration on taste (\"make it bluer\") that is not a mistake by the agent."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "workflow",
@@ -2543,6 +2749,15 @@
         "falsePositives": [
           "Changes the task genuinely required (a fix that needs a caller updated); follow-up work the user approved mid-session."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "partial",
+          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs: edits made inside them"
+        }
       },
       "mitigation": [
         {
@@ -2690,6 +2905,16 @@
           "Files the user asked for; deliberate notes or progress files your workflow keeps."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "instruction",
@@ -2791,6 +3016,15 @@
         "falsePositives": [
           "The user overrode the rule for this task; two rules conflict and the agent followed one of them."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "The check reads Claude Code's plan mode; Codex's isn't read"
+        }
       },
       "mitigation": [
         {
@@ -2928,6 +3162,16 @@
           "User-level files outside any repository are not in git; read them from disk and label them as current, not historical."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "workflow",
@@ -3041,6 +3285,14 @@
         "falsePositives": [
           "A genuine block on input only the user can give; a planned checkpoint the user asked for."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "runs"
+        }
       },
       "mitigation": [
         {
@@ -3174,6 +3426,14 @@
           "Destructive, irreversible, or outward-facing next steps, where asking is correct; real ambiguity where readings lead to different work."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "runs"
+        }
+      },
       "mitigation": [
         {
           "kind": "instruction",
@@ -3281,6 +3541,16 @@
           "Small changes you could describe in one sentence, where the docs say to skip the plan."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "workflow",
@@ -3358,6 +3628,16 @@
         "falsePositives": [
           "Workflows where instruction files tell the agent to commit or open pull requests."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
       },
       "mitigation": [
         {
@@ -3471,6 +3751,15 @@
         "falsePositives": [
           "Deleting build output or temp folders the session created; destructive steps the user explicitly asked for."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "partial",
+          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs: the commands inside them"
+        }
       },
       "mitigation": [
         {
@@ -3664,6 +3953,15 @@
           "The user asked to skip a hook for this commit; editing settings is the task itself."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "partial",
+          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs: the commands inside them"
+        }
+      },
       "mitigation": [
         {
           "kind": "hook",
@@ -3786,6 +4084,14 @@
         "falsePositives": [
           ".env.example and test fixtures with fake keys; reading a config file that holds no secret; the user asked the agent to find where a key is configured."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "runs"
+        }
       },
       "mitigation": [
         {
@@ -3929,6 +4235,16 @@
           "Docs that legitimately tell the reader to run a setup command the user wanted run."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "setting",
@@ -4035,6 +4351,16 @@
           "The user asked for the dependency; installing the project's declared dependencies."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "instruction",
@@ -4109,6 +4435,16 @@
           "Approvals of commands already safe by design; a high rate is expected when allowlists are tuned."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "setting",
@@ -4171,6 +4507,16 @@
         "falsePositives": [
           "The user really was right; agreement after new evidence is the correct behavior. Count reversals against evidence, not polite openers."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
       },
       "mitigation": [
         {
@@ -4245,6 +4591,16 @@
         "falsePositives": [
           "Reasonable defaults on small choices, which the docs say the agent should make itself."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
       },
       "mitigation": [
         {
@@ -4356,6 +4712,16 @@
           "Accurate claims backed by recorded output; quoting the user's own words."
         ]
       },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
+      },
       "mitigation": [
         {
           "kind": "instruction",
@@ -4446,6 +4812,16 @@
         "falsePositives": [
           "Long reports the user asked for, where the ask is also stated first."
         ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        },
+        "codex": {
+          "status": "not yet",
+          "why": "No check looks for this yet"
+        }
       },
       "mitigation": [
         {
