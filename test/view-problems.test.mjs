@@ -16,6 +16,9 @@ import { createLeakCounter } from '../lib/view/leaks.mjs';
 import { createProblemsRoute, redactAnswer, splitUrl } from '../lib/view/problems-route.mjs';
 import { buildViewWeek, PRIVATE_WORDS, SECRETS, WEEK } from './fixtures/view/week.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
+import { buildWorkHistory } from '../lib/replay/index.mjs';
+import { earlierWindow, loadCatalog, PATTERN_CHECKS } from '../lib/problems/index.mjs';
+import { DRAFTS } from '../lib/problems/drafts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const page = (f) => readFileSync(join(HERE, '..', 'lib', 'view', 'assets', f), 'utf8');
@@ -62,7 +65,7 @@ test('the whole page: forty patterns with the fields the page reads, and the che
 
 test('the page reads the names the answer carries (the page side of the contract)', () => {
   const js = page('problems.js');
-  for (const name of ['D.priorityRule', 'D.statusCounts', 'D.focus', 'D.checks', 'D.coverage', 'D.catalog', 'D.rules', 'p.looksLike', 'p.whyItMatters', 'p.strengthReason', 'p.sourceKinds', 'p.detection', 'p.mitigation', 'p.findingsListed', 'p.notesFound', 'p.draft', 'f.verdictEvidence', 'f.checkTitle', 'f.relatedLabel', 'f.stillRunning', 's.link', 's.says']) assert.ok(js.includes(name), `problems.js reads ${name}`);
+  for (const name of ['D.priorityRule', 'D.statusCounts', 'D.focus', 'D.checks', 'D.coverage', 'D.catalog', 'D.rules', 'p.looksLike', 'p.whyItMatters', 'p.strengthReason', 'p.sourceKinds', 'p.detection', 'p.mitigation', 'p.sure', 'p.possible', 'p.claim', 'p.testPrompt', 'f.basis', 'p.notesFound', 'p.draft', 'f.verdictEvidence', 'f.checkTitle', 'f.relatedLabel', 'f.stillRunning', 's.link', 's.says']) assert.ok(js.includes(name), `problems.js reads ${name}`);
   const strip = page('strip.js');
   for (const name of ['A?.findings', 'A.catalogIds', 'A?.patterns', 'f.lastAt', 'f.verdictEvidence', 'f.checkTitle', 'p.fix', 'p.priority']) assert.ok(strip.includes(name), `strip.js reads ${name}`);
 });
@@ -303,4 +306,53 @@ test('the same private word still counts everywhere but a published title or add
   assert.equal(terms(withSession), 1);
   // A secret is still found with the switch on, where nothing is set aside.
   assert.equal(shared.secrets([src.title, `token=${SECRETS.token ?? Object.values(SECRETS)[0]}`]).total, 1);
+});
+
+// ---- Problems first: the fix to copy, worked out against possible, and the trend ----------------
+
+test("each pattern's fix is the catalog's draft, word for word, and its test prompt rides along", () => {
+  for (const p of whole.patterns) {
+    assert.deepEqual(p.draft, DRAFTS[p.id] ?? null, `${p.id}: the draft the Copy button copies`);
+    const cat = loadCatalog().patterns.find((x) => x.id === p.id);
+    assert.equal(p.testPrompt, PATTERN_CHECKS[p.id] ? cat.testPrompt : null, `${p.id}: its test prompt`);
+  }
+});
+
+test('each pattern says how many findings are worked out and how many are possible, and lists the worked-out ones first', () => {
+  const sure = (f) => f.verdictEvidence === 'recorded' || f.verdictEvidence === 'derived';
+  for (const p of whole.patterns) {
+    assert.equal(p.sure.count + p.possible.count, p.count, `${p.id}: every finding is one or the other`);
+    assert.equal(p.sure.look + p.possible.look, p.look, p.id);
+    const f = p.findings;
+    const firstPossible = f.findIndex((x) => !sure(x));
+    if (firstPossible >= 0) assert.ok(f.slice(firstPossible).every((x) => !sure(x)), `${p.id}: worked out first, then possible`);
+    assert.equal(f.filter(sure).length, Math.min(p.sure.count, 25), `${p.id}: up to 25 of each kind listed`);
+    assert.equal(f.filter((x) => !sure(x)).length, Math.min(p.possible.count, 25), p.id);
+  }
+});
+
+test('the trend answers for every pattern, reads the earlier window once, and says when it has no logs', async () => {
+  let builds = 0;
+  const d = createViewData({ config: w.config, roots: w.roots, ...WINDOW, goalRecord: w.goalRecord, buildHistory: (o) => {
+    builds += 1;
+    return buildWorkHistory(o);
+  } });
+  await d.start();
+  const before = builds;
+  const a = await d.route('/api/problems', params({ trend: '1' }));
+  assert.equal(a.status, 200);
+  const t = a.body;
+  assert.equal(builds, before + 1, 'one more build, for the earlier window');
+  await d.route('/api/problems', params({ trend: '1' }));
+  assert.equal(builds, before + 1, 'and only once');
+  assert.deepEqual(t.earlier, { ...earlierWindow(WINDOW), sessions: 0 });
+  assert.deepEqual(t.trend.map((x) => x.id).sort(), whole.patterns.map((p) => p.id).sort(), 'a list, so no pattern id is an object key');
+  for (const p of whole.patterns.filter((x) => x.status === 'found')) {
+    const row = t.trend.find((x) => x.id === p.id);
+    assert.equal(row.why, 'no-logs', `${p.id}: the fixture's earlier week has no logs`);
+    assert.equal(row.sure.before, null, `${p.id}: never a zero for a window with nothing to read`);
+    assert.equal(row.sure.now.value, p.sure.look, `${p.id}: now is the main list's count`);
+    assert.equal(row.possible.now.value, p.possible.look, p.id);
+  }
+  assert.equal(leaks.redacted(t).total, 0);
 });

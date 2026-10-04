@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Problems · honestweek</title>
 <link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="problems.css">
 </head>
 <body data-page="problems">
 <header class="topbar">
-  <a class="brand" href="search.html">honestweek</a>
+  <a class="brand" href="problems.html">honestweek</a>
   <nav aria-label="Pages"><a href="search.html">Find</a><a href="goal.html">Goals</a><a href="replay.html">Replay</a><a href="problems.html" aria-current="page">Problems<span class="navcount" id="navHigh" hidden></span></a><a href="settings.html">Settings</a></nav>
   <span class="topbar-gap"></span>
   <span class="window" id="window"></span>
@@ -21,24 +22,25 @@
 <main class="pwrap" id="content">
   <div class="phead">
     <div>
-      <h1>Problems worth a look</h1>
+      <h1>Where it went wrong</h1>
       <p class="lead" id="lead"></p>
     </div>
-    <details class="prirule" id="priRule"></details>
   </div>
   <p class="sessfilter" id="sessFilter" hidden></p>
-  <section class="startwith" id="startWith" aria-labelledby="startH" hidden></section>
   <section class="ptable" aria-labelledby="browseH">
     <div class="ptable-head">
-      <h2 id="browseH">Everything found <span class="hcount" id="foundCount"></span></h2>
-      <div class="chips pgroups" id="groups" role="group" aria-label="Show one group of patterns"></div>
+      <h2 id="browseH">Found <span class="hcount" id="foundCount"></span></h2>
+      <details class="pfilter" id="filterBox"><summary>Filter</summary>
+        <div class="chips pgroups" id="groups" role="group" aria-label="Show one group of patterns"></div>
+        <div class="chips sfilter" id="statusFilter" role="group" aria-label="Show patterns by what your sessions show"></div>
+      </details>
     </div>
-    <div class="chips sfilter" id="statusFilter" role="group" aria-label="Show patterns by what your sessions show"></div>
-    <p class="filternote" id="filterNote"></p>
+    <p class="filternote" id="filterNote" hidden></p>
     <div id="cards"></div>
   </section>
+  <details class="prirule" id="priRule"></details>
   <details class="pchecks" id="checksBox"><summary><h2 id="checksH" class="sh">How the checks work</h2></summary><div id="checks"></div></details>
-  <footer class="pfoot" id="foot"></footer>
+  <details class="pfoot" id="foot"></details>
 </main>
 <footer class="quiet" id="quiet">
   <p class="quiet-line"><span id="privnote"></span> <span>Read from logs on this machine. Nothing leaves it.</span></p>
