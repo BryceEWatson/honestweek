@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setup · honestweek</title>
+<link rel="stylesheet" href="common.css">
+</head>
+<body data-page="setup">
+<header class="topbar">
+  <a class="brand" href="setup.html">honestweek</a>
+  <nav aria-label="Pages"><a href="setup.html" aria-current="page">Setup</a></nav>
+  <span class="topbar-gap"></span>
+</header>
+<p class="statusline" id="status" role="status" hidden></p>
+<main id="content" class="setup">
+  <h1>Set up honestweek</h1>
+  <p class="lead" id="lead">Connecting to honestweek view.</p>
+  <div id="form" hidden>
+    <section class="setup-part" aria-labelledby="reposH">
+      <h2 id="reposH">Repositories</h2>
+      <p class="fine" id="found"></p>
+      <dl class="roles" id="roles"></dl>
+      <ul class="repolist" id="repos"></ul>
+      <div class="setup-row">
+        <label for="addPath">Add a repository by its folder path</label>
+        <div class="setup-inline">
+          <input id="addPath" type="text" autocomplete="off" spellcheck="false" placeholder="/path/to/your/repo">
+          <button type="button" class="btn" id="addBtn">Add</button>
+        </div>
+      </div>
+    </section>
+    <section class="setup-part" aria-labelledby="youH">
+      <h2 id="youH">You</h2>
+      <div class="setup-row">
+        <label for="emails">The email addresses your commits use, separated by commas</label>
+        <input id="emails" type="text" autocomplete="off" spellcheck="false">
+        <p class="fine">A commit counts as yours only when one of these addresses wrote it.</p>
+        <p class="fine warnline" id="emailNote" hidden></p>
+      </div>
+      <div class="setup-row">
+        <label for="timezone">Timezone</label>
+        <input id="timezone" type="text" autocomplete="off" spellcheck="false">
+        <p class="fine">Weeks start on Monday in this timezone. Use an IANA name such as Europe/Paris or UTC.</p>
+      </div>
+    </section>
+    <section class="setup-part" aria-labelledby="wordsH">
+      <h2 id="wordsH">Private words</h2>
+      <p class="fine" id="wordsIntro"></p>
+      <div class="setup-row">
+        <label for="names" id="namesLabel"></label>
+        <input id="names" type="text" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="setup-row">
+        <label for="terms" id="termsLabel"></label>
+        <input id="terms" type="text" autocomplete="off" spellcheck="false">
+      </div>
+    </section>
+    <section class="setup-part" aria-labelledby="goalsH">
+      <h2 id="goalsH">Goal list <span class="muted">(optional)</span></h2>
+      <div class="setup-row">
+        <label for="goals">The path to your goal list, or leave it empty</label>
+        <input id="goals" type="text" autocomplete="off" spellcheck="false" placeholder="/path/to/your/goals.json">
+        <p class="fine">A goal list is a JSON file of your goals and the changes made to them: { "goals": [{ "id": "g-1", "title": "Ship the parser" }], "events": [] }. Search and replay work without one.</p>
+      </div>
+    </section>
+    <section class="setup-part" aria-labelledby="previewH">
+      <h2 id="previewH">Check and save</h2>
+      <p class="fine">Nothing is written until you press Save. Preview shows the file first.</p>
+      <div class="setup-inline">
+        <button type="button" class="btn" id="previewBtn">Preview the config</button>
+        <button type="button" class="btn primary" id="saveBtn" disabled>Save and open my week</button>
+      </div>
+      <p class="fine warnline" id="problem" role="alert" hidden></p>
+      <div id="preview" hidden>
+        <p class="fine" id="previewSummary"></p>
+        <ul class="fine" id="previewNotes"></ul>
+        <pre class="setup-pre" id="previewText" tabindex="0" aria-label="The config setup will write"></pre>
+      </div>
+    </section>
+  </div>
+</main>
+<footer class="quiet">
+  <p class="quiet-line">Your answers go only to honestweek view on this machine. Nothing leaves it.</p>
+</footer>
+<script src="key.js"></script>
+<script src="private-text.js"></script>
+<script src="setup.js"></script>
+</body>
+</html>

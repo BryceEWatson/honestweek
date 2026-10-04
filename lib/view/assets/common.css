@@ -716,3 +716,30 @@ details.legendbox > summary, details.catalog > summary { color: var(--ink-2); }
   ol.steps .pg { display: none; }
   ol.steps .detail { grid-column: 2; }
 }
+
+/* ---- setup: the page a folder with no config opens on ------------------------------------- */
+.setup { max-width: 760px; margin: 0 auto; padding: 24px 24px 8px; }
+.setup h1 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
+.setup .lead { color: var(--ink-2); margin: 0 0 20px; }
+.setup-part { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; margin: 0 0 16px; }
+.setup-part h2 { font-size: 16px; font-weight: 600; margin: 0 0 8px; }
+.setup-part .fine { font-size: 13px; color: var(--ink-2); margin: 6px 0; }
+.setup-part .warnline { color: var(--critical); }
+.setup-row { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 0; }
+.setup-row label { font-size: 14px; font-weight: 500; color: var(--ink); }
+.setup-row input { font: inherit; font-size: 15px; padding: 8px 12px; min-height: 40px; border: 1px solid var(--field); border-radius: 8px; background: var(--raised); color: var(--ink); width: 100%; min-width: 0; box-sizing: border-box; }
+.setup-inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.setup-inline input { flex: 1 1 220px; width: auto; }
+.roles { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 8px 0 12px; font-size: 13px; }
+.roles dt { font-weight: 600; }
+.roles dd { margin: 0; color: var(--ink-2); }
+.repolist { list-style: none; margin: 0; padding: 0; }
+.reporow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 0; border-top: 1px solid var(--line-soft); }
+.repomain { display: flex; flex-direction: column; flex: 1 1 240px; min-width: 0; }
+.reponame { font-weight: 500; }
+.repopath { font-family: var(--mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.setup-pre { font-family: var(--mono); font-size: 12px; background: var(--subtle); border: 1px solid var(--line); border-radius: 8px; padding: 10px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow: auto; }
+@media (max-width: 720px) {
+  .setup { padding: 16px 16px 8px; }
+  .setup-part { padding: 14px 14px; }
+}
