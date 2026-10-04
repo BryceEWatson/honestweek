@@ -354,6 +354,25 @@ test('every fix says where it goes in Codex, and no Codex form names a Claude-on
   for (const p of withText) assert.doesNotMatch(p.draft.codex.text, /\[redacted:/, p.id);
 });
 
+test('a private word that is a coverage status leaves the status whole, and the reason is still redacted', async () => {
+  // "exec" is in the Codex reasons, so it shows the reason still goes through the redactor.
+  const config = { ...w.config, redaction: { ...w.config.redaction, terms: [...(w.config.redaction?.terms ?? []), 'runs', 'partial', 'not yet', 'exec'] } };
+  const own = createViewData({ config, roots: w.roots, ...WINDOW, goalRecord: w.goalRecord });
+  await own.start();
+  const r = await own.route('/api/problems', params());
+  assert.equal(r.status, 200);
+  const catalog = loadCatalog().patterns;
+  for (const p of r.body.patterns) {
+    const cat = catalog.find((x) => x.id === p.id).coverage;
+    for (const agent of ['claudeCode', 'codex']) assert.equal(p.coverage[agent].status, cat[agent].status, `${p.id}.${agent}: the status the catalog gives`);
+  }
+  const partial = r.body.patterns.find((p) => p.coverage.codex.status === 'partial');
+  assert.match(catalog.find((x) => x.id === partial.id).coverage.codex.why, /exec/);
+  assert.doesNotMatch(partial.coverage.codex.why, /exec/, 'the reason is redacted');
+  assert.match(partial.coverage.codex.why, /\[redacted:/);
+  await own.stop?.();
+});
+
 test('the Problems answer is otherwise unchanged: coverage and the Codex form are the only new fields', () => {
   const BEFORE = ['claim', 'count', 'countEvidence', 'derivedFound', 'detection', 'draft', 'findings', 'findingsListed', 'group', 'id', 'look', 'looksLike', 'measures', 'mitigation', 'name', 'notRun', 'notesFound', 'possible', 'priority', 'related', 'sourceKinds', 'sources', 'status', 'strength', 'strengthReason', 'sure', 'testPrompt', 'tokens', 'whyItMatters'];
   for (const p of whole.patterns) {
