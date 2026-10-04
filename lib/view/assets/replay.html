@@ -9,7 +9,7 @@
 <body data-page="replay">
 <header class="topbar">
   <a class="brand" href="search.html">honestweek</a>
-  <nav aria-label="Pages"><a href="search.html">Search</a><a href="goal.html">Goals</a><a href="replay.html" aria-current="page">Replay</a></nav>
+  <nav aria-label="Pages"><a href="search.html">Search</a><a href="goal.html">Goals</a><a href="replay.html" aria-current="page">Replay</a><a href="problems.html">Problems</a></nav>
   <span class="window" id="window"></span>
   <span class="privacy" id="privacy"></span>
 </header>
@@ -18,6 +18,7 @@
 <div class="pagehead">
   <h1>Replay a session</h1>
   <span class="sub" id="title"></span>
+  <span id="wlBadge"></span>
   <p class="evkey" data-evkey></p>
 </div>
 <div class="wrap" id="content">
@@ -59,6 +60,7 @@
       <span><span class="sw gap"></span>No records (a gap, not idle)</span>
       <span id="legendSession" hidden><svg class="legend-svg narrow" width="10" height="12" aria-hidden="true"><line x1="5" x2="5" y1="0" y2="12" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 2"/></svg>A session's first record</span>
     </div>
+    <div id="wl"></div>
     <svg id="chart" class="chart" role="group" aria-label="Every recorded step by agent and tool over time. Each step is a button; the list after the chart reads them in order."></svg>
     <h2 class="sr">Every step on the chart, in order (<span id="stepCount">0 steps</span>)</h2>
     <ol class="sr" id="chartSteps"></ol>
@@ -70,6 +72,8 @@
 <script src="key.js"></script>
 <script src="private-text.js"></script>
 <script src="common.js"></script>
+<script src="prefs.js"></script>
+<script src="strip.js"></script>
 <script src="replay.js"></script>
 </body>
 </html>

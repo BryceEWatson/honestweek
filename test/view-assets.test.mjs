@@ -17,12 +17,14 @@ import { memberCount } from '../lib/view/data.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS = join(HERE, '..', 'lib', 'view', 'assets');
 const SELFTEST = join(HERE, '..', 'lib', 'view', 'selftest');
-const PAGES = ['search.html', 'goal.html', 'replay.html'];
+const PAGES = ['search.html', 'goal.html', 'replay.html', 'problems.html'];
+// The scripts each page loads after the shared ones, in order.
+const PAGE_SCRIPTS = { 'search.html': ['search.js'], 'goal.html': ['prefs.js', 'strip.js', 'goal.js'], 'replay.html': ['prefs.js', 'strip.js', 'replay.js'], 'problems.html': ['prefs.js', 'problems.js'] };
 // The package author's name, read from package.json so this test doesn't spell out a real name.
 const OWNER_WORDS = String(JSON.parse(readFileSync(join(HERE, '..', 'package.json'), 'utf8')).author ?? '')
   .split(/\s+/)
   .filter((w) => /^[A-Za-z]{3,}$/.test(w));
-const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js'];
+const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js', 'problems.js', 'prefs.js', 'strip.js'];
 const files = () => [...readdirSync(ASSETS).map((f) => ({ name: f, path: join(ASSETS, f) })), ...readdirSync(SELFTEST).map((f) => ({ name: `selftest/${f}`, path: join(SELFTEST, f) }))].map((f) => ({ ...f, text: readFileSync(f.path, 'utf8') }));
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
 
@@ -70,7 +72,7 @@ test('assets: every page loads the same files in the same order, and has the sha
   for (const p of PAGES) {
     const t = readFileSync(join(ASSETS, p), 'utf8');
     const srcs = [...t.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
-    assert.deepEqual(srcs, ['evidence.js', 'key.js', 'private-text.js', 'common.js', p.replace('.html', '.js')], p);
+    assert.deepEqual(srcs, ['evidence.js', 'key.js', 'private-text.js', 'common.js', ...PAGE_SCRIPTS[p]], p);
     assert.deepEqual([...t.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]), ['common.css'], p);
     for (const id of ['window', 'privacy', 'demo', 'status', 'content']) assert.match(t, new RegExp(`id="${id}"`), `${p}: #${id}`);
     assert.match(t, /data-evkey/, `${p}: the evidence key`);
@@ -100,7 +102,7 @@ test('assets: no network: data comes only from this server, through the key clie
   for (const m of key.matchAll(/fetchFn\(\s*([^,]+),/g)) assert.match(m[1], /^['`]\/api\//, `key.js asks only /api routes: ${m[1]}`);
 });
 
-test('assets: storage holds only the run key and the switch; localStorage is never used', () => {
+test('assets: session storage holds only the run key and the switch; local storage only the catalog preferences, in prefs.js', () => {
   for (const f of files()) {
     const isKey = f.name === 'key.js';
     if (f.name === 'selftest/clickthrough.js') {
@@ -108,9 +110,14 @@ test('assets: storage holds only the run key and the switch; localStorage is nev
       assert.doesNotMatch(f.text, /(sessionStorage|localStorage)\.(setItem|removeItem|clear)/, f.name);
       continue;
     }
-    assert.doesNotMatch(f.text, /localStorage/, `${f.name}: localStorage`);
+    if (f.name !== 'prefs.js') assert.doesNotMatch(f.text, /localStorage/, `${f.name}: localStorage outside prefs.js`);
     if (!isKey) assert.doesNotMatch(f.text, /sessionStorage/, `${f.name}: sessionStorage outside key.js`);
   }
+  // prefs.js writes one key, and only a value its clean() made (test/view-prefs.test.mjs runs it).
+  const prefs = readFileSync(join(ASSETS, 'prefs.js'), 'utf8');
+  assert.deepEqual([...prefs.matchAll(/storage\.(setItem|removeItem)\(\s*([A-Z_]+)/g)].map((m) => m[2]), ['SLOT', 'SLOT']);
+  assert.match(prefs, /const SLOT = 'hw\.prefs';/);
+  assert.match(prefs, /storage\.setItem\(SLOT, JSON\.stringify\(c\)\)/);
   const key = readFileSync(join(ASSETS, 'key.js'), 'utf8');
   const writes = [...key.matchAll(/write\(\s*([A-Z_]+)\s*,/g)].map((m) => m[1]);
   assert.deepEqual([...new Set(writes)].sort(), ['KEY_SLOT', 'SWITCH_SLOT']);
