@@ -9,7 +9,7 @@
 <body data-page="goal">
 <header class="topbar">
   <a class="brand" href="search.html">honestweek</a>
-  <nav aria-label="Pages"><a href="search.html">Search</a><a href="goal.html" aria-current="page">Goals</a><a href="replay.html">Replay</a></nav>
+  <nav aria-label="Pages"><a href="search.html">Search</a><a href="goal.html" aria-current="page">Goals</a><a href="replay.html">Replay</a><a href="problems.html">Problems</a></nav>
   <span class="window" id="window"></span>
   <span class="privacy" id="privacy"></span>
 </header>
@@ -18,6 +18,7 @@
 <div class="pagehead">
   <h1>Replay by goal</h1>
   <span class="sub">one goal's sessions in this window, on one clock</span>
+  <span id="wlBadge"></span>
   <p class="evkey" data-evkey></p>
 </div>
 <div class="wrap" id="content">
@@ -57,6 +58,7 @@
       <span><span class="sw timeby"></span>Time borrowed or moved</span>
       <span><span class="sw gap"></span>No records (a gap, not idle)</span>
     </div>
+    <div id="wl"></div>
     <svg id="chart" class="chart" role="group" aria-label="The goal's sessions on one clock. Each step is a button; the list after the chart reads them in order."></svg>
     <h2 class="sr">Every step on the chart, in order (<span id="stepCount">0 steps</span>)</h2>
     <ol class="sr" id="chartSteps"></ol>
@@ -68,6 +70,8 @@
 <script src="key.js"></script>
 <script src="private-text.js"></script>
 <script src="common.js"></script>
+<script src="prefs.js"></script>
+<script src="strip.js"></script>
 <script src="goal.js"></script>
 </body>
 </html>
