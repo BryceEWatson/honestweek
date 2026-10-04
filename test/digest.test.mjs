@@ -20,6 +20,7 @@ import { mergePromptStore } from '../lib/prompt-store.mjs';
 import { curatePrompts } from '../lib/prompt-curation.mjs';
 import { hasRecurringText } from '../lib/curation-similarity.mjs';
 import { loadConfig, OUTPUT_MODES } from '../lib/config.mjs';
+import { createRedactor } from '../lib/redact.mjs';
 import { isReservedDigestItem } from '../lib/digest-schema.mjs';
 import { buildPageModel, render as renderPage } from '../lib/emit/page.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
@@ -1315,5 +1316,102 @@ test('disabled public renditions withhold every otherwise visible category', asy
     for (const category of DIGEST_CATEGORIES) {
       assert.equal(review.candidates.some((item) => item.category === category && item.decision === 'public-renditions-disabled'), true, category);
     }
+  } finally { removeTempDir(f.root); }
+});
+
+// A prompt whose redacted text the published redactor changes again on a second pass: the
+// first pass leaves `-token` and `=ssh.key` on two lines, the second reads them as one field.
+const UNSETTLED_PROMPT = 'please keep the local gate honest "api.key"==a.b.secret.key = -token\n=ssh.key here';
+const HELD_BACK_TEXT = '[redacted:secret]';
+
+test('one prompt with unsettled redaction is held back as high risk and the week still builds', async () => {
+  const plain = fixture(); const f = fixture();
+  const oldClaude = process.env.CLAUDE_CONFIG_DIR; const oldCodex = process.env.CODEX_HOME;
+  try {
+    let output = io();
+    assert.equal(await runDigest({ cwd:plain.root, argv:['prepare'], now:plain.now, roots:plain.roots, io:output }), 0, output.stderr);
+    const plainReview = JSON.parse(readFileSync(join(plain.root, 'honestweek.curated.json'), 'utf8'));
+    const plainLane = JSON.parse(readFileSync(join(plain.root, 'honestweek.prompt-items.json'), 'utf8'));
+
+    process.env.CLAUDE_CONFIG_DIR = f.claude; process.env.CODEX_HOME = f.codex;
+    verifiedCommit(f.project);
+    jsonl(join(f.claude, 'projects', 'p', 'unsettled.jsonl'), [
+      { type:'user', sessionId:'unsettled-session', timestamp:'2024-06-13T10:00:00.000Z', cwd:f.project, message:{ content:UNSETTLED_PROMPT } },
+    ]);
+    const { config, promptStore } = await scanFixture(f);
+    const scanned = promptStore.prompts.filter((prompt) => prompt.text.includes('=ssh.key'));
+    assert.equal(scanned.length, 1, 'the scan reads the prompt with its first-pass redaction');
+    assert.notEqual(createRedactor(config).redact(scanned[0].text), scanned[0].text, 'a second pass still changes it');
+
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['prepare'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    assert.match(output.stdout, /Privacy withheld: private-source=0, high-risk=1, /);
+    const names = ['honestweek.prompts.json','honestweek.curated.json','honestweek.prompt-items.json'];
+    for (const name of names) assert.doesNotMatch(readFileSync(join(f.root, name), 'utf8'), /ssh\.key|api\.key|-token/, name);
+    const store = JSON.parse(readFileSync(join(f.root, 'honestweek.prompts.json'), 'utf8'));
+    const review = JSON.parse(readFileSync(join(f.root, 'honestweek.curated.json'), 'utf8'));
+    const lane = JSON.parse(readFileSync(join(f.root, 'honestweek.prompt-items.json'), 'utf8'));
+    assert.equal(store.prompts.find((prompt) => prompt.ref === scanned[0].ref).text, HELD_BACK_TEXT);
+    const held = review.candidates.filter((candidate) => candidate.decision === 'high-risk');
+    assert.equal(held.length, 1);
+    assert.deepEqual(
+      [held[0].category, held[0].text, held[0].contentHash, held[0].privacy.residualRisk, held[0].privacy.decision, held[0].evidenceRefs],
+      ['prompts', HELD_BACK_TEXT, sha256(HELD_BACK_TEXT), 'high', 'high-risk', [scanned[0].ref]],
+    );
+    assert.equal(review.withheld.total['high-risk'], 1);
+    assert.equal(lane.withheld.byCategory.prompts['high-risk'], 1);
+    assert.equal(lane.items.some((item) => item.itemRef === held[0].itemRef), false);
+    // Only that one item changes: every other candidate and every public item is the plain week's.
+    assert.deepEqual(review.candidates.filter((candidate) => candidate !== held[0]), plainReview.candidates);
+    assert.deepEqual(lane.items, plainLane.items);
+
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['candidates','--decision','high-risk'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    assert.match(output.stdout, /decision=high-risk score=\d+ reason=residual privacy risk is high {2}\[preview withheld by privacy gate\]/);
+    assert.match(output.stdout, /showing 1-1 of 1/);
+
+    // Keep can't publish it, and the controlled week still re-prepares, validates and builds.
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['keep', held[0].itemRef.slice(0, 12)], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    assert.match(output.stdout, /is kept; decision high-risk\./);
+    output = io();
+    assert.equal(await runDigest({ cwd:f.root, argv:['prepare'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
+    output = io(); assert.equal(await runValidate({ cwd:f.root, now:f.now, io:output }), 0, output.stderr);
+    output = io(); assert.equal(await runBuild({ cwd:f.root, now:f.now, io:output }), 0, output.stderr);
+    for (const name of [...names, 'report.html']) assert.doesNotMatch(readFileSync(join(f.root, name), 'utf8'), /ssh\.key|api\.key|-token/, name);
+  } finally {
+    if (oldClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = oldClaude;
+    if (oldCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = oldCodex;
+    removeTempDir(plain.root); removeTempDir(f.root);
+  }
+});
+
+test('a week with no unsettled text keeps its prompt store, and an unsettled cue is held back alone', async () => {
+  const f = fixture();
+  try {
+    const { config, promptStore, digest } = await scanFixture(f);
+    const week = { start:'2024-06-10', end:'2024-06-16' };
+    const options = { outputBinding:{ mode:'page', adapterHash:null, objectives:false } };
+    const settled = curateDigest(promptStore, digest, config, week, f.now, options);
+    assert.equal(settled.promptStore, promptStore, 'the same prompt store goes on to be written');
+    assert.equal(settled.review.withheld.total['high-risk'], 0);
+    assert.equal(settled.review.candidates.some((candidate) => candidate.text === HELD_BACK_TEXT), false);
+
+    const unsettledDigest = structuredClone(digest);
+    const cue = unsettledDigest.evidence.find((value) => value.category === 'decisions');
+    cue.text = createRedactor(config).redact(UNSETTLED_PROMPT.replace('\n=ssh.key', '')).replace('-token', '-token\n=ssh.key');
+    cue.contentHash = sha256(cue.text);
+    assert.notEqual(createRedactor(config).redact(cue.text), cue.text);
+    const result = curateDigest(promptStore, unsettledDigest, config, week, f.now, options);
+    assert.equal(result.promptStore, promptStore);
+    assert.doesNotMatch(JSON.stringify(result), /ssh\.key/);
+    const held = result.review.candidates.filter((candidate) => candidate.decision === 'high-risk');
+    assert.deepEqual(held.map((candidate) => [candidate.category, candidate.text, candidate.privacy.renditionHash]),
+      [['decisions', HELD_BACK_TEXT, sha256(HELD_BACK_TEXT)]]);
+    assert.equal(Object.hasOwn(held[0], '_unsettled'), false);
+    assert.equal(result.review.withheld.byCategory.decisions['high-risk'], 1);
+    assert.equal(result.lane.items.some((item) => item.itemRef === held[0].itemRef), false);
+    const rest = (review) => review.candidates.filter((candidate) => candidate.itemRef !== held[0].itemRef);
+    assert.deepEqual(rest(result.review), rest(settled.review), 'no other candidate changes');
   } finally { removeTempDir(f.root); }
 });
