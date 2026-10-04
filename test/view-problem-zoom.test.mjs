@@ -163,3 +163,26 @@ test('the pages read the names the answer carries, and leaving the zoom clears i
   for (const name of ['f.zoom', 'f.key', 'data-zoomlink', 'Zoom to these steps']) assert.ok(p.includes(name), `problems.js has ${name}`);
   assert.ok(page('strip.js').includes('zoomLink(i.f)'), "the record panel's finding box offers the zoom");
 });
+
+test('a finding zoom that spans the whole session keeps the fit control and "Whole session" usable', () => {
+  const src = page('replay.js').match(/function setView\(a, b, preset\) \{[\s\S]*?\n {2}\}/)[0];
+  const run = (Z, a, b, T1 = 600e3) => {
+    const el = (id) => ({ id, value: '', disabled: false, hidden: false, innerHTML: '', querySelector: () => null });
+    const els = { zoom: el('zoom'), fit: el('fit'), zoombar: el('zoombar') };
+    const ctx = { Z, T0: 0, T1, view: null, multiDay: false, WHOLE: 'the whole session', $: (id) => els[id], esc: String, time: String, dur: String, render: () => {}, fitAll: () => {}, HW: { dayOf: () => 0 } };
+    runInNewContext(`${src}; setView(${a}, ${b});`, ctx);
+    return els;
+  };
+  // A finding whose steps run from the first record to the last: the view is the whole session.
+  const zoomed = run({ key: 'pf-aaaaaaaaaaaa' }, -20e3, 620e3);
+  assert.equal(zoomed.fit.disabled, false, 'the fit control can still leave the zoom');
+  assert.notEqual(zoomed.zoom.value, '0', '"Whole session" can still be chosen, which leaves the zoom');
+  // A session shorter than the 20-second minimum view, zoomed to a finding.
+  const short = run({ key: 'pf-aaaaaaaaaaaa' }, 2e3, 6e3, 8e3);
+  assert.equal(short.fit.disabled, false);
+  assert.notEqual(short.zoom.value, '0');
+  // With no finding zoomed, the whole view still disables the fit control as before.
+  const plain = run(null, 0, 600e3);
+  assert.equal(plain.fit.disabled, true);
+  assert.equal(plain.zoom.value, '0');
+});
