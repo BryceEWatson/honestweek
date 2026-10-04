@@ -6,7 +6,7 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -63,6 +63,23 @@ function fill(n) {
 const straddling = (max, word = TERM, before = 4) => `${fill(max - before)}${word} and the rest of the line.`;
 
 const leaks = (out) => typeof out === 'string' && out.toLowerCase().includes('qy');
+/** `json` with every spelling of the folders in `roots` taken out. A record is the log line read
+ *  back, and it names the session's folder as written when that folder isn't a home folder (on
+ *  Linux, `/tmp/hw-replay-XXXXXX`). Six random letters there hold "qy" about once in 200 runs,
+ *  which `leaks` would read as the start of the name: the folder is the machine's, not the text's. */
+function withoutFolders(json, roots) {
+  let out = json;
+  for (const root of roots) {
+    let real = root;
+    try {
+      real = realpathSync.native(root);
+    } catch {
+      /* gone already: its own spelling is enough */
+    }
+    for (const p of new Set([root, real])) for (const form of new Set([p, JSON.stringify(p).slice(1, -1)])) out = out.split(form).join('<folder>');
+  }
+  return out;
+}
 /** True when `out`, without its ending, finishes with any start of `word`. */
 function endsWithStartOf(out, word) {
   const t = out.replace(/(?:…(?: \[\d+ more characters\])?)$/, '').trimEnd().toLowerCase();
@@ -461,6 +478,23 @@ before(async () => {
   builds = { full: await buildWorkHistory(opts), local: await buildWorkHistory({ ...opts, privateText: true }) };
 });
 
+test("a record names its folder as written, so the name check sets the folder aside (a folder name holding 'qy')", async () => {
+  // The folder is named to hold the name's first two letters, as a random temp folder can.
+  const root = makeTempDir('hw-Qy-');
+  scratch.push(root);
+  const corpus = buildCorpus({ root: join(root, 'corpus') });
+  const h = await buildWorkHistory({ config: corpus.config, from: '2024-06-10', to: '2024-06-16', roots: { claude: [corpus.claudeRoot], codex: [corpus.codexRoot] } });
+  const records = h.events.map((e) => JSON.stringify(h.record(e.id)));
+  // Where the temp folder isn't a home folder (Linux's /tmp, macOS's /var/folders), a record names
+  // it as written, and without setting it aside the check fires on the folder's own name. Under a
+  // home folder (Windows) the record hides it as a path, and there's nothing to set aside.
+  const named = records.some((r) => withoutFolders(r, [root]) !== r);
+  assert.equal(records.some((r) => leaks(r)), named, 'the check fires exactly when a record names the folder');
+  // ...and with it set aside, nothing in any record starts the name.
+  for (const r of records) assert.ok(!leaks(withoutFolders(r, [root])), r.slice(0, 200));
+  assert.ok(!leaks(withoutFolders(JSON.stringify(h), [root])));
+});
+
 test('every site the engine cuts would have leaked the name when it cut first', () => {
   const r = full();
   for (const [site, [max, raw]] of Object.entries(sites)) {
@@ -481,7 +515,7 @@ test('no start of the name reaches the history, its records, or its goal list', 
   assert.ok(mine.length >= 25, `${mine.length} events from the two sessions`);
   const json = JSON.stringify(h);
   assert.ok(!leaks(json), `the history shows "${json.slice(json.toLowerCase().indexOf('qy') - 40, json.toLowerCase().indexOf('qy') + 10)}"`);
-  for (const e of mine) assert.ok(!leaks(JSON.stringify(h.record(e.id))), `record ${e.id}`);
+  for (const e of mine) assert.ok(!leaks(withoutFolders(JSON.stringify(h.record(e.id)), [fx.root])), `record ${e.id}`);
   assert.ok(!leaks(JSON.stringify(h.goal('g-cut'))));
   // Each site's excerpt is there, cut, and doesn't end in a start of the name.
   const texts = mine.flatMap((e) => Object.values(e.facts).flatMap((v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).filter((x) => typeof x === 'string') : [])));
