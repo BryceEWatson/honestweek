@@ -249,6 +249,27 @@ test('risky commands: wrappers with their own options, lower-case config keys an
   assert.deepEqual(kinds('env X=1 git commit -m x'), []);
 });
 
+test('risky commands: a leading env, time or exec keeps its options set aside, and lookups run nothing', () => {
+  const kinds = (c) => riskyKinds(c, false).map((k) => k.kind);
+  // The shared splitter drops a leading env, time or exec but not its options; these read as run.
+  for (const c of ['env -i git push -f', 'env - git push -f', 'env -u HOME git push -f', 'env -C /tmp git push -f', 'env --unset HOME git push -f', 'ls && env -i rm -rf build', 'time -p git push -f', 'exec -a name git push -f', 'env -i bash -c "git push -f"']) {
+    assert.deepEqual(kinds(c), c.includes('rm') ? ['recursive-delete'] : ['force-push'], c);
+  }
+  // Long options whose value is the next word, and a Windows rm.
+  assert.deepEqual(kinds('sudo --user root git push -f'), ['force-push']);
+  assert.deepEqual(kinds('xargs --max-args 1 rm -rf'), ['recursive-delete']);
+  assert.deepEqual(kinds('rm.exe -rf build'), ['recursive-delete']);
+  assert.deepEqual(kinds('C:/tools/rm.exe -rf build'), ['recursive-delete']);
+  assert.deepEqual(kinds('git -c core.hooksPath=nul commit -m x'), ['skip-checks']);
+  // command -v and sudo -l only look a command up.
+  assert.deepEqual(kinds('command -v git push -f'), []);
+  assert.deepEqual(kinds('sudo -l rm -rf /'), []);
+  assert.deepEqual(kinds('command -V git'), []);
+  assert.deepEqual(kinds('env -i git push'), []);
+  assert.deepEqual(kinds('env -u X git commit -m x'), []);
+  assert.deepEqual(kinds('git config core.hooksPath .githooks'), []);
+});
+
 test('risky commands: a long run of rm flags reads in one pass', () => {
   const t = Date.now();
   assert.deepEqual(riskyKinds(`rm ${'-r '.repeat(50_000)}x`, false), []);
