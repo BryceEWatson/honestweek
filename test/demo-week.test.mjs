@@ -115,13 +115,13 @@ test('worktree sessions count for the project, and the resumed session joins the
 
 test('prompts: 1 to 7 typed per session, one queued until the next turn, one absorbed mid-turn', () => {
   const totals = h.overview().totals;
-  assert.equal(totals.prompts.value, 53);
+  assert.equal(totals.prompts.value, 54);
   assert.equal(totals.prompts.evidence, 'inferred', 'three prompts come from a Claude Code that records no origin');
-  assert.equal(all.overview().totals.prompts.value, 55);
+  assert.equal(all.overview().totals.prompts.value, 56);
   const perSession = Object.fromEntries(all.sessions.map((s) => [s.key, of(all, s.key, 'prompt').length]));
   assert.deepEqual(perSession, {
     [k.since]: 4, [k.wide]: 2, [k.breaking]: 2, [k.group]: 5, [k.bare]: 3, [k.markdown]: 7, [k.contributing]: 2, [k.resumed]: 4, [k.windows]: 1, [k.release]: 2,
-    [k.json]: 3, [k.node18]: 2, [k.unreleased]: 3, [k.upload]: 2, [k.summary]: 0, [k.site]: 2, [k.lookup]: 2, [k.width]: 2, [k.widthCommit]: 1, [k.scratch]: 2, [k.label]: 1, [k.why]: 3,
+    [k.json]: 3, [k.node18]: 2, [k.unreleased]: 3, [k.upload]: 2, [k.summary]: 0, [k.site]: 2, [k.lookup]: 2, [k.width]: 2, [k.widthCommit]: 2, [k.scratch]: 2, [k.label]: 1, [k.why]: 3,
   });
   const typed = Object.entries(perSession).filter(([key]) => key !== k.summary).map(([, n]) => n);
   assert.deepEqual([Math.min(...typed), Math.max(...typed)], [1, 7]);
@@ -135,7 +135,7 @@ test('prompts: 1 to 7 typed per session, one queued until the next turn, one abs
   // Who typed a prompt: recorded, or inferred from a missing origin. A codex exec run's
   // opening message is the agent's starting instruction, never a prompt (issue 62).
   const authorship = (e) => (e.inferred ?? []).find((x) => x && x.key === 'authorship')?.value ?? null;
-  assert.deepEqual([k.width, k.widthCommit].map((key) => of(h, key, 'prompt').map(authorship)), [['person', 'person'], ['person']]);
+  assert.deepEqual([k.width, k.widthCommit].map((key) => of(h, key, 'prompt').map(authorship)), [['person', 'person'], ['person', 'person']]);
   assert.deepEqual(of(h, k.summary, 'delegation-received').map((e) => [e.actor, e.agent === `${k.summary}:main`, e.facts.from]), [['agent', true, 'codex-exec']]);
   assert.ok(h.events.filter((e) => e.kind === 'prompt' && ![k.width, k.widthCommit, k.summary].includes(e.session)).every((e) => authorship(e) === null));
 });
@@ -168,14 +168,17 @@ test('eight sub-agents: four Explore, two general-purpose, two Codex child threa
 
 test('tool calls: reads, searches, edits with patches, shell, delegation, and the git and gh commands', () => {
   const acts = h.events.filter((e) => e.kind === 'action');
-  assert.equal(acts.length, 307);
-  assert.equal(all.overview().totals.actions.value, 310);
+  assert.equal(acts.length, 309);
+  assert.equal(all.overview().totals.actions.value, 312);
   for (const cat of ['read', 'search', 'edit', 'shell', 'delegate', 'handoff', 'wait']) assert.ok(acts.some((e) => e.facts.category === cat), `a ${cat} call`);
   const cmds = acts.map((e) => e.facts.command ?? '');
   for (const re of [/^git add -A && git commit -m /, /^gh pr create /, /^gh pr view /, /^gh pr merge \d+ --squash$/, /^git push/, /^git reset --hard /, /^rm -rf /]) assert.ok(cmds.some((c) => re.test(c)), String(re));
   const patched = acts.filter((e) => e.derived.patch && e.derived.patch.added > 0);
   assert.ok(patched.some((e) => e.source.startsWith('cc-')) && patched.some((e) => e.source.startsWith('cx-')), 'Claude Code edits and Codex patches both carry line counts');
-  assert.equal(h.overview().totals.edits.value, 61);
+  assert.equal(h.overview().totals.edits.value, 63);
+  // Claude Code records the folder each line ran in; a shell read's relative path resolves against it.
+  const ccShell = acts.filter((e) => e.source.startsWith('cc-') && e.facts.category === 'shell' && !sessionOf(e.session)?.private);
+  assert.ok(ccShell.length > 0 && ccShell.every((e) => typeof e._lineCwd === 'string'), 'every readable Claude Code shell step has the folder its line recorded');
 });
 
 test('test runs: some pass, some fail, and the run cut off by the session ending is not counted', () => {
@@ -334,6 +337,7 @@ test('the problem checks find a spread of patterns across the three tiers, each 
     'subagent-overuse': ['low', 0, 7],
     'subagent-handoff-loss': ['low', 2, 0],
     'scope-creep': ['low', 2, 0],
+    'edits-outside-folder': ['low', 2, 0],
     'premature-stop': ['low', 2, 1],
     'needless-check-in': ['low', 0, 1],
   });
@@ -361,16 +365,19 @@ test('the problem checks find a spread of patterns across the three tiers, each 
   assert.deepEqual(where('subagent-handoff-loss'), [k.release, k.why].sort());
   assert.deepEqual(where('scope-creep'), [k.width, k.why].sort());
   assert.deepEqual(where('premature-stop'), [k.json, k.why].sort());
-  // Most of the week is ordinary work: 10 of the 20 sessions the checks read (the display-only
+  // An edit into the display-only site from each agent, both asked for: shown, and git never reads the site.
+  assert.deepEqual(where('edits-outside-folder'), [k.widthCommit, k.why].sort());
+  for (const f of r.patterns.find((p) => p.id === 'edits-outside-folder').findings) assert.match(f.note, /^1 edit outside the folder this session started in: 1 in a display-only repository\. Files: \*\.md\.$/);
+  // Most of the week is ordinary work: 11 of the 20 sessions the checks read (the display-only
   // one isn't checked) have anything worth a look.
   const flagged = new Set(looks.map((f) => f.session));
-  assert.deepEqual([flagged.size, r.coverage.sessions.value], [10, 20]);
+  assert.deepEqual([flagged.size, r.coverage.sessions.value], [11, 20]);
   // The token figures docs/demo-week.md states.
-  assert.deepEqual([r.coverage.modelCalls.value, Math.round(r.coverage.tokens.value / 1e5)], [356, 190]);
+  assert.deepEqual([r.coverage.modelCalls.value, Math.round(r.coverage.tokens.value / 1e5)], [359, 192]);
   const bloat = r.patterns.find((p) => p.id === 'context-bloat');
   const bloatIn = (key) => bloat.findings.find((f) => f.session === key).note;
   assert.match(bloatIn(k.markdown), /at model call 44 of 77 .*largest context was 163k.*about 3\.8M tokens/);
-  assert.match(bloatIn(k.why), /at model call 16 of 49 .*largest context was 168k.*about 4\.5M tokens/);
+  assert.match(bloatIn(k.why), /at model call 16 of 50 .*largest context was 169k.*about 4\.7M tokens/);
   assert.equal(Math.round(bloat.priority.share * 100), 44);
   const oversized = r.patterns.find((p) => p.id === 'oversized-tool-output').findings;
   assert.deepEqual(oversized.map((f) => [f.session, f.note.match(/by about (\d+k) tokens/)?.[1]]).sort(), [[k.windows, '23k'], [k.why, '22k']].sort());

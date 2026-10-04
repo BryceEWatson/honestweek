@@ -408,11 +408,11 @@ test('edits after a question-only prompt; a request is not counted', () => {
   };
   assert.equal(looks(make('Why does the parser drop tabs?'), 'scope-creep').length, 1);
   assert.equal(findingsOf(make('Can you fix the parser so it keeps tabs?'), 'scope-creep').length, 0);
-  // An edit outside the session's folder isn't counted either.
+  // An edit outside the session's folder counts too: scope creep wherever the edit went.
   const h = history().session('s1');
   h.prompt('s1', min(0), 'Why does the parser drop tabs?');
   h.edit('s1', min(1), '/elsewhere/notes.md', 'a', 'b');
-  assert.equal(findingsOf(run(h.build()), 'scope-creep').length, 0);
+  assert.equal(findingsOf(run(h.build()), 'scope-creep').length, 1);
 });
 
 test('an edit while plan mode was on; the plan file itself and edits after the exit are fine', () => {

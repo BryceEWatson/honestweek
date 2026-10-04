@@ -47,7 +47,7 @@ test('the rule is stated in the words the page shows, with three tiers and a lin
 test('the catalog, the map and the drafts agree: every mapped pattern and check exists, every pattern has a draft', () => {
   const catalog = loadCatalog();
   const ids = new Set(catalog.patterns.map((p) => p.id));
-  assert.equal(catalog.patterns.length, 40);
+  assert.equal(catalog.patterns.length, 41);
   const checkIds = new Set(CHECKS.map((c) => c.id));
   for (const [pattern, measures] of Object.entries(PATTERN_CHECKS)) {
     assert.ok(ids.has(pattern), pattern);
