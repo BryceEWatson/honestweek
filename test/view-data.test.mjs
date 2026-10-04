@@ -140,8 +140,27 @@ test('a token hidden at the very end of a prompt counts as hidden, and one shown
   for (const s of ['TOKEN=[redacted:secret])', "password: '[redacted:secret]'.", 'API_KEY=[redacted:secret]",']) assert.equal(leaks.secrets(s).total, 0, s);
   // An excerpt cut right after a sensitive flag ends in the page's own mark, which isn't a
   // value; a real value in the same place still is.
-  for (const s of ['Yes: add a --token-file …', 'Yes: add a --token-file ...']) assert.deepEqual([leaks.redacted(s).total, leaks.secrets(s).total], [0, 0], s);
+  for (const s of ['Yes: add a --token-file …', 'Yes: add a --token-file ...', 'Yes: add a --token-file … ']) assert.deepEqual([leaks.redacted(s).total, leaks.secrets(s).total], [0, 0], s);
   assert.deepEqual([leaks.redacted('Yes: add a --token-file 7Qx2Lk9pR3vT6nW8zB4f').secrets, leaks.secrets('Yes: add a --token-file 7Qx2Lk9pR3vT6nW8zB4f').total], [1, 1]);
+});
+
+// Neither relaxation may hide a real value that sits near a placeholder or a cut mark. Each of
+// these counted as a leak before the two were added, and still does.
+test('a value shown next to a placeholder or a cut mark still counts as a leak', () => {
+  const near = [
+    'password: [redacted:secret]. hunter2xyz',
+    'TOKEN=[redacted:secret]" Xk9mQ2pL7vR4Zq7mK2pX9wAbCdEfGh12',
+    'API_KEY=[redacted:secret]. SECRET=7Qx2Lk9pR3vT6nW8zB4f',
+    'password: "[redacted:secret]" and token: "7Qx2Lk9pR3vT6nW8zB4f"',
+    'Authorization: Bearer [redacted:secret]) Xk9mQ2pL7vR4Zq7m',
+    // A cut mark that doesn't end the text isn't the end of an excerpt.
+    'token: … Xk9mQ2pL7vR4Zq7mK2pX9w',
+    'token: ...;Xk9mQ2pL7vR4Zq7mK2pX9wAbCdEfGh12',
+    'password=…Xk9mQ2pL7vR4',
+    '--token … --password hunter2xyz',
+    'add a --token-file … then --token 7Qx2Lk9pR3vT6nW8zB4f',
+  ];
+  for (const s of near) assert.deepEqual([leaks.redacted(s).secrets, leaks.secrets(s).total], [1, 1], s);
 });
 
 test('private text is served only when a request asks with private=1', async () => {

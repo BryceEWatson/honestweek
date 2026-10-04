@@ -4,7 +4,7 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
@@ -293,6 +293,19 @@ test('the replay views work end to end on the demo week', async () => {
   assert.ok(report.checks.length >= 15);
 });
 
+// Wednesday's logs print what the Markdown renderer makes from lib/demo/content.mjs, and the
+// branch commits a renderer written out as text in lib/demo/week.mjs, with golden files made
+// from the first. Running the branch's own tests keeps the two copies in step.
+test("the Markdown branch's own tests pass, so the renderer it commits matches what its logs print", () => {
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  const r = spawnSync(process.execPath, ['--test-reporter=tap', '--test', 'test/markdown.test.mjs'], { cwd: d.repo.worktrees.markdown, env, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /^# pass 12$/m);
+  assert.match(r.stdout, /^# fail 0$/m);
+  for (const name of ['driftwood', 'emberline', 'harbor-config', 'mossbank', 'quillpen']) assert.match(r.stdout, new RegExp(`^ok \\d+ - renders ${name}\\.md the way its \\.expected\\.md says$`, 'm'), name);
+});
+
 // The demo is where someone first sees the Problems page and the "Worth a look" strip, so
 // this pins what it shows: which patterns are found, at which tier, and in which session.
 test('the problem checks find a spread of patterns across the three tiers, each in the session that shows it', async () => {
@@ -332,9 +345,16 @@ test('the problem checks find a spread of patterns across the three tiers, each 
   assert.deepEqual(where('subagent-handoff-loss'), [k.release]);
   assert.deepEqual(where('scope-creep'), [k.width]);
   assert.deepEqual(where('premature-stop'), [k.json]);
-  // Most of the week is ordinary work: fewer than half the sessions have anything worth a look.
+  // Most of the week is ordinary work: 8 of the 18 sessions the checks read (the display-only
+  // one isn't checked) have anything worth a look.
   const flagged = new Set(looks.map((f) => f.session));
-  assert.ok(flagged.size * 2 < h.sessions.length, `${flagged.size} of ${h.sessions.length} sessions have a finding worth a look`);
+  assert.deepEqual([flagged.size, r.coverage.sessions.value], [8, 18]);
+  // The token figures docs/demo-week.md states.
+  assert.deepEqual([r.coverage.modelCalls.value, Math.round(r.coverage.tokens.value / 1e5)], [303, 125]);
+  const bloat = r.patterns.find((p) => p.id === 'context-bloat');
+  assert.match(bloat.findings[0].note, /at model call 44 of 77 .*largest context was 163k.*about 3\.8M tokens/);
+  assert.equal(Math.round(bloat.priority.share * 100), 31);
+  assert.match(r.patterns.find((p) => p.id === 'oversized-tool-output').findings[0].note, /by about 23k tokens/);
   // The routine look-alike: Wednesday's recursive delete of its own scratch folder is a note.
   assert.deepEqual(r.patterns.find((p) => p.id === 'destructive-command').findings.map((f) => [f.severity, f.kind, f.session]), [['look', 'hard-reset', k.unreleased], ['note', 'recursive-delete', k.markdown]]);
   // The strip's click-through follows the first high finding; in its session two findings
@@ -415,6 +435,21 @@ test('the script writes the same bytes on every run, apart from the folder path'
   for (const address of agentAddresses) for (const form of [`"${address}"`, `\\"${address}\\"`]) pathless = pathless.split(form).join('"<agent>"');
   const home = homedir();
   for (const form of [home, JSON.stringify(home).slice(1, -1)]) assert.ok(!pathless.includes(form), 'no home-directory path');
+});
+
+// On Windows a folder can be written with either slash. The token counts read the folder's
+// path as one stand-in, so a build from the other spelling writes the same logs.
+test('a folder written with forward slashes on Windows gives the same logs and token counts', { skip: process.platform !== 'win32' }, () => {
+  const e = buildDemoWeek({ root: join(tmp('hw-demo-test-'), 'slashed').replace(/\\/g, '/') });
+  assert.ok(!e.root.includes('/'), e.root);
+  const file = (w) => join(w.roots.claude[0], w.ids.projectDirs.markdownWorktree, `${SESSION_IDS.markdownOutput}.jsonl`);
+  const normalized = (w) => {
+    const once = JSON.stringify(w.root).slice(1, -1);
+    let text = readFileSync(file(w), 'utf8');
+    for (const form of [JSON.stringify(once).slice(1, -1), once, w.root]) text = text.split(form).join('<root>');
+    return text;
+  };
+  assert.equal(normalized(e), normalized(d));
 });
 
 test('a build that fails partway leaves nothing behind and says so', () => {
