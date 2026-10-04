@@ -58,6 +58,7 @@ before(async () => {
     node18: sourceKey('cx', CODEX_IDS.node18),
     upload: sourceKey('cx', CODEX_IDS.uploadFix),
     summary: sourceKey('cx', CODEX_IDS.weekSummary),
+    label: sourceKey('cx', CODEX_IDS.undatedLabel),
   });
   const options = { config: d.config, from: WEEK.from, to: WEEK.to, roots: d.roots };
   h = await buildWorkHistory(options);
@@ -69,12 +70,12 @@ after(() => {
   }
 });
 
-test('nineteen sessions on six days, five of them Codex, and one more outside the configured repos', () => {
-  assert.equal(h.sessions.length, 19);
+test('twenty sessions on six days, six of them Codex, and one more outside the configured repos', () => {
+  assert.equal(h.sessions.length, 20);
   const tools = h.sessions.map((s) => s.tool);
-  assert.deepEqual([tools.filter((t) => t === 'claude-code').length, tools.filter((t) => t === 'codex').length], [14, 5]);
+  assert.deepEqual([tools.filter((t) => t === 'claude-code').length, tools.filter((t) => t === 'codex').length], [14, 6]);
   assert.equal(h.skipped.outsideConfiguredRepos, 1);
-  assert.equal(all.sessions.length, 20);
+  assert.equal(all.sessions.length, 21);
   assert.deepEqual(h.overview().days.map((x) => x.date), ['2025-03-10', '2025-03-11', '2025-03-12', '2025-03-13', '2025-03-14', '2025-03-15']);
   for (const key of Object.values(k)) assert.ok(all.sessions.some((s) => s.key === key), `session ${key} is read`);
 });
@@ -95,7 +96,7 @@ test('one person working: no two sessions overlap, Sunday is quiet, and there ar
 test('worktree sessions count for the project, and the resumed session joins the one it continues', () => {
   for (const key of [k.group, k.resumed, k.markdown, k.release, k.upload, k.json, k.node18]) assert.equal(sessionOf(key).repo, 'lantern');
   assert.match(d.repo.worktrees.groupByScope.replace(/\\/g, '/'), /\/lantern\/\.claude\/worktrees\/group-by-scope$/);
-  assert.equal(h.threads.length, 17);
+  assert.equal(h.threads.length, 18);
   assert.ok(h.threads.some((t) => t.sessions.includes(k.group) && t.sessions.includes(k.resumed)));
   const cont = h.links.filter((l) => l.type === 'continuation').map((l) => [l.from, l.to]);
   assert.deepEqual(cont.sort(), [[k.resumed, k.group], [k.widthCommit, k.width]].sort());
@@ -113,13 +114,13 @@ test('worktree sessions count for the project, and the resumed session joins the
 
 test('prompts: 1 to 7 typed per session, one queued until the next turn, one absorbed mid-turn', () => {
   const totals = h.overview().totals;
-  assert.equal(totals.prompts.value, 49);
+  assert.equal(totals.prompts.value, 50);
   assert.equal(totals.prompts.evidence, 'inferred', 'three prompts come from a Claude Code that records no origin');
-  assert.equal(all.overview().totals.prompts.value, 51);
+  assert.equal(all.overview().totals.prompts.value, 52);
   const perSession = Object.fromEntries(all.sessions.map((s) => [s.key, of(all, s.key, 'prompt').length]));
   assert.deepEqual(perSession, {
     [k.since]: 4, [k.wide]: 2, [k.breaking]: 2, [k.group]: 5, [k.bare]: 3, [k.markdown]: 7, [k.contributing]: 2, [k.resumed]: 4, [k.windows]: 1, [k.release]: 2,
-    [k.json]: 3, [k.node18]: 2, [k.unreleased]: 3, [k.upload]: 2, [k.summary]: 0, [k.site]: 2, [k.lookup]: 2, [k.width]: 2, [k.widthCommit]: 1, [k.scratch]: 2,
+    [k.json]: 3, [k.node18]: 2, [k.unreleased]: 3, [k.upload]: 2, [k.summary]: 0, [k.site]: 2, [k.lookup]: 2, [k.width]: 2, [k.widthCommit]: 1, [k.scratch]: 2, [k.label]: 1,
   });
   const typed = Object.entries(perSession).filter(([key]) => key !== k.summary).map(([, n]) => n);
   assert.deepEqual([Math.min(...typed), Math.max(...typed)], [1, 7]);
@@ -163,14 +164,14 @@ test('seven sub-agents: four Explore, two general-purpose, one Codex child threa
 
 test('tool calls: reads, searches, edits with patches, shell, delegation, and the git and gh commands', () => {
   const acts = h.events.filter((e) => e.kind === 'action');
-  assert.equal(acts.length, 258);
-  assert.equal(all.overview().totals.actions.value, 261);
+  assert.equal(acts.length, 260);
+  assert.equal(all.overview().totals.actions.value, 263);
   for (const cat of ['read', 'search', 'edit', 'shell', 'delegate', 'handoff', 'wait']) assert.ok(acts.some((e) => e.facts.category === cat), `a ${cat} call`);
   const cmds = acts.map((e) => e.facts.command ?? '');
   for (const re of [/^git add -A && git commit -m /, /^gh pr create /, /^gh pr view /, /^gh pr merge \d+ --squash$/, /^git push/, /^git reset --hard /, /^rm -rf /]) assert.ok(cmds.some((c) => re.test(c)), String(re));
   const patched = acts.filter((e) => e.derived.patch && e.derived.patch.added > 0);
   assert.ok(patched.some((e) => e.source.startsWith('cc-')) && patched.some((e) => e.source.startsWith('cx-')), 'Claude Code edits and Codex patches both carry line counts');
-  assert.equal(h.overview().totals.edits.value, 58);
+  assert.equal(h.overview().totals.edits.value, 59);
 });
 
 test('test runs: some pass, some fail, and the run cut off by the session ending is not counted', () => {
@@ -316,7 +317,7 @@ test('the problem checks find a spread of patterns across the three tiers, each 
     'claim-contradicts-evidence': ['high', 4, 0],
     'context-bloat': ['high', 1, 0],
     'secret-exposure': ['high', 4, 1],
-    'unverified-done-claim': ['medium', 1, 0],
+    'unverified-done-claim': ['medium', 2, 0],
     'test-tampering': ['medium', 1, 0],
     'destructive-command': ['medium', 1, 1],
     'repeated-file-reads': ['low', 0, 1],
@@ -334,7 +335,7 @@ test('the problem checks find a spread of patterns across the three tiers, each 
   assert.deepEqual(where('claim-contradicts-evidence'), [k.bare, k.markdown].sort());
   assert.deepEqual(where('context-bloat'), [k.markdown]);
   assert.deepEqual(where('secret-exposure'), [k.release, k.upload].sort());
-  assert.deepEqual(where('unverified-done-claim'), [k.width]);
+  assert.deepEqual(where('unverified-done-claim'), [k.width, k.label].sort());
   assert.deepEqual(where('test-tampering'), [k.windows]);
   assert.deepEqual(where('destructive-command'), [k.unreleased]);
   // Saturday's three reads of one short file are a routine note: each repeat added about 250
@@ -350,12 +351,12 @@ test('the problem checks find a spread of patterns across the three tiers, each 
   assert.deepEqual(where('subagent-handoff-loss'), [k.release]);
   assert.deepEqual(where('scope-creep'), [k.width]);
   assert.deepEqual(where('premature-stop'), [k.json]);
-  // Most of the week is ordinary work: 8 of the 18 sessions the checks read (the display-only
+  // Most of the week is ordinary work: 9 of the 19 sessions the checks read (the display-only
   // one isn't checked) have anything worth a look.
   const flagged = new Set(looks.map((f) => f.session));
-  assert.deepEqual([flagged.size, r.coverage.sessions.value], [8, 18]);
+  assert.deepEqual([flagged.size, r.coverage.sessions.value], [9, 19]);
   // The token figures docs/demo-week.md states.
-  assert.deepEqual([r.coverage.modelCalls.value, Math.round(r.coverage.tokens.value / 1e5)], [303, 125]);
+  assert.deepEqual([r.coverage.modelCalls.value, Math.round(r.coverage.tokens.value / 1e5)], [306, 125]);
   const bloat = r.patterns.find((p) => p.id === 'context-bloat');
   assert.match(bloat.findings[0].note, /at model call 44 of 77 .*largest context was 163k.*about 3\.8M tokens/);
   assert.equal(Math.round(bloat.priority.share * 100), 31);
