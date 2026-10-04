@@ -186,6 +186,57 @@ test('ordinary text is published as written, and the audit finds no secret in it
   }
 });
 
+// A credential written after a label (`here's the sandbox one: DOCS_TOKEN=…`). The label reads
+// like a field of its own, `one: …`, but each key is read from its own start and only a
+// sensitive key's value is taken, so the label never swallows the field after it. Made-up
+// values throughout.
+const LV = 'qv7Lm2Rz9Xk4';
+const LW = 'mN3pQ8sT';
+// [input, the published output]
+const AFTER_A_LABEL = [
+  [`here's the sandbox one: DOCS_TOKEN=${LV}`, "here's the sandbox one: DOCS_TOKEN=[redacted:secret]"],
+  [`label: DOCS_TOKEN=${LV}`, 'label: DOCS_TOKEN=[redacted:secret]'],
+  [`label - DOCS_TOKEN: ${LV}`, 'label - DOCS_TOKEN: [redacted:secret]'],
+  [`note=DOCS_TOKEN=${LV}`, 'note=DOCS_TOKEN=[redacted:secret]'],
+  [`label: "DOCS_TOKEN": "${LV}"`, 'label: "DOCS_TOKEN": "[redacted:secret]"'],
+  [`see: Authorization: Bearer ${LV}`, 'see: Authorization: [redacted:secret]'],
+  [`a: API_KEY=${LV} b: DB_PASSWORD=${LW} c: notes here`, 'a: API_KEY=[redacted:secret] b: DB_PASSWORD=[redacted:secret] c: notes here'],
+  [`Setup: users get logged out. Use the sandbox one: DOCS_TOKEN=${LV}`, 'Setup: users get logged out. Use the sandbox one: DOCS_TOKEN=[redacted:secret]'],
+];
+// The same inside JSON text, one and two levels of escaping deep.
+const AFTER_A_LABEL_JSON = [
+  JSON.stringify({ msg: `here's the sandbox one: DOCS_TOKEN=${LV}` }),
+  JSON.stringify({ msg: `label: "DOCS_TOKEN": "${LV}"` }),
+  JSON.stringify(JSON.stringify({ msg: `label: "DOCS_TOKEN": "${LV}"` })),
+  JSON.stringify({ msg: `see: Authorization: Bearer ${LV}` }),
+  JSON.stringify({ msg: `step 1: DOCS_TOKEN=${LV}, step 2: client_secret=${LW}` }),
+];
+
+test('a credential after a label is hidden by both scrubbers and the audit, and the label stays', () => {
+  for (const [input, expected] of AFTER_A_LABEL) {
+    const r = createRedactor();
+    const out = r.redact(input);
+    assert.equal(out, expected, input);
+    assert.equal(r.redact(out), out, `idempotent: ${input}`);
+    assert.equal(createSecretsOnlyRedactor().redact(input), expected, `secrets-only: ${input}`);
+    const audit = redactWithAudit(input, {});
+    assert.equal(audit.text, expected, `audit: ${input}`);
+    assert.equal(replayRedactions(input, audit.redactionOps), audit.text, `replay: ${input}`);
+  }
+  for (const input of AFTER_A_LABEL_JSON) {
+    const out = createRedactor().redact(input);
+    for (const value of [LV, LW]) assert.ok(!out.includes(value), `published: ${input} -> ${out}`);
+    assert.equal(createSecretsOnlyRedactor().redact(input), out, `secrets-only: ${input}`);
+    assert.equal(redactWithAudit(input, {}).text, out, `audit: ${input}`);
+    assert.equal(createRedactor().redact(out), out, `idempotent: ${input}`);
+  }
+  // Read back as a record, the same strings stay hidden in both scrubbers.
+  for (const r of [createRedactor(), createSecretsOnlyRedactor()]) {
+    const out = JSON.stringify(r.deepRedact({ notes: AFTER_A_LABEL.map(([input]) => input) }));
+    for (const value of [LV, LW]) assert.ok(!out.includes(value), out);
+  }
+});
+
 test('a password in a web address with a dotted host stays hidden with its host, as before', () => {
   // The email rule took `swordfish@code.example.com` before this change; it still does, and
   // the audit agrees. A host without a dot (`localhost`) was not an email, and is now covered.
