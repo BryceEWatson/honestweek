@@ -534,3 +534,17 @@ test('Run with Codex needs the key, takes POST only, refuses other hosts and sit
   for (const root of [dirname(vw.roots.claude[0]), dirname(vw.roots.codex[0])]) assert.ok(!readdirSync(root).includes(JUDGE_DIR));
   assert.equal((await call(port, { path: '/api/problems?summary=1', key })).status, 200);
 });
+
+test('Run with Codex judges only Codex sessions a person started, not a child or guardian thread standing alone', async () => {
+  const week = madeUpWeek('agent-started');
+  const day = join(week.root, 'codex', 'sessions', '2024', '06', '12');
+  const more = { child: '0190d000-0000-7000-8000-0000000000d1', orphan: '0190d000-0000-7000-8000-0000000000d2', guardian: '0190d000-0000-7000-8000-0000000000d3' };
+  const spawned = (parent) => ({ source: { subagent: { thread_spawn: { parent_thread_id: parent, depth: 1, agent_path: 'helper', agent_nickname: 'helper' } } } });
+  // A child of the person's session joins it; one whose parent isn't here, and a guardian, stand alone.
+  writeRows(join(day, `rollout-2024-06-12T13-00-00-${more.child}.jsonl`), codexRows(week.project, more.child, { extraMeta: spawned(ID.codex) }));
+  writeRows(join(day, `rollout-2024-06-12T14-00-00-${more.orphan}.jsonl`), codexRows(week.project, more.orphan, { extraMeta: spawned('0190d000-0000-7000-8000-0000000000ff') }));
+  writeRows(join(day, `rollout-2024-06-12T15-00-00-${more.guardian}.jsonl`), codexRows(week.project, more.guardian, { extraMeta: { source: { subagent: { other: 'guardian' } } } }));
+  const d = createViewData({ config: week.config, roots: week.roots, ...WINDOW, buildHistory: async (o) => buildWorkHistory({ ...o, git: false }) });
+  await d.start();
+  assert.deepEqual(d.codexWork().sessions.map((s) => s.id).sort(), [ID.codex, ID.bare].sort());
+});
