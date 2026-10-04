@@ -431,6 +431,8 @@ function call(port, { method = 'GET', path, key, body = null, host = `127.0.0.1:
       });
     });
     req.on('error', reject);
+    // A request the server never answers fails the test instead of holding it open.
+    req.setTimeout(30e3, () => req.destroy(new Error(`no answer to ${method} ${path} in 30 s`)));
     if (body !== null) req.write(body);
     req.end();
   });
