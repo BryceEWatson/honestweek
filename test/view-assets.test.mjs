@@ -19,7 +19,7 @@ const ASSETS = join(HERE, '..', 'lib', 'view', 'assets');
 const SELFTEST = join(HERE, '..', 'lib', 'view', 'selftest');
 const PAGES = ['search.html', 'goal.html', 'replay.html', 'problems.html'];
 // The scripts each page loads after the shared ones, in order.
-const PAGE_SCRIPTS = { 'search.html': ['search.js'], 'goal.html': ['prefs.js', 'strip.js', 'goal.js'], 'replay.html': ['prefs.js', 'strip.js', 'replay.js'], 'problems.html': ['prefs.js', 'problems.js'] };
+const PAGE_SCRIPTS = { 'search.html': ['prefs.js', 'search.js'], 'goal.html': ['prefs.js', 'strip.js', 'goal.js'], 'replay.html': ['prefs.js', 'strip.js', 'replay.js'], 'problems.html': ['prefs.js', 'problems.js'] };
 // The package author's name, read from package.json so this test doesn't spell out a real name.
 const OWNER_WORDS = String(JSON.parse(readFileSync(join(HERE, '..', 'package.json'), 'utf8')).author ?? '')
   .split(/\s+/)
@@ -74,13 +74,46 @@ test('assets: every page loads the same files in the same order, and has the sha
     const srcs = [...t.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
     assert.deepEqual(srcs, ['evidence.js', 'key.js', 'private-text.js', 'common.js', ...PAGE_SCRIPTS[p]], p);
     assert.deepEqual([...t.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]), ['common.css'], p);
-    for (const id of ['window', 'privacy', 'demo', 'status', 'content']) assert.match(t, new RegExp(`id="${id}"`), `${p}: #${id}`);
+    for (const id of ['window', 'privacy', 'demo', 'status', 'content', 'quiet', 'privnote', 'navHigh']) assert.match(t, new RegExp(`id="${id}"`), `${p}: #${id}`);
     assert.match(t, /data-evkey/, `${p}: the evidence key`);
+    // The key is one click away: a "?" button in the header opens it, named for a screen reader.
+    assert.match(t, /<button type="button" class="keybtn" id="keyBtn" aria-expanded="false" aria-controls="evkeyPanel" aria-label="How each link is known"[^>]*>\?<\/button>/, `${p}: the "?" button`);
+    assert.match(t, /<div class="evkey-pop" id="evkeyPanel" role="region" aria-label="How each link is known" hidden><p class="evkey" data-evkey><\/p><\/div>/, `${p}: the key's panel, closed`);
+    // The Problems link carries the High count, filled in by script.
+    assert.match(t, /<a href="problems\.html"[^>]*>Problems<span class="navcount" id="navHigh" hidden><\/span><\/a>/, `${p}: the Problems count`);
     for (const link of PAGES) assert.match(t, new RegExp(`<nav[^]*href="${link}"[^]*</nav>`), `${p}: a link to ${link}`);
     assert.match(t, new RegExp(`href="${p}" aria-current="page"`), `${p}: marks itself current`);
   }
   const ct = readFileSync(join(SELFTEST, 'clickthrough.html'), 'utf8');
   assert.deepEqual([...ct.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]), ['/evidence.js', '/key.js', '/private-text.js', 'clickthrough.js']);
+});
+
+test('evidence: four levels have a small inline symbol, "ambiguous" stays a word, and the word is always there', () => {
+  const sandbox = { window: {}, document: { querySelectorAll: () => [], readyState: 'complete', addEventListener: () => {} } };
+  runInNewContext(readFileSync(join(ASSETS, 'evidence.js'), 'utf8'), sandbox);
+  const { chip, sym, symbol, keyHtml, sideKeyHtml, WORDS } = sandbox.window.HWE;
+  const words = (html) => html.replace(/<[^>]+>/g, '');
+  const shapes = { recorded: /<circle[^>]*fill="currentColor"/, derived: /<path d="M6 1\.5 A4\.5 4\.5 0 0 1 6 10\.5 Z" fill="currentColor"/, inferred: /<circle[^>]*fill="none"[^>]*stroke-width="1\.5"\/>/, missing: /stroke-dasharray="2 2"/ };
+  for (const [level, shape] of Object.entries(shapes)) {
+    const c = chip(level);
+    assert.match(c, shape, `${level}: its shape`);
+    assert.match(c, /<svg class="evsym"[^>]* aria-hidden="true" focusable="false">/, `${level}: the symbol is hidden from a screen reader`);
+    assert.equal(words(c), level, `${level}: the word follows the symbol`);
+    // The symbol alone keeps the word for a screen reader.
+    const s = sym(level);
+    assert.match(s, new RegExp(`<span class="sr">${level}</span>`), `${level}: sym keeps the word`);
+    assert.equal(words(s), level);
+    assert.doesNotMatch(c + s, /\sstyle=/, 'no style attribute');
+  }
+  // "ambiguous" has no symbol: it shows its word, also where other levels show only a symbol.
+  assert.equal(symbol('ambiguous'), '');
+  assert.doesNotMatch(chip('ambiguous') + sym('ambiguous'), /<svg/);
+  assert.equal(words(sym('ambiguous')), 'ambiguous');
+  assert.equal(words(chip('inferred', 'rule x')), 'inferred · rule x');
+  // The header's key and the key beside results both name all five words, each with its symbol.
+  for (const html of [keyHtml(), sideKeyHtml()]) for (const w of WORDS) assert.ok(html.includes(chip(w)), `the key holds ${w}`);
+  assert.equal((keyHtml().match(/class="evkey-item"/g) ?? []).length, 5);
+  assert.doesNotMatch(sideKeyHtml(), /evkey-item|data-evkey/, 'the side key is not a second header key');
 });
 
 test('assets: one evidence vocabulary of five words', () => {
@@ -307,4 +340,65 @@ test('assets: no real data: names, home folders, addresses or codenames', () => 
     assert.doesNotMatch(f.text, /\bprivateText\b|createSecretsOnlyRedactor/, `${f.name}: the engine's private-text names stay on the server`);
     assert.doesNotMatch(f.text, /\u2014/, `${f.name}: an em dash (the published voice bar)`);
   }
+});
+
+// What the header and the Find cards say has to hold when the answer behind them is missing,
+// capped or wider than the label.
+test("the header says the problem checks couldn't load instead of looking like none were found", () => {
+  const common = readFileSync(join(ASSETS, 'common.js'), 'utf8');
+  const nav = common.match(/function navCount\(patterns\) \{[^]*?\n  \}/)[0];
+  assert.match(nav, /if \(!Array\.isArray\(patterns\)\) \{\s+el\.hidden = false;/, 'no patterns shows a mark');
+  assert.match(nav, /the problem checks could not load/, 'and says why, to a screen reader too');
+  assert.match(common, /problemsSummary\(\)\.then\(\(a\) => navCount\(a\?\.patterns\), \(\) => navCount\(null\)\);/, 'a failed summary reaches the header');
+  assert.match(readFileSync(join(ASSETS, 'search.js'), 'utf8'), /HW\.navCount\(null\);\s+if \(\$\('lookBody'\)\)/, "and so does the Find card's failure");
+});
+
+test('a share of the window tokens reads the same on Find as on Problems, to one decimal under 10%', () => {
+  const common = readFileSync(join(ASSETS, 'common.js'), 'utf8');
+  const pct = runInNewContext(`(${common.match(/const pct = (\(x\) => [^\n]+);/)[1]})`);
+  assert.equal(pct(0.046), '4.6%', '4.6% no longer shows as 5%');
+  assert.equal(pct(0.006), '0.6%', 'one decimal under 10%');
+  assert.equal(pct(0.0004), 'under 0.1%');
+  assert.equal(pct(0.25), '25%');
+  assert.match(readFileSync(join(ASSETS, 'problems.js'), 'utf8'), /const \{ pct \} = HW;/, 'Problems uses the shared one');
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  assert.match(search, /HW\.pct\(share\)/, 'Find uses the shared one');
+  assert.doesNotMatch(search, /Math\.round\(share/, 'and no rounding of its own');
+});
+
+test('the Find cards claim no more than their lists hold', () => {
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  // The server's recent list is every session in the window, so the heading can't say "in your repos".
+  assert.doesNotMatch(search, /Recent in your repos/);
+  assert.match(search, /Recent sessions<\/h2>/);
+  assert.match(search, /const GROUP_NOTE = \{ display: 'display-only repo', outside: 'outside your config' \};/);
+  const row = search.match(/function recentRow\(s, hidden\) \{[^]*?\n  \}/)[0];
+  assert.match(row, /info\.repo \? esc\(info\.repo\) : '', GROUP_NOTE\[info\.group\] \?\? ''/, 'a recent session says its repo and its group');
+  assert.match(row, /isMine\(g\) \? ` \$\{mineTag\}` : ''/, 'and keeps the tag on a goal I cited it in');
+  // A closed result row still says a folded reason is ambiguous.
+  assert.match(search, /refs\.slice\(1\)\.some\(\(r\) => r\.ambiguous\) \? ` \$\{chip\('ambiguous', 'one of the other reasons'\)\}`/);
+  // The folded word search counts every kind of match, not prompts alone.
+  assert.match(search, /<h2>Also mentioned in words<\/h2> <span class="hcount">\$\{plural\(wordsFound\(words\), 'match', 'matches'\)\}/);
+  // The window isn't always a week.
+  const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
+  assert.doesNotMatch(problems, /this week/);
+  assert.match(problems, /'Not found in this window'/);
+});
+
+test("a share rounds down on every page, and an estimate past the window's total never prints as a share", () => {
+  const common = readFileSync(join(ASSETS, 'common.js'), 'utf8');
+  const pct = runInNewContext(`(${common.match(/const pct = (\(x\) => [^\n]+);/)[1]})`);
+  // Each of these would print as the line above it if the helper rounded to nearest.
+  assert.equal(pct(0.0496), '4.9%', 'just under the 5% line');
+  assert.equal(pct(0.00996), '0.9%', 'just under the 1% line');
+  assert.equal(pct(0.0999), '9.9%');
+  assert.equal(pct(0.249), '24%');
+  assert.equal(pct(0.999), '99%', 'never 100% for less than all of it');
+  // The two places the calmer pages added say so in words instead of printing a share over 100%.
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  assert.match(search, /share > 1 \? "more than all the window's tokens" : `\$\{HW\.pct\(share\)\} of the window's tokens`/, 'the Find card');
+  const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
+  assert.match(problems, /const OVER = "more than all the window's tokens, since estimates for neighbouring steps overlap";/);
+  const start = problems.match(/function startCard\(p\) \{[^]*?\n  \}/)[0];
+  assert.match(start, /p\.tokens\.tokens > D\.coverage\.tokens\.value \? `, \$\{OVER\}` : `, \$\{pct\(/, '"Start with these"');
 });
