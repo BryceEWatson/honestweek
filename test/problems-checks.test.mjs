@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { earlierWindow, NOTHING_TO_CHECK, runProblems, priorityOf, trendCounts, trendOf } from '../lib/problems/index.mjs';
 import { CHECKS, runChecks } from '../lib/problems/checks.mjs';
 import { createContext } from '../lib/problems/context.mjs';
+import { DOUBT_WORDS, STRICT_MAX_WORDS, strictClaim } from '../lib/problems/classify.mjs';
 
 const T0 = Date.parse('2025-03-10T09:00:00.000Z');
 const WINDOW = { from: '2025-03-10', to: '2025-03-16', timezone: 'UTC', startAt: '2025-03-10T00:00:00.000Z', endAt: '2025-03-17T00:00:00.000Z', startT: Date.parse('2025-03-10T00:00:00.000Z'), endT: Date.parse('2025-03-17T00:00:00.000Z') };
@@ -689,4 +690,56 @@ test('the trend counts each window apart, and says so when the earlier window ha
   const hn = noRaw.build();
   hn.window = EARLIER;
   assert.equal(trendOf(nowCounts, trendCounts(run(hn)))['scope-creep'].why, 'not-checked');
+});
+
+// ---- the whole-message bar: a message that qualifies its own claim never reaches derived ---------
+
+// Messages from the review of 0c4f5c4: each came back derived there, and each must stay inferred.
+const QUALIFIED_DONE = ['Done. Unverified.', 'Done. It probably works.', 'Done. TODO: add tests.', 'Done. Next I will run the tests.'];
+const QUALIFIED_PASS = ['42 tests passed, 3 failed.', 'Tests pass. 2 failed.', 'Done. 3 tests fail.', 'Done. The tests are failing but that is pre-existing.', 'Tests passed: 10; tests failed: 2'];
+const CLEAN_DONE = ['Done.', 'Done. The parser handles tabs now.', '**Fixed:** tabs are handled.', '## Done.\nAdded tab handling to the parser.'];
+const CLEAN_PASS = ['All tests pass.', 'All 45 tests passed.', 'Tests pass.', 'Done: the wrap test is fixed.'];
+
+test('the strict claim rule fails closed: any hedge, deferral, admitted gap or failure keeps a message out', () => {
+  for (const t of [...QUALIFIED_DONE, ...QUALIFIED_PASS]) assert.equal(strictClaim(t), null, t);
+  // More of the same kind, in other words.
+  for (const t of ['Done, I believe.', 'Done. Not sure it works.', 'Done. It may not work on Windows.', 'Complete. Hopefully that fixes it.', 'Fixed. The other bug remains.', 'Fixed: the import. Remaining: the type error.', 'Done. The build is still failing.', 'Done. I’ll run the tests next.', 'All tests pass. 2 skipped.', 'Done. Should I push?', `Done. ${'The parser is tidy. '.repeat(12)}`]) assert.equal(strictClaim(t), null, t);
+  for (const t of CLEAN_DONE) assert.equal(strictClaim(t), 'done', t);
+  for (const t of ['All tests pass.', 'All 45 tests passed.', 'Tests pass.']) assert.equal(strictClaim(t), 'tests-pass', t);
+  assert.ok(STRICT_MAX_WORDS <= 40);
+  assert.ok(DOUBT_WORDS.includes('fail-') && DOUBT_WORDS.includes('probabl-') && DOUBT_WORDS.includes('todo'));
+});
+
+test('says done without checking: a message that qualifies its claim stays inferred; a clean claim is derived', () => {
+  const make = (say) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Make the parser handle tabs.');
+    h.edit('s1', min(1), `${CWD}/src/parse.js`, 'a', 'b');
+    h.say('s1', min(3), say);
+    return findingsOf(run(h.build()), 'unverified-done-claim').find((f) => f.check === 'unverified-done-claim') ?? null;
+  };
+  for (const t of QUALIFIED_DONE) assert.notEqual(make(t)?.verdictEvidence, 'derived', t);
+  for (const t of CLEAN_DONE) {
+    const f = make(t);
+    assert.equal(f?.verdictEvidence, 'derived', t);
+    // The "?" says which part is recorded and which is the rule.
+    assert.match(f.basis[2].how, /text is recorded\. That it's an unqualified done claim is a fixed test of that text/);
+  }
+});
+
+test('reports success the output does not show: a message that reports the failure stays inferred; a clean claim is derived', () => {
+  const make = (say) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Fix the wrap test.');
+    h.edit('s1', min(1), `${CWD}/src/wrap.js`, 'a', 'b');
+    h.shell('s1', min(2), 'node --test', { result: 'error', tests: { pass: 42, fail: 3 } });
+    h.say('s1', min(4), say);
+    return findingsOf(run(h.build()), 'claim-contradicts-evidence').find((f) => f.check === 'claim-contradicts-evidence') ?? null;
+  };
+  for (const t of QUALIFIED_PASS) assert.notEqual(make(t)?.verdictEvidence, 'derived', t);
+  for (const t of CLEAN_PASS) {
+    const f = make(t);
+    assert.equal(f?.verdictEvidence, 'derived', t);
+    assert.match(f.basis[2].how, /text is recorded\. That it's an unqualified success claim is a fixed test of that text/);
+  }
 });

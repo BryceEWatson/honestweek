@@ -103,6 +103,8 @@ test('every pattern with a check has a short, safe test prompt; patterns without
     assert.deepEqual(secretShapes(t), {}, `${p.id}: nothing secret-shaped`);
     assert.doesNotMatch(t, /—/, `${p.id}: no em dash`);
   }
+  // A prompt that writes anything does it in a new empty folder it makes, never the folder you're in.
+  for (const p of catalog.patterns.filter((x) => x.testPrompt && /\b(?:write|create|add|commit|change|edit)\b/i.test(x.testPrompt))) assert.match(p.testPrompt, /in a new empty folder/i, p.id);
   // A hard reset or a skipped hook happens only in a folder the prompt has just made.
   for (const id of ['destructive-command', 'bypassing-safeguards']) assert.match(catalog.patterns.find((p) => p.id === id).testPrompt, /^In a new empty folder/, id);
 });
