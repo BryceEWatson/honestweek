@@ -49,6 +49,7 @@ The project is lantern, which turns a CHANGELOG.md into release notes. Its remot
 | Fri 18:10 | Claude Code | personal-site, display-only | Drafts a post about the release. |
 | Sat 10:02 | Claude Code | lantern | Looks up the week's goal events. It names their ids but writes none. |
 | Sat 11:32 | Claude Code, an older version | lantern | An older Claude Code that records no origin on a typed prompt. I ask why `--width 0` puts every word on its own line; the agent answers and then changes the code too. Two edits fail because their old text isn't in the file, it reads the same file three times, and it says "I've fixed it" with nothing run after the edit. Asked to, it runs the tests, which pass. |
+| Sat 13:05 | Claude Code, the same older version | lantern | Resumes the late-morning session and commits the `--width` check on its own branch. |
 | Sat 16:04 | Claude Code | a folder outside the configured repos | Renames some screenshots. |
 
 Sunday is quiet. No two sessions overlap, and every one falls between 09:00 and 19:00.
@@ -57,14 +58,14 @@ Sunday is quiet. No two sessions overlap, and every one falls between 09:00 and 
 
 These are the counts the demo's tests check, from the default view, with the `--scope all` figure in brackets where it differs:
 
-- 18 sessions (19), 13 from Claude Code and 5 from Codex, in 17 threads, on 6 days. Tuesday's group-by-scope session and Thursday's form one thread, because the second copies the first's records.
-- 49 typed prompts (51), between 1 and 7 per session. Three are labelled corrections and two approvals, by the engine's labelling rules, so all five are inferences. Saturday's two prompts carry no origin, so who typed them is inferred too, and Friday evening's comes from a non-interactive run, so it's "a person or a script".
+- 19 sessions (20), 14 from Claude Code and 5 from Codex, in 17 threads, on 6 days. Tuesday's group-by-scope session and Thursday's form one thread, because the second copies the first's records, and Saturday's two older-version sessions form another.
+- 50 typed prompts (52), between 1 and 7 per session. Three are labelled corrections and two approvals, by the engine's labelling rules, so all five are inferences. Saturday's three prompts carry no origin, so who typed them is inferred too, and Friday evening's comes from a non-interactive run, so it's "a person or a script".
 - 7 sub-agents: 4 Explore, 2 general-purpose, and 1 Codex child thread, each tied to the call that started it. Thursday afternoon's README check has no completion notice. Friday afternoon's Explore agent stamped its first line 45 ms before its starting call, and the engine moves that line to the call's time.
-- 256 tool calls (259), including 58 edits and 28 test runs: 21 passed and 7 had failures. The run cut off on Tuesday morning isn't counted, because it never ran to a result.
+- 258 tool calls (261), including 58 edits and 28 test runs: 21 passed and 7 had failures. The run cut off on Tuesday morning isn't counted, because it never ran to a result.
 - 2 interruptions (one by me, and one Claude Code recorded on Thursday for the call Tuesday's session never finished), 1 hook refusal, 1 call with no result, and 10 quiet intervals inside sessions.
-- 5 pull requests. #12, #13, and #14 were squash-merged into main by you@example.com; #15 and #16 are still open. 16 commits, all authored by you@example.com, all on feature branches except Thursday's skipped test, pushed straight to main.
+- 5 pull requests. #12, #13, and #14 were squash-merged into main by you@example.com; #15 and #16 are still open. 17 commits, all authored by you@example.com, all on feature branches except Thursday's skipped test, pushed straight to main.
 - 1 inferred hand-off, from Thursday's task suggestion to Friday's session.
-- Token counts on every model call: about 12.4 million tokens over 300 model calls in the sessions the problem checks read.
+- Token counts on every model call: about 12.5 million tokens over 303 model calls in the sessions the problem checks read.
 
 The display-only session appears as a skeleton in both views, and the outside session appears as one only with `--scope all`. Neither shows text, paths, or commit ids, and git never reads the display-only repository.
 
@@ -76,7 +77,7 @@ The Problems page (`docs/local-page.md` describes it) runs its checks over the s
 - **Medium.** An unverified done claim (Saturday's "I've fixed it"), test tampering (Thursday's `test.skip`), and a destructive command (Friday's hard reset), each found once by rule. The destructive-command card also counts Wednesday's `rm -rf` of the session's own scratch folder as 1 routine note.
 - **Low.** The same file read three times and two failed edits in a row (both Saturday), the same failing command run again unchanged (Friday's Codex session), one whole-file read that added about 23,000 tokens (Thursday's CI log), a background sub-agent with no hand-back (Thursday), edits after a question-only prompt (Saturday), and a session whose last record is a call with no result (Friday morning). Small sub-agents and one question answered by a bare go-ahead appear only as routine notes.
 
-8 of the 18 sessions have something worth a look; the other 10 are ordinary work. On Wednesday's replay, the "Worth a look" strip shows the context stretch as a band and the commit and the message that follows it as two High marks close enough to merge into a count.
+8 of the 19 sessions have something worth a look; the other 11 are ordinary work. On Wednesday's replay, the "Worth a look" strip shows the context stretch as a band and the commit and the message that follows it as two High marks close enough to merge into a count.
 
 ### The goal record
 

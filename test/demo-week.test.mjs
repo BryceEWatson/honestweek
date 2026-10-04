@@ -51,6 +51,7 @@ before(async () => {
     release: claudeSessionKey(dirs.releaseWorktree, SESSION_IDS.releaseScript),
     unreleased: claudeSessionKey(dirs.lantern, SESSION_IDS.unreleased),
     width: claudeSessionKey(dirs.lantern, SESSION_IDS.widthCheck),
+    widthCommit: claudeSessionKey(dirs.lantern, SESSION_IDS.widthCommit),
     wide: sourceKey('cx', CODEX_IDS.wideChars),
     contributing: sourceKey('cx', CODEX_IDS.contributing),
     node18: sourceKey('cx', CODEX_IDS.node18),
@@ -71,12 +72,12 @@ after(() => {
   }
 });
 
-test('eighteen sessions on six days, five of them Codex, and one more outside the configured repos', () => {
-  assert.equal(h.sessions.length, 18);
+test('nineteen sessions on six days, five of them Codex, and one more outside the configured repos', () => {
+  assert.equal(h.sessions.length, 19);
   const tools = h.sessions.map((s) => s.tool);
-  assert.deepEqual([tools.filter((t) => t === 'claude-code').length, tools.filter((t) => t === 'codex').length], [13, 5]);
+  assert.deepEqual([tools.filter((t) => t === 'claude-code').length, tools.filter((t) => t === 'codex').length], [14, 5]);
   assert.equal(h.skipped.outsideConfiguredRepos, 1);
-  assert.equal(all.sessions.length, 19);
+  assert.equal(all.sessions.length, 20);
   assert.deepEqual(h.overview().days.map((x) => x.date), ['2025-03-10', '2025-03-11', '2025-03-12', '2025-03-13', '2025-03-14', '2025-03-15']);
   for (const key of Object.values(k)) assert.ok(all.sessions.some((s) => s.key === key), `session ${key} is read`);
 });
@@ -99,8 +100,9 @@ test('worktree sessions count for the project, and the resumed session joins the
   assert.match(d.repo.worktrees.groupByScope.replace(/\\/g, '/'), /\/lantern\/\.claude\/worktrees\/group-by-scope$/);
   assert.equal(h.threads.length, 17);
   assert.ok(h.threads.some((t) => t.sessions.includes(k.group) && t.sessions.includes(k.resumed)));
-  const cont = h.links.find((l) => l.type === 'continuation');
-  assert.deepEqual([cont.from, cont.to], [k.resumed, k.group]);
+  const cont = h.links.filter((l) => l.type === 'continuation').map((l) => [l.from, l.to]);
+  assert.deepEqual(cont.sort(), [[k.resumed, k.group], [k.widthCommit, k.width]].sort());
+  assert.ok(h.threads.some((t) => t.sessions.includes(k.width) && t.sessions.includes(k.widthCommit)));
   const resume = of(h, k.resumed, 'prompt')[0];
   assert.equal(resume.facts.text, 'continue from where we stopped on Tuesday');
   assert.ok(resume.inferred.some((x) => x.value === 'resume-request'));
@@ -114,13 +116,13 @@ test('worktree sessions count for the project, and the resumed session joins the
 
 test('prompts: 1 to 7 typed per session, one queued until the next turn, one absorbed mid-turn', () => {
   const totals = h.overview().totals;
-  assert.equal(totals.prompts.value, 49);
-  assert.equal(totals.prompts.evidence, 'inferred', 'two prompts come from a Claude Code that records no origin');
-  assert.equal(all.overview().totals.prompts.value, 51);
+  assert.equal(totals.prompts.value, 50);
+  assert.equal(totals.prompts.evidence, 'inferred', 'three prompts come from a Claude Code that records no origin');
+  assert.equal(all.overview().totals.prompts.value, 52);
   const perSession = Object.fromEntries(all.sessions.map((s) => [s.key, of(all, s.key, 'prompt').length]));
   assert.deepEqual(perSession, {
     [k.since]: 4, [k.wide]: 2, [k.breaking]: 2, [k.group]: 5, [k.bare]: 3, [k.markdown]: 7, [k.contributing]: 2, [k.resumed]: 4, [k.windows]: 1, [k.release]: 2,
-    [k.json]: 3, [k.node18]: 2, [k.unreleased]: 3, [k.upload]: 2, [k.summary]: 1, [k.site]: 2, [k.lookup]: 2, [k.width]: 2, [k.scratch]: 2,
+    [k.json]: 3, [k.node18]: 2, [k.unreleased]: 3, [k.upload]: 2, [k.summary]: 1, [k.site]: 2, [k.lookup]: 2, [k.width]: 2, [k.widthCommit]: 1, [k.scratch]: 2,
   });
   assert.deepEqual([Math.min(...Object.values(perSession)), Math.max(...Object.values(perSession))], [1, 7]);
   const queued = of(h, k.since, 'prompt').find((e) => e.facts.queuedAt);
@@ -132,9 +134,9 @@ test('prompts: 1 to 7 typed per session, one queued until the next turn, one abs
   assert.equal(totals.approvals.value, 2);
   // Who typed a prompt: recorded, inferred from a missing origin, or a non-interactive run.
   const authorship = (e) => (e.inferred ?? []).find((x) => x && x.key === 'authorship')?.value ?? null;
-  assert.deepEqual(of(h, k.width, 'prompt').map(authorship), ['person', 'person']);
+  assert.deepEqual([k.width, k.widthCommit].map((key) => of(h, key, 'prompt').map(authorship)), [['person', 'person'], ['person']]);
   assert.deepEqual(of(h, k.summary, 'prompt').map((e) => [e.actor, authorship(e)]), [['person-or-script', 'person-or-script']]);
-  assert.ok(h.events.filter((e) => e.kind === 'prompt' && ![k.width, k.summary].includes(e.session)).every((e) => authorship(e) === null));
+  assert.ok(h.events.filter((e) => e.kind === 'prompt' && ![k.width, k.widthCommit, k.summary].includes(e.session)).every((e) => authorship(e) === null));
 });
 
 test('seven sub-agents: four Explore, two general-purpose, one Codex child thread, each tied to its starting call', () => {
@@ -162,8 +164,8 @@ test('seven sub-agents: four Explore, two general-purpose, one Codex child threa
 
 test('tool calls: reads, searches, edits with patches, shell, delegation, and the git and gh commands', () => {
   const acts = h.events.filter((e) => e.kind === 'action');
-  assert.equal(acts.length, 256);
-  assert.equal(all.overview().totals.actions.value, 259);
+  assert.equal(acts.length, 258);
+  assert.equal(all.overview().totals.actions.value, 261);
   for (const cat of ['read', 'search', 'edit', 'shell', 'delegate', 'handoff', 'wait']) assert.ok(acts.some((e) => e.facts.category === cat), `a ${cat} call`);
   const cmds = acts.map((e) => e.facts.command ?? '');
   for (const re of [/^git add -A && git commit -m /, /^gh pr create /, /^gh pr view /, /^gh pr merge \d+ --squash$/, /^git push/, /^git reset --hard /, /^rm -rf /]) assert.ok(cmds.some((c) => re.test(c)), String(re));
@@ -212,7 +214,7 @@ test('pull requests: five opened, three squash-merged into main by you, each Cla
   assert.deepEqual(h.events.filter((e) => e.kind === 'link').map((e) => e.facts.pr), [12, 14, 15, 16]);
   const t = h.overview().totals;
   assert.equal(t.prsLanded.value, 3);
-  assert.equal(t.commitsByConfiguredIdentity.value, 16);
+  assert.equal(t.commitsByConfiguredIdentity.value, 17);
   const commits = h.events.filter((e) => e.kind === 'outcome' && e.facts.outcome === 'commit-exists');
   assert.ok(commits.every((e) => e.facts.authoredByConfiguredIdentity === true));
   // Every commit is on a branch but one: Thursday's skipped test, pushed straight to main.
@@ -352,9 +354,9 @@ test("the pasted keys never reach the history the pages show, and the click-thro
   }
   // The replay steps of the click-through open the threads of the twelve most recent
   // sessions with a prompt: the inferred author, the non-interactive run and the moved
-  // sub-agent line must be among them.
+  // sub-agent line must be among them, and so must both sessions of one resumed thread.
   const recent = all.sessions.filter((s) => of(all, s.key, 'prompt').length).sort((a, b) => (a.lastAt < b.lastAt ? 1 : -1)).slice(0, 12).map((s) => s.key);
-  for (const key of [k.width, k.summary, k.unreleased]) assert.ok(recent.includes(key), `${key} is among the twelve most recent sessions`);
+  for (const key of [k.width, k.widthCommit, k.summary, k.unreleased]) assert.ok(recent.includes(key), `${key} is among the twelve most recent sessions`);
   assert.ok(h.events.some((e) => recent.includes(e.session) && e.timeFrom === 'next-record'), 'a step that borrows its time from the next line');
 });
 
