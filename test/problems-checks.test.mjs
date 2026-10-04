@@ -155,6 +155,37 @@ test('a success claim after a failed check, and a commit right after a failed ru
   assert.equal(findingsOf(make(true), 'claim-contradicts-evidence').length, 0);
 });
 
+test('a commit after a failed run records exactly the steps it matched: the run, the commit and the commits it counts after it', () => {
+  const make = (later) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Ship the wrap fix.');
+    const failed = h.shell('s1', min(1), 'node --test', { result: 'error', tests: { pass: 2, fail: 1 } });
+    h.edit('s1', min(2), `${CWD}/src/wrap.js`, 'a', 'b');
+    const commits = [0, ...Array.from({ length: later }, (_, i) => i + 1)].map((i) => h.shell('s1', min(3 + i), `git commit -m "Step ${i}"`, { git: { commit: { sha: `abc1234def5${i}` } } }));
+    h.say('s1', min(9), 'Committed.');
+    const f = findingsOf(run(h.build()), 'claim-contradicts-evidence').filter((x) => x.check === 'commit-after-failed-test');
+    return { f, failed, commits };
+  };
+  const two = make(2);
+  assert.equal(two.f.length, 1);
+  assert.deepEqual(two.f[0].events, [two.failed.id, ...two.commits.map((e) => e.id)], 'the failed run, the commit and the two after it, never the edit between');
+  assert.equal(two.f[0].steps, 4);
+  // With no later commit the finding is as it was: the commit and the failed run, no list.
+  const one = make(0);
+  assert.equal(one.f.length, 1);
+  assert.ok(!('events' in one.f[0]) && !('steps' in one.f[0]), 'unchanged when nothing more was matched');
+  assert.deepEqual([one.f[0].related, one.f[0].event], [one.failed.id, one.commits[0].id]);
+});
+
+test('the same call repeated records exactly its matching calls, never the edit after them', () => {
+  const h = history().session('s1');
+  h.prompt('s1', min(0), 'Build it.');
+  const calls = [1, 2, 3].map((m) => h.shell('s1', min(m), 'npm run build', { result: 'error' }));
+  h.edit('s1', min(4), `${CWD}/src/a.js`, 'a', 'b');
+  const loop = findingsOf(run(h.build()), 'action-loop').find((f) => f.kind === 'same call repeated');
+  assert.deepEqual(loop.events, calls.map((e) => e.id));
+});
+
 test('tests weakened: an assertion removed is worth a look; an assertion added is not; a prompt about tests makes it a note', () => {
   const make = (oldS, newS, prompt = 'Fix the date bug.') => {
     const h = history().session('s1');
@@ -286,6 +317,9 @@ test('context past 150k: thirty more calls after crossing is worth a look; twent
   const found = findingsOf(make(30), 'context-bloat');
   assert.equal(found.length, 1);
   assert.ok(found[0].estimate > 0);
+  // It matched model calls, not steps: its one step is only the nearest, and says so.
+  assert.equal(found[0].stepsNear, true);
+  assert.ok(!found[0].events);
   assert.equal(findingsOf(make(29), 'context-bloat').length, 0);
   const none = history().session('s1');
   none.prompt('s1', min(0), 'x');
