@@ -22,7 +22,7 @@ npx github:BryceEWatson/honestweek init          # set up honestweek.config.json
 npx github:BryceEWatson/honestweek view          # your own last 7 days
 ```
 
-The demo opens a page with three parts: Search (type one of the examples it offers, or a few words), Goals (each goal in a goal list, a small JSON file of your goals, with its sessions on one timeline you can play), and Replay (one session step by step, each step with the log line behind it). Press Ctrl+C in the terminal to stop it.
+The demo opens a page with four parts: Find (type one of the examples it offers, or a few words), Goals (each goal in a goal list, a small JSON file of your goals, with its sessions on one timeline you can play), Replay (one session step by step, each step with the log line behind it), and Problems (known ways AI coding agents go wrong, and which of them showed up in the week). Press Ctrl+C in the terminal to stop it.
 
 If you'd rather have a plain `honestweek` command, install it from GitHub with `npm install -g github:BryceEWatson/honestweek` and write `honestweek` where it says `npx github:BryceEWatson/honestweek`. From a clone of this repository, write `node bin/honestweek.mjs` there instead. `honestweek` with no command lists the same three steps. The messages you meet first (that list, `init`, `view` and its pages, and the one for a missing config) name each next step the way you ran honestweek.
 
@@ -120,7 +120,7 @@ With no `honestweek.config.json`, it stops and points to `honestweek init` to se
 
 What's on the page:
 
-- *Search.* Type a pull request (`#67` or its address), a commit, a file or a branch, and it lists the sessions and goals behind it. Type words, and it lists the goals and sessions whose titles match, the branches that contain them, and the prompts that share the most words, each with a link to replay from that prompt. A line says what these lookups cover: your configured repositories, in the dates shown at the top of every page.
+- *Find.* Type a pull request (`#67` or its address), a commit, a file or a branch, and it lists the sessions and goals behind it. Type words, and it lists the goals and sessions whose titles match, the branches that contain them, and the prompts that share the most words, each with a link to replay from that prompt. A line says what these lookups cover: your configured repositories, in the dates shown at the top of every page.
 - *Search everywhere.* The same words, searched across the prompts of every session in those dates, including display-only repositories and folders outside your config. Each result says which of those three it comes from.
 - *Goals.* Each goal in your goal list, with the sessions working toward it on one timeline you can play, pause and scrub. A citation in the goal list that no session backs is listed as missing, with the reason.
 - *Replay.* Any session, step by step. Each step opens a panel with what happened and who did it ("You", "a person or a script" for a non-interactive run, the main agent, or a named sub-agent), the original log line checked against its fingerprint, a command's output, and how its time is known.
