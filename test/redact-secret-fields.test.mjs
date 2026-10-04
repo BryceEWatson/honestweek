@@ -285,6 +285,175 @@ test('a sensitive flag with a dotted name has its value hidden by both scrubbers
   }
 });
 
+/** Each [input, published output, secrets-only output] row: the published redactor and the audit
+ *  write the published output, the secrets-only scrubber its own (the published one unless
+ *  given), the value is gone from all three, the audit's ops replay, and a second pass of either
+ *  scrubber changes nothing. Each ordinary input comes out of all three as it went in. */
+function agreeOn(rows, ordinary, value) {
+  for (const [input, expected, shownExpected = expected] of rows) {
+    const r = createRedactor();
+    const out = r.redact(input);
+    assert.equal(out, expected, input);
+    assert.ok(!out.includes(value), `published: ${input} -> ${out}`);
+    assert.equal(r.redact(out), out, `idempotent: ${input}`);
+    const shown = createSecretsOnlyRedactor();
+    const seen = shown.redact(input);
+    assert.equal(seen, shownExpected, `secrets-only: ${input}`);
+    assert.ok(!seen.includes(value), `secrets-only: ${input} -> ${seen}`);
+    assert.equal(shown.redact(seen), seen, `secrets-only idempotent: ${input}`);
+    const audit = redactWithAudit(input, {});
+    assert.equal(audit.text, expected, `audit: ${input}`);
+    assert.equal(replayRedactions(input, audit.redactionOps), audit.text, `replay: ${input}`);
+    assert.equal(createRedactor().redact(audit.text), audit.text, `fixed point: ${input}`);
+  }
+  for (const input of ordinary) {
+    assert.equal(createRedactor().redact(input), input, input);
+    assert.equal(createSecretsOnlyRedactor().redact(input), input, `secrets-only: ${input}`);
+    assert.equal(redactWithAudit(input, {}).text, input, `audit: ${input}`);
+  }
+}
+
+// A Java system property or a Gradle project property (`-Dapi.key=…`, `-Psigning.password=…`) is
+// read by its own name, the part after -D or -P, each dot standing for "_". Made-up values.
+// [input, the published output, the secrets-only output when it differs]
+const JAVA_PROPERTIES = [
+  [`-Dapi.key=${LV}`, '-Dapi.key=[redacted:secret]'],
+  [`-Ddb.password=${LV}`, '-Ddb.password=[redacted:secret]'],
+  [`-Dspring.datasource.password=${LV}`, '-Dspring.datasource.password=[redacted:secret]'],
+  [`-Psigning.password=${LV}`, '-Psigning.password=[redacted:secret]'],
+  [`-Dapi_key=${LV}`, '-Dapi_key=[redacted:secret]'],
+  [`-Dapi-key=${LV}`, '-Dapi-key=[redacted:secret]'],
+  [`-DapiKey=${LV}`, '-DapiKey=[redacted:secret]'],
+  [`-DAPI_KEY=${LV}`, '-DAPI_KEY=[redacted:secret]'],
+  [`-Dstripe.api.key=${LV}`, '-Dstripe.api.key=[redacted:secret]'],
+  [`-Daws.secret.access.key=${LV}`, '-Daws.secret.access.key=[redacted:secret]'],
+  [`java -Dapi.key="${LV}" -jar app.jar`, 'java -Dapi.key="[redacted:secret]" -jar app.jar'],
+  // The published redactor's KEY=VALUE rule reads `token="…"` and hides the quotes with the
+  // value; the secrets-only scrubber keeps them. Both hide the value.
+  [`java -Dauth.token="${LV}" -jar app.jar`, 'java -Dauth.token=[redacted:secret] -jar app.jar', 'java -Dauth.token="[redacted:secret]" -jar app.jar'],
+  [`java -Dfile.encoding=UTF-8 -Dapi.key=${LV} -Xmx2g -jar app.jar`, 'java -Dfile.encoding=UTF-8 -Dapi.key=[redacted:secret] -Xmx2g -jar app.jar'],
+  [`./gradlew publish -Psigning.password=${LV} -Pversion=1.2.3`, './gradlew publish -Psigning.password=[redacted:secret] -Pversion=1.2.3'],
+  [`mvn deploy -Dgpg.passphrase=${LV} -DskipTests`, 'mvn deploy -Dgpg.passphrase=[redacted:secret] -DskipTests'],
+];
+// Properties and options that name nothing secret, and PowerShell parameters that start with D
+// or P, which are read as before.
+const JAVA_ORDINARY = [
+  'java -Dfile.encoding=UTF-8 -Dlog.level=debug -Xmx2g -DskipTests -jar app.jar',
+  'mvn -DskipTests=true -Dspring.profiles.active=dev package',
+  './gradlew build -Pversion=1.2.3 -Dorg.gradle.jvmargs=-Xmx2g',
+  'java -Duser.timezone=UTC -Dauth.required=true -jar app.jar',
+  'Get-ChildItem -Path ./src -Depth 2',
+];
+
+test('a Java or Gradle property named for a secret has its value hidden by both scrubbers and the audit', () => {
+  agreeOn(JAVA_PROPERTIES, JAVA_ORDINARY, LV);
+});
+
+// A dotted key whose name is a secret only when it's read whole (`api.key`, `secret.key`: `key`
+// alone names nothing), wherever it sits: on its own, in a quoted note whose closing quote is
+// missing, or where a sensitive field's unclosed quoted value runs into it. Made-up values.
+// [input, the published output, the secrets-only output when it differs]
+const DOTTED_KEYS = [
+  [`note: "see config api.key=${LV}`, 'note: "see config api.key=[redacted:secret]'],
+  [`note: "see config api.key=${LV} and restart`, 'note: "see config api.key=[redacted:secret] and restart'],
+  [`note: 'see config api.key=${LV}`, "note: 'see config api.key=[redacted:secret]"],
+  [`{"note": "see config api.key=${LV}`, '{"note": "see config api.key=[redacted:secret]'],
+  [`see config api.key=${LV}`, 'see config api.key=[redacted:secret]'],
+  [`token: "Ab3d, api.key: "${LV}"`, 'token: "[redacted:secret] api.key: "[redacted:secret]"'],
+  [`token: 'Ab3d, api.key: '${LV}'`, "token: '[redacted:secret] api.key: '[redacted:secret]'"],
+  [`token: "Ab3d, secret.key: "${LV}"`, 'token: "[redacted:secret] secret.key: "[redacted:secret]"'],
+  [`token: "Ab3d, aws.secret.access.key: "${LV}"`, 'token: "[redacted:secret] aws.secret.access.key: "[redacted:secret]"'],
+  [`api.key: ${LV}`, 'api.key: [redacted:secret]'],
+  [`{"api.key": "${LV}"}`, '{"api.key": "[redacted:secret]"}'],
+  [`secret.key=${LV}`, 'secret.key=[redacted:secret]'],
+  [`aws.secret.access.key = ${LV}`, 'aws.secret.access.key = [redacted:secret]'],
+  [`stripe.api.key: ${LV}, region: eu`, 'stripe.api.key: [redacted:secret], region: eu'],
+];
+// A dotted word whose secret-sounding part is a file or an object, not a key: read as before.
+const DOTTED_KEYS_ORDINARY = [
+  'src/auth.ts:42',
+  'lib/auth.mjs: add retry',
+  'token.ts: fix expiry',
+  'apiKey.ts:12',
+  'api.key.ts:12',
+  'if (password.length === 0) return;',
+  'password.length: 8',
+  'the api.key file',
+];
+
+test('a dotted key named for a secret has its value hidden, in or out of a quoted value that never closes', () => {
+  agreeOn(DOTTED_KEYS, DOTTED_KEYS_ORDINARY, LV);
+  // JSON text, one and two levels deep, and a quoted value whose would-be close opens a flag's.
+  for (const input of [
+    JSON.stringify({ note: `see config api.key=${LV}` }),
+    JSON.stringify(JSON.stringify({ note: `see config api.key=${LV}` })),
+    JSON.stringify({ msg: `token: "Ab3d, api.key: "${LV}"` }),
+    `token: "Ab3d --api.key="${LV}"`,
+    `token: "Ab3d --api_key="${LV}"`,
+  ]) {
+    const out = createRedactor().redact(input);
+    assert.ok(!out.includes(LV), `published: ${input} -> ${out}`);
+    assert.equal(createRedactor().redact(out), out, `idempotent: ${input}`);
+    const seen = createSecretsOnlyRedactor().redact(input);
+    assert.ok(!seen.includes(LV), `secrets-only: ${input} -> ${seen}`);
+    assert.equal(createSecretsOnlyRedactor().redact(seen), seen, `secrets-only idempotent: ${input}`);
+    const audit = redactWithAudit(input, {});
+    assert.equal(audit.text, out, `audit: ${input}`);
+    assert.equal(replayRedactions(input, audit.redactionOps), audit.text, `replay: ${input}`);
+  }
+  // Read back as a record, a dotted key named for a secret hides its value in both scrubbers.
+  for (const r of [createRedactor(), createSecretsOnlyRedactor()]) {
+    assert.deepEqual(r.deepRedact({ 'api.key': LV, 'secret.key': LV, 'log.level': 'debug' }), { 'api.key': '[redacted:secret]', 'secret.key': '[redacted:secret]', 'log.level': 'debug' });
+  }
+});
+
+// A sensitive field's value opened by a single quote that never closes on its line: the value
+// after the quote is hidden, read the way it would be without the quote. After "=", a value
+// runs to the next space and the quote goes with it, as before. Made-up values.
+// [input, the published output]
+const UNCLOSED_SINGLE_QUOTE = [
+  [`password: '${LV}`, "password: '[redacted:secret]"],
+  [`db.password: 'correct horse ${LV}`, "db.password: '[redacted:secret]"],
+  [`api_key: '${LV}, region: eu`, "api_key: '[redacted:secret], region: eu"],
+  [`api.key: '${LV}`, "api.key: '[redacted:secret]"],
+  [`{"token": '${LV}`, `{"token": '[redacted:secret]`],
+  [`note: "see api.key: '${LV}`, `note: "see api.key: '[redacted:secret]`],
+];
+// A flag word or a test count after the quote is still not a secret, and a quote that closes
+// the text the key sits in (a label in code) opens no value.
+const UNCLOSED_SINGLE_QUOTE_ORDINARY = ["auth: 'none", "pass: '793", "token: '", "  'Password:',", "label: 'Enter your password:' + hint", "t('Token:').trim()", "const p = 'Password:'.length;"];
+
+test('a sensitive value opened by a single quote that never closes is hidden by both scrubbers and the audit', () => {
+  agreeOn(UNCLOSED_SINGLE_QUOTE, UNCLOSED_SINGLE_QUOTE_ORDINARY, LV);
+});
+
+test('Java properties and dotted keys stay fast on 200,000-character inputs', () => {
+  const inputs = [
+    'a.'.repeat(100000),
+    `${'api.'.repeat(50000)}key=x`,
+    '-Da.'.repeat(50000),
+    '-Dapi.key='.repeat(20000),
+    '-D'.repeat(100000),
+    `token: "${'a.'.repeat(100000)}`,
+    `token: "${'api.key: "'.repeat(20000)}`,
+    `token: "${'x --api.key="'.repeat(15400)}`,
+    `note: "${'see api.key=x '.repeat(14300)}`,
+    `password: '${'a b '.repeat(50000)}`,
+    "token: '".repeat(25000),
+    `${'-Pa.b.c.d.'.repeat(20000)}=x`,
+    'password.length '.repeat(12500),
+  ];
+  for (const input of inputs) {
+    assert.ok(input.length >= 200000, `${input.length} characters`);
+    for (const [name, run] of [['published', (s) => createRedactor().redact(s)], ['secrets-only', (s) => createSecretsOnlyRedactor().redact(s)], ['audit', (s) => redactWithAudit(s, {})]]) {
+      const started = Date.now();
+      run(input);
+      const ms = Date.now() - started;
+      assert.ok(ms < 1000, `${name} took ${ms} ms on a ${input.length}-character input starting ${JSON.stringify(input.slice(0, 20))}`);
+    }
+  }
+});
+
 test('a password in a web address with a dotted host stays hidden with its host, as before', () => {
   // The email rule took `swordfish@code.example.com` before this change; it still does, and
   // the audit agrees. A host without a dot (`localhost`) was not an email, and is now covered.
