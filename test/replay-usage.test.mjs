@@ -21,6 +21,12 @@ const Y = 'aaaaaaaa-9999-4999-8999-0000000000a4';
 const Z = 'aaaaaaaa-9999-4999-8999-0000000000a5';
 const X2 = '01900000-0000-7000-8000-0000000000c2';
 const X3 = '01900000-0000-7000-8000-0000000000c3';
+const X4 = '01900000-0000-7000-8000-0000000000c4';
+const X5 = '01900000-0000-7000-8000-0000000000c5';
+const X6 = '01900000-0000-7000-8000-0000000000c6';
+const X7 = '01900000-0000-7000-8000-0000000000c7';
+const X8 = '01900000-0000-7000-8000-0000000000c8';
+const UNREAD_PARENT = '01900000-0000-7000-8000-0000000000cf';
 const LONG_SENTINEL = 'RAW-ONLY-TAIL-SENTINEL';
 const ERROR_SENTINEL = 'RAW-ERROR-SENTINEL';
 const RESUMED_SENTINEL = 'RAW-RESUMED-ERROR-SENTINEL';
@@ -97,24 +103,53 @@ before(() => {
     cx(at(1506), 'response_item', { type: 'local_shell_call', call_id: 'call-x2', status: 'completed', action: { type: 'exec', command: ['ls', '-la'] } }),
     cx(at(1507), 'response_item', { type: 'function_call', name: 'shell', call_id: 'call-x3', arguments: '{not json' }),
   ]);
-  // X2: Codex starts its running total again at a turn (the total drops), and one record
-  // whose own total doesn't count reasoning on top of output.
-  write(join(fx.codexRoot, '2024', '06', '12', `rollout-2024-06-12T11-00-00-${X2}.jsonl`), [
-    cx(at(1600), 'session_meta', { id: X2, timestamp: at(1600), cwd: fx.repo.dir, cli_version: '0.1.0', source: 'vscode' }),
+  // A Codex fork family. X2 starts its running total again at a turn (the total drops), has
+  // one record whose own total doesn't count reasoning on top, and ends after its sub-agent X3,
+  // as a parent waiting on a sub-agent does.
+  const rollout = (id, name, recs) => write(join(fx.codexRoot, '2024', '06', '12', `rollout-2024-06-12T${name}-${id}.jsonl`), recs);
+  const meta = (ts, id, extra = {}) => cx(ts, 'session_meta', { id, timestamp: ts, cwd: fx.repo.dir, cli_version: '0.1.0', source: 'vscode', ...extra });
+  const spawned = (ts, id, parent) => meta(ts, id, { forked_from_id: parent, subagent_history_start_ordinal: 40, source: { subagent: { thread_spawn: { parent_thread_id: parent, depth: 1 } } } });
+  rollout(X2, '11-00-00', [
+    meta(at(1600), X2),
     tc(at(1601), 5000, { input_tokens: 4000, cached_input_tokens: 0, output_tokens: 1000, total_tokens: 5000 }),
     tc(at(1601, 10), 5000, { input_tokens: 4000, cached_input_tokens: 0, output_tokens: 1000, total_tokens: 5000 }),
     tc(at(1602), 300, { input_tokens: 290, cached_input_tokens: 0, output_tokens: 10, total_tokens: 300 }),
     tc(at(1603), 600, { input_tokens: 200, cached_input_tokens: 0, output_tokens: 100, reasoning_output_tokens: 40, total_tokens: 300 }),
+    tc(at(1700), 900, { input_tokens: 250, cached_input_tokens: 0, cache_write_input_tokens: 50, output_tokens: 50, total_tokens: 300 }),
   ]);
-  // X3: a sub-agent forked from X2, in the shape most real ones have: the line its own history
-  // is said to start on lies past the file's end. It holds copies of X2's token counts as
-  // written, at its start and once after its own call.
-  write(join(fx.codexRoot, '2024', '06', '12', `rollout-2024-06-12T11-10-00-${X3}.jsonl`), [
-    cx(at(1610), 'session_meta', { id: X3, forked_from_id: X2, subagent_history_start_ordinal: 40, timestamp: at(1610), cwd: fx.repo.dir, cli_version: '0.1.0', source: 'vscode' }),
+  // X3, a sub-agent of X2 in the shape most real ones have: the line its own history is said to
+  // start on lies past the file's end. It opens, in its first instant, with a copy of X2's
+  // history (one count X2's file holds, one it doesn't), makes a call, then holds a later copy
+  // of an X2 call as written.
+  rollout(X3, '11-10-00', [
+    spawned(at(1610), X3, X2),
     tc(at(1610), 5000, { input_tokens: 4000, cached_input_tokens: 0, output_tokens: 1000, total_tokens: 5000 }),
-    tc(at(1610), 300, { input_tokens: 290, cached_input_tokens: 0, output_tokens: 10, total_tokens: 300 }),
+    tc(at(1610, 900), 7000, { input_tokens: 1900, cached_input_tokens: 0, output_tokens: 100, total_tokens: 2000 }),
     tc(at(1611), 820, { input_tokens: 500, cached_input_tokens: 100, output_tokens: 20, total_tokens: 520 }),
     tc(at(1612), 600, { input_tokens: 200, cached_input_tokens: 0, output_tokens: 100, reasoning_output_tokens: 40, total_tokens: 300 }),
+  ]);
+  // X4, a sub-agent of X3: a later copy of X3's own call, then a call of its own.
+  rollout(X4, '11-20-00', [
+    spawned(at(1620), X4, X3),
+    tc(at(1621), 820, { input_tokens: 500, cached_input_tokens: 100, output_tokens: 20, total_tokens: 520 }),
+    tc(at(1622), 870, { input_tokens: 40, cached_input_tokens: 0, output_tokens: 10, total_tokens: 50 }),
+  ]);
+  // X5 and X6, sub-agents of a thread this history doesn't read: each holds the same later
+  // copy of the parent's call, then makes its own.
+  for (const [id, name, own] of [[X5, '11-30-00', 31], [X6, '11-40-00', 32]]) {
+    rollout(id, name, [
+      spawned(at(own === 31 ? 1630 : 1640), id, UNREAD_PARENT),
+      tc(at(own === 31 ? 1631 : 1641), 3000, { input_tokens: 2500, cached_input_tokens: 0, output_tokens: 500, total_tokens: 3000 }),
+      tc(at(own === 31 ? 1632 : 1642), 3000 + own, { input_tokens: own - 1, cached_input_tokens: 0, output_tokens: 1, total_tokens: own }),
+    ]);
+  }
+  // X7 and X8, unrelated sessions whose first calls have the same counts. X8 opens with the
+  // estimate Codex writes after a compaction: no input, no output.
+  rollout(X7, '12-00-00', [meta(at(1650), X7), tc(at(1651), 777, { input_tokens: 700, cached_input_tokens: 0, output_tokens: 77, total_tokens: 777 })]);
+  rollout(X8, '12-10-00', [
+    meta(at(1660), X8),
+    tc(at(1661), 6000, { input_tokens: 0, cached_input_tokens: 0, output_tokens: 0, total_tokens: 6000 }),
+    tc(at(1662), 777, { input_tokens: 700, cached_input_tokens: 0, output_tokens: 77, total_tokens: 777 }),
   ]);
   // Y stops mid-call. Z resumes it, copying Y's records, and records that call's failed result.
   const y = claude(Y, fx.repo.dir);
@@ -250,16 +285,19 @@ test("keepRaw: a resumed copy's failed result brings its raw error text to the k
   assert.ok(!JSON.stringify(h).includes(RESUMED_SENTINEL));
 });
 
-test("usage: a Codex total that starts again still counts each call; a sub-agent's copied counts are its parent's", async () => {
+test("usage: a Codex total that starts again still counts each call; a sub-agent's copies are its parent's", async () => {
   const h = await build({ usage: true });
-  const own = (from, to) => h.usage.calls.filter((c) => c.tool === 'codex' && c.t >= Date.parse(at(from)) && c.t < Date.parse(at(to)));
-  const x2 = own(1600, 1610);
-  assert.deepEqual(x2.map((c) => [c.input, c.cacheRead, c.output]), [[4000, 0, 1000], [290, 0, 10], [200, 0, 100]], 'a repeat is no call; after the total drops, each call counts; reasoning inside the total is not added again');
-  const x3 = own(1610, 1700);
-  assert.deepEqual(x3.map((c) => [c.input, c.cacheRead, c.cacheWrite, c.output]), [[400, 100, 0, 20]], "only the sub-agent's own call counts");
-  assert.equal(h.usage.calls.filter((c) => c.tool === 'codex' && c.input === 4000).length, 1, "the parent's call is counted once");
-  assert.equal(h.usage.calls.filter((c) => c.tool === 'codex' && c.input === 200).length, 1, 'a copy after the sub-agent\'s own call is the parent\'s too');
-  assert.ok(x2.every((c) => c.source === x2[0].source) && x3[0].source !== x2[0].source, "the copies count in the parent's file");
+  const cxCalls = h.usage.calls.filter((c) => c.tool === 'codex' && c.t >= Date.parse(at(1600)));
+  const sourceOf = (id) => h.sources.find((s) => s.tool === 'codex' && cxCalls.some((c) => c.source === s.key) && h.events.some((e) => e.source === s.key && e.kind === 'session' && e.t === Date.parse(at({ [X2]: 1600, [X3]: 1610, [X4]: 1620, [X5]: 1630, [X6]: 1640, [X7]: 1650, [X8]: 1660 }[id]))))?.key;
+  const of = (id) => cxCalls.filter((c) => c.source === sourceOf(id)).map((c) => [c.input, c.cacheWrite, c.cacheRead, c.output]);
+  assert.deepEqual(of(X2), [[4000, 0, 0, 1000], [290, 0, 0, 10], [200, 0, 0, 100], [200, 50, 0, 50]], 'a repeat is no call; after the total drops each call counts; reasoning inside the total is not added again; a cache-write count is read');
+  assert.deepEqual(of(X3), [[400, 0, 100, 20]], "the sub-agent's opening copy and a later copy of its parent's call are not its calls, even though the parent ends later");
+  assert.deepEqual(of(X4), [[40, 0, 0, 10]], "a grandchild's copy of its parent's call counts in the parent");
+  assert.deepEqual([...of(X5), ...of(X6)].sort(), [[2500, 0, 0, 500], [30, 0, 0, 1], [31, 0, 0, 1]], 'siblings whose parent is not read count their shared copy once');
+  assert.deepEqual([of(X7), of(X8)], [[[700, 0, 0, 77]], [[700, 0, 0, 77]]], 'unrelated sessions with the same counts both count; a record with no input and no output is no call');
+  const x3 = cxCalls.find((c) => c.source === sourceOf(X3));
+  assert.equal(x3.session, cxCalls.find((c) => c.source === sourceOf(X2)).session, "a spawned sub-agent's calls belong to its parent's session");
+  assert.equal(x3.agent, sourceOf(X3));
 });
 
 test('keepRaw: every prompt and agent message keeps its text; a Codex call keeps its whole input', async () => {
