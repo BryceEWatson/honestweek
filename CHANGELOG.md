@@ -18,6 +18,7 @@ This will be the first version on npm. 0.1.0 was released on GitHub, but its npm
 - **A client report** (`client` mode): one printable page of the work done for one client over any period, with its numbers and pull requests taken straight from git. (#64)
 - **Reader profiles for the client report.** The same checked facts, ordered and trimmed for the person reading them. Anything left out is counted on the page. The design is in `docs/reader-profiles.md`. (#65, #66)
 - **"Zoom to these steps" on every problem finding.** It opens the replay zoomed to exactly the steps the finding's check recorded, marks only those, steps through them, and says how that set is known, without guessing the steps in between.
+- **`honestweek view` opens on Problems: where your sessions went wrong.** Claims the agent couldn't back come first, the main list shows only findings worked out from the log (the rest wait under a closed "Possible" fold), each row shows its count against the window before, and each pattern offers a fix to copy and a prompt to test it with. Two claim checks now reach derived when the log itself records the claim and that no check ran after it.
 - **A contributing guide, a security policy, and issue and pull request templates**, so someone new can set up, learn the rules every change keeps, and report a problem without pasting their own logs. (#68)
 
 ### Changed

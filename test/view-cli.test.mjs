@@ -406,3 +406,36 @@ test('no answer in a seeded run leaks a private word with the switch off', async
   }
   await r.handle.stop();
 });
+
+test('the bare address opens Setup when no config exists, and Problems when one does', async () => {
+  // No config: the address printed is Setup's, and the bare address, which serves the Problems
+  // page's file, gets setup from the status answer, which every page turns into a move to Setup.
+  const r = await view(['--no-open'], { cwd: makeTempDir('hw-view-cli-empty-') });
+  assert.equal(r.code, 0, r.err());
+  const printed = r.out().match(/http:\/\/127\.0\.0\.1:(\d+)\/setup\.html#c=([0-9a-f]+)/);
+  assert.ok(printed, 'the printed address opens Setup');
+  const port = Number(printed[1]);
+  const key = await claim(port, printed[2]);
+  const page = (p, path) => new Promise((res, rej) => {
+    const req = request({ host: '127.0.0.1', port: p, path, agent: false }, (r) => {
+      let text = '';
+      r.on('data', (x) => (text += x));
+      r.on('end', () => res({ status: r.statusCode, text }));
+    });
+    req.on('error', rej);
+    req.end();
+  });
+  const home = await page(port, '/');
+  assert.equal(home.status, 200);
+  assert.match(home.text, /<body data-page="problems">/);
+  const status = await get(port, '/api/status', { [KEY_HEADER]: key });
+  assert.equal(status.json.setup, true, 'the status says setup is pending');
+  assert.match(readFileSync(join(ROOT, 'lib', 'view', 'assets', 'common.js'), 'utf8'), /if \(s\.setup === true\) return location\.replace\('setup\.html'\);/, 'and a page moves to Setup when it does');
+  // With a config: the bare address is printed, it serves Problems, and nothing sends it to Setup.
+  const c = await view(['--no-open', ...RANGE]);
+  assert.equal(c.code, 0, c.err());
+  const [{ port: p2, code }] = codesIn(c.out());
+  const k2 = await claim(p2, code);
+  assert.match((await page(p2, '/')).text, /<body data-page="problems">/);
+  assert.notEqual((await ready(p2, k2)).setup, true);
+});
