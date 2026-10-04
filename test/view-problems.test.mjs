@@ -318,6 +318,69 @@ test("each pattern's fix is the catalog's draft, word for word, and its test pro
   }
 });
 
+// ---- where each check and fix works: Claude Code and Codex ------------------------------------
+const COVER_STATUS = ['runs', 'partial', 'not yet'];
+
+test('every catalog pattern says whether its check runs on Claude Code and on Codex, and the answer carries it', () => {
+  for (const p of loadCatalog().patterns) {
+    assert.deepEqual(Object.keys(p.coverage ?? {}).sort(), ['claudeCode', 'codex'], `${p.id}: both coverage fields`);
+    for (const [agent, c] of Object.entries(p.coverage)) {
+      assert.ok(COVER_STATUS.includes(c.status), `${p.id}.${agent}: ${c.status}`);
+      if (c.status !== 'runs') assert.ok(typeof c.why === 'string' && c.why.length > 10, `${p.id}.${agent}: a ${c.status} says why`);
+    }
+    // A pattern with no check runs on neither; one with a check runs on Claude Code, the agent it was built on.
+    if (!PATTERN_CHECKS[p.id]) assert.deepEqual([p.coverage.claudeCode.status, p.coverage.codex.status], ['not yet', 'not yet'], p.id);
+    else assert.equal(p.coverage.claudeCode.status, 'runs', p.id);
+  }
+  for (const p of whole.patterns) assert.deepEqual(p.coverage, loadCatalog().patterns.find((x) => x.id === p.id).coverage, `${p.id}: coverage as the catalog has it`);
+});
+
+test('every fix says where it goes in Codex, and no Codex form names a Claude-only file or tool', () => {
+  // Claude Code's settings and instructions files, and its tool names as a hook matcher sees them.
+  const CLAUDE_ONLY = /settings\.json|CLAUDE\.md|\.claude\b|user settings|\b(?:Read|Edit|Write|MultiEdit|Bash|PowerShell|TodoWrite|NotebookEdit|Agent|Task|WebFetch)\b/;
+  for (const [id, d] of Object.entries(DRAFTS)) {
+    assert.ok(d.codex && typeof d.codex.where === 'string', `${id}: a Codex line`);
+    assert.match(d.codex.where, /^(?:In Codex: |No Codex equivalent yet)/, `${id}: the line says it's about Codex`);
+    assert.deepEqual(Object.keys(d.codex).filter((k) => !['where', 'text'].includes(k)), [], id);
+    for (const t of [d.codex.where, d.codex.text ?? '']) {
+      assert.doesNotMatch(t, CLAUDE_ONLY, `${id}: the Codex form names a Claude-only file or tool`);
+      // A path starting with ~ reads as a home folder and the redactor hides it, so Copy would refuse it.
+      assert.doesNotMatch(t, /~[\\/]/, `${id}: a ~ path`);
+    }
+  }
+  // The answer carries the Codex form unredacted, so its Copy button works.
+  const withText = whole.patterns.filter((p) => p.draft?.codex?.text);
+  assert.ok(withText.length >= 5, 'some fixes have a Codex version to copy');
+  for (const p of withText) assert.doesNotMatch(p.draft.codex.text, /\[redacted:/, p.id);
+});
+
+test('a private word that is a coverage status leaves the status whole, and the reason is still redacted', async () => {
+  // "exec" is in the Codex reasons, so it shows the reason still goes through the redactor.
+  const config = { ...w.config, redaction: { ...w.config.redaction, terms: [...(w.config.redaction?.terms ?? []), 'runs', 'partial', 'not yet', 'exec'] } };
+  const own = createViewData({ config, roots: w.roots, ...WINDOW, goalRecord: w.goalRecord });
+  await own.start();
+  const r = await own.route('/api/problems', params());
+  assert.equal(r.status, 200);
+  const catalog = loadCatalog().patterns;
+  for (const p of r.body.patterns) {
+    const cat = catalog.find((x) => x.id === p.id).coverage;
+    for (const agent of ['claudeCode', 'codex']) assert.equal(p.coverage[agent].status, cat[agent].status, `${p.id}.${agent}: the status the catalog gives`);
+  }
+  const partial = r.body.patterns.find((p) => p.coverage.codex.status === 'partial');
+  assert.match(catalog.find((x) => x.id === partial.id).coverage.codex.why, /exec/);
+  assert.doesNotMatch(partial.coverage.codex.why, /exec/, 'the reason is redacted');
+  assert.match(partial.coverage.codex.why, /\[redacted:/);
+  await own.stop?.();
+});
+
+test('the Problems answer is otherwise unchanged: coverage and the Codex form are the only new fields', () => {
+  const BEFORE = ['claim', 'count', 'countEvidence', 'derivedFound', 'detection', 'draft', 'findings', 'findingsListed', 'group', 'id', 'look', 'looksLike', 'measures', 'mitigation', 'name', 'notRun', 'notesFound', 'possible', 'priority', 'related', 'sourceKinds', 'sources', 'status', 'strength', 'strengthReason', 'sure', 'testPrompt', 'tokens', 'whyItMatters'];
+  for (const p of whole.patterns) {
+    assert.deepEqual(Object.keys(p).filter((k) => k !== 'coverage').sort(), BEFORE, p.id);
+    if (p.draft) assert.deepEqual(Object.keys(p.draft).filter((k) => k !== 'codex').sort(), ['kind', 'text', 'title', 'where'], p.id);
+  }
+});
+
 test('each pattern says how many findings are worked out and how many are possible, and lists the worked-out ones first', () => {
   const sure = (f) => f.verdictEvidence === 'recorded' || f.verdictEvidence === 'derived';
   for (const p of whole.patterns) {
