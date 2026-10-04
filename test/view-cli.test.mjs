@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 import { HELP, parseViewPort, resolveViewWindow, runView } from '../lib/view.mjs';
+import { setCommandForm } from '../lib/invocation.mjs';
 import { CODE_HEADER, KEY_HEADER } from '../lib/view/server.mjs';
 import { createLeakCounter } from '../lib/view/leaks.mjs';
 import { buildViewWeek, PRIVATE_WORDS, TERM, WEEK } from './fixtures/view/week.mjs';
@@ -85,6 +86,7 @@ test('--help prints the help in the published voice and exits 0', async () => {
   assert.equal(r.code, 0);
   assert.equal(r.out(), HELP);
   assert.match(HELP, /^Usage:/m);
+  assert.match(HELP.replace(/\s+/g, ' '), /listed under "redaction" in your config, so until you list some, they show as written/, 'it says redaction hides only the words you list');
   for (const flag of ['--days', '--from', '--to', '--timezone', '--goals', '--config', '--port', '--no-open', '--demo', '--self-test']) assert.ok(HELP.includes(flag), flag);
   assert.doesNotMatch(HELP, /[—–]| -- /, 'no em or en dashes');
   assert.match(HELP, /n't|it's|you're/, 'contractions');
@@ -101,6 +103,44 @@ test('with no config file, view says to run init or try --demo, and writes nothi
   const named = await view(['--config', 'nope.json'], { cwd: empty });
   assert.equal(named.code, 1);
   assert.match(named.err(), /no config at .*nope\.json.*honestweek init.*--demo/s);
+});
+
+test('the no-config message names init and the demo the way the person ran honestweek', async () => {
+  const empty = makeTempDir('hw-view-cli-empty-');
+  setCommandForm('node bin/honestweek.mjs');
+  try {
+    const r = await view([], { cwd: empty });
+    assert.equal(r.code, 1);
+    assert.ok(r.err().includes('Run node bin/honestweek.mjs init to set one up, or node bin/honestweek.mjs view --demo'), r.err());
+    const bad = await view(['--nope'], { cwd: empty });
+    assert.ok(bad.err().includes('Run node bin/honestweek.mjs view --help'), bad.err());
+  } finally {
+    setCommandForm('honestweek');
+  }
+});
+
+test('a config with no private words gets a notice in the terminal and on every page; one with words gets none', async () => {
+  const bare = join(scratch, 'bare-project');
+  mkdirSync(bare, { recursive: true });
+  const cfg = JSON.parse(readFileSync(join(project, 'honestweek.config.json'), 'utf8'));
+  writeFileSync(join(bare, 'honestweek.config.json'), JSON.stringify({ ...cfg, redaction: { codenames: [], names: [], terms: [] } }));
+  const r = await view(['--no-open', '--from', WEEK.from, '--to', WEEK.to], { cwd: bare });
+  assert.equal(r.code, 0, r.err());
+  assert.match(r.out(), /No private words are set up, so names and client words in your logs show as written/);
+  const [at] = codesIn(r.out());
+  const s = await ready(at.port, await claim(at.port, at.code));
+  assert.equal(s.command, 'honestweek');
+  assert.equal(s.privateWords.count, 0);
+  assert.ok(s.privateWords.note.includes('"redaction" in honestweek.config.json'), s.privateWords.note);
+  await r.handle.stop();
+  // Failing-path partner: the seeded config lists private words, so no notice anywhere.
+  const withWords = await view(['--no-open', ...RANGE]);
+  assert.doesNotMatch(withWords.out(), /No private words/);
+  const [at2] = codesIn(withWords.out());
+  const s2 = await ready(at2.port, await claim(at2.port, at2.code));
+  assert.ok(s2.privateWords.count > 0);
+  assert.equal(s2.privateWords.note, null);
+  await withWords.handle.stop();
 });
 
 test('--demo refuses the options that would pick other data or another week', async () => {

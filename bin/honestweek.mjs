@@ -7,6 +7,8 @@
 // module that another issue has not built yet — `--help` works from a fresh
 // clone with zero modules present.
 
+import { commandForm, setCommandForm } from '../lib/invocation.mjs';
+
 const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts', 'digest', 'mine', 'history', 'view'];
 
 // Subcommands that parse `--help` themselves and print their own richer text.
@@ -15,15 +17,21 @@ const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'previe
 const SELF_HELP = new Set(['prompts', 'digest', 'preview', 'mine', 'view']);
 
 const COMMAND_HELP = {
-  init: `honestweek init: scaffold honestweek.config.json.
+  init: `honestweek init: set up honestweek.config.json in this folder.
 
 Usage:
   honestweek init [--yes] [--force]
 
-Infers your identity and repo allowlist from local git state, then asks for two
-confirmations before writing. Writes honestweek.config.json, drops
+Finds your git email and the git repositories in this folder and the folders
+next to it, folding each extra working copy (a git worktree) into its main
+repository. It shows the list so you can keep or drop repositories by number
+('keep 1-5 9', 'drop 3 7-9') or change a role ('role 2 display'), then asks for
+people's names and client or project words to keep private (you can skip
+both). It reads back the words it'll store, and writes nothing until you've
+said yes twice. Then it writes honestweek.config.json, drops
 honestweek.config.example.json if absent, and adds honestweek's generated files
-to .gitignore.
+to .gitignore, and the config too when you gave it private words. If it finds no
+repositories, it writes nothing. Answers piped in on stdin work, one per line.
 
 Options:
   -y, --yes   Accept the inferred defaults without prompting. Use this when no
@@ -108,9 +116,10 @@ Options:
 Usage:
   honestweek harvest
 
-Reads honestweek.draft.json and writes candidate private nouns to the
-gitignored honestweek.harvest.json. Only the count is printed; the nouns stay
-local for you to review and promote into your config's redaction lists.
+Reads honestweek.draft.json (run discover first) and writes candidate private
+nouns, most frequent first, to the gitignored honestweek.harvest.json. Only the
+count is printed; the nouns stay local for you to review and add to your
+config's redaction lists: "names" for people, "terms" for clients and projects.
 
 Options:
   -h, --help  Show this help.
@@ -119,13 +128,25 @@ Options:
 
 const wantsHelp = (args) => args.some((a) => a === '--help' || a === '-h');
 
-const USAGE = `honestweek: honest, git-verified weekly summaries from your AI coding sessions.
+/** The top-level help. `cmd` is the command as the person typed it (lib/invocation.mjs). */
+function usage(cmd) {
+  return `honestweek: find, check and replay your AI coding sessions, and turn a week of
+them into an honest, git-verified summary.
+
+Start here:
+  1. Look around a made-up week first. It sets nothing up:
+       ${cmd} view --demo
+  2. Set up honestweek.config.json in this folder. It asks before writing:
+       ${cmd} init
+  3. Find, check and replay your own sessions in your browser:
+       ${cmd} view
 
 Usage:
-  honestweek <command> [options]
+  ${cmd} <command> [options]
 
 Commands:
-  init        Scaffold honestweek.config.json (two-confirmation setup).
+  init        Set up honestweek.config.json from your git setup. It asks
+              before writing.
   discover    Read the last completed week's sessions into a redacted draft.
   prompts     Sync, review, control, and curate private Claude Code and Codex
               prompts for the existing weekly page.
@@ -152,15 +173,18 @@ Commands:
 Options:
   -h, --help  Show this help.
 
-Run "honestweek <command> --help" for command-specific help (where available).
+Run "${cmd} <command> --help" for command-specific help (where available).
 `;
+}
 
 function printUsage(stream = process.stdout) {
-  stream.write(USAGE);
+  stream.write(usage(commandForm()));
 }
 
 async function main(argv) {
   const [command, ...rest] = argv;
+  // Messages that name a next step name it the way this run was started.
+  setCommandForm(commandForm());
 
   if (command === undefined || command === '--help' || command === '-h') {
     printUsage(process.stdout);
