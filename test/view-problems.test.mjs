@@ -219,3 +219,88 @@ test('a private word from the logs is still hidden everywhere else when a catalo
   assert.equal(p.name, 'About [redacted:term]');
   assert.equal(p.findings[0].note, 'seen near [redacted:term]', 'and so does everything from a log');
 });
+
+// ---- a private word that is also in a published source title ----------------------------
+
+// A word some catalog source titles use, configured here as a private word.
+const SHARED_WORD = 'harnesses';
+const sharedHits = (text) => text.toLowerCase().split(SHARED_WORD).length - 1;
+const usesShared = (s) => sharedHits(s.title) > 0;
+const sharedConfig = { ...w.config, redaction: { ...w.config.redaction, terms: [...(w.config.redaction.terms ?? []), SHARED_WORD] } };
+const shared = createLeakCounter(sharedConfig);
+
+test('a private word that is also in a published source title is not counted as a leak', async () => {
+  const catalog = JSON.parse(readFileSync(join(HERE, '..', 'lib', 'problems', 'catalog.json'), 'utf8'));
+  const sources = catalog.patterns.flatMap((p) => p.sources);
+  const titled = sources.filter(usesShared);
+  assert.ok(titled.length > 0, `a catalog source title still uses "${SHARED_WORD}"`);
+
+  // The answer a person with that private word gets: the titles go out whole, everything else redacted.
+  const view = createViewData({ config: sharedConfig, roots: w.roots, ...WINDOW, goalRecord: w.goalRecord, selfTest: true });
+  await view.start();
+  const r = await view.route('/api/problems', params());
+  assert.equal(r.status, 200);
+  const shown = r.body.patterns.flatMap((p) => p.sources).filter(usesShared);
+  assert.equal(shown.length, titled.length, 'the titles are shown as published, the word included');
+  // Without the catalog set aside, the counter reads the word in each title and address as a leak.
+  const before = createLeakCounter(sharedConfig, { catalog: { patterns: [] } }).redacted(r.body);
+  const published = sources.reduce((n, s) => n + sharedHits(s.title) + sharedHits(s.url), 0);
+  assert.ok(published >= titled.length);
+  assert.deepEqual([before.terms, before.total], [published, published]);
+  assert.deepEqual(shared.redacted(r.body), { terms: 0, paths: 0, emails: 0, secrets: 0, total: 0 });
+
+  // The page's side: each title is one text node and each address one href, checked on its own.
+  const parts = sources.flatMap((s) => [s.title, s.url]);
+  assert.equal(shared.redacted(parts).total, 0);
+  assert.equal(shared.redacted(titled[0].title).total, 0);
+  assert.equal(shared.redacted([`  ${titled[0].title.replace(/ /g, '  ')} `.replace(/\s+/g, ' ').trim()]).total, 0, 'a text node has its whitespace collapsed');
+  // A private word in an address: the whole address on the page, and its parts in the answer.
+  const host = createLeakCounter({ redaction: { terms: ['examplehost'] } }, { catalog: { patterns: [{ sources: [{ title: 'A study', url: 'https://examplehost.test/a/b' }] }] } });
+  assert.equal(host.redacted(['A study', 'https://examplehost.test/a/b']).total, 0);
+  assert.equal(host.redacted({ patterns: [{ sources: [{ title: 'A study', link: splitUrl('https://examplehost.test/a/b') }] }] }).total, 0);
+});
+
+test('the same private word still counts everywhere but a published title or address', async () => {
+  const catalog = JSON.parse(readFileSync(join(HERE, '..', 'lib', 'problems', 'catalog.json'), 'utf8'));
+  const src = catalog.patterns.flatMap((p) => p.sources).find(usesShared);
+  const link = splitUrl(src.url);
+  const terms = (value) => shared.redacted(value).terms;
+  const occurrences = sharedHits(src.title);
+
+  // Text from logs, config, goals or repositories, on the page and in an answer.
+  assert.equal(terms(`a session about ${SHARED_WORD}`), 1);
+  assert.equal(terms(['Problems', `${SHARED_WORD} repo`, src.title]), 1);
+  assert.equal(terms({ sessions: { k: { title: `Fix ${SHARED_WORD}` } } }), 1);
+  assert.equal(terms({ goals: [{ key: 'g', title: SHARED_WORD }] }), 1);
+  // A title with anything added to it, or one that isn't checked on its own, is not the published text.
+  assert.equal(terms([`${src.title} (draft)`]), occurrences);
+  assert.equal(terms({ note: src.title }), occurrences, 'a log field holding the same words');
+  assert.equal(terms([[src.title]]), occurrences, 'a value nested inside a part');
+  assert.equal(terms({ text: src.title, facts: {} }), occurrences);
+  // A source's title and link are set aside only together, as the catalog publishes them.
+  assert.equal(terms({ title: src.title, link: splitUrl('https://example.com/other') }), occurrences, 'another address');
+  assert.equal(terms({ title: src.title }), occurrences, 'no link');
+  assert.equal(terms({ title: `${src.title}!`, link }), occurrences + sharedHits(src.url), 'a changed title: neither field is set aside');
+  assert.equal(terms({ title: src.title, link, says: `It says ${SHARED_WORD}.`, date: '2025-01-01', kind: 'docs' }), 1, "a source's other fields still count");
+  const host = createLeakCounter({ redaction: { terms: ['examplehost'] } }, { catalog: { patterns: [{ sources: [{ title: 'A study', url: 'https://examplehost.test/a/b' }] }] } });
+  assert.ok(host.redacted(['https://examplehost.test']).terms > 0, 'part of an address on its own');
+  assert.ok(host.redacted(['https://examplehost.test/a/b?x=1']).terms > 0, 'an address with anything added');
+
+  // On the Problems answer itself: the word in a finding, a session title or a pattern's own text counts.
+  const view = createViewData({ config: sharedConfig, roots: w.roots, ...WINDOW, goalRecord: w.goalRecord, selfTest: true });
+  await view.start();
+  const answered = (await view.route('/api/problems', params())).body;
+  assert.equal(terms(answered), 0);
+  const withFinding = structuredClone(answered);
+  const found = withFinding.patterns.find((p) => p.findings?.length);
+  found.findings[0].note = `seen near ${SHARED_WORD}`;
+  assert.equal(terms(withFinding), 1);
+  const withSays = structuredClone(answered);
+  withSays.patterns.find((p) => p.sources.length).sources[0].says = `It says ${SHARED_WORD}.`;
+  assert.equal(terms(withSays), 1);
+  const withSession = structuredClone(answered);
+  withSession.sessions = { ...withSession.sessions, made: { title: `About ${SHARED_WORD}`, thread: null, tool: null } };
+  assert.equal(terms(withSession), 1);
+  // A secret is still found with the switch on, where nothing is set aside.
+  assert.equal(shared.secrets([src.title, `token=${SECRETS.token ?? Object.values(SECRETS)[0]}`]).total, 1);
+});
