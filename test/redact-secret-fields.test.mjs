@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 import { assessPublicRendition, createRedactor, createSecretsOnlyRedactor, redactWithAudit, replayRedactions } from '../lib/redact.mjs';
 import { validateObjectives } from '../lib/goals.mjs';
 import { REDACTION_SOURCES, emailSpans } from '../lib/redaction-patterns.mjs';
+import { keyedSecrets } from '../lib/view/leaks.mjs';
 
 const H = 'hunter2';
 // Random numbers from SHA-256 in counter mode: each seed is its own stream, unlike a linear
@@ -427,6 +428,87 @@ test('a sensitive value opened by a single quote that never closes is hidden by 
   agreeOn(UNCLOSED_SINGLE_QUOTE, UNCLOSED_SINGLE_QUOTE_ORDINARY, LV);
 });
 
+// A sensitive field nested in another field's value keeps its own value hidden. A value read
+// on after an unclosed single quote ends before the field, which is read by itself as before
+// (double in single, single in double, KEY=VALUE, a header, an option and a dotted key inside).
+// A value that took the field's name and stopped short of its value runs on to cover it, with
+// or without dots in the outer key. A quoted "value" that is the next key is read as that key,
+// and a value that ends on a Bearer or Basic scheme takes the credential after it. Made-up
+// values. [input, the published output]
+const NESTED_AFTER_QUOTE = [
+  [`password: 'token: "${LV}"`, `password: 'token: "[redacted:secret]"`],
+  [`api_key: 'token: "${LV}"`, `api_key: 'token: "[redacted:secret]"`],
+  [`password: 'token: ${LV}`, `password: 'token: [redacted:secret]`],
+  [`api_key: 'token: ${LV}, region: eu`, `api_key: 'token: [redacted:secret], region: eu`],
+  [`token: "password: '${LV}`, 'token: "[redacted:secret]'],
+  [`password: 'token=${LV}`, `password: 'token=[redacted:secret]`],
+  [`api_key: 'token=${LV}`, `api_key: 'token=[redacted:secret]`],
+  [`password: 'Authorization: Bearer ${LV}`, `password: 'Authorization: [redacted:secret]`],
+  [`api_key: 'Authorization: Bearer ${LV}`, `api_key: 'Authorization: [redacted:secret]`],
+  [`api_key: '--token ${LV}`, `api_key: '--token [redacted:secret]`],
+  [`password: 'api.key: "${LV}"`, `password: 'api.key: "[redacted:secret]"`],
+  [`password: 'abc token: "${LV}"`, `password: '[redacted:secret] token: "[redacted:secret]"`],
+  [`password: 'x"token": "${LV}"`, `password: '[redacted:secret]"token": "[redacted:secret]"`],
+  [`api_key: 'x:basic ${LV}`, `api_key: '[redacted:secret]`],
+  [`api.key: token: "${LV}"`, 'api.key: [redacted:secret]'],
+  [`api_key: token: "${LV}"`, 'api_key: [redacted:secret]'],
+  [`password: token: "${LV}"`, 'password: [redacted:secret]'],
+  [`api.key: --token ${LV}`, 'api.key: [redacted:secret]'],
+  [`api.key: "token": "${LV}"`, `api.key: "token": "[redacted:secret]"`],
+  [`api_key: "token": "${LV}"`, `api_key: "token": "[redacted:secret]"`],
+  [`api.key: 'token': '${LV}'`, `api.key: 'token': '[redacted:secret]'`],
+  [`password="token": "${LV}"`, `password="token": "[redacted:secret]"`],
+  [`-Dapi.key=user:basic ${LV}`, '-Dapi.key=[redacted:secret]'],
+  [`api.key: x:bearer ${LV}`, 'api.key: [redacted:secret]'],
+];
+
+test("a field nested in another field's value keeps its own value hidden", () => {
+  agreeOn(NESTED_AFTER_QUOTE, [], LV);
+  // A closed single-quoted value whose closing quote opened a field's value reads the same on a
+  // second pass, when that quote is gone.
+  for (const r of [createRedactor(), createSecretsOnlyRedactor()]) {
+    const once = r.redact(`@${LV}=Cookie = 'secret.keyapi.key--password  = '`);
+    assert.equal(r.redact(once), once);
+  }
+  // A covered value may hold another field's name in turn, whose value is covered too. In the
+  // second input the published redactor's KEY=VALUE rule (its step 2, before the field rules)
+  // takes `AcmeCookie:Authorization:` as token's value and shows what follows, as it did before
+  // this change; the secrets-only scrubber, which reads the field rules first, hides it.
+  for (const [input, publishedToo] of [
+    [`'TOKEN=abc','TOKEN = abc','TOKEN  =  "${LV} def"'`, true],
+    [`client_secret: token=  AcmeCookie:Authorization: ${LV}`, false],
+    [`api_key: token=password=secret=${LV} more`, true],
+  ]) {
+    for (const [name, r, hides] of [['published', createRedactor(), publishedToo], ['secrets-only', createSecretsOnlyRedactor(), true]]) {
+      const once = r.redact(input);
+      if (hides) assert.ok(!once.includes(LV), `${name}: ${input} -> ${once}`);
+      assert.equal(r.redact(once), once, `${name} idempotent: ${input}`);
+    }
+    const audit = redactWithAudit(input, {});
+    if (publishedToo) assert.ok(!audit.text.includes(LV), `audit: ${input} -> ${audit.text}`);
+    assert.equal(createRedactor().redact(audit.text), audit.text, `fixed point: ${input}`);
+  }
+  for (const input of [JSON.stringify({ msg: `password: 'token: "${LV}"` }), JSON.stringify(JSON.stringify({ msg: `api_key: 'token: "${LV}"` }))]) {
+    const out = createRedactor().redact(input);
+    assert.ok(!out.includes(LV), `published: ${input} -> ${out}`);
+    assert.ok(!createSecretsOnlyRedactor().redact(input).includes(LV), `secrets-only: ${input}`);
+    assert.equal(redactWithAudit(input, {}).text, out, `audit: ${input}`);
+  }
+});
+
+test('a record key that is a code file or a length keeps its value; a dotted key named for a credential hides it', () => {
+  const shown = { 'auth.ts': 'ordinary contents', 'token.js': 'ordinary contents', 'password.length': '8', 'auth.test.mjs': 'ordinary contents' };
+  // A data file named for a secret may hold the secret itself, so its value stays hidden.
+  const hidden = { 'api.key': LV, 'db.password': LV, 'auth.token': LV, 'token.value': LV, 'secret.key': LV, 'password.txt': LV, 'token.json': LV };
+  for (const r of [createRedactor(), createSecretsOnlyRedactor()]) {
+    assert.deepEqual(r.deepRedact(shown), shown);
+    assert.deepEqual(r.deepRedact(hidden), Object.fromEntries(Object.keys(hidden).map((k) => [k, '[redacted:secret]'])));
+  }
+  // The view's leak count reads keys the same way: a shown value under such a key isn't a leak.
+  assert.equal(keyedSecrets(shown), 0);
+  assert.equal(keyedSecrets(hidden), Object.keys(hidden).length);
+});
+
 test('Java properties and dotted keys stay fast on 200,000-character inputs', () => {
   const inputs = [
     'a.'.repeat(100000),
@@ -442,6 +524,9 @@ test('Java properties and dotted keys stay fast on 200,000-character inputs', ()
     "token: '".repeat(25000),
     `${'-Pa.b.c.d.'.repeat(20000)}=x`,
     'password.length '.repeat(12500),
+    `${'token:'.repeat(33400)}x`,
+    'password:password: '.repeat(10600),
+    'api_key: token=x '.repeat(11800),
   ];
   for (const input of inputs) {
     assert.ok(input.length >= 200000, `${input.length} characters`);
