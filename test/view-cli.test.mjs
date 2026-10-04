@@ -93,25 +93,31 @@ test('--help prints the help in the published voice and exits 0', async () => {
   assert.doesNotMatch(HELP, /\b(seamless|powerful|blazing|effortless|revolutionary|supercharge)\b/i, 'no marketing words');
 });
 
-test('with no config file, view says to run init or try --demo, and writes nothing', async () => {
+test('with no config file, view serves the Setup page and writes nothing; a missing --config file is still an error', async () => {
   const empty = makeTempDir('hw-view-cli-empty-');
-  const r = await view([], { cwd: empty });
-  assert.equal(r.code, 1);
-  assert.match(r.err(), /honestweek init/);
-  assert.match(r.err(), /honestweek view --demo/);
+  const r = await view(['--no-open'], { cwd: empty });
+  assert.equal(r.code, 0, r.err());
+  assert.ok(r.handle.setup, 'setup mode');
+  assert.match(r.out(), /there's no honestweek\.config\.json in .*, so setup is open in your browser/);
+  assert.match(r.out(), /For scripts and CI, honestweek init still works\./);
+  assert.match(r.out(), /http:\/\/127\.0\.0\.1:\d+\/setup\.html#c=/, 'the printed address opens the Setup page');
   assert.deepEqual(readdirSync(empty), []);
+  // Failing path: an option that doesn't need a config is still checked before setup opens.
+  const bad = await view(['--no-open', '--timezone', 'Nowhere/Else'], { cwd: makeTempDir('hw-view-cli-empty-') });
+  assert.equal(bad.code, 1);
+  assert.match(bad.err(), /isn't a timezone this machine knows/);
   const named = await view(['--config', 'nope.json'], { cwd: empty });
   assert.equal(named.code, 1);
-  assert.match(named.err(), /no config at .*nope\.json.*honestweek init.*--demo/s);
+  assert.match(named.err(), /no config at .*nope\.json.*honestweek view in a folder with no config.*honestweek init.*--demo/s);
 });
 
-test('the no-config message names init and the demo the way the person ran honestweek', async () => {
+test('the setup line names init the way the person ran honestweek', async () => {
   const empty = makeTempDir('hw-view-cli-empty-');
   setCommandForm('node bin/honestweek.mjs');
   try {
-    const r = await view([], { cwd: empty });
-    assert.equal(r.code, 1);
-    assert.ok(r.err().includes('Run node bin/honestweek.mjs init to set one up, or node bin/honestweek.mjs view --demo'), r.err());
+    const r = await view(['--no-open'], { cwd: empty });
+    assert.equal(r.code, 0);
+    assert.ok(r.out().includes('For scripts and CI, node bin/honestweek.mjs init still works.'), r.out());
     const bad = await view(['--nope'], { cwd: empty });
     assert.ok(bad.err().includes('Run node bin/honestweek.mjs view --help'), bad.err());
   } finally {

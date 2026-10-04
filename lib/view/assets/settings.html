@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings · honestweek</title>
+<link rel="stylesheet" href="common.css">
+</head>
+<body data-page="settings">
+<header class="topbar">
+  <a class="brand" href="problems.html">honestweek</a>
+  <nav aria-label="Pages"><a href="search.html">Find</a><a href="goal.html">Goals</a><a href="replay.html">Replay</a><a href="problems.html">Problems</a><a href="settings.html" aria-current="page">Settings</a></nav>
+  <span class="topbar-gap"></span>
+</header>
+<p class="statusline" id="status" role="status" hidden></p>
+<main id="content" class="setup">
+  <h1>Settings</h1>
+  <p class="lead" id="lead" hidden></p>
+  <div id="form" hidden>
+    <section class="setup-part" aria-labelledby="histH">
+      <h2 id="histH"><label for="histKind">How far back</label> <span id="histHelp"></span></h2>
+      <div class="setup-inline">
+        <select id="histKind">
+          <option value="week">Last week</option>
+          <option value="days">Last … days</option>
+          <option value="from">From a date</option>
+          <option value="range">Between dates</option>
+          <option value="all">All history</option>
+        </select>
+        <input id="histDays" type="number" min="1" max="3660" value="30" autocomplete="off" aria-label="Days" hidden>
+        <input id="histFrom" type="date" autocomplete="off" aria-label="From" hidden>
+        <input id="histTo" type="date" autocomplete="off" aria-label="To" hidden>
+      </div>
+      <p class="fine" id="histLine" hidden></p>
+      <p class="fine muted" id="logsLine"></p>
+      <div class="setup-inline">
+        <label for="histLimit">Log limit (MB)</label>
+        <input id="histLimit" type="number" min="50" max="20000" step="50" autocomplete="off">
+      </div>
+      <p class="fine" id="histEstimate" hidden></p>
+    </section>
+    <section class="setup-part" aria-labelledby="reposH">
+      <h2 id="reposH">Repositories <span id="rolesHelp"></span></h2>
+      <ul class="repolist" id="repos"></ul>
+      <div class="setup-inline">
+        <label class="sr" for="addPath">Add a folder</label>
+        <input class="setup-input" id="addPath" type="text" autocomplete="off" spellcheck="false" placeholder="Add a folder: /path/to/your/repo">
+        <button type="button" class="btn" id="addBtn">Add</button>
+      </div>
+    </section>
+    <section class="setup-part" aria-labelledby="youH">
+      <h2 id="youH"><label for="emails">Emails</label> <span id="emailHelp"></span></h2>
+      <input class="setup-input" id="emails" type="text" autocomplete="off" spellcheck="false">
+    </section>
+    <details class="setup-part fold" id="wordsFold">
+      <summary><h2>Private words <span class="muted" id="wordsCount"></span></h2></summary>
+      <p class="fine" id="wordsIntro"></p>
+      <div class="setup-row">
+        <label for="names" id="namesLabel"></label>
+        <input id="names" type="text" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="setup-row">
+        <label for="terms" id="termsLabel"></label>
+        <input id="terms" type="text" autocomplete="off" spellcheck="false">
+      </div>
+    </details>
+    <section class="setup-part" aria-labelledby="goalsH">
+      <h2 id="goalsH"><label for="goals">Goal list</label> <span id="goalsHelp"></span></h2>
+      <input class="setup-input" id="goals" type="text" autocomplete="off" spellcheck="false" placeholder="/path/to/your/goals.json">
+    </section>
+    <div class="setup-inline setup-actions">
+      <button type="button" class="btn" id="previewBtn">Review changes</button>
+      <button type="button" class="btn primary" id="saveBtn" disabled>Save</button>
+    </div>
+    <p class="fine warnline" id="problem" role="alert" hidden></p>
+    <ul class="fine changes" id="changes" hidden></ul>
+  </div>
+</main>
+<footer class="quiet">
+  <p class="quiet-line">Saved to honestweek.config.json on this machine.</p>
+</footer>
+<script src="key.js"></script>
+<script src="private-text.js"></script>
+<script src="form.js"></script>
+<script src="settings.js"></script>
+</body>
+</html>

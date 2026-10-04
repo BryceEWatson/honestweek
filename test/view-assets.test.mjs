@@ -29,7 +29,7 @@ const files = () => [...readdirSync(ASSETS).map((f) => ({ name: f, path: join(AS
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
 
 test('assets: the shipped page files are all there, and nothing else', () => {
-  assert.deepEqual(readdirSync(ASSETS).sort(), [...PAGES, ...SCRIPTS, 'common.css', 'problems.css'].sort());
+  assert.deepEqual(readdirSync(ASSETS).sort(), [...PAGES, 'setup.html', 'settings.html', ...SCRIPTS, 'form.js', 'setup.js', 'settings.js', 'common.css', 'problems.css'].sort());
   assert.deepEqual(readdirSync(SELFTEST).sort(), ['clickthrough.html', 'clickthrough.js']);
 });
 
@@ -84,6 +84,22 @@ test('assets: every page loads the same files in the same order, and has the sha
     for (const link of PAGES) assert.match(t, new RegExp(`<nav[^]*href="${link}"[^]*</nav>`), `${p}: a link to ${link}`);
     assert.match(t, new RegExp(`href="${p}" aria-current="page"`), `${p}: marks itself current`);
   }
+  // The Setup page has the same header and quiet footer, and only the key client before its own script.
+  const st = readFileSync(join(ASSETS, 'setup.html'), 'utf8');
+  assert.deepEqual([...st.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]), ['key.js', 'private-text.js', 'form.js', 'setup.js']);
+  assert.deepEqual([...st.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]), ['common.css']);
+  for (const id of ['status', 'content', 'repos', 'addPath', 'emails', 'timezone', 'names', 'terms', 'goals', 'previewBtn', 'saveBtn']) assert.match(st, new RegExp(`id="${id}"`), `setup.html: #${id}`);
+  assert.match(st, /<header class="topbar">[^]*href="setup\.html" aria-current="page"/);
+  // Nothing typed there can reach an address: no form to submit, and no field a browser remembers.
+  assert.doesNotMatch(st, /<form\b|<(input|select|textarea)\b[^>]*\sname="/);
+  for (const m of st.matchAll(/<input\b[^>]*>/g)) assert.match(m[0], /autocomplete="off"/, m[0]);
+  // Settings: the same rules, and every page's header links to it.
+  const sg = readFileSync(join(ASSETS, 'settings.html'), 'utf8');
+  assert.deepEqual([...sg.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]), ['key.js', 'private-text.js', 'form.js', 'settings.js']);
+  assert.match(sg, /href="settings\.html" aria-current="page"/);
+  assert.doesNotMatch(sg, /<form\b|<(input|select|textarea)\b[^>]*\sname="/);
+  for (const m of sg.matchAll(/<input\b[^>]*>/g)) assert.match(m[0], /autocomplete="off"/, m[0]);
+  for (const p of PAGES) assert.match(readFileSync(join(ASSETS, p), 'utf8'), /<nav[^]*href="settings\.html"[^]*<\/nav>/, `${p}: a link to Settings`);
   const ct = readFileSync(join(SELFTEST, 'clickthrough.html'), 'utf8');
   assert.deepEqual([...ct.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]), ['/evidence.js', '/key.js', '/private-text.js', 'clickthrough.js']);
 });
@@ -166,8 +182,9 @@ test('assets: the address only ever gets ids, never typed or clicked text', () =
       const words = (m[1].replace(/'[^']*'/g, '').match(/[A-Za-z_]\w*/g) ?? []).filter((w) => !/^(c|q)$/.test(w));
       for (const w of words) assert.ok(allowed.has(w), `${f.name}:${lineOf(f.text, m.index)}: the address is built from "${w}"`);
     }
-    assert.doesNotMatch(f.text, /location\.(hash|search|href)\s*=[^=]/, `${f.name}: sets the address directly`);
-    assert.doesNotMatch(f.text, /location\.assign|location\.replace\(/, `${f.name}: navigates by script`);
+    // A page may go to another page by its fixed file name, which carries nothing typed.
+    assert.doesNotMatch(f.text, /location\.(hash|search|href)\s*=(?!\s*'[a-z]+\.html';)[^=]/, `${f.name}: sets the address directly`);
+    assert.doesNotMatch(f.text, /location\.assign|location\.replace\((?!'[a-z]+\.html'\))/, `${f.name}: navigates by script`);
   }
   assert.ok(sites >= 6, 'the address-changing calls were found');
   // Ids are checked before they reach an address or a link.
@@ -323,7 +340,7 @@ test('assets: on the demo week the click-through allows only the skips that cann
   const demo = keys('DEMO_SKIPS');
   // The demo week holds every other case on purpose (docs/demo-week.md), so a skip for one
   // of them on the demo fails the step.
-  assert.deepEqual(demo, ['built-before-test', 'private-words-set', 'goal-list-set']);
+  assert.deepEqual(demo, ['built-before-test', 'already-set-up', 'no-settings', 'private-words-set', 'goal-list-set']);
   for (const id of demo) assert.ok(all.includes(id), `${id} is on the named list`);
   for (const id of ['no-inferred-author', 'no-script-prompt', 'no-moved-time', 'no-borrowed-time', 'no-crowded-marks', 'no-routine-note', 'no-strip-finding', 'no-problem-found']) assert.ok(all.includes(id) && !demo.includes(id), id);
   assert.match(ct, /const demoAllows = !env\.demo \|\| !!DEMO_SKIPS\[err\.id\];/);
