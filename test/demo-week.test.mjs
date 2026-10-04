@@ -299,7 +299,7 @@ test('the replay views work end to end on the demo week', async () => {
 test("the Markdown branch's own tests pass, so the renderer it commits matches what its logs print", () => {
   const env = { ...process.env };
   delete env.NODE_TEST_CONTEXT;
-  const r = spawnSync(process.execPath, ['--test', 'test/markdown.test.mjs'], { cwd: d.repo.worktrees.markdown, env, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, ['--test-reporter=tap', '--test', 'test/markdown.test.mjs'], { cwd: d.repo.worktrees.markdown, env, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /^# pass 12$/m);
   assert.match(r.stdout, /^# fail 0$/m);

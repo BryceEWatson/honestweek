@@ -78,7 +78,7 @@ The Problems page (`docs/local-page.md` describes it) runs its checks over the s
 - **Medium.** An unverified done claim (Saturday's "I've fixed it"), test tampering (Thursday's `test.skip`), and a destructive command (Friday's hard reset), each found once by rule. The destructive-command card also counts Wednesday's `rm -rf` of the session's own scratch folder as 1 routine note.
 - **Low.** The same file read three times (Saturday), a tool failing the same way twice, found twice (Saturday's two failed edits and Friday's Codex upload), the same failing command run again unchanged (Friday's Codex session), one whole-file read that added about 23,000 tokens (Thursday's CI log), a background sub-agent with no hand-back (Thursday), edits after a question-only prompt (Saturday), and a session whose last record is a call with no result (Friday morning), plus 1 routine note for Tuesday's group-by-scope session, cut off while a test run waited. Small sub-agents and one question answered by a bare go-ahead appear only as routine notes.
 
-8 of the 18 sessions the checks read have something worth a look; the other 10 are ordinary work, and the display-only session isn't checked. On Wednesday's replay, the "Worth a look" strip shows the context stretch as a band and the commit and the message that follows it as two High marks close enough to merge into a count.
+8 of the 18 sessions the checks read have something worth a look; the other 10 have nothing worth a look, and the display-only session isn't checked. On Wednesday's replay, the "Worth a look" strip shows the context stretch as a band and the commit and the message that follows it as two High marks close enough to merge into a count.
 
 ### The goal record
 
