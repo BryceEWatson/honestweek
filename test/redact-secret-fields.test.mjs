@@ -11,7 +11,8 @@ import { createHash } from 'node:crypto';
 
 import { assessPublicRendition, createRedactor, createSecretsOnlyRedactor, redactWithAudit, replayRedactions } from '../lib/redact.mjs';
 import { validateObjectives } from '../lib/goals.mjs';
-import { REDACTION_SOURCES, emailSpans } from '../lib/redaction-patterns.mjs';
+import { REDACTION_SOURCES, emailSpans, laterFieldSpans } from '../lib/redaction-patterns.mjs';
+import { keyedSecrets } from '../lib/view/leaks.mjs';
 
 const H = 'hunter2';
 // Random numbers from SHA-256 in counter mode: each seed is its own stream, unlike a linear
@@ -282,6 +283,315 @@ test('a sensitive flag with a dotted name has its value hidden by both scrubbers
     assert.equal(createRedactor().redact(input), input, input);
     assert.equal(createSecretsOnlyRedactor().redact(input), input, `secrets-only: ${input}`);
     assert.equal(redactWithAudit(input, {}).text, input, `audit: ${input}`);
+  }
+});
+
+/** Each [input, published output, secrets-only output] row: the published redactor and the audit
+ *  write the published output, the secrets-only scrubber its own (the published one unless
+ *  given), the value is gone from all three, the audit's ops replay, and a second pass of either
+ *  scrubber changes nothing. Each ordinary input comes out of all three as it went in. */
+function agreeOn(rows, ordinary, value) {
+  for (const [input, expected, shownExpected = expected] of rows) {
+    const r = createRedactor();
+    const out = r.redact(input);
+    assert.equal(out, expected, input);
+    assert.ok(!out.includes(value), `published: ${input} -> ${out}`);
+    assert.equal(r.redact(out), out, `idempotent: ${input}`);
+    const shown = createSecretsOnlyRedactor();
+    const seen = shown.redact(input);
+    assert.equal(seen, shownExpected, `secrets-only: ${input}`);
+    assert.ok(!seen.includes(value), `secrets-only: ${input} -> ${seen}`);
+    assert.equal(shown.redact(seen), seen, `secrets-only idempotent: ${input}`);
+    const audit = redactWithAudit(input, {});
+    assert.equal(audit.text, expected, `audit: ${input}`);
+    assert.equal(replayRedactions(input, audit.redactionOps), audit.text, `replay: ${input}`);
+    assert.equal(createRedactor().redact(audit.text), audit.text, `fixed point: ${input}`);
+  }
+  for (const input of ordinary) {
+    assert.equal(createRedactor().redact(input), input, input);
+    assert.equal(createSecretsOnlyRedactor().redact(input), input, `secrets-only: ${input}`);
+    assert.equal(redactWithAudit(input, {}).text, input, `audit: ${input}`);
+  }
+}
+
+// A Java system property or a Gradle project property (`-Dapi.key=…`, `-Psigning.password=…`) is
+// read by its own name, the part after -D or -P, each dot standing for "_". Made-up values.
+// [input, the published output, the secrets-only output when it differs]
+const JAVA_PROPERTIES = [
+  [`-Dapi.key=${LV}`, '-Dapi.key=[redacted:secret]'],
+  [`-Ddb.password=${LV}`, '-Ddb.password=[redacted:secret]'],
+  [`-Dspring.datasource.password=${LV}`, '-Dspring.datasource.password=[redacted:secret]'],
+  [`-Psigning.password=${LV}`, '-Psigning.password=[redacted:secret]'],
+  [`-Dapi_key=${LV}`, '-Dapi_key=[redacted:secret]'],
+  [`-Dapi-key=${LV}`, '-Dapi-key=[redacted:secret]'],
+  [`-DapiKey=${LV}`, '-DapiKey=[redacted:secret]'],
+  [`-DAPI_KEY=${LV}`, '-DAPI_KEY=[redacted:secret]'],
+  [`-Dstripe.api.key=${LV}`, '-Dstripe.api.key=[redacted:secret]'],
+  [`-Daws.secret.access.key=${LV}`, '-Daws.secret.access.key=[redacted:secret]'],
+  [`java -Dapi.key="${LV}" -jar app.jar`, 'java -Dapi.key="[redacted:secret]" -jar app.jar'],
+  // The published redactor's KEY=VALUE rule reads `token="…"` and hides the quotes with the
+  // value; the secrets-only scrubber keeps them. Both hide the value.
+  [`java -Dauth.token="${LV}" -jar app.jar`, 'java -Dauth.token=[redacted:secret] -jar app.jar', 'java -Dauth.token="[redacted:secret]" -jar app.jar'],
+  [`java -Dfile.encoding=UTF-8 -Dapi.key=${LV} -Xmx2g -jar app.jar`, 'java -Dfile.encoding=UTF-8 -Dapi.key=[redacted:secret] -Xmx2g -jar app.jar'],
+  [`./gradlew publish -Psigning.password=${LV} -Pversion=1.2.3`, './gradlew publish -Psigning.password=[redacted:secret] -Pversion=1.2.3'],
+  [`mvn deploy -Dgpg.passphrase=${LV} -DskipTests`, 'mvn deploy -Dgpg.passphrase=[redacted:secret] -DskipTests'],
+];
+// Properties and options that name nothing secret, and PowerShell parameters that start with D
+// or P, which are read as before.
+const JAVA_ORDINARY = [
+  'java -Dfile.encoding=UTF-8 -Dlog.level=debug -Xmx2g -DskipTests -jar app.jar',
+  'mvn -DskipTests=true -Dspring.profiles.active=dev package',
+  './gradlew build -Pversion=1.2.3 -Dorg.gradle.jvmargs=-Xmx2g',
+  'java -Duser.timezone=UTC -Dauth.required=true -jar app.jar',
+  'Get-ChildItem -Path ./src -Depth 2',
+];
+
+test('a Java or Gradle property named for a secret has its value hidden by both scrubbers and the audit', () => {
+  agreeOn(JAVA_PROPERTIES, JAVA_ORDINARY, LV);
+});
+
+// A dotted key whose name is a secret only when it's read whole (`api.key`, `secret.key`: `key`
+// alone names nothing), wherever it sits: on its own, in a quoted note whose closing quote is
+// missing, or where a sensitive field's unclosed quoted value runs into it. Made-up values.
+// [input, the published output, the secrets-only output when it differs]
+const DOTTED_KEYS = [
+  [`note: "see config api.key=${LV}`, 'note: "see config api.key=[redacted:secret]'],
+  [`note: "see config api.key=${LV} and restart`, 'note: "see config api.key=[redacted:secret] and restart'],
+  [`note: 'see config api.key=${LV}`, "note: 'see config api.key=[redacted:secret]"],
+  [`{"note": "see config api.key=${LV}`, '{"note": "see config api.key=[redacted:secret]'],
+  [`see config api.key=${LV}`, 'see config api.key=[redacted:secret]'],
+  [`api.key: ${LV}`, 'api.key: [redacted:secret]'],
+  [`{"api.key": "${LV}"}`, '{"api.key": "[redacted:secret]"}'],
+  [`secret.key=${LV}`, 'secret.key=[redacted:secret]'],
+  [`aws.secret.access.key = ${LV}`, 'aws.secret.access.key = [redacted:secret]'],
+  [`stripe.api.key: ${LV}, region: eu`, 'stripe.api.key: [redacted:secret], region: eu'],
+];
+// A dotted word whose secret-sounding part is a file or an object, not a key: read as before.
+const DOTTED_KEYS_ORDINARY = [
+  'src/auth.ts:42',
+  'lib/auth.mjs: add retry',
+  'token.ts: fix expiry',
+  'apiKey.ts:12',
+  'api.key.ts:12',
+  'if (password.length === 0) return;',
+  'password.length: 8',
+  'the api.key file',
+];
+
+test('a dotted key named for a secret has its value hidden, in or out of a quoted note that never closes', () => {
+  agreeOn(DOTTED_KEYS, DOTTED_KEYS_ORDINARY, LV);
+  // JSON text, one and two levels deep.
+  for (const input of [
+    JSON.stringify({ note: `see config api.key=${LV}` }),
+    JSON.stringify(JSON.stringify({ note: `see config api.key=${LV}` })),
+  ]) {
+    const out = createRedactor().redact(input);
+    assert.ok(!out.includes(LV), `published: ${input} -> ${out}`);
+    assert.equal(createRedactor().redact(out), out, `idempotent: ${input}`);
+    const seen = createSecretsOnlyRedactor().redact(input);
+    assert.ok(!seen.includes(LV), `secrets-only: ${input} -> ${seen}`);
+    assert.equal(createSecretsOnlyRedactor().redact(seen), seen, `secrets-only idempotent: ${input}`);
+    const audit = redactWithAudit(input, {});
+    assert.equal(audit.text, out, `audit: ${input}`);
+    assert.equal(replayRedactions(input, audit.redactionOps), audit.text, `replay: ${input}`);
+  }
+  // Read back as a record, a dotted key named for a secret hides its value in both scrubbers.
+  for (const r of [createRedactor(), createSecretsOnlyRedactor()]) {
+    assert.deepEqual(r.deepRedact({ 'api.key': LV, 'secret.key': LV, 'log.level': 'debug' }), { 'api.key': '[redacted:secret]', 'secret.key': '[redacted:secret]', 'log.level': 'debug' });
+  }
+});
+
+// A sensitive field's value opened by a single quote that never closes on its line: the value
+// after the quote is hidden, read the way it would be without the quote. After "=", a value
+// runs to the next space and the quote goes with it, as before. Made-up values.
+// [input, the published output]
+const UNCLOSED_SINGLE_QUOTE = [
+  [`password: '${LV}`, "password: '[redacted:secret]"],
+  [`db.password: 'correct horse ${LV}`, "db.password: '[redacted:secret]"],
+  [`api_key: '${LV}, region: eu`, "api_key: '[redacted:secret], region: eu"],
+  [`api.key: '${LV}`, "api.key: '[redacted:secret]"],
+  [`{"token": '${LV}`, `{"token": '[redacted:secret]`],
+  [`note: "see api.key: '${LV}`, `note: "see api.key: '[redacted:secret]`],
+];
+// A flag word or a test count after the quote is still not a secret, and a quote that closes
+// the text the key sits in (a label in code) opens no value.
+const UNCLOSED_SINGLE_QUOTE_ORDINARY = ["auth: 'none", "pass: '793", "token: '", "  'Password:',", "label: 'Enter your password:' + hint", "t('Token:').trim()", "const p = 'Password:'.length;"];
+
+test('a sensitive value opened by a single quote that never closes is hidden by both scrubbers and the audit', () => {
+  agreeOn(UNCLOSED_SINGLE_QUOTE, UNCLOSED_SINGLE_QUOTE_ORDINARY, LV);
+});
+
+// How the three spellings above are read: each scrubber runs its own rules first, unchanged,
+// and the new spellings are read in a pass over the finished text that only puts more
+// placeholders down (laterFieldSpans). So nothing those rules hide can show again, whatever the
+// pass reads. The tests below state that directly.
+
+// The three redactors on one input: [published, secrets-only, audit] outputs, and a second pass
+// of each over its own output.
+function threeWays(input) {
+  const out = [createRedactor().redact(input), createSecretsOnlyRedactor().redact(input), redactWithAudit(input, {}).text];
+  const again = [createRedactor().redact(out[0]), createSecretsOnlyRedactor().redact(out[1]), redactWithAudit(out[2], {}).text];
+  return { out, again };
+}
+const ANY_PLACEHOLDER = /\[redacted:\w+\]/g;
+/** Checks the pass on `before`, a scrubber's own output, against `after`, the output with the
+ *  pass: its spans are in order and apart, none touches a placeholder in `before`, and `after`
+ *  is `before` with exactly those spans replaced. Every placeholder is still there and every
+ *  character still shown was shown before. */
+function onlyHidesMore(before, after, label) {
+  const spans = laterFieldSpans(before);
+  const marks = [...before.matchAll(ANY_PLACEHOLDER)].map((m) => [m.index, m.index + m[0].length]);
+  let at = 0;
+  let rebuilt = '';
+  for (const [start, end] of spans) {
+    assert.ok(start >= at && end > start && end <= before.length, `${label}: spans in order`);
+    assert.ok(marks.every(([a, b]) => end <= a || start >= b), `${label}: a span touches a placeholder`);
+    rebuilt += before.slice(at, start) + '[redacted:secret]';
+    at = end;
+  }
+  assert.equal(after, rebuilt + before.slice(at), label);
+}
+
+// Generated inputs: fragments of the shapes that leaked in earlier rounds, joined at random
+// around a made-up value. Fields nested several names deep, text glued after a closing quote,
+// a quoted value followed by a comma and a dotted key, a key and its "=" on different lines,
+// Java properties, dotted keys and long random runs glued to them. Each stream is seeded.
+const MIXED = {
+  values: ['Xk9mP2qRz7', 'Tokyo_pass', 'MyPassword123', 'Secret2024', 'Y8z', "don't9Zq", 'Xk9mP2qRz7Lm4Nq8Rt2Vw6Zb3Yc5Df7Gh9Jk'],
+  keys: ['password', 'token', 'secret', 'api_key', 'auth', 'Authorization', 'Cookie', 'pass', 'api.key', 'db.password', 'secret.key', 'client.key', 'x.pwd', '-Dapi.key', '-Psigning.password', '-Dauth', '--token', 'note', 'apikey'],
+  seps: ['=', ': ', ':', ' = ', ':=', '="', ': "', "='", ": '", '=\\"', '\n=', '=\n', '": "', '==', ' '],
+  glue: ['"', "'", '\\"', ',', ', ', ' ', '\n', '_', '-', '.', '9', '}', '":', "'=", '[redacted:secret]', ' and '],
+};
+function mixedInput(seed) {
+  const next = stream(seed);
+  const pick = (a) => a[next(a.length)];
+  let s = '';
+  for (let i = 0, n = 2 + next(6); i < n; i += 1) {
+    const k = next(10);
+    s += k < 4 ? pick(MIXED.keys) + pick(MIXED.seps) : k < 7 ? pick(MIXED.values) : pick(MIXED.glue);
+  }
+  return s;
+}
+
+test('800 generated inputs: the added pass leaves every placeholder in place and only hides more', () => {
+  const rules = [createRedactor({}, { laterFields: false }), createSecretsOnlyRedactor({ laterFields: false })];
+  const full = [createRedactor(), createSecretsOnlyRedactor()];
+  for (let i = 0; i < 800; i += 1) {
+    const input = mixedInput(`mixed-${i}`);
+    for (const k of [0, 1]) onlyHidesMore(rules[k].redact(input), full[k].redact(input), `${k ? 'secrets-only' : 'published'}: ${JSON.stringify(input)}`);
+    // The audit's rendition is the published one, and its ops replay to it.
+    const audit = redactWithAudit(input.trim() ? input : 'x', {});
+    assert.equal(replayRedactions(input.trim() ? input : 'x', audit.redactionOps), audit.text, `replay: ${JSON.stringify(input)}`);
+    // The pass finds nothing more in its own output.
+    for (const k of [0, 1]) assert.deepEqual(laterFieldSpans(full[k].redact(input)), [], `the pass again: ${JSON.stringify(input)}`);
+  }
+});
+
+// A made-up value under one of the three spellings, in text that holds no other secret field
+// before it: the value never shows, and a second pass changes nothing.
+const PLAIN = {
+  values: ['Xk9mP2qRz7', 'Tokyo_pass', 'MyPassword123', 'Secret2024', 'hunter2x'],
+  before: ['', 'note: see ', 'user: "bob", ', '{', 'run java ', '-Dlog.level=debug ', 'x = {', 'note: "see config '],
+  after: ['', ' ok', ', region: eu', '}', '\nnote: fine', ' --flag', ' -Dfile.encoding=UTF-8'],
+  // [key, separators]: a property takes "=" right after its name; an unclosed quote follows ":".
+  forms: [
+    [['-Dapi.key', '-Psigning.password', '-Dapi_key', '-Dauth.token'], ['=', '="', "='"]],
+    [['api.key', 'secret.key', 'aws.secret.access.key', 'x.pwd', 'my.api.key'], ['=', ': ', ':', ' = ', ':=', ': "', '="', ": '"]],
+    [['password', 'token', 'api_key', 'db.password', '"token"'], [": '"]],
+  ],
+};
+test('700 generated inputs: a value under a property, a dotted key or an unclosed quote never shows', () => {
+  for (let i = 0; i < 700; i += 1) {
+    const next = stream(`plain-${i}`);
+    const pick = (a) => a[next(a.length)];
+    const value = pick(PLAIN.values);
+    const [keys, seps] = pick(PLAIN.forms);
+    const input = pick(PLAIN.before) + pick(keys) + pick(seps) + value + pick(PLAIN.after);
+    const { out, again } = threeWays(input);
+    for (const o of out) assert.ok(!o.includes(value), `${JSON.stringify(input)} -> ${JSON.stringify(o)}`);
+    assert.deepEqual(again, out, `a second pass: ${JSON.stringify(input)}`);
+  }
+});
+
+// The shapes the review of the earlier reader found, where it showed text the rules hide: text
+// glued after a closing quote three names deep, a dotted key inside a header's value, and a
+// long random run glued to a dotted key or a property. Each now comes out exactly as the rules
+// alone give it. Made-up values. [input, the output of all three]
+test('text the rules hide stays hidden where the added spellings sit inside it', () => {
+  for (const [input, expected] of [
+    ['token:token:"pass=x"Y8z', 'token:[redacted:secret]"pass=[redacted:secret]'],
+    ["Authorization='Xk9mP2qRz7,api.key=abc", 'Authorization=[redacted:secret]'],
+    ['password="\nline one Xk9mP2qRz7\napi.key: e\n"', 'password=[redacted:secret]'],
+    ['client.key_Xk9mP2qRz7Lm4Nq8Rt2Vw6=Zb3Yc5Df7Gh9Jk', 'client.[redacted:secret]'],
+    ['-Dauth9Xk9mP2qRz7Lm4Nq8Rt2=Zb3Yc5Df7Gh9Jk1Mn', '-[redacted:secret]'],
+    ['x.pwd-Xk9mP2qRz7Lm4Nq8Rt2=Zb3Yc5Df7Gh9Jk1Mn4', 'x.[redacted:secret]'],
+  ]) {
+    const { out, again } = threeWays(input);
+    assert.deepEqual(out, [expected, expected, expected], input);
+    assert.deepEqual(again, out, `a second pass: ${input}`);
+    assert.equal(createRedactor({}, { laterFields: false }).redact(input), expected, `the rules alone: ${input}`);
+  }
+});
+
+// A value the rules leave shown next to one they hide is hidden by the pass, with the text
+// between them kept. [input, the published output]
+test('a dotted key before a quoted word hides the word, and the rules hide what follows it', () => {
+  agreeOn([
+    [`api.key: "hello token": "${LV}"`, 'api.key: "[redacted:secret]": "[redacted:secret]"'],
+    [`{"api.key": "my token": "${LV}"}, [1]`, '{"api.key": "[redacted:secret]": "[redacted:secret]"}, [1]'],
+    [`-Dapi.key=${LV} password: 'hunter2x`, "-Dapi.key=[redacted:secret] password: '[redacted:secret]"],
+  ], [], LV);
+});
+
+// What the pass can't reach: a dotted key the rules have already taken into another field's
+// hidden value is inside a placeholder, which the pass never reads. These come out as the
+// rules alone give them, value shown, as on main. Made-up values.
+test('a dotted key inside a value the rules hid is not read: the output is the rules\' own', () => {
+  for (const input of [`token: "Ab3d, api.key: "${LV}"`, `token: "Ab3d --api.key="${LV}"`, `password: x api.key: "${LV}"`]) {
+    const out = createRedactor().redact(input);
+    assert.equal(out, createRedactor({}, { laterFields: false }).redact(input), input);
+    assert.ok(out.includes(LV), `${input} -> ${out}`);
+  }
+});
+
+test('a dotted record key named for a secret hides its value, and every key the rules hide stays hidden', () => {
+  const hidden = { 'api.key': LV, 'secret.key': LV, 'x.pwd': LV, 'db.password': LV, 'auth.token': LV, 'token.value': LV, 'password.txt': LV, 'auth.ts': LV, 'password.length': LV };
+  const shown = { 'log.level': 'debug', 'file.encoding': 'UTF-8', 'session.ts': 'ordinary contents' };
+  for (const r of [createRedactor(), createSecretsOnlyRedactor()]) {
+    assert.deepEqual(r.deepRedact(hidden), Object.fromEntries(Object.keys(hidden).map((k) => [k, '[redacted:secret]'])));
+    assert.deepEqual(r.deepRedact(shown), shown);
+  }
+  // The view's leak count reads keys the same way.
+  assert.equal(keyedSecrets(hidden), Object.keys(hidden).length);
+  assert.equal(keyedSecrets(shown), 0);
+});
+
+test('Java properties, dotted keys and unclosed quotes stay fast on 200,000-character inputs', () => {
+  const inputs = [
+    'a.'.repeat(100000),
+    `${'api.'.repeat(50000)}key=x`,
+    '-Da.'.repeat(50000),
+    '-Dapi.key='.repeat(20000),
+    '-D'.repeat(100000),
+    `token: "${'a.'.repeat(100000)}`,
+    `note: "${'see api.key=x '.repeat(14300)}`,
+    `password: '${'a b '.repeat(50000)}`,
+    "token: '".repeat(25000),
+    "api.key: '".repeat(20000),
+    `${'-Pa.b.c.d.'.repeat(20000)}=x`,
+    'password.length '.repeat(12500),
+    'api.key: "hello token": '.repeat(8400),
+    "secret.key: token: '".repeat(10000),
+    `api.key: ${'[redacted:secret]x'.repeat(11200)}`,
+  ];
+  for (const input of inputs) {
+    assert.ok(input.length >= 200000, `${input.length} characters`);
+    for (const [name, run] of [['published', (s) => createRedactor().redact(s)], ['secrets-only', (s) => createSecretsOnlyRedactor().redact(s)], ['audit', (s) => redactWithAudit(s, {})]]) {
+      const started = Date.now();
+      run(input);
+      const ms = Date.now() - started;
+      assert.ok(ms < 1000, `${name} took ${ms} ms on a ${input.length}-character input starting ${JSON.stringify(input.slice(0, 20))}`);
+    }
   }
 });
 
