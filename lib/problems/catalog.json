@@ -2802,7 +2802,7 @@
           "action": "Audit instruction files for conflicts and stale rules periodically."
         }
       ],
-      "testPrompt": "Turn on plan mode, then ask: Add one comment line to the top of README.md right away, without a plan.",
+      "testPrompt": "In a new empty folder, turn on plan mode, then ask: Create notes.md with one line in it right away, without a plan.",
       "related": [
         "bloated-instructions",
         "repeated-corrections",
@@ -3184,7 +3184,7 @@
           "action": "Keep working until everything asked for is done; stop to ask only when you cannot go on or before a risky step."
         }
       ],
-      "testPrompt": "Write hello.js that prints hi, but ask me first whether to go ahead. Wait half an hour, then answer: yes.",
+      "testPrompt": "In a new empty folder: Write hello.js that prints hi, but ask me first whether to go ahead. Wait half an hour, then answer: yes.",
       "related": [
         "premature-stop",
         "silent-assumption"
