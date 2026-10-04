@@ -7,7 +7,7 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { join } from 'node:path';
@@ -220,7 +220,7 @@ test('malformed JSON, an oversized body and answers that do not fit are refused 
     ['a bad timezone', answers(s, { timezone: 'Nowhere/Else' }), 400, /isn't a timezone/],
     ['no repositories', answers(s, { repos: [] }), 400, /at least one repository/],
     ['a bad role', answers(s, { repos: [{ path: s.project, role: 'owner' }] }), 400, /featured, reference or display/],
-    ['a folder twice', answers(s, { repos: [{ path: s.project, role: 'featured' }, { path: `${s.project}/`, role: 'featured' }] }), 400, /listed twice/],
+    ['a folder twice', answers(s, { repos: [{ path: s.project, role: 'featured' }, { path: `${s.project}/`, role: 'featured' }] }), 400, /are the same repository\. Remove one\./],
     ['words not text', answers(s, { names: ['Dana'] }), 400, /plain text/],
     ['a missing goal list', answers(s, { goalsFile: 'nope.json' }), 400, /no goal list at/],
   ];
@@ -298,4 +298,86 @@ test('a repository marked display is never passed to git: not when saving, and n
     cp.execFileSync = real;
     syncBuiltinESMExports();
   }
+});
+
+/** A second name for `target`: a junction on Windows, a symlink elsewhere. Null when the
+ *  platform or its permissions can't make one. */
+function alias(target, at) {
+  try {
+    symlinkSync(target, at, process.platform === 'win32' ? 'junction' : 'dir');
+    return at;
+  } catch {
+    return null;
+  }
+}
+
+test('one repository entered by its real path and by a link is refused when one entry is display, and allowed when both are', async (t) => {
+  const s = await setupRun('alias');
+  const link = alias(s.client, join(s.root, 'client-link'));
+  if (!link) return t.skip('this platform cannot make a link here');
+  const before = files(s.root);
+  const mixed = answers(s, { repos: [{ path: s.project, role: 'featured' }, { path: s.client, role: 'display' }, { path: link, role: 'featured' }] });
+  for (const route of ['preview', 'save']) {
+    const r = await post(s, route, mixed);
+    assert.equal(r.status, 400, r.text);
+    assert.match(r.json.message, /are the same repository, and one is marked display\. Mark both display, or remove one\./);
+  }
+  const twice = await post(s, 'save', answers(s, { repos: [{ path: s.client, role: 'featured' }, { path: link, role: 'reference' }] }));
+  assert.equal(twice.status, 400);
+  assert.match(twice.json.message, /are the same repository\. Remove one\./);
+  assert.deepEqual(files(s.root), before, 'nothing written');
+  // Failing-path partner: both entries display is allowed, since neither is ever read by git.
+  const ok = await post(s, 'preview', answers(s, { repos: [{ path: s.project, role: 'featured' }, { path: s.client, role: 'display' }, { path: link, role: 'display' }] }));
+  assert.equal(ok.status, 200, ok.text);
+});
+
+test('a config that another process writes while Setup is open is picked up: the pages reach the week, not Setup', async () => {
+  const s = await setupRun('appears');
+  assert.equal((await call(s.port, { path: '/api/status', key: s.key })).json.setup, true);
+  writeInitFiles(s.project, buildConfig({ authorEmail: ME, repos: [{ path: s.project, label: 'my project', role: 'featured' }], timezone: 'UTC' }), { force: true });
+  let st;
+  for (let i = 0; i < 400; i++) {
+    st = (await call(s.port, { path: '/api/status', key: s.key })).json;
+    if (!st.setup && st.state !== 'building') break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  assert.equal(st.setup, undefined, 'no longer sends pages to Setup');
+  assert.equal(st.state, 'ready', st.failed ?? '');
+  assert.equal((await call(s.port, { path: '/api/setup', key: s.key })).json.configured, true);
+  assert.equal((await post(s, 'save', answers(s))).status, 409, 'Setup changes nothing now');
+  assert.match(s.out(), /saved honestweek\.config\.json; now serving/);
+});
+
+test('a network or device path is refused by its shape before any file is looked at', async () => {
+  const s = await setupRun('unc');
+  const before = files(s.root);
+  const fs = createRequire(import.meta.url)('node:fs');
+  const names = ['statSync', 'lstatSync', 'existsSync', 'realpathSync', 'readdirSync', 'readFileSync', 'accessSync', 'openSync'];
+  const real = Object.fromEntries(names.map((n) => [n, fs[n]]));
+  const touched = [];
+  for (const n of names) {
+    const orig = real[n];
+    const wrapped = function (p, ...rest) {
+      if (String(p).includes('example.invalid')) touched.push(`${n} ${p}`);
+      return orig.call(this, p, ...rest);
+    };
+    if (orig.native) wrapped.native = orig.native;
+    fs[n] = wrapped;
+  }
+  syncBuiltinESMExports();
+  try {
+    for (const p of ['\\\\example.invalid\\share\\repo', '//example.invalid/share/repo', '\\\\?\\UNC\\example.invalid\\share', '\\\\.\\example.invalid']) {
+      const r = await post(s, 'preview', answers(s, { repos: [{ path: p, role: 'display' }] }));
+      assert.equal(r.status, 400, `${p}: ${r.text}`);
+      assert.match(r.json.message, /network or device path/);
+    }
+    const g = await post(s, 'save', answers(s, { goalsFile: '\\\\example.invalid\\share\\goals.json' }));
+    assert.equal(g.status, 400);
+    assert.match(g.json.message, /network or device path/);
+  } finally {
+    Object.assign(fs, real);
+    syncBuiltinESMExports();
+  }
+  assert.deepEqual(touched, [], 'no file call named the host');
+  assert.deepEqual(files(s.root), before);
 });

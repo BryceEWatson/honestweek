@@ -759,3 +759,4 @@ details.fold > summary h2 { display: inline; margin: 0; }
 details.fold > summary::before { content: "+ "; color: var(--muted); }
 details.fold[open] > summary::before { content: "- "; }
 .changes { margin: 0 0 12px; padding-left: 20px; }
+.fine.partial { color: var(--medium); }

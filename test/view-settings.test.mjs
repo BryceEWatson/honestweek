@@ -8,7 +8,7 @@
 
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, rmSync, truncateSync, utimesSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { dirname, join } from 'node:path';
@@ -132,7 +132,7 @@ test('all history loads the newest days first up to the limit, and says which da
   assert.equal(all.asked, day(-300));
   assert.equal(all.from, day(-39), 'from the day after the newest one left out');
   assert.equal(all.capped, true);
-  assert.match(all.note, new RegExp(`^Loaded ${day(-39)} to ${WEEK.to}: the newest 0 MB of logs\\. Older days, back to ${day(-300)}, aren't loaded\\.$`));
+  assert.match(all.note, new RegExp(`^Loaded ${day(-39)} to ${WEEK.to}: the newest 1 MB of logs\\. Older days, back to ${day(-300)}, aren't loaded\\.$`));
   // Failing-path partner: with room for everything, it reaches the oldest log and says nothing.
   const room = planWindow({ all: true }, { files, timezone: 'UTC', now: NOW, maxBytes: 10000 });
   assert.deepEqual([room.from, room.capped, room.note], [day(-300), false, null]);
@@ -168,7 +168,10 @@ test('Settings rewrites only what was changed: everything else stays byte for by
   const changed = { ...base, history: { days: 30 }, repos: base.repos.map((r, i) => (i === 1 ? { ...r, role: 'reference' } : r)) };
   const prev = await post(s, 'preview', changed);
   assert.equal(prev.status, 200, prev.text);
-  assert.deepEqual(prev.json.changes, ['How far back: the last 7 days to the last 30 days.', `${cfg.repos[1].label}: ${cfg.repos[1].role} to reference.`]);
+  assert.deepEqual(prev.json.changes.slice(0, 1), ['How far back: the last 7 days to the last 30 days.']);
+  assert.match(prev.json.changes[1], /^Loads \d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2} \(\d+ MB\)\.$/, 'a new window says which days it loads');
+  assert.match(prev.json.changes[2], /^Estimate: about .* of memory; about .* with Show private text on\.$/);
+  assert.equal(prev.json.changes[3], `${cfg.repos[1].label}: ${cfg.repos[1].role} to reference.`);
   const saved = await post(s, 'save', changed);
   assert.equal(saved.status, 200, saved.text);
   assert.equal(saved.json.saved, true);
@@ -298,4 +301,102 @@ test('a repository switched to display stops being read by git at once, and the 
     cp.execFileSync = real;
     syncBuiltinESMExports();
   }
+});
+
+// ---- the second round: ranges, the limit, the line that says which days, the file's own layout --
+
+/** A log file of `mb` MB (sparse, so it's quick to make), last written `daysAgo` days back. */
+function bigLog(name, mb, daysAgo) {
+  const dir = join(w.roots.claude[0], 'big-project');
+  mkdirSync(dir, { recursive: true });
+  const f = join(dir, `${name}.jsonl`);
+  writeFileSync(f, '');
+  truncateSync(f, mb * 1024 * 1024);
+  const t = new Date(NOW - daysAgo * 86400000);
+  utimesSync(f, t, t);
+}
+
+test('the page asks which days a choice loads: a cut-short choice says partial, and the logs line names how far back they go', async () => {
+  bigLog('sixty', 60, 20);
+  const s = await view(project('lines'));
+  const ask = async (q) => (await call(s.port, { path: `/api/window?${q}`, key: s.key })).json;
+  const week = await ask('kind=week');
+  assert.equal(week.capped, false);
+  assert.match(week.line, new RegExp(`^Loads ${day(-6)} to ${WEEK.to} \\(\\d+ MB\\)\\.$`));
+  const cut = await ask('kind=days&days=30&limit=50');
+  assert.equal(cut.capped, true);
+  assert.equal(cut.from, day(-19), 'from the day after the 60 MB day, which is left out');
+  assert.match(cut.line, new RegExp(`^Loads ${day(-19)} to ${WEEK.to}: partial, the newest 50 MB\\. Back to ${day(-29)} isn't loaded\\.$`));
+  const range = await ask(`kind=range&from=${day(-25)}&to=${day(-10)}&limit=50`);
+  assert.equal(range.to, day(-10), 'a range in the past ends on its own last day');
+  assert.equal(range.capped, true);
+  assert.match(range.line, /partial/);
+  // Failing path: a choice that doesn't fit is refused, and the query holds no private text.
+  assert.equal((await call(s.port, { path: `/api/window?kind=range&from=${day(-1)}&to=${day(-9)}`, key: s.key })).status, 400);
+  assert.equal((await call(s.port, { path: '/api/window?kind=week&limit=5', key: s.key })).status, 400);
+  assert.equal((await call(s.port, { path: '/api/window?kind=week', key: 'f'.repeat(64) })).status, 403);
+  // How far back the logs go, and roughly how much each span holds, from file sizes alone.
+  const logs = (await call(s.port, { path: '/api/settings', key: s.key })).json.logs;
+  assert.equal(logs.latest >= day(-1), true);
+  assert.equal(logs.earliest <= day(-20), true);
+  assert.deepEqual(logs.spans.map((x) => x.label), ['Last week', 'Last 30 days', 'Last 90 days', 'Last year', 'All']);
+  assert.match(logs.spans[1].size, /^6\d MB$/, 'the 60 MB file counts in the last 30 days');
+  assert.doesNotMatch(logs.spans[0].size, /^6\d MB$/, 'and not in the last week');
+  rmSync(join(w.roots.claude[0], 'big-project'), { recursive: true, force: true });
+});
+
+test('a range in the past is saved, read by the next run, and a reversed one is refused with nothing written', async () => {
+  const saved = await view(project('range', baseConfig({ history: { from: day(-15), to: day(-10) } })));
+  assert.deepEqual(saved.handle.window, { from: day(-15), to: day(-10), timezone: 'UTC' });
+  const dir = project('range-edit');
+  const s = await view(dir);
+  const base = await untouched(s);
+  const before = readFileSync(join(dir, 'honestweek.config.json'), 'utf8');
+  const bad = await post(s, 'save', { ...base, history: { from: day(-1), to: day(-9) } });
+  assert.equal(bad.status, 400);
+  assert.equal(readFileSync(join(dir, 'honestweek.config.json'), 'utf8'), before);
+  const ok = await post(s, 'save', { ...base, history: { from: day(-9), to: day(-1) } });
+  assert.equal(ok.status, 200, ok.text);
+  assert.equal(ok.json.changes[0], `How far back: the last 7 days to ${day(-9)} to ${day(-1)}.`);
+  assert.equal((await ready(s)).window.to, day(-1));
+});
+
+test('the log limit can be raised in Settings: the change shows an estimate before saving, and a bad one writes nothing', async () => {
+  const dir = project('limit');
+  const s = await view(dir);
+  const base = await untouched(s);
+  const before = readFileSync(join(dir, 'honestweek.config.json'), 'utf8');
+  for (const v of [10, 1.5, 999999, '600']) {
+    const r = await post(s, 'save', { ...base, historyLimitMB: v });
+    assert.equal(r.status, 400, `${v}: ${r.text}`);
+    assert.match(r.json.message, /historyLimitMB/);
+  }
+  assert.equal(readFileSync(join(dir, 'honestweek.config.json'), 'utf8'), before);
+  const prev = await post(s, 'preview', { ...base, historyLimitMB: 2000 });
+  assert.equal(prev.status, 200, prev.text);
+  assert.equal(prev.json.changes[0], 'Log limit: 500 MB to 2000 MB.');
+  assert.match(prev.json.changes[2], /^Estimate: about .+ of memory; about .+ with Show private text on\.$/);
+  assert.equal(readFileSync(join(dir, 'honestweek.config.json'), 'utf8'), before, 'preview writes nothing');
+  assert.equal((await post(s, 'save', { ...base, historyLimitMB: 2000 })).status, 200);
+  assert.equal(JSON.parse(readFileSync(join(dir, 'honestweek.config.json'), 'utf8')).historyLimitMB, 2000);
+  assert.equal((await call(s.port, { path: '/api/settings', key: s.key })).json.historyLimitMB, 2000);
+});
+
+test('Settings keeps the file as it was written: a 4-space indent and Windows line endings stay', async () => {
+  const cfg = baseConfig();
+  const dir = join(scratch, 'layout');
+  mkdirSync(dir, { recursive: true });
+  const crlf = (o, ind) => `${JSON.stringify(o, null, ind).replace(/\n/g, '\r\n')}\r\n`;
+  writeFileSync(join(dir, 'honestweek.config.json'), crlf(cfg, 4));
+  const s = await view(dir);
+  const r = await post(s, 'save', { ...(await untouched(s)), history: { days: 30 } });
+  assert.equal(r.status, 200, r.text);
+  assert.equal(readFileSync(join(dir, 'honestweek.config.json'), 'utf8'), crlf({ ...cfg, history: { days: 30 } }, 4));
+  // Failing-path partner: a tab-indented file with plain line endings keeps those instead.
+  const tab = join(scratch, 'layout-tab');
+  mkdirSync(tab, { recursive: true });
+  writeFileSync(join(tab, 'honestweek.config.json'), `${JSON.stringify(cfg, null, '\t')}\n`);
+  const t = await view(tab);
+  assert.equal((await post(t, 'save', { ...(await untouched(t)), history: { days: 30 } })).status, 200);
+  assert.equal(readFileSync(join(tab, 'honestweek.config.json'), 'utf8'), `${JSON.stringify({ ...cfg, history: { days: 30 } }, null, '\t')}\n`);
 });

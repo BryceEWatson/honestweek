@@ -24,12 +24,20 @@
           <option value="week">Last week</option>
           <option value="days">Last … days</option>
           <option value="from">From a date</option>
+          <option value="range">Between dates</option>
           <option value="all">All history</option>
         </select>
         <input id="histDays" type="number" min="1" max="3660" value="30" autocomplete="off" aria-label="Days" hidden>
         <input id="histFrom" type="date" autocomplete="off" aria-label="From" hidden>
+        <input id="histTo" type="date" autocomplete="off" aria-label="To" hidden>
       </div>
       <p class="fine" id="histLine" hidden></p>
+      <p class="fine muted" id="logsLine"></p>
+      <div class="setup-inline">
+        <label for="histLimit">Log limit (MB)</label>
+        <input id="histLimit" type="number" min="50" max="20000" step="50" autocomplete="off">
+      </div>
+      <p class="fine" id="histEstimate" hidden></p>
     </section>
     <section class="setup-part" aria-labelledby="reposH">
       <h2 id="reposH">Repositories <span id="rolesHelp"></span></h2>
