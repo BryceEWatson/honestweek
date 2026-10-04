@@ -189,7 +189,7 @@ test('deriveProjectStats counts session-active days for a project that carries a
 });
 
 test('deriveProjectStats counts session-active days for a REPO-LESS (repo:null) display project — issue #47', () => {
-  // The genuine display-role / session-only case the your-site.example consumer hit: the project carries
+  // The genuine display-role / session-only case the first real site consumer (your-site.example) hit: the project carries
   // NO repo (repo:null), so #45's sessionDays(_repo=null) returned 0 -> "N sessions / 0 active days". The
   // fix falls back to the STATS KEY (the project name 'Fernway') — the same key the session bundle buckets
   // under (byProject) and that the consumer joins sessionsThisWeek by. Sessions on EXACTLY 2 distinct
@@ -226,7 +226,7 @@ test('deriveProjectStats counts session-active days for a REPO-LESS (repo:null) 
 test('cross-cwd generalized group: daysActive + session total floor at entry-days, not the cwd-only count (Fernway-shaped)', () => {
   // The live your-site.example Fernway defect. A repo-less generalized project had:
   //   - a session in its OWN cwd on Jul 1 -> the cwd bundle buckets 1 session under 'Fernway' on 1 day;
-  //   - a Jul 2 session run from ANOTHER project's cwd ('Command'), curated here BY CONTENT.
+  //   - a Jul 2 session run from ANOTHER project's cwd ('Quarry'), curated here BY CONTENT.
   // So its curated entries span 2 days (Jul 1 + Jul 2) while the cwd bundle sees 1 session / 1 day, and
   // the header rendered "1 session · active 1/7 days" above 2 rows dated on 2 days. The fix floors BOTH
   // the active-day count AND the generalized session total at the distinct entry-day count.
@@ -240,16 +240,16 @@ test('cross-cwd generalized group: daysActive + session total floor at entry-day
   const sessions = {
     total: 4,
     interactiveTotal: 4, // == sum(projectTotals) BEFORE reconciliation (a strict partition)
-    projectTotals: { Fernway: 1, Command: 3 },
+    projectTotals: { Fernway: 1, Quarry: 3 },
     days: [
       { date: '2026-07-01', byProject: { Fernway: 1 } }, // Fernway's own-cwd session
-      { date: '2026-07-02', byProject: { Command: 1 } }, // the cross-cwd session -> bucketed under Command, NOT Fernway
+      { date: '2026-07-02', byProject: { Quarry: 1 } }, // the cross-cwd session -> bucketed under Quarry, NOT Fernway
     ],
   };
   const richItems = [
     { project: 'Fernway', repo: null, status: 'in progress', date: '2026-07-01' },
     { project: 'Fernway', repo: null, status: 'in progress', date: '2026-07-02' }, // the cross-cwd work, curated to Fernway
-    { project: 'Command', repo: 'Command', status: 'shipped', date: '2026-07-02' },
+    { project: 'Quarry', repo: 'Quarry', status: 'shipped', date: '2026-07-02' },
   ];
   const stats = deriveProjectStats(richItems, chart, WK.start, WK.end, sessions);
   // daysActive: Fernway's cwd sessions cover 1 day, but its entries span 2 -> floored to 2 (the bug: it was 1).
@@ -259,8 +259,8 @@ test('cross-cwd generalized group: daysActive + session total floor at entry-day
   // sessionsThisWeek from projectTotals[name], so this is what kills the "1 session above 2 rows" teaser.
   reconcileGeneralizedSessionTotals(sessions, richItems, {}, WK.start, WK.end);
   assert.equal(sessions.projectTotals.Fernway, 2, 'the generalized group session total is lifted 1 -> 2 to match its 2 entry-days');
-  // The git-backed 'Command' project keeps its pure cwd count (never reconciled) so the mis-wiring gate stays honest.
-  assert.equal(sessions.projectTotals.Command, 3, 'a git-backed project keeps its cwd session partition (not reconciled)');
+  // The git-backed 'Quarry' project keeps its pure cwd count (never reconciled) so the mis-wiring gate stays honest.
+  assert.equal(sessions.projectTotals.Quarry, 3, 'a git-backed project keeps its cwd session partition (not reconciled)');
   // PARTITION CONTRACT (deliberate, documented): the lift does NOT touch the deduplicated total (a cross-cwd
   // session is one real session — inflating `total` would be dishonest), so afterwards sum(projectTotals) can
   // EXCEED total. Pin both halves so the relaxation is a conscious choice, not silent drift.

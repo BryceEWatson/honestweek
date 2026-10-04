@@ -1,6 +1,6 @@
 // The voice-fence is honestweek's opt-in AUTHORED-PROSE honesty lint: the prose
 // analogue of the numeric fact-fence. These tests pin the contract from issue #44 —
-// the seven real your-site.example phrasings fail (each named), clean prose passes, a
+// the seven real-world phrasings from the first site fail (each named), clean prose passes, a
 // paraphrase generalizes, legitimate trigger-word prose is NOT flagged, evidence
 // snippets/receipts are NEVER scanned, and the allowPhrases off-ramp is surgical.
 
@@ -15,7 +15,7 @@ import {
   EVIDENCE_KEYS,
 } from '../lib/voice-fence.mjs';
 
-/** A fixture model carrying the SEVEN real bw failures: 3 item summaries, 1 item
+/** A fixture model carrying the SEVEN real-world failures: 3 item summaries, 1 item
  *  text, 3 project missions — each embodying a distinct seeded voice rule. */
 function sevenFailingModel() {
   return {
@@ -50,7 +50,7 @@ function sevenCleanModel() {
   };
 }
 
-test('the seven real bw phrasings each fail, named by item/path + field + rule', () => {
+test('the seven real-world phrasings each fail, named by item/path + field + rule', () => {
   const v = checkVoice(sevenFailingModel());
   // Every one of the seven authored fields is flagged at least once.
   const flagged = new Set(v.map((x) => x.path));

@@ -125,10 +125,10 @@ test('a consuming transform surfaces the cross-cwd reconciled sessionsThisWeek +
   const chart = { days: [{ date: '2026-07-01', byRepo: {} }, { date: '2026-07-02', byRepo: {} }] };
   const sessions = {
     total: 4,
-    projectTotals: { Fernway: 1, Command: 3 },
+    projectTotals: { Fernway: 1, Quarry: 3 },
     days: [
       { date: '2026-07-01', byProject: { Fernway: 1 } },
-      { date: '2026-07-02', byProject: { Command: 1 } }, // the Jul 2 Fernway work ran under Command's cwd
+      { date: '2026-07-02', byProject: { Quarry: 1 } }, // the Jul 2 Fernway work ran under Quarry's cwd
     ],
   };
   const richItems = [
