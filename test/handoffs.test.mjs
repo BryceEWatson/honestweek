@@ -19,7 +19,7 @@ test('handoffTimestamp parses the filename timestamp, null otherwise', () => {
 test('extractHandoff pulls tagged claims, reversals, and backtick SHAs only', () => {
   const md = [
     '# Handoff',
-    '- Built the verify engine [verified] against real commits in `5c2282f`.',
+    '- Built the verify engine [verified] against real commits in `3e7a91c`.',
     'Retry queue designed [assumed] but not wired in.',
     'A loose hex token deadbeef1 that is NOT in backticks.',
     '',
@@ -30,7 +30,7 @@ test('extractHandoff pulls tagged claims, reversals, and backtick SHAs only', ()
 
   assert.ok(claims.some((c) => c.tag === 'verified' && /verify engine/.test(c.text)));
   assert.ok(claims.some((c) => c.tag === 'assumed' && /Retry queue/.test(c.text)));
-  assert.deepEqual(commits, ['5c2282f'], 'only the backtick-wrapped sha is a candidate');
+  assert.deepEqual(commits, ['3e7a91c'], 'only the backtick-wrapped sha is a candidate');
   assert.ok(!commits.includes('deadbeef1'), 'a non-backtick hex token is not a candidate');
   assert.ok(reversals.some((r) => /NUL sentinel/.test(r)));
 });
@@ -47,7 +47,7 @@ const WEEK = { weekStart: new Date('2026-06-22T00:00:00Z'), weekEnd: new Date('2
 
 test('discoverHandoffs reads in-window handoffs from featured repos and redacts the prose', () => {
   const repo = repoWithHandoffs('featured', {
-    '20260624T010817Z_in-window.md': 'Shipped the Falcon integration [verified] in `9713875`.',
+    '20260624T010817Z_in-window.md': 'Shipped the Falcon integration [verified] in `8046213`.',
     '20260601T090000Z_out-of-window.md': 'Old work [verified] in `aaaaaaa`.',
   });
   try {
@@ -57,7 +57,7 @@ test('discoverHandoffs reads in-window handoffs from featured repos and redacts 
     const e = got[0];
     assert.equal(e.repo, 'app');
     assert.equal(e.source, 'handoff');
-    assert.deepEqual(e.candidateCommits, [{ sha: '9713875', date: null, subject: '' }]);
+    assert.deepEqual(e.candidateCommits, [{ sha: '8046213', date: null, subject: '' }]);
     assert.ok(e.claims[0].tag === 'verified');
     assert.doesNotMatch(e.claims[0].text, /Falcon/, 'the configured codename is redacted out of the claim');
     assert.match(e.id, /^\d{8}T\d{6}Z$/, 'id is the non-identifying timestamp token');
@@ -68,7 +68,7 @@ test('discoverHandoffs reads in-window handoffs from featured repos and redacts 
 
 test('discoverHandoffs NEVER reads a display-role repo', () => {
   const repo = repoWithHandoffs('display', {
-    '20260624T010817Z_secret.md': 'Client work [verified] in `9713875`.',
+    '20260624T010817Z_secret.md': 'Client work [verified] in `8046213`.',
   });
   try {
     const got = discoverHandoffs({ config: { repos: [repo] }, ...WEEK, redactor: createRedactor({}) });
@@ -79,7 +79,7 @@ test('discoverHandoffs NEVER reads a display-role repo', () => {
 });
 
 test('discoverHandoffs falls back to mtime when the filename has no timestamp', () => {
-  const repo = repoWithHandoffs('featured', { 'untimestamped.md': 'Work [verified] in `9713875`.' });
+  const repo = repoWithHandoffs('featured', { 'untimestamped.md': 'Work [verified] in `8046213`.' });
   try {
     const inWindow = new Date('2026-06-24T01:00:00Z');
     utimesSync(join(repo.resolvedPath, '.claude', 'handoffs', 'untimestamped.md'), inWindow, inWindow);

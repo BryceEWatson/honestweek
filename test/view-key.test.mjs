@@ -62,7 +62,7 @@ function server({ key = KEY, codes = [CODE], status = () => ({ state: 'ready' })
   };
   return { fetch, calls, data: () => calls.filter((c) => c.url !== '/api/claim') };
 }
-function tab({ hash = '', store = storage(), BroadcastChannel = null, fetch } = {}) {
+function tab({ hash = '', store = storage(), BroadcastChannel = null, fetch, clock = {} } = {}) {
   const location = { hash, pathname: '/search.html', search: '' };
   const history = {
     state: null,
@@ -74,7 +74,7 @@ function tab({ hash = '', store = storage(), BroadcastChannel = null, fetch } = 
       location.search = u.search;
     },
   };
-  const client = createKeyClient({ fetch, sessionStorage: store, BroadcastChannel, location, history, askMs: 60, sleep: (ms) => new Promise((r) => setTimeout(r, Math.min(ms, 5))) });
+  const client = createKeyClient({ fetch, sessionStorage: store, BroadcastChannel, location, history, askMs: 60, sleep: (ms) => new Promise((r) => setTimeout(r, Math.min(ms, 5))), ...clock });
   return { client, location, history, store };
 }
 
@@ -257,4 +257,32 @@ test('key: it waits on the status the data layer really sends, and asking for it
   assert.equal(r.note, null);
   assert.ok(phases.length >= 3 && phases.every((p) => p === 'private'), 'it waited on the private build');
   assert.equal(data.status().builds.private.state, 'ready', 'the status request started it');
+});
+
+test('key: while a status answer is slow, the wait count goes on from the last answer, then stops', async () => {
+  // The server is busy reading logs: the first answer says 7 s, the next one is held back.
+  let t = 0;
+  let release;
+  const held = new Promise((r) => (release = r));
+  let n = 0;
+  const s = server({ status: () => ({ state: 'building', elapsedMs: 7000, reading: 'Reading 7 days of logs.' }) });
+  const fetch = async (url, opts) => (url.startsWith('/api/status') && ++n === 2 ? (await held, { ok: true, status: 200, json: async () => ({ state: 'ready' }) }) : s.fetch(url, opts));
+  const ticks = [];
+  const clock = { now: () => t, setInterval: (fn) => (ticks.push(fn), ticks.length), clearInterval: (id) => (ticks[id - 1] = null) };
+  const store = storage();
+  store.setItem(KEY_SLOT, KEY);
+  const c = tab({ store, fetch, clock });
+  await c.client.init();
+  const seen = [];
+  const waiting = c.client.waitForBuild({ intervalMs: 1, onProgress: (p) => seen.push(`${p.phase} ${p.secs} ${p.reading}`) });
+  for (let i = 0; i < 50 && !seen.length; i++) await new Promise((r) => setTimeout(r, 2));
+  t = 3400;
+  ticks[0]?.();
+  ticks[0]?.();
+  t = 4100;
+  ticks[0]?.();
+  release();
+  assert.equal((await waiting).ok, true);
+  assert.deepEqual(seen, ['redacted 7 Reading 7 days of logs.', 'redacted 10 Reading 7 days of logs.', 'redacted 11 Reading 7 days of logs.'], 'one line per new second, never the same second twice');
+  assert.equal(ticks[0], null, 'the count stops once the wait ends');
 });

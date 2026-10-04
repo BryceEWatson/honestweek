@@ -100,3 +100,11 @@ test('the client report modules are clean-room (clean-room)', () => {
   const files = ['client.mjs', 'history.mjs', 'reader.mjs', join('emit', 'client.mjs'), join('readers', 'default.json'), join('readers', 'client.json')].map((f) => join(ROOT, 'lib', f));
   assertCleanRoom(files, 'client report');
 });
+
+// The problem checks, their shipped catalog of known agent problems, and their tests.
+test('lib/problems, its catalog and its tests are clean-room', () => {
+  const tests = readdirSync(HERE).filter((f) => /^problems-.*\.test\.mjs$/.test(f)).map((f) => join(HERE, f));
+  const files = [...allFiles(join(HERE, '..', 'lib', 'problems')), ...tests];
+  assert.ok(files.length >= 1, 'expected the problem checks to be present');
+  assertCleanRoom(files, 'lib/problems');
+});

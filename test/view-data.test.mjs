@@ -11,9 +11,10 @@ import { join } from 'node:path';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 import { createRedactor, createSecretsOnlyRedactor } from '../lib/redact.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
-import { createLeakCounter, EXEMPT_FIELDS, setAsideAllowed, stringsIn } from '../lib/view/leaks.mjs';
+import { createLeakCounter, EXEMPT_FIELDS, setAsideAllowed, stringsIn, unglue, unglueIds } from '../lib/view/leaks.mjs';
 import { createLru, createViewData, goalKey, memberCount } from '../lib/view/data.mjs';
 import { REPLAY_EVENT_FIELDS } from '../lib/view/replay-export.mjs';
+import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { buildCorpus } from './fixtures/replay/corpus.mjs';
 import { buildViewWeek, EMAIL, LONG_WORD, NOT_PROMPT_WORDS, OTHER_TERM, PRIVATE_WORDS, QUEUED_WORD, SECRETS, SEEDED, STRADDLE_WORD, SUMMARY_WORD, TERM, WEEK } from './fixtures/view/week.mjs';
 
@@ -124,6 +125,74 @@ test('every private answer hides every secret, and shows the private words', () 
   }
   const all = JSON.stringify(privateAnswers.map((a) => a.body));
   assert.ok(all.includes(TERM) && all.includes(EMAIL), 'the switch shows the private words');
+});
+
+// A step description quotes its prompt, so a token pasted at the very end of a prompt comes
+// out as `DOCS_TOKEN=[redacted:secret]"`: the closing quote right after the placeholder. The
+// leak counter read that as a field value that wasn't only a placeholder and counted a leak.
+test('a token hidden at the very end of a prompt counts as hidden, and one shown there is still a leak', async () => {
+  const release = claudeSessionKey(w.d.ids.projectDirs.releaseWorktree, w.d.ids.claude.releaseScript);
+  const glued = /=\[redacted:secret\]"$/;
+  for (const priv of [false, true]) {
+    const count = (answer) => (priv ? leaks.secrets(answer) : leaks.redacted(answer));
+    for (const [path, q] of [['/api/goal', { key: goalKey('publish-notes') }], ['/api/replay', { session: release }]]) {
+      const answer = await body(path, q, priv);
+      assert.ok(stringsIn(answer).some((s) => glued.test(s)), `${path} ${priv ? 'private' : 'redacted'}: a placeholder right before a closing quote`);
+      assert.equal(count(answer).total, 0, `${path} ${priv ? 'private' : 'redacted'}: no leak counted`);
+    }
+  }
+  // The same place on a made-up string, hidden and shown.
+  const hidden = 'prompt "To try it, use the sandbox one, DOCS_TOKEN=[redacted:secret]"';
+  const shown = 'prompt "To try it, use the sandbox one, DOCS_TOKEN=sandbox-7Qx2Lk9pR3vT6nW8zB4f"';
+  assert.deepEqual([leaks.redacted(hidden).total, leaks.secrets(hidden).total], [0, 0]);
+  assert.deepEqual([leaks.redacted(shown).secrets, leaks.secrets(shown).total], [1, 1]);
+  // Only closing punctuation that ends the text is set apart: a value glued on after it is
+  // still read, and still a leak.
+  const gluedOn = 'prompt "DOCS_TOKEN=[redacted:secret]"7Qx2Lk9pR3vT6nW8zB4f';
+  assert.deepEqual([leaks.redacted(gluedOn).secrets, leaks.secrets(gluedOn).total], [1, 1]);
+  for (const s of ['TOKEN=[redacted:secret])', "password: '[redacted:secret]'.", 'API_KEY=[redacted:secret]",']) assert.equal(leaks.secrets(s).total, 0, s);
+  // An excerpt cut right after a sensitive flag ends in the page's own mark, which isn't a
+  // value; a real value in the same place still is.
+  for (const s of ['Yes: add a --token-file …', 'Yes: add a --token-file ...', 'Yes: add a --token-file … ']) assert.deepEqual([leaks.redacted(s).total, leaks.secrets(s).total], [0, 0], s);
+  assert.deepEqual([leaks.redacted('Yes: add a --token-file 7Qx2Lk9pR3vT6nW8zB4f').secrets, leaks.secrets('Yes: add a --token-file 7Qx2Lk9pR3vT6nW8zB4f').total], [1, 1]);
+});
+
+// Neither relaxation may hide a real value that sits near a placeholder or a cut mark. Each of
+// these counted as a leak before the two were added, and still does.
+test('a value shown next to a placeholder or a cut mark still counts as a leak', () => {
+  const near = [
+    'password: [redacted:secret]. hunter2xyz',
+    'TOKEN=[redacted:secret]" Xk9mQ2pL7vR4Zq7mK2pX9wAbCdEfGh12',
+    'API_KEY=[redacted:secret]. SECRET=7Qx2Lk9pR3vT6nW8zB4f',
+    'password: "[redacted:secret]" and token: "7Qx2Lk9pR3vT6nW8zB4f"',
+    'Authorization: Bearer [redacted:secret]) Xk9mQ2pL7vR4Zq7m',
+    // A cut mark that doesn't end the text isn't the end of an excerpt.
+    'token: … Xk9mQ2pL7vR4Zq7mK2pX9w',
+    'token: ...;Xk9mQ2pL7vR4Zq7mK2pX9wAbCdEfGh12',
+    'password=…Xk9mQ2pL7vR4',
+    '--token … --password hunter2xyz',
+    'add a --token-file … then --token 7Qx2Lk9pR3vT6nW8zB4f',
+  ];
+  for (const s of near) assert.deepEqual([leaks.redacted(s).secrets, leaks.secrets(s).total], [1, 1], s);
+});
+
+// The counter reads each text twice, with a JSON escape as a break and as written, and sets the
+// page's own punctuation apart on both readings. A backslash in the text makes the two readings
+// differ, so these fail if either reading skips the punctuation step, or if that step hides a
+// value only the as-written reading finds.
+test('both readings of a backslash set the page\'s punctuation apart, and neither hides a value', () => {
+  const quiet = [
+    'ran "cd C:\\tmp\\new && DOCS_TOKEN=[redacted:secret]"',
+    'in C:\\repo\\notes: add a --token-file …',
+    'out "exit=0\\nDOCS_TOKEN=[redacted:secret]".',
+  ];
+  for (const s of quiet) assert.deepEqual([leaks.redacted(s).total, leaks.secrets(s).total], [0, 0], s);
+  const shown = [
+    'cd C:\\token=abc123secretvalue "KEY=[redacted:secret]"',
+    'x\\tQ1w2E3r4T5y6U7i8O9p0A1s2D3f4G5h add a --token-file …',
+    'ran "cd C:\\tmp\\new && DOCS_TOKEN=[redacted:secret]"7Qx2Lk9pR3vT6nW8zB4f',
+  ];
+  for (const s of shown) assert.deepEqual([leaks.redacted(s).secrets, leaks.secrets(s).total], [1, 1], s);
 });
 
 test('private text is served only when a request asks with private=1', async () => {
@@ -407,7 +476,10 @@ test("a count is no stronger than the weakest thing it counts", async () => {
   assert.deepEqual(memberCount([mine, rule]), { value: 2, evidence: 'inferred', recorded: 1, inferred: 1, ambiguous: 0, assigned: 1 });
   assert.deepEqual(memberCount([mine, amb]), { value: 2, evidence: 'inferred', recorded: 1, inferred: 0, ambiguous: 1, assigned: 1 });
   const levels = new Map(home.recent.map((r) => [r.session, r.prompts.evidence]));
-  assert.equal(levels.get(w.keys.featured), 'inferred', 'a prompt whose author is only inferred makes the count inferred');
+  // Home lists the twelve most recent sessions. The demo week's Saturday session, from an older
+  // Claude Code that records no prompt origin, is one of them.
+  const older = claudeSessionKey(w.d.ids.projectDirs.lantern, w.d.ids.claude.widthCheck);
+  assert.equal(levels.get(older), 'inferred', 'a prompt whose author is only inferred makes the count inferred');
   assert.ok([...levels.values()].includes('derived'), 'a session whose prompts all say who typed them stays derived');
 });
 
@@ -669,4 +741,86 @@ test('a lookup\'s and a goal member\'s ambiguous flags reach the page', async ()
 test('no data answer names the engine\'s private-text option', () => {
   const text = JSON.stringify([...redactedAnswers, ...privateAnswers].map((a) => a.body));
   assert.ok(!text.includes('privateText'));
+});
+
+test('the leak counter reads a JSON line break as a break, so a commit id after one is not a token, and a secret after one is still found', () => {
+  const counter = createLeakCounter({ redaction: {} });
+  const sha = '3f9a1c0b7e2d4f6a8b0c1d2e3f4a5b6c7d8e9f01';
+  // A tool result shown as JSON, as the record panel shows it: `\n` glues an n onto the id.
+  const record = JSON.stringify({ type: 'user', content: [{ type: 'tool_result', content: `exit=0\n${sha}\nlib/x.mjs` }] }, null, 2);
+  assert.ok(record.includes(`\\n${sha}`), 'the shown record writes the line break as an escape');
+  assert.equal(counter.redacted(record).secrets, 0);
+  assert.equal(counter.secrets(record).secrets, 0);
+  // Failing-path partners: a real secret after the same break still counts, with the switch off and on.
+  for (const secret of ['ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 'sk-abcdefghijklmnop1234567890']) {
+    for (const sep of ['\n', '\t']) {
+      const shown = JSON.stringify({ content: `exit=0${sep}${secret}` });
+      assert.equal(counter.redacted(shown).secrets, 1, `${secret.slice(0, 4)} after ${JSON.stringify(sep)}`);
+      assert.equal(counter.secrets(shown).secrets, 1);
+    }
+  }
+  // An escaped backslash before an n (a Windows folder in JSON) isn't a line break.
+  assert.equal(unglue('C:\\\\new\\\\x'), 'C:\\\\new\\\\x');
+  assert.equal(unglue('a\\nb'), 'a\\ b');
+  assert.equal(unglue('a\\\\\\nb'), 'a\\\\\\ b', 'an odd run of backslashes ends in an escape');
+  // A backslash outside JSON text isn't an escape, and its letter starts a word: the text as
+  // written is read too, so a secret there still counts, with the switch off and on.
+  for (const shown of ['cd C:\\token=abc123secretvalue', 'x\\tQ1w2E3r4T5y6U7i8O9p0A1s2D3f4G5h']) {
+    assert.equal(counter.redacted(shown).secrets, 1, shown);
+    assert.equal(counter.secrets(shown).secrets, 1, shown);
+  }
+  // As written, only an escape that runs into a commit id is still a break.
+  assert.equal(unglueIds(`a\\n${sha} b\\tokens`), `a\\ ${sha} b\\tokens`);
+  assert.equal(unglueIds(`a\\\\n${sha}`), `a\\\\n${sha}`, 'an escaped backslash before an n is not an escape');
+  for (const sep of ['\n', '\r', '\t']) {
+    assert.equal(counter.redacted(JSON.stringify({ out: `exit=0${sep}${sha}` })).secrets, 0, `a commit id after ${JSON.stringify(sep)}`);
+  }
+});
+
+test('a session with no prompt says what opened it, from its records, and sessions with a prompt come first', async () => {
+  // The fixture's history, with three made-up configured sessions added that have no prompt:
+  // one a person opened with a command, one a schedule opened, and one with no opening record.
+  const base = reference.sessions.find((s) => s.private === false);
+  const late = '2099-01-01T00:00:00.000Z';
+  const extra = ['cmd', 'sched', 'bare'].map((k, i) => ({ ...base, key: `cc-zz${k}`, thread: null, title: null, firstAt: late, lastAt: `2099-01-01T00:0${i + 1}:00.000Z` }));
+  const ev = (session, kind, actor, facts) => ({ id: `${session}.1.0`, kind, at: late, t: Date.parse(late), timeFrom: 'record', source: session, session, agent: null, actor, evidence: 'recorded', refs: [], facts, derived: {}, inferred: [], missing: [], turn: null });
+  // Two configured sessions with prompts, so all five fit in the list of twelve.
+  const kept = new Set(reference.sessions.filter((s) => s.private === false).slice(0, 2).map((s) => s.key));
+  const own = (list) => list.filter((e) => kept.has(e.session));
+  const h = { ...reference, sessions: [...reference.sessions.filter((s) => kept.has(s.key)), ...extra], events: [...own(reference.events), ev('cc-zzcmd', 'command', 'person', { name: '/review' }), ev('cc-zzsched', 'agent-message', 'harness', { direction: 'inbound', from: 'scheduled-task' })] };
+  const d = createViewData({ config: w.config, roots: w.roots, ...WINDOW, goalRecord: w.goalRecord, buildHistory: async () => h });
+  await d.start();
+  const home = (await d.route('/api/home', params())).body;
+  const recent = home.recent;
+  const firstEmpty = recent.findIndex((r) => r.prompts.value === 0);
+  assert.ok(firstEmpty > 0, 'the newest sessions have no prompt, yet a session with one comes first');
+  assert.ok(recent.slice(firstEmpty).every((r) => r.prompts.value === 0), 'every session with a prompt comes before every one without');
+  const by = Object.fromEntries(recent.filter((r) => r.session.startsWith('cc-zz')).map((r) => [r.session, r.startedBy]));
+  assert.deepEqual(by['cc-zzcmd'], { text: 'started with a command (/review), no prompt', evidence: 'recorded' });
+  assert.deepEqual(by['cc-zzsched'], { text: 'started by a schedule, no prompt', evidence: 'recorded' });
+  assert.deepEqual(by['cc-zzbare'], { text: `no prompt between ${WINDOW.from} and ${WINDOW.to}`, evidence: 'derived' });
+  for (const r of recent.filter((x) => x.session.startsWith('cc-zz'))) assert.equal(r.title, null, 'no title is made up');
+  // Failing-path partner: a session with a prompt has no startedBy label.
+  assert.ok(recent.filter((r) => r.prompts.value > 0).every((r) => r.startedBy === null));
+  // A command name that isn't a plain slash command, such as one redaction changed, isn't shown.
+  const h2 = { ...h, events: [...own(reference.events), ev('cc-zzcmd', 'command', 'person', { name: '[redacted:term]' })] };
+  const d2 = createViewData({ config: w.config, roots: w.roots, ...WINDOW, buildHistory: async () => h2 });
+  await d2.start();
+  const r2 = (await d2.route('/api/home', params())).body.recent.find((r) => r.session === 'cc-zzcmd');
+  assert.equal(r2.startedBy.text, 'started with a command, no prompt');
+});
+
+test('the command a page names goes through the redactor, so a private word in it stays hidden', async () => {
+  // A package owner, or a folder in a script's path, can be a client's name.
+  const config = { ...w.config, redaction: { ...w.config.redaction, terms: [...(w.config.redaction?.terms ?? []), 'Zephyrcorp'] } };
+  const d = createViewData({ config, roots: w.roots, ...WINDOW, demo: true, command: 'npx github:Zephyrcorp/honestweek', buildHistory: async () => reference });
+  await d.start();
+  const status = await d.status();
+  assert.doesNotMatch(JSON.stringify(status), /Zephyrcorp/);
+  assert.equal(createLeakCounter(config).redacted(status).total, 0);
+  // Failing-path partner: a command with no private word in it is named as it is.
+  const plain = createViewData({ config, roots: w.roots, ...WINDOW, demo: true, command: 'npx github:your-org/honestweek', buildHistory: async () => reference });
+  await plain.start();
+  assert.equal((await plain.status()).command, 'npx github:your-org/honestweek');
+  assert.ok((await plain.status()).demo.commands.some((c) => c.command === 'npx github:your-org/honestweek init'));
 });

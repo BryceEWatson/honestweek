@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Problems · honestweek</title>
+<link rel="stylesheet" href="common.css">
+</head>
+<body data-page="problems">
+<header class="topbar">
+  <a class="brand" href="search.html">honestweek</a>
+  <nav aria-label="Pages"><a href="search.html">Find</a><a href="goal.html">Goals</a><a href="replay.html">Replay</a><a href="problems.html" aria-current="page">Problems<span class="navcount" id="navHigh" hidden></span></a></nav>
+  <span class="topbar-gap"></span>
+  <span class="window" id="window"></span>
+  <span class="privacy" id="privacy"></span>
+  <button type="button" class="keybtn" id="keyBtn" aria-expanded="false" aria-controls="evkeyPanel" aria-label="How each link is known" title="How each link is known">?</button>
+  <div class="evkey-pop" id="evkeyPanel" role="region" aria-label="How each link is known" hidden><p class="evkey" data-evkey></p></div>
+</header>
+<div class="demo" id="demo" hidden></div>
+<p class="statusline" id="status" role="status" hidden></p>
+<main class="pwrap" id="content">
+  <div class="phead">
+    <div>
+      <h1>Problems worth a look</h1>
+      <p class="lead" id="lead"></p>
+    </div>
+    <details class="prirule" id="priRule"></details>
+  </div>
+  <p class="sessfilter" id="sessFilter" hidden></p>
+  <section class="startwith" id="startWith" aria-labelledby="startH" hidden></section>
+  <section class="ptable" aria-labelledby="browseH">
+    <div class="ptable-head">
+      <h2 id="browseH">Everything found <span class="hcount" id="foundCount"></span></h2>
+      <div class="chips pgroups" id="groups" role="group" aria-label="Show one group of patterns"></div>
+    </div>
+    <div class="chips sfilter" id="statusFilter" role="group" aria-label="Show patterns by what your sessions show"></div>
+    <p class="filternote" id="filterNote"></p>
+    <div id="cards"></div>
+  </section>
+  <details class="pchecks" id="checksBox"><summary><h2 id="checksH" class="sh">How the checks work</h2></summary><div id="checks"></div></details>
+  <footer class="pfoot" id="foot"></footer>
+</main>
+<footer class="quiet" id="quiet">
+  <p class="quiet-line"><span id="privnote"></span> <span>Read from logs on this machine. Nothing leaves it.</span></p>
+</footer>
+<p class="sr" id="announce" aria-live="polite"></p>
+<script src="evidence.js"></script>
+<script src="key.js"></script>
+<script src="private-text.js"></script>
+<script src="common.js"></script>
+<script src="prefs.js"></script>
+<script src="problems.js"></script>
+</body>
+</html>

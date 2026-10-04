@@ -17,12 +17,14 @@ import { memberCount } from '../lib/view/data.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS = join(HERE, '..', 'lib', 'view', 'assets');
 const SELFTEST = join(HERE, '..', 'lib', 'view', 'selftest');
-const PAGES = ['search.html', 'goal.html', 'replay.html'];
+const PAGES = ['search.html', 'goal.html', 'replay.html', 'problems.html'];
+// The scripts each page loads after the shared ones, in order.
+const PAGE_SCRIPTS = { 'search.html': ['prefs.js', 'search.js'], 'goal.html': ['prefs.js', 'strip.js', 'goal.js'], 'replay.html': ['prefs.js', 'strip.js', 'replay.js'], 'problems.html': ['prefs.js', 'problems.js'] };
 // The package author's name, read from package.json so this test doesn't spell out a real name.
 const OWNER_WORDS = String(JSON.parse(readFileSync(join(HERE, '..', 'package.json'), 'utf8')).author ?? '')
   .split(/\s+/)
   .filter((w) => /^[A-Za-z]{3,}$/.test(w));
-const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js'];
+const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js', 'problems.js', 'prefs.js', 'strip.js'];
 const files = () => [...readdirSync(ASSETS).map((f) => ({ name: f, path: join(ASSETS, f) })), ...readdirSync(SELFTEST).map((f) => ({ name: `selftest/${f}`, path: join(SELFTEST, f) }))].map((f) => ({ ...f, text: readFileSync(f.path, 'utf8') }));
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
 
@@ -70,15 +72,48 @@ test('assets: every page loads the same files in the same order, and has the sha
   for (const p of PAGES) {
     const t = readFileSync(join(ASSETS, p), 'utf8');
     const srcs = [...t.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
-    assert.deepEqual(srcs, ['evidence.js', 'key.js', 'private-text.js', 'common.js', p.replace('.html', '.js')], p);
+    assert.deepEqual(srcs, ['evidence.js', 'key.js', 'private-text.js', 'common.js', ...PAGE_SCRIPTS[p]], p);
     assert.deepEqual([...t.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]), ['common.css'], p);
-    for (const id of ['window', 'privacy', 'demo', 'status', 'content']) assert.match(t, new RegExp(`id="${id}"`), `${p}: #${id}`);
+    for (const id of ['window', 'privacy', 'demo', 'status', 'content', 'quiet', 'privnote', 'navHigh']) assert.match(t, new RegExp(`id="${id}"`), `${p}: #${id}`);
     assert.match(t, /data-evkey/, `${p}: the evidence key`);
+    // The key is one click away: a "?" button in the header opens it, named for a screen reader.
+    assert.match(t, /<button type="button" class="keybtn" id="keyBtn" aria-expanded="false" aria-controls="evkeyPanel" aria-label="How each link is known"[^>]*>\?<\/button>/, `${p}: the "?" button`);
+    assert.match(t, /<div class="evkey-pop" id="evkeyPanel" role="region" aria-label="How each link is known" hidden><p class="evkey" data-evkey><\/p><\/div>/, `${p}: the key's panel, closed`);
+    // The Problems link carries the High count, filled in by script.
+    assert.match(t, /<a href="problems\.html"[^>]*>Problems<span class="navcount" id="navHigh" hidden><\/span><\/a>/, `${p}: the Problems count`);
     for (const link of PAGES) assert.match(t, new RegExp(`<nav[^]*href="${link}"[^]*</nav>`), `${p}: a link to ${link}`);
     assert.match(t, new RegExp(`href="${p}" aria-current="page"`), `${p}: marks itself current`);
   }
   const ct = readFileSync(join(SELFTEST, 'clickthrough.html'), 'utf8');
   assert.deepEqual([...ct.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]), ['/evidence.js', '/key.js', '/private-text.js', 'clickthrough.js']);
+});
+
+test('evidence: four levels have a small inline symbol, "ambiguous" stays a word, and the word is always there', () => {
+  const sandbox = { window: {}, document: { querySelectorAll: () => [], readyState: 'complete', addEventListener: () => {} } };
+  runInNewContext(readFileSync(join(ASSETS, 'evidence.js'), 'utf8'), sandbox);
+  const { chip, sym, symbol, keyHtml, sideKeyHtml, WORDS } = sandbox.window.HWE;
+  const words = (html) => html.replace(/<[^>]+>/g, '');
+  const shapes = { recorded: /<circle[^>]*fill="currentColor"/, derived: /<path d="M6 1\.5 A4\.5 4\.5 0 0 1 6 10\.5 Z" fill="currentColor"/, inferred: /<circle[^>]*fill="none"[^>]*stroke-width="1\.5"\/>/, missing: /stroke-dasharray="2 2"/ };
+  for (const [level, shape] of Object.entries(shapes)) {
+    const c = chip(level);
+    assert.match(c, shape, `${level}: its shape`);
+    assert.match(c, /<svg class="evsym"[^>]* aria-hidden="true" focusable="false">/, `${level}: the symbol is hidden from a screen reader`);
+    assert.equal(words(c), level, `${level}: the word follows the symbol`);
+    // The symbol alone keeps the word for a screen reader.
+    const s = sym(level);
+    assert.match(s, new RegExp(`<span class="sr">${level}</span>`), `${level}: sym keeps the word`);
+    assert.equal(words(s), level);
+    assert.doesNotMatch(c + s, /\sstyle=/, 'no style attribute');
+  }
+  // "ambiguous" has no symbol: it shows its word, also where other levels show only a symbol.
+  assert.equal(symbol('ambiguous'), '');
+  assert.doesNotMatch(chip('ambiguous') + sym('ambiguous'), /<svg/);
+  assert.equal(words(sym('ambiguous')), 'ambiguous');
+  assert.equal(words(chip('inferred', 'rule x')), 'inferred · rule x');
+  // The header's key and the key beside results both name all five words, each with its symbol.
+  for (const html of [keyHtml(), sideKeyHtml()]) for (const w of WORDS) assert.ok(html.includes(chip(w)), `the key holds ${w}`);
+  assert.equal((keyHtml().match(/class="evkey-item"/g) ?? []).length, 5);
+  assert.doesNotMatch(sideKeyHtml(), /evkey-item|data-evkey/, 'the side key is not a second header key');
 });
 
 test('assets: one evidence vocabulary of five words', () => {
@@ -100,7 +135,7 @@ test('assets: no network: data comes only from this server, through the key clie
   for (const m of key.matchAll(/fetchFn\(\s*([^,]+),/g)) assert.match(m[1], /^['`]\/api\//, `key.js asks only /api routes: ${m[1]}`);
 });
 
-test('assets: storage holds only the run key and the switch; localStorage is never used', () => {
+test('assets: session storage holds only the run key and the switch; local storage only the catalog preferences, in prefs.js', () => {
   for (const f of files()) {
     const isKey = f.name === 'key.js';
     if (f.name === 'selftest/clickthrough.js') {
@@ -108,9 +143,14 @@ test('assets: storage holds only the run key and the switch; localStorage is nev
       assert.doesNotMatch(f.text, /(sessionStorage|localStorage)\.(setItem|removeItem|clear)/, f.name);
       continue;
     }
-    assert.doesNotMatch(f.text, /localStorage/, `${f.name}: localStorage`);
+    if (f.name !== 'prefs.js') assert.doesNotMatch(f.text, /localStorage/, `${f.name}: localStorage outside prefs.js`);
     if (!isKey) assert.doesNotMatch(f.text, /sessionStorage/, `${f.name}: sessionStorage outside key.js`);
   }
+  // prefs.js writes one key, and only a value its clean() made (test/view-prefs.test.mjs runs it).
+  const prefs = readFileSync(join(ASSETS, 'prefs.js'), 'utf8');
+  assert.deepEqual([...prefs.matchAll(/storage\.(setItem|removeItem)\(\s*([A-Z_]+)/g)].map((m) => m[2]), ['SLOT', 'SLOT']);
+  assert.match(prefs, /const SLOT = 'hw\.prefs';/);
+  assert.match(prefs, /storage\.setItem\(SLOT, JSON\.stringify\(c\)\)/);
   const key = readFileSync(join(ASSETS, 'key.js'), 'utf8');
   const writes = [...key.matchAll(/write\(\s*([A-Z_]+)\s*,/g)].map((m) => m[1]);
   assert.deepEqual([...new Set(writes)].sort(), ['KEY_SLOT', 'SWITCH_SLOT']);
@@ -276,6 +316,20 @@ test('assets: the click-through counts policy violations as failures and keeps i
   for (const m of ct.matchAll(/skip\('([\w-]+)'\)/g)) assert.ok(new RegExp(`'${m[1]}':|${m[1].replace(/-/g, '\\-')}:`).test(ct.match(/const SKIPS = \{([^]*?)\n  \};/)[1]) || m[1] === 'page-did-not-load', `skip "${m[1]}" isn't on the named list`);
 });
 
+test('assets: on the demo week the click-through allows only the skips that cannot apply to it', () => {
+  const ct = readFileSync(join(SELFTEST, 'clickthrough.js'), 'utf8');
+  const keys = (name) => [...ct.match(new RegExp(`const ${name} = \\{([^]*?)\\n  \\};`))[1].matchAll(/^\s+'([\w-]+)':/gm)].map((m) => m[1]);
+  const all = keys('SKIPS');
+  const demo = keys('DEMO_SKIPS');
+  // The demo week holds every other case on purpose (docs/demo-week.md), so a skip for one
+  // of them on the demo fails the step.
+  assert.deepEqual(demo, ['built-before-test', 'private-words-set', 'goal-list-set']);
+  for (const id of demo) assert.ok(all.includes(id), `${id} is on the named list`);
+  for (const id of ['no-inferred-author', 'no-script-prompt', 'no-moved-time', 'no-borrowed-time', 'no-crowded-marks', 'no-routine-note', 'no-strip-finding', 'no-problem-found']) assert.ok(all.includes(id) && !demo.includes(id), id);
+  assert.match(ct, /const demoAllows = !env\.demo \|\| !!DEMO_SKIPS\[err\.id\];/);
+  assert.match(ct, /status = named && demoAllows \? 'SKIP' : 'FAIL';/);
+});
+
 // No real data in these files. The named tokens of the clean-room fence are checked over them by
 // test/site-cleanroom.test.mjs, which keeps that list in one place; this checks the shapes.
 test('assets: no real data: names, home folders, addresses or codenames', () => {
@@ -286,4 +340,140 @@ test('assets: no real data: names, home folders, addresses or codenames', () => 
     assert.doesNotMatch(f.text, /\bprivateText\b|createSecretsOnlyRedactor/, `${f.name}: the engine's private-text names stay on the server`);
     assert.doesNotMatch(f.text, /\u2014/, `${f.name}: an em dash (the published voice bar)`);
   }
+});
+
+// What the header and the Find cards say has to hold when the answer behind them is missing,
+// capped or wider than the label.
+test("the header says the problem checks couldn't load instead of looking like none were found", () => {
+  const common = readFileSync(join(ASSETS, 'common.js'), 'utf8');
+  const nav = common.match(/function navCount\(patterns\) \{[^]*?\n  \}/)[0];
+  assert.match(nav, /if \(!Array\.isArray\(patterns\)\) \{\s+el\.hidden = false;/, 'no patterns shows a mark');
+  assert.match(nav, /the problem checks could not load/, 'and says why, to a screen reader too');
+  assert.match(common, /problemsSummary\(\)\.then\(\(a\) => navCount\(a\?\.patterns\), \(\) => navCount\(null\)\);/, 'a failed summary reaches the header');
+  assert.match(readFileSync(join(ASSETS, 'search.js'), 'utf8'), /HW\.navCount\(null\);\s+if \(\$\('lookBody'\)\)/, "and so does the Find card's failure");
+});
+
+test('a share of the window tokens reads the same on Find as on Problems, to one decimal under 10%', () => {
+  const common = readFileSync(join(ASSETS, 'common.js'), 'utf8');
+  const pct = runInNewContext(`(${common.match(/const pct = (\(x\) => [^\n]+);/)[1]})`);
+  assert.equal(pct(0.046), '4.6%', '4.6% no longer shows as 5%');
+  assert.equal(pct(0.006), '0.6%', 'one decimal under 10%');
+  assert.equal(pct(0.0004), 'under 0.1%');
+  assert.equal(pct(0.25), '25%');
+  assert.match(readFileSync(join(ASSETS, 'problems.js'), 'utf8'), /const \{ pct \} = HW;/, 'Problems uses the shared one');
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  assert.match(search, /HW\.pct\(share\)/, 'Find uses the shared one');
+  assert.doesNotMatch(search, /Math\.round\(share/, 'and no rounding of its own');
+});
+
+test('the Find cards claim no more than their lists hold', () => {
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  // The server's recent list is every session in the window, so the heading can't say "in your repos".
+  assert.doesNotMatch(search, /Recent in your repos/);
+  assert.match(search, /Recent sessions<\/h2>/);
+  assert.match(search, /const GROUP_NOTE = \{ display: 'display-only repo', outside: 'outside your config' \};/);
+  const row = search.match(/function recentRow\(s, hidden\) \{[^]*?\n  \}/)[0];
+  assert.match(row, /info\.repo \? esc\(info\.repo\) : '', GROUP_NOTE\[info\.group\] \?\? ''/, 'a recent session says its repo and its group');
+  assert.match(row, /isMine\(g\) \? ` \$\{mineTag\}` : ''/, 'and keeps the tag on a goal I cited it in');
+  // A closed result row still says a folded reason is ambiguous.
+  assert.match(search, /refs\.slice\(1\)\.some\(\(r\) => r\.ambiguous\) \? ` \$\{chip\('ambiguous', 'one of the other reasons'\)\}`/);
+  // The folded word search counts every kind of match, not prompts alone.
+  assert.match(search, /<h2>Also mentioned in words<\/h2> <span class="hcount">\$\{plural\(wordsFound\(words\), 'match', 'matches'\)\}/);
+  // The window isn't always a week.
+  const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
+  assert.doesNotMatch(problems, /this week/);
+  assert.match(problems, /'Not found in this window'/);
+});
+
+test("a share rounds down on every page, and an estimate past the window's total never prints as a share", () => {
+  const common = readFileSync(join(ASSETS, 'common.js'), 'utf8');
+  const pct = runInNewContext(`(${common.match(/const pct = (\(x\) => [^\n]+);/)[1]})`);
+  // Each of these would print as the line above it if the helper rounded to nearest.
+  assert.equal(pct(0.0496), '4.9%', 'just under the 5% line');
+  assert.equal(pct(0.00996), '0.9%', 'just under the 1% line');
+  assert.equal(pct(0.0999), '9.9%');
+  assert.equal(pct(0.249), '24%');
+  assert.equal(pct(0.999), '99%', 'never 100% for less than all of it');
+  // The two places the calmer pages added say so in words instead of printing a share over 100%.
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  assert.match(search, /share > 1 \? "more than all the window's tokens" : `\$\{HW\.pct\(share\)\} of the window's tokens`/, 'the Find card');
+  const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
+  assert.match(problems, /const OVER = "more than all the window's tokens, since estimates for neighbouring steps overlap";/);
+  const start = problems.match(/function startCard\(p\) \{[^]*?\n  \}/)[0];
+  assert.match(start, /p\.tokens\.tokens > D\.coverage\.tokens\.value \? `, \$\{OVER\}` : `, \$\{pct\(/, '"Start with these"');
+});
+
+// ---- before the first release: focus, wording that never over-claims, and the leak counter ----
+test('closing the record panel never drops focus to the page: with no step or opener left, the nearest thing drawn', () => {
+  const common = readFileSync(join(ASSETS, 'common.js'), 'utf8');
+  const closeTarget = runInNewContext(`(${common.match(/const closeTarget = (\(back, byId, onPage, nearby\) => \{[^]*?\n  \});/)[1]})`);
+  const marks = { a: { mark: 'a' }, c: { mark: 'c' } };
+  const byId = (k) => marks[k] ?? null;
+  const opener = { mark: 'opener' };
+  const near = { mark: 'nearest' };
+  const nearby = () => near;
+  // After Next step: the step last shown, when it's drawn.
+  assert.equal(closeTarget({ el: opener, id: 'c', preferId: true }, byId, () => true, nearby), marks.c);
+  // Not drawn (a hidden kind), but the opener is still on the page.
+  assert.equal(closeTarget({ el: opener, id: 'hidden', preferId: true }, byId, () => true, nearby), opener);
+  // Opened from a mark, chart redrawn: the same step's new mark.
+  assert.equal(closeTarget({ el: opener, id: 'a' }, byId, () => false, nearby), marks.a);
+  // The case that dropped focus: the last step shown isn't drawn and the opener was redrawn away.
+  assert.equal(closeTarget({ el: opener, id: 'hidden', preferId: true }, byId, () => false, nearby), near);
+  assert.equal(closeTarget({ el: null, id: null }, byId, () => false, nearby), near);
+  assert.equal(closeTarget(null, byId, () => false, () => null), null);
+  // The panel uses it, and the fallback is the drawn step closest in time, then the chart, then the heading.
+  assert.match(common, /const target = closeTarget\(back, byId, \(el\) => document\.contains\(el\), nearbyStep\);\s+if \(target && target !== document\.body\) target\.focus\(\);/);
+  const nearbyStep = common.match(/function nearbyStep\(id\) \{[^]*?\n  \}/)[0];
+  assert.match(nearbyStep, /#chart \.mark\[data-id\]/);
+  assert.match(nearbyStep, /#chart \[tabindex="0"\]/);
+  assert.match(nearbyStep, /h\.setAttribute\('tabindex', '-1'\)/);
+});
+
+test('"Show routine notes" inside a row keeps focus on its button after the row is redrawn', () => {
+  const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
+  const block = problems.match(/if \(ev\.target\.closest\('\[data-routine\]'\)\) \{[^]*?return;\n      \}/)[0];
+  assert.match(block, /const row = ev\.target\.closest\('details\.pcard'\)\?\.id;/, 'the row is read before the redraw');
+  assert.ok(block.indexOf('dispatchEvent') < block.indexOf("querySelector('[data-routine]')?.focus()"), 'and focus moves to the new button after it');
+  // The count beside the switch is of notes found, which can be more than the open rows show.
+  assert.match(problems, /Show routine notes \(\$\{full\(routine\)\} found\)/);
+});
+
+test('the Find cards: a capped list never says "all", and "Worth a look" lists only patterns with a finding worth a look', () => {
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  assert.doesNotMatch(search, /See all \$\{recent\.length\}/, 'the server caps the recent list, so "all" could be untrue');
+  assert.match(search, /`See the \$\{recent\.length\} most recent`/);
+  assert.match(readFileSync(join(HERE, '..', 'lib', 'view', 'data.mjs'), 'utf8'), /\.slice\(0, 12\)\s+\.map\(\(s\) => \(\{ \.\.\.sessionRow/, 'the cap this wording answers');
+  assert.match(search, /const top = live\.filter\(\(p\) => Number\(p\.look\) > 0\)\.sort\(cmp\)\.slice\(0, 3\);/);
+  assert.match(search, /The checks found only routine notes in this window, nothing worth a look\./);
+  // "My priority" set in another tab reaches this card and the header's count.
+  assert.match(search, /prefs\.onChange\(fillLook\);/);
+  assert.match(readFileSync(join(ASSETS, 'common.js'), 'utf8'), /navPrefs\.onChange\(\(\) => navPatterns && navCount\(navPatterns\)\);/);
+});
+
+test('with no session to check, the Problems page and the Find card say nothing was checked', () => {
+  const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
+  assert.match(problems, /const nothing = Number\(num\(cov\.sessions\)\) === 0 && n === 0;/);
+  assert.match(problems, /so there was nothing to check against the \$\{D\.patterns\.length\} known problems/);
+  assert.match(problems, /unchecked: \{ icon: '○', word: 'Not checked' \}/);
+  assert.match(problems, /\(p\.measures \?\? \[\]\)\.length \? 'not checked' : 'no check here yet'/, 'a pattern whose check did not run is not "no check here yet"');
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  assert.match(search, /const nothing = Number\(num\(a\.coverage\?\.sessions\)\) === 0 && !found\.length;/);
+  assert.match(search, /No session in this window to check, so this says nothing about problems\./);
+});
+
+test("the leak counter: a cut mark with a closing quote glued to it is the page's own mark; a secret in that spot still counts", () => {
+  const leaks = createLeakCounter({});
+  const total = (s) => [leaks.redacted(s).total, leaks.secrets(s).total];
+  for (const s of ['add a --token-file …', 'add a --token-file …"', '"add a --token-file …"', 'add a --token-file ..."', 'password=…")', 'add a --token-file …" ']) assert.deepEqual(total(s), [0, 0], s);
+  // Failing partners: a value glued to the mark on either side, or after it, is still a leak.
+  for (const s of ['add a --token-file 7Qx2mK9pLw4ZtR8vN3bY…"', 'add a --token-file …7Qx2mK9pLw4ZtR8vN3bY"', 'password=hunter2hunter2…"', 'token: …" 7Qx2mK9pLw4ZtR8vN3bY', 'password=…" password=hunter2hunter2']) assert.deepEqual(total(s), [1, 1], s);
+});
+
+test('the README names the first page Find, as the page does, and counts four pages', () => {
+  const readme = readFileSync(join(HERE, '..', 'README.md'), 'utf8');
+  assert.doesNotMatch(readme, /\*Search\.\*|three parts: Search/);
+  assert.match(readme, /four parts: Find \(/);
+  assert.match(readme, /- \*Find\.\* Type a pull request/);
+  for (const p of PAGES) assert.match(readFileSync(join(ASSETS, p), 'utf8'), />Find<\/a>/, `${p}: the header calls it Find`);
 });

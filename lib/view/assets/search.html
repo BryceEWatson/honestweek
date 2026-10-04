@@ -3,33 +3,46 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Search · honestweek</title>
+<title>Find · honestweek</title>
 <link rel="stylesheet" href="common.css">
 </head>
-<body data-page="search">
+<body data-page="search" data-view="home">
 <header class="topbar">
   <a class="brand" href="search.html">honestweek</a>
-  <nav aria-label="Pages"><a href="search.html" aria-current="page">Search</a><a href="goal.html">Goals</a><a href="replay.html">Replay</a></nav>
+  <nav aria-label="Pages"><a href="search.html" aria-current="page">Find</a><a href="goal.html">Goals</a><a href="replay.html">Replay</a><a href="problems.html">Problems<span class="navcount" id="navHigh" hidden></span></a></nav>
+  <span class="topbar-gap"></span>
   <span class="window" id="window"></span>
   <span class="privacy" id="privacy"></span>
+  <button type="button" class="keybtn" id="keyBtn" aria-expanded="false" aria-controls="evkeyPanel" aria-label="How each link is known" title="How each link is known">?</button>
+  <div class="evkey-pop" id="evkeyPanel" role="region" aria-label="How each link is known" hidden><p class="evkey" data-evkey></p></div>
 </header>
-<p class="demo" id="demo" hidden></p>
+<div class="demo" id="demo" hidden></div>
 <p class="statusline" id="status" role="status" hidden></p>
-<div class="pagehead">
-  <h1>Find agent work</h1>
-  <span class="sub">sessions, goals, pull requests, commits, files, branches and prompts</span>
-  <p class="evkey" data-evkey></p>
-</div>
 <main id="content">
-  <div class="searchbox"><input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="A pull request (#12), a commit id, a file, a branch, or words from a prompt" aria-label="Search"></div>
-  <div class="hint" id="hint"></div>
-  <div class="coverage" id="coverage"></div>
-  <div id="out" aria-live="polite"></div>
+  <section class="find" aria-labelledby="findH">
+    <h1 id="findH">Find the work behind anything</h1>
+    <p class="find-sub">A pull request, a commit, a file, a branch, or a few words from a prompt.</p>
+    <form class="searchbox" role="search" id="findForm">
+      <label class="sr" for="q">Search your sessions</label>
+      <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="A pull request (#12), a commit id, a file, a branch, or words from a prompt">
+      <button type="submit" class="btn primary">Find</button>
+    </form>
+    <div class="hint" id="hint"></div>
+  </section>
+  <div class="results" id="results">
+    <div id="out" aria-live="polite"></div>
+    <aside class="keyside" id="keySide" aria-label="How each link is known" hidden></aside>
+  </div>
 </main>
+<footer class="quiet" id="quiet">
+  <div class="coverage" id="coverage"></div>
+  <p class="quiet-line"><span id="privnote"></span> <span>Read from logs on this machine. Nothing leaves it.</span></p>
+</footer>
 <script src="evidence.js"></script>
 <script src="key.js"></script>
 <script src="private-text.js"></script>
 <script src="common.js"></script>
+<script src="prefs.js"></script>
 <script src="search.js"></script>
 </body>
 </html>
