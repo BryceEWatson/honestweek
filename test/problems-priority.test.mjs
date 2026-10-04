@@ -176,16 +176,23 @@ test('risky commands: only a git command that runs with the flag counts, never a
 
 test('risky commands: a wrapper, a prefix or a short-flag group still runs the command', () => {
   const kinds = (c) => riskyKinds(c, false).map((k) => k.kind + (k.look ? '*' : ''));
-  for (const c of ['bash -lc git push -f origin main', 'bash -c "git push -f"', "sh -c 'cd /path/to/your/repo && git push --force'", 'pwsh -NoProfile -Command "git push -f"', 'eval "git push -f"', 'sudo git push -f', 'git --no-pager push -f', 'git.exe push --force', '/usr/bin/git push --force', 'echo hi | xargs git push -f', 'echo `git push -f`', 'git push -fu origin main', 'git push origin +main']) {
+  for (const c of ['bash -lc git push -f origin main', 'bash -c "git push -f" 2>&1', 'nohup bash -c "git push -f" > log 2>&1 &', 'bash -c -- "git push -f"', 'bash -c "git push -f"', "sh -c 'cd /path/to/your/repo && git push --force'", 'pwsh -NoProfile -Command "git push -f"', 'eval "git push -f"', 'sudo git push -f', 'git --no-pager push -f', 'git.exe push --force', '/usr/bin/git push --force', 'echo hi | xargs git push -f', 'echo `git push -f`', 'git push -fu origin main', 'git push origin +main']) {
     assert.deepEqual(kinds(c), ['force-push*'], c);
   }
   for (const c of ["sh -c 'git commit --no-verify -m x'", 'bash -lc git commit --no-verify -m x', 'git commit -n -m x', 'git commit -nm x', 'git -c core.hooksPath="" commit -m x', 'git config core.hooksPath /dev/null']) {
     assert.deepEqual(kinds(c), ['skip-checks*'], c);
   }
   for (const c of ['bash -lc git clean -fdx', 'pwsh -Command "git clean -fdx"', 'git clean -fd -e -n', 'git clean -f -- -n']) assert.deepEqual(kinds(c), ['git-clean*'], c);
-  for (const quiet of ['git push -n -f', 'git push --dry-run --force', 'git commit -m n', 'git commit -mn', 'git merge -n main', 'git branch -d old', `rg "bash -c 'git push -f'" docs`, "bash -lc git commit -m 'x --no-verify'", 'cat <<EOF\ngit push -f\nEOF']) {
+  for (const quiet of ['git push --force-if-includes', 'git commit -m -n', 'git commit -F -n', 'bash -c "echo git push -f" 2>&1', 'git push -n -f', 'git push --dry-run --force', 'git commit -m n', 'git commit -mn', 'git merge -n main', 'git branch -d old', `rg "bash -c 'git push -f'" docs`, "bash -lc git commit -m 'x --no-verify'", 'cat <<EOF\ngit push -f\nEOF']) {
     assert.deepEqual(kinds(quiet), [], quiet);
   }
+});
+
+test("risky commands: a long unclosed quote full of escaped quotes reads in one pass", () => {
+  const s = `bash -c "${'a\\"'.repeat(70_000)}`;
+  const t = Date.now();
+  assert.deepEqual(riskyKinds(s, false), []);
+  assert.ok(Date.now() - t < 1000, `took ${Date.now() - t} ms`);
 });
 
 test("completion claims: a hand-off to you or work still to do isn't a flat claim", () => {
@@ -209,6 +216,12 @@ test('completion claims: work left in another sentence, a readiness clause or an
     assert.equal(r.flat, true, s);
     assert.equal(r.admitsNoCheck, false, `a question about something else isn't a hand-off: ${s}`);
   }
+  // A dot in a file name or version isn't a sentence end, so work left later in the sentence still counts.
+  for (const s of ["The bug is fixed in lib/foo.mjs but I haven't wired the UI yet.", 'All tests pass on the parser.mjs module, but I still need to update the CLI.', "Fixed in v1.2, but I haven't released it yet.", "I've added the hook, e.g. for retries, but haven't wired the UI yet.", "I've implemented the parser\nbut haven't wired the UI yet."]) {
+    const r = classifyAgentText(s);
+    assert.equal(r.flat || r.testsPass, false, s);
+  }
+  for (const s of ["I've fixed the parser. Can you run npm test to confirm?", 'The fix is in place. Please re-run CI.', 'The fix is in place. Can you try now?', "I've fixed it. Can you test on your machine?"]) assert.equal(classifyAgentText(s).admitsNoCheck, true, s);
   for (const s of ['Could you run the tests on your machine?', 'Can you try it again?', 'Please verify the fix on staging.', 'Could you confirm it works?']) assert.equal(classifyAgentText(s).admitsNoCheck, true, s);
 });
 
