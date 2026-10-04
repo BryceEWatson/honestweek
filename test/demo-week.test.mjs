@@ -350,7 +350,7 @@ test('the problem checks find a spread of patterns across the three tiers, each 
 test("the pasted keys never reach the history the pages show, and the click-through's cases sit in the sessions it opens", () => {
   for (const history of [h, all]) {
     const text = JSON.stringify(history.events);
-    for (const secret of ['AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI']) assert.ok(!text.includes(secret), `${secret} is redacted`);
+    for (const secret of ['7Qx2Lk9pR3vT6nW8zB4f', 'sandbox-EXAMPLE']) assert.ok(!text.includes(secret), `${secret} is redacted`);
   }
   // The replay steps of the click-through open the threads of the twelve most recent
   // sessions with a prompt: the inferred author, the non-interactive run and the moved

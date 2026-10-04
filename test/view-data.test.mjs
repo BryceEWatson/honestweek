@@ -114,6 +114,36 @@ test('every private answer hides every secret, and shows the private words', () 
   assert.ok(all.includes(TERM) && all.includes(EMAIL), 'the switch shows the private words');
 });
 
+// A step description quotes its prompt, so a token pasted at the very end of a prompt comes
+// out as `DOCS_TOKEN=[redacted:secret]"`: the closing quote right after the placeholder. The
+// leak counter read that as a field value that wasn't only a placeholder and counted a leak.
+test('a token hidden at the very end of a prompt counts as hidden, and one shown there is still a leak', async () => {
+  const release = claudeSessionKey(w.d.ids.projectDirs.releaseWorktree, w.d.ids.claude.releaseScript);
+  const glued = /=\[redacted:secret\]"$/;
+  for (const priv of [false, true]) {
+    const count = (answer) => (priv ? leaks.secrets(answer) : leaks.redacted(answer));
+    for (const [path, q] of [['/api/goal', { key: goalKey('publish-notes') }], ['/api/replay', { session: release }]]) {
+      const answer = await body(path, q, priv);
+      assert.ok(stringsIn(answer).some((s) => glued.test(s)), `${path} ${priv ? 'private' : 'redacted'}: a placeholder right before a closing quote`);
+      assert.equal(count(answer).total, 0, `${path} ${priv ? 'private' : 'redacted'}: no leak counted`);
+    }
+  }
+  // The same place on a made-up string, hidden and shown.
+  const hidden = 'prompt "To try it, use the sandbox one, DOCS_TOKEN=[redacted:secret]"';
+  const shown = 'prompt "To try it, use the sandbox one, DOCS_TOKEN=sandbox-7Qx2Lk9pR3vT6nW8zB4f"';
+  assert.deepEqual([leaks.redacted(hidden).total, leaks.secrets(hidden).total], [0, 0]);
+  assert.deepEqual([leaks.redacted(shown).secrets, leaks.secrets(shown).total], [1, 1]);
+  // Only closing punctuation that ends the text is set apart: a value glued on after it is
+  // still read, and still a leak.
+  const gluedOn = 'prompt "DOCS_TOKEN=[redacted:secret]"7Qx2Lk9pR3vT6nW8zB4f';
+  assert.deepEqual([leaks.redacted(gluedOn).secrets, leaks.secrets(gluedOn).total], [1, 1]);
+  for (const s of ['TOKEN=[redacted:secret])', "password: '[redacted:secret]'.", 'API_KEY=[redacted:secret]",']) assert.equal(leaks.secrets(s).total, 0, s);
+  // An excerpt cut right after a sensitive flag ends in the page's own mark, which isn't a
+  // value; a real value in the same place still is.
+  for (const s of ['Yes: add a --token-file …', 'Yes: add a --token-file ...']) assert.deepEqual([leaks.redacted(s).total, leaks.secrets(s).total], [0, 0], s);
+  assert.deepEqual([leaks.redacted('Yes: add a --token-file 7Qx2Lk9pR3vT6nW8zB4f').secrets, leaks.secrets('Yes: add a --token-file 7Qx2Lk9pR3vT6nW8zB4f').total], [1, 1]);
+});
+
 test('private text is served only when a request asks with private=1', async () => {
   for (const value of [undefined, '0', 'true', 'yes', '2', '', ' 1', '1 ']) {
     const r = await data.route('/api/replay', params({ session: w.keys.featured, private: value }));
