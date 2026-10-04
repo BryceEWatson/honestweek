@@ -146,7 +146,7 @@ test('streams a Codex rollout, including its shell wrapper failure banner', asyn
   writeFileSync(
     f,
     jsonl(
-      { timestamp: '2026-08-01T00:00:00.000Z', type: 'session_meta', payload: { cwd: 'C:/repo', cli_version: '0.144.6', source: 'exec' } },
+      { timestamp: '2026-08-01T00:00:00.000Z', type: 'session_meta', payload: { cwd: 'C:/repo', cli_version: '0.144.6', source: 'cli' } },
       { timestamp: '2026-08-01T00:00:01.000Z', type: 'event_msg', payload: { type: 'user_message', message: 'work out why the service fails' } },
       { type: 'response_item', payload: { type: 'custom_tool_call', name: 'exec', input: 'tools.shell_command({command:"Get-Service Acme"})' } },
       { type: 'response_item', payload: { type: 'custom_tool_call_output', output: [{ type: 'input_text', text: 'Script failed\nExit code: 1\nAcme not running' }] } },
