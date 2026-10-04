@@ -1406,9 +1406,9 @@ test('a week with no unsettled text keeps its prompt store, and an unsettled cue
 
     const unsettledDigest = structuredClone(digest);
     const cue = unsettledDigest.evidence.find((value) => value.category === 'decisions');
-    // A cue whose text has had its first pass and still changes on a second.
+    // A cue whose text is the audit's rendition and still changes when the redactor runs over it.
     const sample = unsettledSample(config, UNSETTLED_FRAME);
-    cue.text = sample.once;
+    cue.text = sample.scanned;
     cue.contentHash = sha256(cue.text);
     assert.match(cue.text, sample.leak, 'the cue still shows part of the sample');
     assert.notEqual(createRedactor(config).redact(cue.text), cue.text, `a second pass still changes the cue: ${SETTLED_HINT}`);

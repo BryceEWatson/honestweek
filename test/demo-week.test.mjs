@@ -113,15 +113,16 @@ test('worktree sessions count for the project, and the resumed session joins the
 
 test('prompts: 1 to 7 typed per session, one queued until the next turn, one absorbed mid-turn', () => {
   const totals = h.overview().totals;
-  assert.equal(totals.prompts.value, 50);
+  assert.equal(totals.prompts.value, 49);
   assert.equal(totals.prompts.evidence, 'inferred', 'three prompts come from a Claude Code that records no origin');
-  assert.equal(all.overview().totals.prompts.value, 52);
+  assert.equal(all.overview().totals.prompts.value, 51);
   const perSession = Object.fromEntries(all.sessions.map((s) => [s.key, of(all, s.key, 'prompt').length]));
   assert.deepEqual(perSession, {
     [k.since]: 4, [k.wide]: 2, [k.breaking]: 2, [k.group]: 5, [k.bare]: 3, [k.markdown]: 7, [k.contributing]: 2, [k.resumed]: 4, [k.windows]: 1, [k.release]: 2,
-    [k.json]: 3, [k.node18]: 2, [k.unreleased]: 3, [k.upload]: 2, [k.summary]: 1, [k.site]: 2, [k.lookup]: 2, [k.width]: 2, [k.widthCommit]: 1, [k.scratch]: 2,
+    [k.json]: 3, [k.node18]: 2, [k.unreleased]: 3, [k.upload]: 2, [k.summary]: 0, [k.site]: 2, [k.lookup]: 2, [k.width]: 2, [k.widthCommit]: 1, [k.scratch]: 2,
   });
-  assert.deepEqual([Math.min(...Object.values(perSession)), Math.max(...Object.values(perSession))], [1, 7]);
+  const typed = Object.entries(perSession).filter(([key]) => key !== k.summary).map(([, n]) => n);
+  assert.deepEqual([Math.min(...typed), Math.max(...typed)], [1, 7]);
   const queued = of(h, k.since, 'prompt').find((e) => e.facts.queuedAt);
   assert.match(queued.facts.text, /tag name/);
   assert.ok(queued.derived.queuedMs > 0);
@@ -129,10 +130,11 @@ test('prompts: 1 to 7 typed per session, one queued until the next turn, one abs
   assert.match(absorbed.facts.text, /order they first appear/);
   assert.equal(totals.corrections.value, 3);
   assert.equal(totals.approvals.value, 2);
-  // Who typed a prompt: recorded, inferred from a missing origin, or a non-interactive run.
+  // Who typed a prompt: recorded, or inferred from a missing origin. A codex exec run's
+  // opening message is the agent's starting instruction, never a prompt (issue 62).
   const authorship = (e) => (e.inferred ?? []).find((x) => x && x.key === 'authorship')?.value ?? null;
   assert.deepEqual([k.width, k.widthCommit].map((key) => of(h, key, 'prompt').map(authorship)), [['person', 'person'], ['person']]);
-  assert.deepEqual(of(h, k.summary, 'prompt').map((e) => [e.actor, authorship(e)]), [['person-or-script', 'person-or-script']]);
+  assert.deepEqual(of(h, k.summary, 'delegation-received').map((e) => [e.actor, e.agent === `${k.summary}:main`, e.facts.from]), [['agent', true, 'codex-exec']]);
   assert.ok(h.events.filter((e) => e.kind === 'prompt' && ![k.width, k.widthCommit, k.summary].includes(e.session)).every((e) => authorship(e) === null));
 });
 
@@ -378,7 +380,7 @@ test("the pasted keys never reach the history the pages show, and the click-thro
   // The replay steps of the click-through open the threads of the twelve most recent
   // sessions with a prompt: the inferred author, the non-interactive run and the moved
   // sub-agent line must be among them, and so must both sessions of one resumed thread.
-  const recent = all.sessions.filter((s) => of(all, s.key, 'prompt').length).sort((a, b) => (a.lastAt < b.lastAt ? 1 : -1)).slice(0, 12).map((s) => s.key);
+  const recent = all.sessions.filter((s) => of(all, s.key, 'prompt').length || of(all, s.key, 'delegation-received').some((e) => e.facts.from === 'codex-exec')).sort((a, b) => (a.lastAt < b.lastAt ? 1 : -1)).slice(0, 12).map((s) => s.key);
   for (const key of [k.width, k.widthCommit, k.summary, k.unreleased]) assert.ok(recent.includes(key), `${key} is among the twelve most recent sessions`);
   assert.ok(h.events.some((e) => recent.includes(e.session) && e.timeFrom === 'next-record'), 'a step that borrows its time from the next line');
 });

@@ -529,17 +529,19 @@ function mixedInput(seed) {
 }
 
 const escapeForPattern = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-/** True when `after` is `before` with runs of its shown text, none holding a placeholder,
- *  swapped for the secret placeholder: every placeholder in `before` is still in `after`, in
- *  place, and every character `after` shows, `before` showed. `after` is turned into a pattern
- *  in which each secret placeholder stands for itself or for such a run. */
+/** True when `after` is `before` with runs of its text swapped for the secret placeholder:
+ *  every character `after` shows, `before` showed, and every placeholder in `before` is still
+ *  in `after`, in place or inside a run hidden whole (the full scrubber runs again until its
+ *  text settles, issue 80, and a later run can hide a value together with the placeholders
+ *  inside it). `after` is turned into a pattern in which each secret placeholder stands for
+ *  itself or for such a run. */
 function hidesOnlyMore(before, after) {
   if (before === after) return true;
   let source = '^';
   let at = 0;
   for (const m of after.matchAll(ANY_PLACEHOLDER)) {
     source += escapeForPattern(after.slice(at, m.index));
-    source += m[0] === '[redacted:secret]' ? `(?:${escapeForPattern(m[0])}|(?:(?!\\[redacted:\\w+\\])[^])+?)` : escapeForPattern(m[0]);
+    source += m[0] === '[redacted:secret]' ? `(?:${escapeForPattern(m[0])}|[^]+?)` : escapeForPattern(m[0]);
     at = m.index + m[0].length;
   }
   return new RegExp(`${source}${escapeForPattern(after.slice(at))}$`).test(before);
@@ -558,8 +560,9 @@ test('800 generated inputs: the added passes leave every placeholder in place an
       onlyHidesMore(rules[k].redact(input), before, label);
       const after = full[k].redact(input);
       assert.ok(hidesOnlyMore(before, after), `${label}: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
-      // Nothing is hidden from the text as written unless something is read there.
-      if (!sourceFieldSpans(input).length) assert.equal(after, before, label);
+      // Nothing is hidden from the text as written unless something is read there, or a second
+      // run over it would hide more.
+      if (!sourceFieldSpans(input).length && full[k].redact(before) === before) assert.equal(after, before, label);
       // The runs of text between placeholders line up with the input.
       assert.ok(alignRedacted(input, before), `${label}: the output lines up with the input`);
     }
