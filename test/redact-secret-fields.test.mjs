@@ -454,10 +454,11 @@ const NESTED_AFTER_QUOTE = [
   [`api_key: token: "${LV}"`, 'api_key: [redacted:secret]'],
   [`password: token: "${LV}"`, 'password: [redacted:secret]'],
   [`api.key: --token ${LV}`, 'api.key: [redacted:secret]'],
-  [`api.key: "token": "${LV}"`, `api.key: "token": "[redacted:secret]"`],
-  [`api_key: "token": "${LV}"`, `api_key: "token": "[redacted:secret]"`],
-  [`api.key: 'token': '${LV}'`, `api.key: 'token': '[redacted:secret]'`],
-  [`password="token": "${LV}"`, `password="token": "[redacted:secret]"`],
+  // A quoted key goes with the value it opens: the quoted word may be the password itself.
+  [`api.key: "token": "${LV}"`, 'api.key: [redacted:secret]'],
+  [`api_key: "token": "${LV}"`, 'api_key: [redacted:secret]'],
+  [`api.key: 'token': '${LV}'`, 'api.key: [redacted:secret]'],
+  [`password="token": "${LV}"`, 'password=[redacted:secret]'],
   [`-Dapi.key=user:basic ${LV}`, '-Dapi.key=[redacted:secret]'],
   [`api.key: x:bearer ${LV}`, 'api.key: [redacted:secret]'],
 ];
@@ -519,6 +520,30 @@ test('a closed quoted value ending on a field covers that field\'s value', () =>
   assert.equal(createRedactor().redact('api_key: "my token", region: eu'), 'api_key: "[redacted:secret]", region: eu');
 });
 
+// A quoted value that reads like a key (`"Secret2024":`) may be the password itself, so it is
+// hidden, with the value after it. A run-on that would take a word naming a secret, which may be
+// a key with its separator on the next line, stays inside its quotes. Made-up values.
+test('a quoted value that reads like a key, or runs on into one, stays hidden', () => {
+  // Each password here is itself a word naming a secret, the shape that used to be shown.
+  for (const [password, rows] of [
+    ['Secret2024', [[`password: "Secret2024":`, 'password: "[redacted:secret]":'], [`password: 'Secret2024': 'x'`, 'password: [redacted:secret]']]],
+    ['MySecret123', [[`password: "MySecret123": " ok"`, 'password: [redacted:secret]'], [`{"password": "MySecret123": "x"}`, '{"password": [redacted:secret]']]],
+    ['Tokyo_pass', [[`password: "Tokyo_pass": ok`, 'password: [redacted:secret]']]],
+  ]) agreeOn(rows, [], password);
+  const input = `auth: 'pass='auth\n= ${LV}`;
+  for (const out of [createRedactor().redact(input), createSecretsOnlyRedactor().redact(input), redactWithAudit(input, {}).text]) assert.ok(!out.includes(LV), out);
+});
+
+// A value whose nested fields reach the end of its line's text stops reading them there, and
+// the fields on the next line are still read on their own. Made-up values.
+test('a value that reaches its line\'s end leaves the next line\'s fields to be read', () => {
+  agreeOn([
+    [`api_key: token: token: ${LV}   \npassword: ${LV} ok`, 'api_key: [redacted:secret]   \npassword: [redacted:secret]'],
+    [`password:password: ${LV}  \nnote: fine\ntoken: "${LV}" done`, 'password:[redacted:secret]  \nnote: fine\ntoken: "[redacted:secret]" done'],
+    [`${'token:'.repeat(40)}${LV}\napi.key=${LV} x`, 'token:[redacted:secret]\napi.key=[redacted:secret] x'],
+  ], [], LV);
+});
+
 test('a record key that is a code file or a length keeps its value; a dotted key named for a credential hides it', () => {
   const shown = { 'auth.ts': 'ordinary contents', 'token.js': 'ordinary contents', 'password.length': '8', 'auth.test.mjs': 'ordinary contents' };
   // A data file named for a secret may hold the secret itself, so its value stays hidden.
@@ -550,6 +575,17 @@ test('Java properties and dotted keys stay fast on 200,000-character inputs', ()
     `${'token:'.repeat(33400)}x`,
     'password:password: '.repeat(10600),
     'api_key: token=x '.repeat(11800),
+    // A value that reaches its line's text, with spaces after it, and many such lines. The limit
+    // catches time that grows faster than the input; a slower constant (each value re-reading
+    // the rest of its line, about 10 times main's time) passed here and failed only on a slow
+    // runner, so these inputs are timed as well, not proof that the constant stays down.
+    `${'token:'.repeat(33400)}x${' '.repeat(1000)}`,
+    `${'token:'.repeat(40)}x  \n`.repeat(820),
+    `${'password:password: '.repeat(40)}\n`.repeat(270),
+    // Many fields inside one closed quoted value: only the last can run on past the quote.
+    `password: "${'token='.repeat(33400)}x"`,
+    `password: '${'token='.repeat(33400)}x'`,
+    `api.key: "${'hello token: '.repeat(15400)}": x`,
   ];
   for (const input of inputs) {
     assert.ok(input.length >= 200000, `${input.length} characters`);
