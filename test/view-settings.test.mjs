@@ -354,6 +354,7 @@ test('a range in the past is saved, read by the next run, and a reversed one is 
   const before = readFileSync(join(dir, 'honestweek.config.json'), 'utf8');
   const bad = await post(s, 'save', { ...base, history: { from: day(-1), to: day(-9) } });
   assert.equal(bad.status, 400);
+  assert.match(bad.json.message, /two dates in order/, 'the refusal names the range it expected');
   assert.equal(readFileSync(join(dir, 'honestweek.config.json'), 'utf8'), before);
   const ok = await post(s, 'save', { ...base, history: { from: day(-9), to: day(-1) } });
   assert.equal(ok.status, 200, ok.text);
