@@ -384,3 +384,21 @@ test('the Find cards claim no more than their lists hold', () => {
   assert.doesNotMatch(problems, /this week/);
   assert.match(problems, /'Not found in this window'/);
 });
+
+test("a share rounds down on every page, and an estimate past the window's total never prints as a share", () => {
+  const common = readFileSync(join(ASSETS, 'common.js'), 'utf8');
+  const pct = runInNewContext(`(${common.match(/const pct = (\(x\) => [^\n]+);/)[1]})`);
+  // Each of these would print as the line above it if the helper rounded to nearest.
+  assert.equal(pct(0.0496), '4.9%', 'just under the 5% line');
+  assert.equal(pct(0.00996), '0.9%', 'just under the 1% line');
+  assert.equal(pct(0.0999), '9.9%');
+  assert.equal(pct(0.249), '24%');
+  assert.equal(pct(0.999), '99%', 'never 100% for less than all of it');
+  // The two places the calmer pages added say so in words instead of printing a share over 100%.
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  assert.match(search, /share > 1 \? "more than all the window's tokens" : `\$\{HW\.pct\(share\)\} of the window's tokens`/, 'the Find card');
+  const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
+  assert.match(problems, /const OVER = "more than all the window's tokens, since estimates for neighbouring steps overlap";/);
+  const start = problems.match(/function startCard\(p\) \{[^]*?\n  \}/)[0];
+  assert.match(start, /p\.tokens\.tokens > D\.coverage\.tokens\.value \? `, \$\{OVER\}` : `, \$\{pct\(/, '"Start with these"');
+});
