@@ -96,7 +96,8 @@ test('reading tolerates missing, malformed and unknown-shaped files, and counts 
 test('claude is found only in absolute folders on the PATH, with PATHEXT on Windows', () => {
   const dir = join(scratch, 'pathfind');
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, 'claude.cmd'), '@echo off\r\n');
+  // Named with PATHEXT's own case, so the Windows lookup also finds it on a case-sensitive disk.
+  writeFileSync(join(dir, 'claude.CMD'), '@echo off\r\n');
   writeFileSync(join(dir, 'claude'), '#!/bin/sh\n');
   chmodSync(join(dir, 'claude'), 0o755);
   assert.equal(findOnPath('claude', { Path: `relative;${dir}`, PATHEXT: '.EXE;.CMD' }, 'win32')?.toLowerCase(), join(dir, 'claude.cmd').toLowerCase());
@@ -199,7 +200,8 @@ setTimeout(() => {
 `);
   if (WIN) writeFileSync(join(dir, 'claude.cmd'), `@"${process.execPath}" "%~dp0fake-claude.mjs" %*\r\n`);
   else {
-    writeFileSync(join(dir, 'claude'), `#!/bin/sh\nexec "${process.execPath}" "$(dirname "$0")/fake-claude.mjs" "$@"\n`);
+    // The script's own path is written in: the tests' PATH holds no dirname.
+    writeFileSync(join(dir, 'claude'), `#!/bin/sh\nexec "${process.execPath}" "${join(dir, 'fake-claude.mjs')}" "$@"\n`);
     chmodSync(join(dir, 'claude'), 0o755);
   }
   return dir;
