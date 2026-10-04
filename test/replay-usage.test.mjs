@@ -26,6 +26,7 @@ const X5 = '01900000-0000-7000-8000-0000000000c5';
 const X6 = '01900000-0000-7000-8000-0000000000c6';
 const X7 = '01900000-0000-7000-8000-0000000000c7';
 const X8 = '01900000-0000-7000-8000-0000000000c8';
+const X9 = '01900000-0000-7000-8000-0000000000c9';
 const UNREAD_PARENT = '01900000-0000-7000-8000-0000000000cf';
 const LONG_SENTINEL = 'RAW-ONLY-TAIL-SENTINEL';
 const ERROR_SENTINEL = 'RAW-ERROR-SENTINEL';
@@ -150,6 +151,14 @@ before(() => {
     meta(at(1660), X8),
     tc(at(1661), 6000, { input_tokens: 0, cached_input_tokens: 0, output_tokens: 0, total_tokens: 6000 }),
     tc(at(1662), 777, { input_tokens: 700, cached_input_tokens: 0, output_tokens: 77, total_tokens: 777 }),
+  ]);
+  // X9, a sub-agent of X2 whose file was written in one burst: every record carries the same
+  // time, so time can't separate its copy of X2's call from its own two calls.
+  rollout(X9, '12-20-00', [
+    spawned(at(1670), X9, X2),
+    tc(at(1670), 5000, { input_tokens: 4000, cached_input_tokens: 0, output_tokens: 1000, total_tokens: 5000 }),
+    tc(at(1670), 5400, { input_tokens: 350, cached_input_tokens: 0, output_tokens: 50, total_tokens: 400 }),
+    tc(at(1670), 5700, { input_tokens: 280, cached_input_tokens: 0, output_tokens: 20, total_tokens: 300 }),
   ]);
   // Y stops mid-call. Z resumes it, copying Y's records, and records that call's failed result.
   const y = claude(Y, fx.repo.dir);
@@ -288,13 +297,14 @@ test("keepRaw: a resumed copy's failed result brings its raw error text to the k
 test("usage: a Codex total that starts again still counts each call; a sub-agent's copies are its parent's", async () => {
   const h = await build({ usage: true });
   const cxCalls = h.usage.calls.filter((c) => c.tool === 'codex' && c.t >= Date.parse(at(1600)));
-  const sourceOf = (id) => h.sources.find((s) => s.tool === 'codex' && cxCalls.some((c) => c.source === s.key) && h.events.some((e) => e.source === s.key && e.kind === 'session' && e.t === Date.parse(at({ [X2]: 1600, [X3]: 1610, [X4]: 1620, [X5]: 1630, [X6]: 1640, [X7]: 1650, [X8]: 1660 }[id]))))?.key;
+  const sourceOf = (id) => h.sources.find((s) => s.tool === 'codex' && cxCalls.some((c) => c.source === s.key) && h.events.some((e) => e.source === s.key && e.kind === 'session' && e.t === Date.parse(at({ [X2]: 1600, [X3]: 1610, [X4]: 1620, [X5]: 1630, [X6]: 1640, [X7]: 1650, [X8]: 1660, [X9]: 1670 }[id]))))?.key;
   const of = (id) => cxCalls.filter((c) => c.source === sourceOf(id)).map((c) => [c.input, c.cacheWrite, c.cacheRead, c.output]);
   assert.deepEqual(of(X2), [[4000, 0, 0, 1000], [290, 0, 0, 10], [200, 0, 0, 100], [200, 50, 0, 50]], 'a repeat is no call; after the total drops each call counts; reasoning inside the total is not added again; a cache-write count is read');
   assert.deepEqual(of(X3), [[400, 0, 100, 20]], "the sub-agent's opening copy and a later copy of its parent's call are not its calls, even though the parent ends later");
   assert.deepEqual(of(X4), [[40, 0, 0, 10]], "a grandchild's copy of its parent's call counts in the parent");
   assert.deepEqual([...of(X5), ...of(X6)].sort(), [[2500, 0, 0, 500], [30, 0, 0, 1], [31, 0, 0, 1]], 'siblings whose parent is not read count their shared copy once');
   assert.deepEqual([of(X7), of(X8)], [[[700, 0, 0, 77]], [[700, 0, 0, 77]]], 'unrelated sessions with the same counts both count; a record with no input and no output is no call');
+  assert.deepEqual(of(X9), [[350, 0, 0, 50], [280, 0, 0, 20]], 'in a file written in one burst, own calls count and a copy its parent holds does not');
   const x3 = cxCalls.find((c) => c.source === sourceOf(X3));
   assert.equal(x3.session, cxCalls.find((c) => c.source === sourceOf(X2)).session, "a spawned sub-agent's calls belong to its parent's session");
   assert.equal(x3.agent, sourceOf(X3));
