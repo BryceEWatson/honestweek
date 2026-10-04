@@ -318,7 +318,12 @@ test('the program reader: literals only, straight runs only, and outputs read as
   assert.equal(readExecProgram('let p = "a"; p = "b"; await tools.apply_patch(p);').calls[0].arg, null);
   assert.equal(readExecProgram('await tools.exec_command({cmd: `npm ${x}`});').calls[0].arg, null);
   assert.equal(readExecProgram('await tools.exec_command({...o, cmd: "a"});').calls[0].arg, null);
-  for (const p of ['if (x) await tools.exec_command({cmd: "a"});', 'await Promise.all([tools.exec_command({cmd: "a"})]);', 'try { await tools.exec_command({cmd: "a"}); } catch {}', '[1].map(async () => await tools.exec_command({cmd: "a"}));', 'tools.exec_command({cmd: "a"});']) {
+  // A name whose literal is only the start of its value, or an object changed after it's declared.
+  for (const p of ['const c = "rm -rf " + dir; await tools.exec_command({cmd: c});', 'const c = "npm test".replace("test", "run build"); await tools.exec_command({cmd: c});', 'const o = {cmd: "echo a"}; o.cmd = "echo b"; await tools.exec_command(o);', 'const o = {cmd: "echo a"}; Object.assign(o, x); await tools.exec_command(o);']) {
+    assert.equal(readExecProgram(p).calls[0].arg?.cmd, undefined, p);
+  }
+  assert.equal(readExecProgram('const c = "npm test"\nconst o = {cmd: c}\nawait tools.exec_command(o)').calls[0].arg.cmd, 'npm test');
+  for (const p of ['if (x) await tools.exec_command({cmd: "a"});', 'exit(); await tools.exec_command({cmd: "a"});', 'process.exit(0); await tools.exec_command({cmd: "a"});', 'const o = { async f() { await tools.exec_command({cmd: "a"}); } };','b: { await tools.exec_command({cmd: "a"}); break b; await tools.exec_command({cmd: "c"}); }','await Promise.all([tools.exec_command({cmd: "a"})]);', 'try { await tools.exec_command({cmd: "a"}); } catch {}', '[1].map(async () => await tools.exec_command({cmd: "a"}));', 'tools.exec_command({cmd: "a"});']) {
     assert.equal(readExecProgram(p).straight, false, p);
   }
   // A regular expression with a quote in it doesn't throw the reader off.
