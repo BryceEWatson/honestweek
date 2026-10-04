@@ -209,3 +209,27 @@ test('contributor docs: no dashes, links resolve, no personal data, private repo
   assert.match(README, /\]\(CONTRIBUTING\.md\)/);
   assert.match(README, /\]\(SECURITY\.md\)/);
 });
+
+test('DOCS-CONSISTENCY: the README counts the subcommands the dispatcher has', () => {
+  const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen'];
+  const m = README.match(/The CLI surface is (\w+) subcommands/);
+  assert.ok(m, 'the README states how many subcommands there are');
+  assert.equal(m[1], words[actualSubcommands().length], `the README says ${m[1]}; the dispatcher has ${actualSubcommands().length}`);
+});
+
+test('a newcomer meets the first three commands before the weekly pipeline, in the order they run them', () => {
+  const tryIt = README.indexOf('## Try it');
+  assert.ok(tryIt > 0 && tryIt < README.indexOf('## Install') && tryIt < README.indexOf('## The flow'), 'Try it comes before Install and the weekly flow');
+  const block = README.slice(tryIt, README.indexOf('```', README.indexOf('```bash', tryIt) + 7));
+  const steps = ['npx github:BryceEWatson/honestweek view --demo', 'npx github:BryceEWatson/honestweek init', 'npx github:BryceEWatson/honestweek view '];
+  let at = -1;
+  for (const s of steps) {
+    const i = block.indexOf(s, at + 1);
+    assert.ok(i > at, `Try it runs ${s.trim()} next`);
+    at = i;
+  }
+  // The browser page comes before the weekly pipeline, and every section is still there.
+  assert.ok(README.indexOf('## Finding and replaying your work in the browser') < README.indexOf('## The flow'));
+  // The usage text names the same three steps.
+  for (const s of ['view --demo', '${cmd} init', '${cmd} view\n']) assert.ok(BIN.includes(s), `honestweek with no command names ${s.trim()}`);
+});

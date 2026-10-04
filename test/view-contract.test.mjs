@@ -252,3 +252,39 @@ test('replay: an id this window doesn\'t hold is an empty result naming the wind
   // The replay page shows the window's empty state for it, with a way back to search.
   assert.match(page('assets/replay.js'), /if \(!D \|\| !D\.thread\)/);
 });
+
+test('status: the command a page names and the private-word note, and the pages read both', async () => {
+  const s = data.status();
+  assert.equal(s.command, 'honestweek', 'the plain command when none is given');
+  assert.ok(s.privateWords.count > 0, 'the seeded week lists private words');
+  assert.equal(s.privateWords.note, null);
+  const bare = createViewData({ config: { ...w.config, redaction: { codenames: [], names: [], terms: [] } }, roots: w.roots, ...WINDOW, command: 'npx github:your-org/honestweek' });
+  const b = bare.status();
+  assert.equal(b.command, 'npx github:your-org/honestweek');
+  assert.equal(b.privateWords.count, 0);
+  assert.ok(b.privateWords.note.includes('npx github:your-org/honestweek view again'), b.privateWords.note);
+  // The demo always lists its made-up word, so it never shows the note.
+  const demo = createViewData({ config: { ...w.config, redaction: { codenames: [], names: [], terms: [] } }, roots: w.roots, ...WINDOW, demo: true });
+  assert.equal(demo.status().privateWords.note, null);
+  const common = page('assets/common.js');
+  for (const name of ['showPrivateWords(s.privateWords)', 'shell.status?.command']) assert.ok(common.includes(name), `common.js reads ${name}`);
+  // No page names a bare `honestweek view` command any more; each reads the command.
+  for (const f of ['assets/common.js', 'assets/goal.js', 'assets/search.js', 'assets/replay.js']) assert.doesNotMatch(page(f), /<code>honestweek view/, f);
+});
+
+test('the demo notice names init and view the way the person ran honestweek, before the plugin', () => {
+  const d = createViewData({ config: w.config, roots: w.roots, ...WINDOW, demo: true, command: 'node bin/honestweek.mjs' });
+  const cmds = d.status().demo.commands.map((c) => c.command);
+  assert.deepEqual(cmds.slice(0, 2), ['node bin/honestweek.mjs init', 'node bin/honestweek.mjs view']);
+  assert.ok(cmds.slice(2).every((c) => c.startsWith('claude plugin')), 'the plugin, for the weekly summary, comes after');
+  // Failing-path partner: with no command given, the notice still names a runnable one.
+  const plain = createViewData({ config: w.config, roots: w.roots, ...WINDOW, demo: true });
+  assert.equal(plain.status().demo.commands[0].command, 'honestweek init');
+});
+
+test('session rows carry startedBy, and the search page shows it in place of "0 prompts"', async () => {
+  const home = await body('/api/home');
+  for (const r of home.recent) assert.ok('startedBy' in r, 'every recent row says what opened a session with no prompt, or null');
+  const search = page('assets/search.js');
+  for (const name of ['s.startedBy ?? row.startedBy', 'prompted(b) - prompted(a)', "data-cover=\"head\"", "<details data-cover=\"more\">"]) assert.ok(search.includes(name), `search.js has ${name}`);
+});

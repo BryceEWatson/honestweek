@@ -98,13 +98,16 @@ test('init on a stdin that ends fails loudly instead of silently writing nothing
   // readline's question callback never fires at EOF, so the old behaviour was
   // to fall out of the event loop and exit 0 having written no config: a
   // silent no-op that reads as success to a script or an agent shell.
+  // A git repository, so init has one to propose and reaches its questions (with none it
+  // stops before asking, and writes nothing either).
   const dir = scratchCwd(t);
+  execFileSync('git', ['init', '-q', dir], { stdio: 'ignore' });
 
   const res = runCli(['init'], dir);
   assert.equal(res.code, 2);
   assert.match(res.stderr, /stdin ended/);
   assert.match(res.stderr, /--yes/, 'should name the flag that works');
-  assert.equal(readdirSync(dir).length, 0, 'nothing should be written');
+  assert.deepEqual(readdirSync(dir), ['.git'], 'nothing should be written');
 });
 
 test('a not-yet-built subcommand exits non-zero with a clear message (no crash)', () => {
