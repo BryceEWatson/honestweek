@@ -290,3 +290,23 @@ test('a label in front of a secret-named field never hides it from the count', (
   assert.deepEqual(secretShapes(`${'a=b'.repeat(60_000)}`), {});
   assert.ok(Date.now() - t < 1000, `took ${Date.now() - t} ms`);
 });
+
+test('a label in front of a long secret name keeps that field counted, whatever its separator', () => {
+  const v = 'Xk9fQ2mL7pR4sT8vB3';
+  // A name of 16 or more characters is long enough to be read as the label's value, so its own
+  // quote, space, := or : falls past that value.
+  for (const field of [`GITHUB_ACCESS_TOKEN="${v}"`, `GITHUB_ACCESS_TOKEN = ${v}`, `GITHUB_ACCESS_TOKEN:=${v}`, `GITHUB_ACCESS_TOKEN: ${v}`, `GITHUB_ACCESS_TOKEN= ${v}`, `"GITHUB_ACCESS_TOKEN": "${v}"`]) {
+    assert.equal(secretShapes(field).field, 1, field);
+    assert.equal(secretShapes(`one: ${field}`).field, 1, `one: ${field}`);
+    assert.equal(secretShapes(`one=${field}`).field, 1, `one=${field}`);
+  }
+  // Partners: a long ordinary name behind a label stays at zero, and a repeated field counts once each.
+  assert.deepEqual(secretShapes(`one: BUILD_ARTIFACT_NUMBER = ${v}`), {});
+  assert.equal(secretShapes(`one: DOCS_TOKEN=${v} `.repeat(3)).field, 3);
+  // Read in one pass: long runs of cut-short names and of sensitive-key chains finish quickly.
+  const t = Date.now();
+  assert.deepEqual(secretShapes('l: "GITHUB_ACCESS_TOKEN" '.repeat(8_000)), {});
+  assert.deepEqual(secretShapes('one: GITHUB_ACCESS_TOKEN= '.repeat(8_000)), {});
+  assert.deepEqual(secretShapes('API_KEY=PASSWORD=TOKEN='.repeat(9_000)), {});
+  assert.ok(Date.now() - t < 1000, `took ${Date.now() - t} ms`);
+});
