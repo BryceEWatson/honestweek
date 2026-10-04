@@ -237,6 +237,54 @@ test('a credential after a label is hidden by both scrubbers and the audit, and 
   }
 });
 
+// A flag whose name has dots (`--docs.token value`, `-Docs.Token value`) is read as one name,
+// each dot standing for "_", the way `--docs-token` and `-DocsToken` are read. Made-up values.
+// [input, the published output]
+const DOTTED_FLAGS = [
+  [`--docs.token ${LV}`, '--docs.token [redacted:secret]'],
+  [`--docs.token=${LV}`, '--docs.token=[redacted:secret]'],
+  [`--api.key "${LV}"`, '--api.key "[redacted:secret]"'],
+  [`--api.key=${LV}`, '--api.key=[redacted:secret]'],
+  [`-Docs.Token ${LV}`, '-Docs.Token [redacted:secret]'],
+  [`-Api.Key '${LV}'`, "-Api.Key '[redacted:secret]'"],
+  [`--docs_site.auth_token ${LV}`, '--docs_site.auth_token [redacted:secret]'],
+  [`--docs-site.auth-token ${LV}`, '--docs-site.auth-token [redacted:secret]'],
+  [`--my_app.client.secret ${LV}`, '--my_app.client.secret [redacted:secret]'],
+  [`--db.password ${LV} --log.level debug`, '--db.password [redacted:secret] --log.level debug'],
+  [`deploy --docs.token ${LV} --dry-run`, 'deploy --docs.token [redacted:secret] --dry-run'],
+];
+// Dotted words and flags that name nothing secret.
+const DOTTED_ORDINARY = [
+  '--config.file path/to/x.json',
+  'node.js',
+  '--max-old-space-size=4096',
+  'run node.js --config.file ./a.json --log.level debug',
+  'the docs.token value',
+  'see config.token for it',
+  '--tokenizer.path models/x',
+  'npm run build -- --mode.production true',
+];
+
+test('a sensitive flag with a dotted name has its value hidden by both scrubbers and the audit', () => {
+  for (const [input, expected] of DOTTED_FLAGS) {
+    const r = createRedactor();
+    const out = r.redact(input);
+    assert.equal(out, expected, input);
+    assert.equal(r.redact(out), out, `idempotent: ${input}`);
+    const shown = createSecretsOnlyRedactor();
+    assert.equal(shown.redact(input), expected, `secrets-only: ${input}`);
+    assert.equal(shown.redact(expected), expected, `secrets-only idempotent: ${input}`);
+    const audit = redactWithAudit(input, {});
+    assert.equal(audit.text, expected, `audit: ${input}`);
+    assert.equal(replayRedactions(input, audit.redactionOps), audit.text, `replay: ${input}`);
+  }
+  for (const input of DOTTED_ORDINARY) {
+    assert.equal(createRedactor().redact(input), input, input);
+    assert.equal(createSecretsOnlyRedactor().redact(input), input, `secrets-only: ${input}`);
+    assert.equal(redactWithAudit(input, {}).text, input, `audit: ${input}`);
+  }
+});
+
 test('a password in a web address with a dotted host stays hidden with its host, as before', () => {
   // The email rule took `swordfish@code.example.com` before this change; it still does, and
   // the audit agrees. A host without a dot (`localhost`) was not an email, and is now covered.
