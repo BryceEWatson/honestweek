@@ -42,17 +42,21 @@ const T = 'abcdefgh12345678';
 // - FULL_RUNS: the full run is tried again, up to three times, only while it looks too slow.
 // - MAX_GROWTH: 10 sits between 4 and 16, with room for timer and garbage-collection noise.
 // - FLOOR_MS: under 50 ms the ratio is mostly noise, and nothing that fast is a real slowdown.
-// - CEILING_MS: 10 s is over 30 times the slowest case here; only a runaway reaches it.
+// - CEILING_MS: the growth check can't see a change that stays linear but costs more per
+//   character, so the full run, best of three, must also finish in CEILING_MS. The slowest case
+//   takes 212 to 271 ms here and its worst single run on GitHub was just over 1,000 ms, so a
+//   healthy build has about twice that worst run in hand, and three tries. A redactor ten times
+//   slower per character takes over 2 s here and about 10 s on GitHub, so it fails.
 const QUARTER_RUNS = 3;
 const FULL_RUNS = 3;
 const MAX_GROWTH = 10;
 const FLOOR_MS = 50;
-const CEILING_MS = 10000;
+const CEILING_MS = 2000;
 /** A long input of `count` copies of `unit` between `prefix` and `suffix`, at `scale` of its
  *  full length. */
 const longInput = ([prefix, unit, count, suffix], scale = 1) => prefix + unit.repeat(Math.round(count * scale)) + suffix;
 /** Asserts that `run` on `build(1)` takes time in step with its length, against `build(0.25)`,
- *  and returns what the last full run returned. */
+ *  and finishes within CEILING_MS, and returns what the last full run returned. */
 const assertGrowsInStep = (label, build, run) => {
   const timed = (input) => {
     const started = performance.now();
@@ -69,10 +73,10 @@ const assertGrowsInStep = (label, build, run) => {
     const [ms, result] = timed(full);
     fullMs = Math.min(fullMs, ms);
     out = result;
-    if (fullMs < FLOOR_MS || fullMs / quarterMs < MAX_GROWTH) break;
+    if (fullMs < CEILING_MS && (fullMs < FLOOR_MS || fullMs / quarterMs < MAX_GROWTH)) break;
   }
   const said = `${label}: ${fullMs.toFixed(1)} ms at full length, ${quarterMs.toFixed(1)} ms at a quarter`;
-  assert.ok(fullMs < CEILING_MS, said);
+  assert.ok(fullMs < CEILING_MS, `${said}, over the ${CEILING_MS} ms limit`);
   assert.ok(fullMs < FLOOR_MS || fullMs / quarterMs < MAX_GROWTH, `${said}, ${(fullMs / quarterMs).toFixed(1)} times as long`);
   return out;
 };
