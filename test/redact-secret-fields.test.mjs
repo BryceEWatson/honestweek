@@ -30,6 +30,53 @@ const stream = (seed) => {
 };
 const T = 'abcdefgh12345678';
 
+// The long-input speed tests check that the time a redactor takes grows in step with the
+// input's length, not that one run beats a clock: GitHub's runners are shared, and the slowest
+// case here (the audit on `note: "see api.key=x …`) takes about 270 ms on a developer machine
+// and once took just over a second there. An input is built at a quarter of its length and at
+// full length (about 200,000 characters). Time in step with length makes the full run about 4
+// times the quarter one; time that grows with the square of the length, as in the slowdowns
+// fixed before (`x='a='x='a='…`), makes it about 16 times. Measured on Node 18, 22 and 24, no
+// case went past 7.2, and past 6 only where the full run took under 20 ms.
+// - QUARTER_RUNS: the quarter run is the best of three, so a pause in it can't hide a slowdown.
+// - FULL_RUNS: the full run is tried again, up to three times, only while it looks too slow.
+// - MAX_GROWTH: 10 sits between 4 and 16, with room for timer and garbage-collection noise.
+// - FLOOR_MS: under 50 ms the ratio is mostly noise, and nothing that fast is a real slowdown.
+// - CEILING_MS: 10 s is over 30 times the slowest case here; only a runaway reaches it.
+const QUARTER_RUNS = 3;
+const FULL_RUNS = 3;
+const MAX_GROWTH = 10;
+const FLOOR_MS = 50;
+const CEILING_MS = 10000;
+/** A long input of `count` copies of `unit` between `prefix` and `suffix`, at `scale` of its
+ *  full length. */
+const longInput = ([prefix, unit, count, suffix], scale = 1) => prefix + unit.repeat(Math.round(count * scale)) + suffix;
+/** Asserts that `run` on `build(1)` takes time in step with its length, against `build(0.25)`,
+ *  and returns what the last full run returned. */
+const assertGrowsInStep = (label, build, run) => {
+  const timed = (input) => {
+    const started = performance.now();
+    const out = run(input);
+    return [performance.now() - started, out];
+  };
+  const quarter = build(0.25);
+  let quarterMs = Infinity;
+  for (let i = 0; i < QUARTER_RUNS; i += 1) quarterMs = Math.min(quarterMs, timed(quarter)[0]);
+  const full = build(1);
+  let fullMs = Infinity;
+  let out;
+  for (let i = 0; i < FULL_RUNS; i += 1) {
+    const [ms, result] = timed(full);
+    fullMs = Math.min(fullMs, ms);
+    out = result;
+    if (fullMs < FLOOR_MS || fullMs / quarterMs < MAX_GROWTH) break;
+  }
+  const said = `${label}: ${fullMs.toFixed(1)} ms at full length, ${quarterMs.toFixed(1)} ms at a quarter`;
+  assert.ok(fullMs < CEILING_MS, said);
+  assert.ok(fullMs < FLOOR_MS || fullMs / quarterMs < MAX_GROWTH, `${said}, ${(fullMs / quarterMs).toFixed(1)} times as long`);
+  return out;
+};
+
 // [input, the secret that must go, the published output]
 const FORMS = [
   [`{"password": "${H}"}`, H, '{"password": "[redacted:secret]"}'],
@@ -704,44 +751,43 @@ test('a dotted record key named for a secret hides its value, and every key the 
 });
 
 test('Java properties, dotted keys and unclosed quotes stay fast on 200,000-character inputs', () => {
-  const inputs = [
-    'a.'.repeat(100000),
-    `${'api.'.repeat(50000)}key=x`,
-    '-Da.'.repeat(50000),
-    '-Dapi.key='.repeat(20000),
-    '-D'.repeat(100000),
-    `token: "${'a.'.repeat(100000)}`,
-    `note: "${'see api.key=x '.repeat(14300)}`,
-    `password: '${'a b '.repeat(50000)}`,
-    "token: '".repeat(25000),
-    "api.key: '".repeat(20000),
-    `${'-Pa.b.c.d.'.repeat(20000)}=x`,
-    'password.length '.repeat(12500),
-    'api.key: "hello token": '.repeat(8400),
-    "secret.key: token: '".repeat(10000),
-    `api.key: ${'[redacted:secret]x'.repeat(11200)}`,
+  // [prefix, repeated unit, copies at full length, suffix]
+  const shapes = [
+    ['', 'a.', 100000, ''],
+    ['', 'api.', 50000, 'key=x'],
+    ['', '-Da.', 50000, ''],
+    ['', '-Dapi.key=', 20000, ''],
+    ['', '-D', 100000, ''],
+    ['token: "', 'a.', 100000, ''],
+    ['note: "', 'see api.key=x ', 14300, ''],
+    ["password: '", 'a b ', 50000, ''],
+    ['', "token: '", 25000, ''],
+    ['', "api.key: '", 20000, ''],
+    ['', '-Pa.b.c.d.', 20000, '=x'],
+    ['', 'password.length ', 12500, ''],
+    ['', 'api.key: "hello token": ', 8400, ''],
+    ['', "secret.key: token: '", 10000, ''],
+    ['api.key: ', '[redacted:secret]x', 11200, ''],
     // The fields read from the text as written, and the KEY=VALUE rule's second reading on a
     // long run with no space in it, which once took time that grew with the square of its length.
-    "x='a='".repeat(34000),
-    'api_key=token: v '.repeat(12000),
-    'password="token": "v" '.repeat(9200),
-    'api_key: token: '.repeat(12600),
-    'token:'.repeat(34000),
-    'Cookie:'.repeat(29000),
-    'x=\napiKey\n=v\n'.repeat(15400),
-    `${'apiKey\n'.repeat(29000)}=v`,
-    `apiKey${' '.repeat(200000)}`,
-    'token: "Ab3d, api.key: "v" '.repeat(7500),
-    'api_key=token: [redacted:secret] '.repeat(6100),
-    `api_key=token: v ${'and v '.repeat(34000)}`,
+    ['', "x='a='", 34000, ''],
+    ['', 'api_key=token: v ', 12000, ''],
+    ['', 'password="token": "v" ', 9200, ''],
+    ['', 'api_key: token: ', 12600, ''],
+    ['', 'token:', 34000, ''],
+    ['', 'Cookie:', 29000, ''],
+    ['', 'x=\napiKey\n=v\n', 15400, ''],
+    ['', 'apiKey\n', 29000, '=v'],
+    ['apiKey', ' ', 200000, ''],
+    ['', 'token: "Ab3d, api.key: "v" ', 7500, ''],
+    ['', 'api_key=token: [redacted:secret] ', 6100, ''],
+    ['api_key=token: v ', 'and v ', 34000, ''],
   ];
-  for (const input of inputs) {
+  for (const shape of shapes) {
+    const input = longInput(shape);
     assert.ok(input.length >= 200000, `${input.length} characters`);
     for (const [name, run] of [['published', (s) => createRedactor().redact(s)], ['secrets-only', (s) => createSecretsOnlyRedactor().redact(s)], ['audit', (s) => redactWithAudit(s, {})]]) {
-      const started = Date.now();
-      run(input);
-      const ms = Date.now() - started;
-      assert.ok(ms < 1000, `${name} took ${ms} ms on a ${input.length}-character input starting ${JSON.stringify(input.slice(0, 20))}`);
+      assertGrowsInStep(`${name} on ${input.length} characters starting ${JSON.stringify(input.slice(0, 20))}`, (scale) => longInput(shape, scale), run);
     }
   }
 });
@@ -934,26 +980,23 @@ test('the published redactor and the audit stay fast on long adversarial inputs'
   const B = '\\';
   // The secrets-only scrubber's adversarial inputs (test/private-text.test.mjs), and a few for
   // the rules added here.
-  const inputs = ['a:'.repeat(50000), 'password:"'.repeat(20000), `${'x-'.repeat(50000)}token`, `http://${'a'.repeat(100000)}`, 'a-token-'.repeat(20000), `https://a:${'b'.repeat(100000)}`, 'token: '.repeat(20000), `${'ab/'.repeat(40000)}1`, `token:"${B.repeat(100000)}`, `token:"${`${B}${B}"`.repeat(30000)}`, `token ${B}`.repeat(15000), `token:"${B}`.repeat(15000), '--password '.repeat(10000), `-u a:${'b'.repeat(100000)}`, '0a1b2c3d-'.repeat(11000), '.-u='.repeat(25000), '.--user='.repeat(12500), 'token:a)'.repeat(12500), 'token=a '.repeat(12500), `token:"${`${B}"`.repeat(50000)}`,
-    `bearer ${'.'.repeat(100000)}x`, `basic ${'Aa-'.repeat(33000)}`, 'basic validation '.repeat(6000), '**Auth:** '.repeat(10000), `token: ${'[redacted:secret]          '.repeat(4000)}x`, `ConvertTo-SecureString "${'a'.repeat(100000)}`, `redis://:${'a@'.repeat(50000)}`, `${'x.'.repeat(50000)}@`,
+  // [prefix, repeated unit, copies at full length, suffix]
+  const shapes = [['', 'a:', 50000, ''], ['', 'password:"', 20000, ''], ['', 'x-', 50000, 'token'], ['http://', 'a', 100000, ''], ['', 'a-token-', 20000, ''], ['https://a:', 'b', 100000, ''], ['', 'token: ', 20000, ''], ['', 'ab/', 40000, '1'], ['token:"', B, 100000, ''], ['token:"', `${B}${B}"`, 30000, ''], ['', `token ${B}`, 15000, ''], ['', `token:"${B}`, 15000, ''], ['', '--password ', 10000, ''], ['-u a:', 'b', 100000, ''], ['', '0a1b2c3d-', 11000, ''], ['', '.-u=', 25000, ''], ['', '.--user=', 12500, ''], ['', 'token:a)', 12500, ''], ['', 'token=a ', 12500, ''], ['token:"', `${B}"`, 50000, ''],
+    ['bearer ', '.', 100000, 'x'], ['basic ', 'Aa-', 33000, ''], ['', 'basic validation ', 6000, ''], ['', '**Auth:** ', 10000, ''], ['token: ', '[redacted:secret]          ', 4000, 'x'], ['ConvertTo-SecureString "', 'a', 100000, ''], ['redis://:', 'a@', 50000, ''], ['', 'x.', 50000, '@'],
     // A long run of the Private-Use character the scrubbers' tokens are made of.
-    `${String.fromCharCode(0xe000).repeat(100000)} token: abc`, `${'--password 20240101x '.repeat(5000)}`];
-  for (const input of inputs) {
+    ['', String.fromCharCode(0xe000), 100000, ' token: abc'], ['', '--password 20240101x ', 5000, '']];
+  for (const shape of shapes) {
+    const input = longInput(shape);
     for (const [name, run] of [['redact', (s) => createRedactor().redact(s)], ['audit', (s) => redactWithAudit(s, {})]]) {
-      const started = Date.now();
-      const out = run(input);
-      const ms = Date.now() - started;
+      const out = assertGrowsInStep(`${name} on ${input.length} characters starting ${JSON.stringify(input.slice(0, 20))}`, (scale) => longInput(shape, scale), run);
       if (input.endsWith(' token: abc')) assert.ok(!(out.text ?? out).includes('token: abc'), `${name} hides the token after the run`);
-      assert.ok(ms < 1000, `${name} took ${ms} ms on a ${input.length}-character input starting ${JSON.stringify(input.slice(0, 20))}`);
     }
   }
   // A value under a sensitive key that holds many placeholders apart from other text: the
   // check that it is only placeholders once backtracked exponentially here.
-  const record = { token: `${'[redacted:secret]          '.repeat(4000)}x`, list: [{ password: `${'[redacted:secret] '.repeat(5000)}y` }] };
+  const record = (scale) => ({ token: longInput(['', '[redacted:secret]          ', 4000, 'x'], scale), list: [{ password: longInput(['', '[redacted:secret] ', 5000, 'y'], scale) }] });
   for (const [name, r] of [['published', createRedactor()], ['secrets-only', createSecretsOnlyRedactor()]]) {
-    const started = Date.now();
-    const out = r.deepRedact(record);
-    assert.ok(Date.now() - started < 1000, `${name} deepRedact took ${Date.now() - started} ms`);
+    const out = assertGrowsInStep(`${name} deepRedact`, record, (v) => r.deepRedact(v));
     assert.deepEqual(out, { token: '[redacted:secret]', list: [{ password: '[redacted:secret]' }] });
   }
 });
