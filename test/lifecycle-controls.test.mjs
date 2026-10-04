@@ -17,6 +17,7 @@ import { normalizeConfig } from '../lib/config.mjs';
 import { sha256 } from '../lib/prompt-identity.mjs';
 import { ensureGitignore } from '../lib/init.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
+import { SETTLED_HINT, unsettledSample } from './helpers/unsettled-text.mjs';
 
 const REPRESENTATIVE_PROOF = JSON.parse(readFileSync(
   new URL('./fixtures/representative-proof.expected.json', import.meta.url), 'utf8',
@@ -1343,10 +1344,15 @@ test('a cue carried from a prompt with redacted or unsettled text still verifies
   const subject = 'retain the carried receipt when its prompt text is held back';
   const padding = 'review the carried receipt week with plain neutral words and local verification so the hidden share of this prompt stays small';
   const names = ['honestweek.prompts.json', 'honestweek.curated.json', 'honestweek.prompt-items.json', 'honestweek.carry.json', 'site-data.json'];
+  const promptText = (line) => `${padding}\nunresolved idea: ${subject}\n${line}`;
+  const unsettledLine = (core) => `the unsettled sample reads ${core} here`;
+  // The first shape in test/helpers/unsettled-text.mjs that is still unsettled inside this prompt.
+  const unsettled = unsettledSample({}, (core) => promptText(unsettledLine(core)));
+  const written = new RegExp(`unsettled sample reads|${unsettled.leak.source}|person@example\\.com`);
   const shapes = [
-    // The prompt's redacted text changes again on a second pass (`-token` and `=ssh.key` on two
-    // lines read as one field), so the prompt is held back. Its cue line is settled and public-safe.
-    { name: 'unsettled', line: 'the local gate reads "api.key"==a.b.secret.key = -token\n=ssh.key here', held: true },
+    // The prompt's redacted text changes again on a second pass, so the prompt is held back. Its
+    // cue line is settled and public-safe.
+    { name: 'unsettled', line: unsettledLine(unsettled.core), held: true },
     // A settled redaction in the prompt: the cue takes on the prompt's audit, not its text.
     { name: 'settled', line: 'the local gate mails person@example.com here', held: false },
   ];
@@ -1357,7 +1363,7 @@ test('a cue carried from a prompt with redacted or unsettled text still verifies
     try {
       process.env.CLAUDE_CONFIG_DIR = f.claude;
       process.env.CODEX_HOME = f.codex;
-      writeWeekSources(f, 0, `${padding}\nunresolved idea: ${subject}\n${shape.line}`,
+      writeWeekSources(f, 0, promptText(shape.line),
         'Decision: reconstruct carry receipts before emission', 'review carried receipt recovery with verification',
         'Next step: reject stale carried source bytes');
       await runCycle(f, '2024-W24', '2024-06-10', '2024-06-16', new Date('2024-06-17T12:00:00.000Z'));
@@ -1366,7 +1372,7 @@ test('a cue carried from a prompt with redacted or unsettled text still verifies
       assert.equal(cue?.decision, 'automatic-safe', `${shape.name}: the cue is public-safe`);
       const prompt = first.candidates.find((value) => value.category === 'prompts' && cue.evidenceRefs.includes(value.evidenceRefs[0]));
       assert.ok(prompt, `${shape.name}: the cue cites its prompt`);
-      assert.deepEqual([prompt.decision === 'high-risk', prompt.text === '[redacted:secret]'], [shape.held, shape.held], `${shape.name}: the prompt is held back only when unsettled`);
+      assert.deepEqual([prompt.decision === 'high-risk', prompt.text === '[redacted:secret]'], [shape.held, shape.held], `${shape.name}: the prompt is held back only when unsettled${shape.held ? ` (if it wasn't held back, ${SETTLED_HINT})` : ''}`);
       assert.ok(cue.rawDetectors.length > 0, `${shape.name}: the cue carries its prompt's audit`);
       const stored = JSON.parse(readFileSync(join(f.root, 'honestweek.prompts.json'), 'utf8')).prompts.find((value) => value.ref === prompt.evidenceRefs[0]);
       const citedHash = cue.privacy.sourceContentHashes[cue.privacy.sourceRefs.indexOf(stored.ref)];
@@ -1379,7 +1385,7 @@ test('a cue carried from a prompt with redacted or unsettled text still verifies
       await runCycle(f, '2024-W25', '2024-06-17', '2024-06-23', new Date('2024-06-24T12:00:00.000Z'));
       const lane = JSON.parse(readFileSync(join(f.root, 'honestweek.prompt-items.json'), 'utf8'));
       assert.equal(lane.items.find((item) => item.itemRef === cue.itemRef)?.curationState, 'carried', `${shape.name}: carried into the following week`);
-      for (const name of names) assert.doesNotMatch(readFileSync(join(f.root, name), 'utf8'), /ssh\.key|api\.key|-token|person@example\.com/, `${shape.name}: ${name}`);
+      for (const name of names) assert.doesNotMatch(readFileSync(join(f.root, name), 'utf8'), written, `${shape.name}: ${name}`);
 
       // The check still refuses a carried cue whose prompt changed after the fact.
       const sourcePath = join(f.claude, 'projects', 'your-project', 'week-0.jsonl');
