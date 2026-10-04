@@ -386,11 +386,15 @@ test('Ctrl+C stops the command with exit code 0', { skip: process.platform === '
   const child = spawn(process.execPath, [join(ROOT, 'bin', 'honestweek.mjs'), 'view', '--demo', '--no-open'], { cwd: scratch, env: { ...process.env, ...ENV }, stdio: ['pipe', 'pipe', 'pipe'] });
   let out = '';
   child.stdout.on('data', (c) => (out += c));
-  for (let i = 0; i < 400 && !/Open this address/.test(out); i++) await new Promise((res) => setTimeout(res, 50));
-  assert.match(out, /Open this address/);
+  // Ctrl+C as early as a person could press it: at the first line that says it stops the page.
+  // The handler has to be in place by then, or the signal ends the process with no exit code.
+  for (let i = 0; i < 4000 && !/Ctrl\+C stops it/.test(out); i++) await new Promise((res) => setTimeout(res, 5));
+  assert.match(out, /Ctrl\+C stops it/);
+  // 'close' fires once the process has exited and its output has all been read, so the last line is in.
+  const closed = new Promise((res) => child.on('close', (code, signal) => res({ code, signal })));
   child.kill('SIGINT');
-  const code = await new Promise((res) => child.on('exit', (c) => res(c)));
-  assert.equal(code, 0);
+  const { code, signal } = await closed;
+  assert.deepEqual({ code, signal }, { code: 0, signal: null });
   assert.match(out, /stopped/);
 });
 

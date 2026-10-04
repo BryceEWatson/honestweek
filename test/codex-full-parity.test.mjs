@@ -234,6 +234,17 @@ test('scope creep counts edits after a question-only prompt wherever the file is
   assert.deepEqual(make(`${CWD}/src/parse.mjs`), [false]);
   // The plan file the harness writes in plan mode isn't an edit nobody asked for.
   assert.deepEqual(make('/home/you/.claude/plans/tabs.md'), []);
+  // Only an agent's settings or a temporary folder: a routine note, as the outside-folder check has it.
+  const severity = (...files) => {
+    const h = claudeHistory();
+    h.prompt(min(0), 'Why does the parser drop tabs?');
+    files.forEach((f, i) => h.write(min(1 + i), f));
+    h.say(min(5), 'Wrote it down.');
+    return findings(problems(h.build()), 'scope-creep').map((x) => x.severity);
+  };
+  assert.deepEqual(severity('/home/you/.codex/artifacts/answer.md'), ['note']);
+  assert.deepEqual(severity('/tmp/scratch/answer.md', '/home/you/.claude/memory/notes.md'), ['note']);
+  assert.deepEqual(severity('/tmp/scratch/answer.md', '/work/other-project/src/util.mjs'), ['look']);
 });
 
 test('Claude Code: a done claim after an edit with only a shell read after it is worked out, as with the Read tool', () => {
@@ -448,7 +459,7 @@ test("a Codex child thread's hand-back: its parent's completion record or a mess
   assert.deepEqual(agentOf(ID.done).completion.via, 'activity-record');
   assert.deepEqual(agentOf(ID.told).completion.via, 'message-to-parent');
   assert.deepEqual([agentOf(ID.silent).completion, agentOf(ID.silent).missing], [null, ['hand-back']]);
-  // Stopped on purpose: by the parent's interrupt call, or as its log records. Nothing was lost.
+  // Stopped: by the parent's interrupt call, as the parent's log records, or as the child's own log ends. Nothing was lost.
   assert.deepEqual([agentOf(ID.stopped).stopped.via, agentOf(ID.stopped).missing], ['activity-record', []]);
   assert.deepEqual([agentOf(ID.halted).stopped.via, agentOf(ID.halted).missing], ['interrupt-call', []]);
   assert.ok(h.links.some((l) => l.type === 'stopped' && l.to === agentOf(ID.halted).key));
@@ -459,7 +470,7 @@ test("a Codex child thread's hand-back: its parent's completion record or a mess
   assert.ok(h.links.some((l) => l.type === 'handback' && l.to === agentOf(ID.told).key));
   const lost = findings(r, 'subagent-handoff-loss');
   assert.deepEqual(lost.filter((f) => f.session === cx(ID.parent)).map((f) => [f.event, f.verdictEvidence]), [[agentOf(ID.silent).spawnedBy, 'missing']]);
-  assert.match(r.checks.find((c) => c.id === 'subagent-no-report').checked, /3 child threads stopped on purpose.*1 of the child threads have no record/);
+  assert.match(r.checks.find((c) => c.id === 'subagent-no-report').checked, /3 child threads stopped \(an interrupt the parent sent or recorded, or one the child's own log ends on\).*1 of the child threads have no record/);
   // The completion record after the parent's turn ended doesn't change how its own work ended.
   assert.equal(h.sessions.find((s) => s.key === cx(ID.parent)).endState, 'last-turn-ended');
 });
