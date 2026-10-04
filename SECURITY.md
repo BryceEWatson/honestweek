@@ -42,4 +42,4 @@ If a version on npm doesn't match its tag in this repository, or a package with 
 
 ## Supported versions
 
-Security fixes land on `main` and go into the next npm release. Only the latest version gets fixes, so please check you're on it before you report: until 0.2.0 is on npm that's `main` here, and after that it's `npx honestweek@latest` or `npm install -g honestweek@latest`. There's no long-term support for older versions yet.
+Security fixes land on `main` and go into the next npm release. Only the latest version gets fixes, so please check you're on it before you report: that's `npx honestweek@latest` or `npm install -g honestweek@latest`. There's no long-term support for older versions yet.

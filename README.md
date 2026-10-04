@@ -10,21 +10,21 @@ honestweek works with the session logs that Claude Code and Codex already keep o
 
 It's for developers who do much of their work through an AI coding agent and want to find, check or show that work later. Nothing leaves your machine: there's no account, no telemetry and no network call. The names and client words you list stay hidden on the page unless you turn on its Show private text switch, on your own screen, and keys, tokens and passwords stay hidden either way.
 
-To see it with nothing to set up, run `npx github:BryceEWatson/honestweek view --demo`: a made-up week opens in your browser.
+To see it with nothing to set up, run `npx honestweek view --demo`: a made-up week opens in your browser.
 
 ## Try it
 
-You need Node 18 or later and git. Nothing is on npm yet, so run it straight from GitHub with `npx`, with no install step:
+You need Node 18 or later and git. honestweek is on npm, so `npx` runs it with no install step:
 
 ```bash
-npx github:BryceEWatson/honestweek view --demo   # a made-up week in your browser; it sets nothing up
-npx github:BryceEWatson/honestweek init          # set up honestweek.config.json in this folder
-npx github:BryceEWatson/honestweek view          # your own last 7 days
+npx honestweek view --demo   # a made-up week in your browser; it sets nothing up
+npx honestweek init          # set up honestweek.config.json in this folder
+npx honestweek view          # your own last 7 days
 ```
 
 The demo opens a page with four parts: Find (type one of the examples it offers, or a few words), Goals (each goal in a goal list, a small JSON file of your goals, with its sessions on one timeline you can play), Replay (one session step by step, each step with the log line behind it), and Problems (known ways AI coding agents go wrong, and which of them showed up in the week). Press Ctrl+C in the terminal to stop it.
 
-If you'd rather have a plain `honestweek` command, install it from GitHub with `npm install -g github:BryceEWatson/honestweek` and write `honestweek` where it says `npx github:BryceEWatson/honestweek`. From a clone of this repository, write `node bin/honestweek.mjs` there instead. `honestweek` with no command lists the same three steps. The messages you meet first (that list, `init`, `view` and its pages, and the one for a missing config) name each next step the way you ran honestweek.
+If you'd rather have a plain `honestweek` command, install it with `npm install -g honestweek` and write `honestweek` where it says `npx honestweek`. From a clone of this repository, write `node bin/honestweek.mjs` there instead. To run unreleased code (what's on `main` and not in an npm version yet), write `npx github:BryceEWatson/honestweek`. `honestweek` with no command lists the same three steps. The messages you meet first (that list, `init`, `view` and its pages, and the one for a missing config) name each next step the way you ran honestweek.
 
 Run `init` from your project folder, or from a new folder next to your projects. It lists the git repositories there and folds each extra working copy of one repository (a git worktree) into it, so one repository shows up once. Before it writes anything you can keep or drop repositories by number (`keep 1-5 9`, `drop 3 7-9`) or change a role (`role 2 display`; the roles are explained under [Config reference](#config-reference)). It then asks for people's names and client or project words to keep private, and reads back what it'll store. When you give some, it also adds `honestweek.config.json` to `.gitignore`, since the file then lists them. You can skip both, but until you list some, names in your logs show as written, and `view` says so in the terminal and on every page, with an example of where to list them. For candidates, run `discover` and then `harvest`: it writes the capitalised words that survived redaction in last week's sessions, most frequent first, to `honestweek.harvest.json`.
 
@@ -80,11 +80,18 @@ Either way, when you run `/honestweek` the skill invokes its bundled CLI by a **
 
 ### As a standalone CLI
 
-Run it straight from GitHub. No install, no clone (zero dependencies, so it's quick):
+Run it from npm with `npx`. No install, no clone (zero dependencies, so it's quick):
 
 ```bash
-npx github:BryceEWatson/honestweek --help
-npx github:BryceEWatson/honestweek init
+npx honestweek --help
+npx honestweek init
+```
+
+Or install it as a `honestweek` command:
+
+```bash
+npm install -g honestweek
+honestweek --help
 ```
 
 Or from a clone of the repo:
@@ -94,14 +101,12 @@ Or from a clone of the repo:
 node bin/honestweek.mjs --help
 ```
 
-Or install it from GitHub as a `honestweek` command:
+To run unreleased code, meaning what's on `main` and not in an npm version yet, run it straight from GitHub:
 
 ```bash
-npm install -g github:BryceEWatson/honestweek
-honestweek --help
+npx github:BryceEWatson/honestweek --help
+npm install -g github:BryceEWatson/honestweek   # or install that code as the honestweek command
 ```
-
-Once it's published to npm (**not yet**; see [Releasing](#releasing-maintainers)), `npx honestweek` and `npm i -g honestweek` will work too.
 
 The CLI surface is eleven subcommands: `init`, `discover`, `prompts`, `digest`, `validate`, `build`, `harvest`, `preview`, `mine`, `history`, and `view`. Every one answers `--help` without touching your files. The `mine` command (`node bin/honestweek.mjs mine --help`) is the separate "solved problems worth publishing" pass described under [Mining solved problems](#mining-solved-problems-worth-publishing-mine). The `digest` command (`node bin/honestweek.mjs digest --help`) prepares one receipt-bearing review across prompts, ideas, techniques, decisions, reversals, and next steps for `page` or `site` output. The `prompts` command (`node bin/honestweek.mjs prompts --help`) remains the private prompt inbox and prompt-only compatibility path. The `harvest` command (`node bin/honestweek.mjs harvest`) proposes redaction-denylist candidates from the draft to a gitignored sidecar (only the count is printed; the raw nouns stay local for you to review). The `preview` command (`node bin/honestweek.mjs preview`) renders the built output as HTML and serves it on a local-only (`127.0.0.1`) server for you to read in your browser. The `view` command (`node bin/honestweek.mjs view --demo` to try it) opens a local page for finding and replaying the sessions behind your work, described under [Finding and replaying your work in the browser](#finding-and-replaying-your-work-in-the-browser-view).
 
@@ -560,7 +565,7 @@ honestweek's two non-negotiable promises:
 
 ## Releasing (maintainers)
 
-honestweek isn't on npm yet; the first version there will be 0.2.0. I publish each version from my own terminal and then tag it, in the order [docs/releasing.md](docs/releasing.md) sets out. The `files` allowlist in `package.json` decides what ships (`bin/`, `lib/`, `SKILL.md`, the example config and the plugin manifests), and `test/package-contents.test.mjs` pins it.
+honestweek is on npm, starting with version 0.2.0. I publish each version from my own terminal and then tag it, in the order [docs/releasing.md](docs/releasing.md) sets out. The `files` allowlist in `package.json` decides what ships (`bin/`, `lib/`, `SKILL.md`, the example config and the plugin manifests), and `test/package-contents.test.mjs` pins it.
 
 ## Contributing and security
 

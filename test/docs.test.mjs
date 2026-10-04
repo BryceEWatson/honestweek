@@ -221,7 +221,7 @@ test('a newcomer meets the first three commands before the weekly pipeline, in t
   const tryIt = README.indexOf('## Try it');
   assert.ok(tryIt > 0 && tryIt < README.indexOf('## Install') && tryIt < README.indexOf('## The flow'), 'Try it comes before Install and the weekly flow');
   const block = README.slice(tryIt, README.indexOf('```', README.indexOf('```bash', tryIt) + 7));
-  const steps = ['npx github:BryceEWatson/honestweek view --demo', 'npx github:BryceEWatson/honestweek init', 'npx github:BryceEWatson/honestweek view '];
+  const steps = ['npx honestweek view --demo', 'npx honestweek init', 'npx honestweek view '];
   let at = -1;
   for (const s of steps) {
     const i = block.indexOf(s, at + 1);
