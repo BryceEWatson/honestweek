@@ -57,6 +57,7 @@ before(() => {
   u.say(at(301, 50), 'msg-u1', [{ type: 'tool_use', id: 'tu-u1', name: 'Bash', input: { command: 'npm run lint', description: 'Lint' } }], { input_tokens: 10, cache_creation_input_tokens: 2000, cache_read_input_tokens: 0, output_tokens: 40 });
   u.result(at(302), 'tu-u1', `lint failed: ${ERROR_SENTINEL} ${'y'.repeat(RAW_ERROR_MAX)} ${CAP_SENTINEL}`, true);
   u.say(at(303), 'msg-u2', [{ type: 'text', text: 'Fixed it.' }], { input_tokens: 3, cache_creation_input_tokens: 100, cache_read_input_tokens: 2000, output_tokens: 9 });
+  u.lines.push(JSON.stringify({ type: 'assistant', sessionId: U, cwd: fx.repo.dir, version: '2.1.0', uuid: `${U}-synthetic`, timestamp: at(303, 500), message: { id: 'msg-synthetic', model: '<synthetic>', role: 'assistant', content: [{ type: 'text', text: 'No response requested.' }], usage: { input_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 0 } } }));
   // Then a call the person rejects (an error result that isn't a failure), a typed message
   // the agent absorbs mid-turn with an attachment record, and one with only the queue record.
   u.say(at(304), 'msg-u3', [{ type: 'tool_use', id: 'tu-u3', name: 'Bash', input: { command: 'git push --force' } }]);
@@ -105,13 +106,15 @@ before(() => {
     tc(at(1602), 300, { input_tokens: 290, cached_input_tokens: 0, output_tokens: 10, total_tokens: 300 }),
     tc(at(1603), 600, { input_tokens: 200, cached_input_tokens: 0, output_tokens: 100, reasoning_output_tokens: 40, total_tokens: 300 }),
   ]);
-  // X3: a sub-agent forked from X2. Its rollout opens with copies of X2's token counts, through
-  // line subagent_history_start_ordinal + 1, then makes one call of its own.
+  // X3: a sub-agent forked from X2, in the shape most real ones have: the line its own history
+  // is said to start on lies past the file's end. It holds copies of X2's token counts as
+  // written, at its start and once after its own call.
   write(join(fx.codexRoot, '2024', '06', '12', `rollout-2024-06-12T11-10-00-${X3}.jsonl`), [
-    cx(at(1610), 'session_meta', { id: X3, forked_from_id: X2, subagent_history_start_ordinal: 2, timestamp: at(1610), cwd: fx.repo.dir, cli_version: '0.1.0', source: 'vscode' }),
+    cx(at(1610), 'session_meta', { id: X3, forked_from_id: X2, subagent_history_start_ordinal: 40, timestamp: at(1610), cwd: fx.repo.dir, cli_version: '0.1.0', source: 'vscode' }),
     tc(at(1610), 5000, { input_tokens: 4000, cached_input_tokens: 0, output_tokens: 1000, total_tokens: 5000 }),
     tc(at(1610), 300, { input_tokens: 290, cached_input_tokens: 0, output_tokens: 10, total_tokens: 300 }),
     tc(at(1611), 820, { input_tokens: 500, cached_input_tokens: 100, output_tokens: 20, total_tokens: 520 }),
+    tc(at(1612), 600, { input_tokens: 200, cached_input_tokens: 0, output_tokens: 100, reasoning_output_tokens: 40, total_tokens: 300 }),
   ]);
   // Y stops mid-call. Z resumes it, copying Y's records, and records that call's failed result.
   const y = claude(Y, fx.repo.dir);
@@ -151,7 +154,7 @@ test('usage: one call per message, counted once across a resumed copy, numbers a
   const uKey = h.sessions.find((s) => s.sources.some((k) => h.sources.find((x) => x.key === k && x.records > 0)) && h.events.some((e) => e.session === s.key && e.facts?.text === 'Tidy the widget parser.'))?.key;
   assert.ok(uKey, 'session U is in the history');
   const mine = h.usage.calls.filter((c) => c.session === uKey);
-  assert.equal(mine.length, 2, 'the two records of msg-u1 are one call, and msg-u2 another');
+  assert.equal(mine.length, 2, 'the two records of msg-u1 are one call, msg-u2 another, and a message the harness wrote none');
   const [first, second] = mine;
   assert.deepEqual([first.input, first.cacheWrite, first.cacheRead, first.output], [10, 2000, 0, 40], 'the largest value of each count wins');
   assert.equal(first.lines.length, 2, 'both records of the message are its lines');
@@ -169,7 +172,7 @@ test('usage: one call per message, counted once across a resumed copy, numbers a
   assert.doesNotMatch(JSON.stringify(h.usage), /msg-|req-/, "the harness's message ids never leave the engine");
 });
 
-test('usage: a Codex call is a token count whose running total went up; reasoning counted on top joins output', async () => {
+test('usage: a Codex call is a token count with its own counts whose running total changed; reasoning counted on top joins output', async () => {
   const h = await build({ usage: true });
   const codex = h.usage.calls.filter((c) => c.tool === 'codex' && c.t >= Date.parse(at(1500)) && c.t < Date.parse(at(1600)));
   assert.equal(codex.length, 2, 'a repeated total and a count with no last_token_usage are not calls');
@@ -204,6 +207,12 @@ test('keepRaw: raw inputs, full text and error text sit on a non-enumerable fiel
   assert.match(codexCall._raw.error ?? '', /1 failed/);
   const text = JSON.stringify(h);
   for (const s of [LONG_SENTINEL, ERROR_SENTINEL, '"_raw"']) assert.ok(!text.includes(s), `JSON holds no ${s}`);
+  const shown = [h.overview(), ...h.sessions.map((s) => h.session(s.key)), ...h.threads.map((t) => h.thread(t.id)), ...[...h.turnsById.keys()].map((id) => h.turn(id)), ...[lint, msg, prompt, codexCall].flatMap((e) => [h.event(e.id), h.stateAt(e.t)]), h.lookup('#1')];
+  const viewText = JSON.stringify(shown);
+  for (const s of [LONG_SENTINEL, ERROR_SENTINEL, '"_raw"']) assert.ok(!viewText.includes(s), `no view, moment or lookup holds ${s}`);
+  // record() re-reads the log line itself, redacted, as it does without the option.
+  const without = await build();
+  for (const e of [lint, msg, prompt, codexCall]) assert.equal(JSON.stringify(h.record(e.id)), JSON.stringify(without.record(e.id)));
   // Each readable file's working folder sits on the history's own _raw, out of JSON too.
   assert.ok(!Object.keys(h).includes('_raw'));
   assert.equal(h._raw.cwdOfSource.get(lint.source), fx.repo.dir);
@@ -249,6 +258,8 @@ test("usage: a Codex total that starts again still counts each call; a sub-agent
   const x3 = own(1610, 1700);
   assert.deepEqual(x3.map((c) => [c.input, c.cacheRead, c.cacheWrite, c.output]), [[400, 100, 0, 20]], "only the sub-agent's own call counts");
   assert.equal(h.usage.calls.filter((c) => c.tool === 'codex' && c.input === 4000).length, 1, "the parent's call is counted once");
+  assert.equal(h.usage.calls.filter((c) => c.tool === 'codex' && c.input === 200).length, 1, 'a copy after the sub-agent\'s own call is the parent\'s too');
+  assert.ok(x2.every((c) => c.source === x2[0].source) && x3[0].source !== x2[0].source, "the copies count in the parent's file");
 });
 
 test('keepRaw: every prompt and agent message keeps its text; a Codex call keeps its whole input', async () => {
