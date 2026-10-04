@@ -133,7 +133,7 @@ test('a successful setup: the proposal, a preview, then Save writes the config w
   assert.equal(written, prev.json.text, 'the file is the preview, byte for byte');
   // The same bytes init's own functions write for these answers.
   const twin = makeTempDir('hw-view-setup-twin-');
-  writeInitFiles(twin, buildConfig({ authorEmails: [ME, 'you@work.example.com'], timezone: 'UTC', repos: answers(s).repos, names: ['Dana Doe', 'Sam Lee'], terms: ['Acme'] }), { force: true });
+  writeInitFiles(twin, buildConfig({ authorEmails: [ME, 'you@work.example.com'], timezone: 'UTC', repos: answers(s).repos, names: ['Dana Doe', 'Sam Lee'], terms: ['Acme'], history: { days: 7 } }), { force: true });
   assert.equal(written, readFileSync(join(twin, 'honestweek.config.json'), 'utf8'));
   assert.equal(readFileSync(join(s.project, '.gitignore'), 'utf8'), readFileSync(join(twin, '.gitignore'), 'utf8'));
   assert.match(readFileSync(join(s.project, '.gitignore'), 'utf8'), /^honestweek\.config\.json$/m, 'a config with private words stays out of git');
@@ -244,7 +244,7 @@ test('setup only ever writes in the folder it started in: a field naming another
   for (const extra of [{ configPath: join(s.root, 'elsewhere.json') }, { cwd: s.root }, { output: { file: '../out.md' } }]) {
     const r = await post(s, 'save', { ...answers(s), ...extra });
     assert.equal(r.status, 400, r.text);
-    assert.match(r.json.message, /fields setup doesn't take/);
+    assert.match(r.json.message, /fields this page doesn't take/);
   }
   const notFolder = await post(s, 'save', answers(s, { repos: [{ path: join(s.root, 'nowhere'), role: 'featured' }] }));
   assert.equal(notFolder.status, 400);

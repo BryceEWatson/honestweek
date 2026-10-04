@@ -743,3 +743,19 @@ details.legendbox > summary, details.catalog > summary { color: var(--ink-2); }
   .setup { padding: 16px 16px 8px; }
   .setup-part { padding: 14px 14px; }
 }
+.setup-input { font: inherit; font-size: 15px; padding: 8px 12px; min-height: 40px; border: 1px solid var(--field); border-radius: 8px; background: var(--raised); color: var(--ink); width: 100%; min-width: 0; box-sizing: border-box; }
+.setup-inline select, .setup-inline input[type="number"], .setup-inline input[type="date"] { font: inherit; font-size: 15px; min-height: 40px; }
+.setup-inline input[type="number"] { flex: 0 0 110px; width: 110px; }
+.setup-inline input[type="date"] { flex: 0 1 180px; }
+.setup-actions { margin: 4px 0 12px; }
+/* The "?" fold: a small round button; its text opens below the line it sits on. */
+details.help { display: inline; font-size: 13px; font-weight: 400; }
+details.help > summary { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); list-style: none; vertical-align: 1px; font-size: 12px; }
+details.help > summary::-webkit-details-marker { display: none; }
+details.help[open] > p { display: block; margin: 6px 0; color: var(--ink-2); max-width: 70ch; }
+details.help-wide > summary, details.fold > summary { color: var(--accent); font-size: 13px; }
+details.fold > summary { list-style: none; color: var(--ink); }
+details.fold > summary h2 { display: inline; margin: 0; }
+details.fold > summary::before { content: "+ "; color: var(--muted); }
+details.fold[open] > summary::before { content: "- "; }
+.changes { margin: 0 0 12px; padding-left: 20px; }
