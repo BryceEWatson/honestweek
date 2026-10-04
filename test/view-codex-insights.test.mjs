@@ -122,6 +122,31 @@ const factsOf = (key) => {
   return sessionFacts(h, s, { usage: h.usage.calls, id: (s.tool === 'codex' ? h.codexIds : h.claudeIds).get(s.key), cwd: h._raw.cwdOfSource.get(s.key) ?? null, hidden: s.private });
 };
 
+// The fixture week the page tests read, built before any test is registered: the root after()
+// hook runs as soon as the tests registered so far finish, and would remove the folder under
+// setup still running.
+
+/** A well-formed answer: exactly the facet fields. */
+const GOOD = { underlying_goal: 'Fix the parser', goal_categories: { bug_fix: 1 }, outcome: 'fully_achieved', user_satisfaction_counts: { satisfied: 1 }, claude_helpfulness: 'very_helpful', session_type: 'single_task', friction_counts: { lint_failure: 1 }, friction_detail: 'Lint failed once.', primary_success: 'The fix landed.', brief_summary: 'Fixed the parser.' };
+const vw = buildViewWeek(join(scratch, 'view-week'));
+const VWIN = { from: WEEK.from, to: WEEK.to, timezone: 'UTC' };
+const NOW = Date.parse(`${WEEK.to}T12:00:00Z`);
+const judgedDir = join(scratch, 'cfg-view');
+// Stored judgments for every Codex session the fixture week shows, holding private words.
+const seedView = createViewData({ config: vw.config, roots: vw.roots, ...VWIN, goalRecord: vw.goalRecord, now: () => NOW });
+await seedView.start();
+const viewCodex = seedView.codexWork().sessions;
+mkdirSync(join(judgedDir, JUDGE_DIR), { recursive: true });
+for (const s of viewCodex) writeFileSync(join(judgedDir, JUDGE_DIR, `${s.id}.json`), JSON.stringify({ session_id: s.id, agent: 'codex', judgedAt: '2025-03-14T00:00:00.000Z', facets: { ...GOOD, brief_summary: `Worked on ${TERM} with ${SECRETS.apiKey}.` } }));
+writeFileSync(join(judgedDir, JUDGE_DIR, `${IDS.exec}.json`), JSON.stringify({ session_id: IDS.exec, facets: GOOD }));
+const makeView = (insights, codexJudge) => createViewData({ config: vw.config, roots: vw.roots, ...VWIN, goalRecord: vw.goalRecord, now: () => NOW, insights, codexJudge });
+const plain = makeView(null, null);
+const off = makeView(createInsights({ dir: null, on: false }), createCodexJudge({ configDir: judgedDir }));
+const on = makeView(createInsights({ dir: null, on: true }), createCodexJudge({ configDir: judgedDir }));
+for (const d of [plain, off, on]) await d.start();
+await on.start('private');
+const ask = (data, path, q = {}) => data.route(path, new URLSearchParams(q));
+
 // ---- facts ---------------------------------------------------------------------------------
 
 test('facts: the same work gives the same facts for a Claude Code session and a Codex session', () => {
@@ -202,7 +227,6 @@ test('a codex exec run, like the button\'s own, never counts as the person\'s pr
 
 // ---- the judge's answer --------------------------------------------------------------------
 
-const GOOD = { underlying_goal: 'Fix the parser', goal_categories: { bug_fix: 1 }, outcome: 'fully_achieved', user_satisfaction_counts: { satisfied: 1 }, claude_helpfulness: 'very_helpful', session_type: 'single_task', friction_counts: { lint_failure: 1 }, friction_detail: 'Lint failed once.', primary_success: 'The fix landed.', brief_summary: 'Fixed the parser.' };
 
 test('an answer is the facet fields exactly; anything else is malformed', () => {
   assert.deepEqual(FACET_FIELDS.slice().sort(), Object.keys(GOOD).sort());
@@ -234,7 +258,7 @@ process.stdin.on('data', (d) => (input += d));
 process.stdin.on('end', () => {
   const n = existsSync(e.FAKE_COUNT) ? Number(readFileSync(e.FAKE_COUNT, 'utf8')) : 0;
   writeFileSync(e.FAKE_COUNT, String(n + 1));
-  appendFileSync(e.FAKE_LOG, JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd(), input, env: Object.keys(process.env) }) + '\\n');
+  appendFileSync(e.FAKE_LOG, JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd(), input, env: Object.keys(process.env), pid: process.pid }) + '\\n');
   const modes = String(e.FAKE_MODES || 'good').split(',');
   const mode = modes[n % modes.length];
   const good = ${JSON.stringify(JSON.stringify({ ...GOOD, friction_detail: `${NAME} pasted ${SECRETS.github} into the ${TERM} chat.`, brief_summary: `Worked on ${PRIVATE} and ${OTHER_TERM}.`, friction_counts: { [`${TERM} confusion`]: 2 } }))};
@@ -244,7 +268,7 @@ process.stdin.on('end', () => {
     else process.stdout.write(good);
     appendFileSync(e.FAKE_LOG, 'finished\\n');
     process.exit(0);
-  }, mode === 'slow' ? 5000 : 0);
+  }, mode === 'slow' ? 20000 : 0);
 });
 `);
   if (WIN) writeFileSync(join(dir, 'codex.cmd'), `@"${process.execPath}" "%~dp0fake-codex.mjs" %*\r\n`);
@@ -327,8 +351,18 @@ test('a run judges at most its cap and says how many wait; a slow codex is stopp
   const slow = createCodexJudge({ configDir: join(scratch, 'cfg-slow'), env: { ...env, PATH: fakeCodex('bin-slow', { FAKE_LOG: slowLog, FAKE_COUNT: join(scratch, 'slow.count'), FAKE_MODES: 'slow' }) }, timeoutMs: 700 });
   assert.equal((await slow.run(work(sessions))).status, 200);
   assert.equal((await settle(slow)).state, 'timeout');
-  await sleep(5500);
   assert.ok(existsSync(slowLog), 'the fake codex started');
+  const alive = (pid) => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const pid = logOf(slowLog)[0].pid;
+  for (let i = 0; i < 300 && alive(pid); i++) await sleep(50);
+  assert.equal(alive(pid), false, 'the fake codex was stopped');
   assert.ok(!readFileSync(slowLog, 'utf8').includes('finished'), 'it was stopped before it answered');
   // One session over its own limit fails, and the run goes on.
   const one = createCodexJudge({ configDir: join(scratch, 'cfg-one'), env: { ...env, PATH: fakeCodex('bin-one', { FAKE_LOG: join(scratch, 'one.log'), FAKE_COUNT: join(scratch, 'one.count'), FAKE_MODES: 'slow,good' }) }, sessionTimeoutMs: 700 });
@@ -361,27 +395,9 @@ test('the run refuses the demo, a missing codex, a missing config and a week sti
 
 // ---- the page: byte-identical with the toggle off, redacted with the switch off and on ------
 
-const vw = buildViewWeek(join(scratch, 'view-week'));
-const VWIN = { from: WEEK.from, to: WEEK.to, timezone: 'UTC' };
-const NOW = Date.parse(`${WEEK.to}T12:00:00Z`);
-const judgedDir = join(scratch, 'cfg-view');
-// Stored judgments for every Codex session the fixture week shows, holding private words.
-const seedView = createViewData({ config: vw.config, roots: vw.roots, ...VWIN, goalRecord: vw.goalRecord, now: () => NOW });
-await seedView.start();
-const viewCodex = seedView.codexWork().sessions;
-mkdirSync(join(judgedDir, JUDGE_DIR), { recursive: true });
-for (const s of viewCodex) writeFileSync(join(judgedDir, JUDGE_DIR, `${s.id}.json`), JSON.stringify({ session_id: s.id, agent: 'codex', judgedAt: '2025-03-14T00:00:00.000Z', facets: { ...GOOD, brief_summary: `Worked on ${TERM} with ${SECRETS.apiKey}.` } }));
-writeFileSync(join(judgedDir, JUDGE_DIR, `${IDS.exec}.json`), JSON.stringify({ session_id: IDS.exec, facets: GOOD }));
-const makeView = (insights, codexJudge) => createViewData({ config: vw.config, roots: vw.roots, ...VWIN, goalRecord: vw.goalRecord, now: () => NOW, insights, codexJudge });
-const plain = makeView(null, null);
-const off = makeView(createInsights({ dir: null, on: false }), createCodexJudge({ configDir: judgedDir }));
-const on = makeView(createInsights({ dir: null, on: true }), createCodexJudge({ configDir: judgedDir }));
-for (const d of [plain, off, on]) await d.start();
-await on.start('private');
-const ask = (data, path, q = {}) => data.route(path, new URLSearchParams(q));
-
 test('with the toggle off, every answer honestweek already gave is the same bytes, stored Codex judgments and all', async () => {
-  assert.ok(viewCodex.length >= 2, 'the fixture week has Codex sessions to judge');
+  // If this ever fails, the message says what the fixture week's build held at the time.
+  assert.ok(viewCodex.length >= 2, `the fixture week has Codex sessions to judge (build ${seedView.status().state}, ${viewCodex.length} found)`);
   assert.ok(!viewCodex.some((s) => s.id === IDS.exec), 'the exec run is never judged');
   const thread = (await ask(plain, '/api/replay', { session: vw.keys.featured })).body.thread?.id ?? '';
   for (const [path, q] of [['/api/home', {}], ['/api/problems', {}], ['/api/problems', { summary: '1' }], ['/api/replay', { session: vw.keys.featured }], ['/api/replay', { thread }], ['/api/search', { q: 'lantern' }], ['/api/goal', {}]]) {
