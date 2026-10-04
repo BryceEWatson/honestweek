@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { runProblems, priorityOf } from '../lib/problems/index.mjs';
+import { NOTHING_TO_CHECK, runProblems, priorityOf } from '../lib/problems/index.mjs';
 import { CHECKS, runChecks } from '../lib/problems/checks.mjs';
 import { createContext } from '../lib/problems/context.mjs';
 
@@ -515,4 +515,27 @@ test('a check that throws is reported as not run, and the other checks still rep
   assert.deepEqual(stopped.findings, []);
   assert.equal(risky.ran, true);
   assert.equal(risky.findings.length, 1, 'the other checks still report');
+});
+
+test('a window with no session to read: nothing was checked, so no pattern reads as checked and clear', () => {
+  const r = run(history().build());
+  assert.equal(r.coverage.sessions.value, 0);
+  assert.equal(r.statusCounts.clear, 0, 'no pattern is "checked, not found"');
+  assert.equal(r.statusCounts.found, 0);
+  assert.ok(r.checks.length > 0);
+  for (const c of r.checks) assert.deepEqual([c.ran, c.notRun, c.checked], [false, NOTHING_TO_CHECK, null], c.id);
+  const measured = r.patterns.filter((p) => p.measures.length && p.status !== 'undetectable');
+  assert.ok(measured.length > 0);
+  for (const p of measured) assert.deepEqual([p.status, p.notRun, p.tokens, p.countEvidence, p.priority], ['unchecked', NOTHING_TO_CHECK, null, null, null], p.id);
+  // The same with only a display-only session, which the checks never read.
+  const d = history().session('d1', { priv: true });
+  d.prompt('d1', min(0), 'Go.');
+  assert.equal(run(d.build()).statusCounts.clear, 0);
+  // The partner: one quiet session in a configured repository, and patterns are checked and clear.
+  const h = history().session('s1');
+  h.prompt('s1', min(0), 'Go.');
+  const quiet = run(h.build());
+  assert.equal(quiet.coverage.sessions.value, 1);
+  assert.ok(quiet.statusCounts.clear > 0, 'with a session to read, a pattern can be checked and clear');
+  assert.ok(quiet.checks.some((c) => c.ran));
 });
