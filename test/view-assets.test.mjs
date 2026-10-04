@@ -341,3 +341,46 @@ test('assets: no real data: names, home folders, addresses or codenames', () => 
     assert.doesNotMatch(f.text, /\u2014/, `${f.name}: an em dash (the published voice bar)`);
   }
 });
+
+// What the header and the Find cards say has to hold when the answer behind them is missing,
+// capped or wider than the label.
+test("the header says the problem checks couldn't load instead of looking like none were found", () => {
+  const common = readFileSync(join(ASSETS, 'common.js'), 'utf8');
+  const nav = common.match(/function navCount\(patterns\) \{[^]*?\n  \}/)[0];
+  assert.match(nav, /if \(!Array\.isArray\(patterns\)\) \{\s+el\.hidden = false;/, 'no patterns shows a mark');
+  assert.match(nav, /the problem checks could not load/, 'and says why, to a screen reader too');
+  assert.match(common, /problemsSummary\(\)\.then\(\(a\) => navCount\(a\?\.patterns\), \(\) => navCount\(null\)\);/, 'a failed summary reaches the header');
+  assert.match(readFileSync(join(ASSETS, 'search.js'), 'utf8'), /HW\.navCount\(null\);\s+if \(\$\('lookBody'\)\)/, "and so does the Find card's failure");
+});
+
+test('a share of the window tokens reads the same on Find as on Problems, to one decimal under 10%', () => {
+  const common = readFileSync(join(ASSETS, 'common.js'), 'utf8');
+  const pct = runInNewContext(`(${common.match(/const pct = (\(x\) => [^\n]+);/)[1]})`);
+  assert.equal(pct(0.046), '4.6%', '4.6% no longer shows as 5%');
+  assert.equal(pct(0.006), '0.6%', 'one decimal under 10%');
+  assert.equal(pct(0.0004), 'under 0.1%');
+  assert.equal(pct(0.25), '25%');
+  assert.match(readFileSync(join(ASSETS, 'problems.js'), 'utf8'), /const \{ pct \} = HW;/, 'Problems uses the shared one');
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  assert.match(search, /HW\.pct\(share\)/, 'Find uses the shared one');
+  assert.doesNotMatch(search, /Math\.round\(share/, 'and no rounding of its own');
+});
+
+test('the Find cards claim no more than their lists hold', () => {
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  // The server's recent list is every session in the window, so the heading can't say "in your repos".
+  assert.doesNotMatch(search, /Recent in your repos/);
+  assert.match(search, /Recent sessions<\/h2>/);
+  assert.match(search, /const GROUP_NOTE = \{ display: 'display-only repo', outside: 'outside your config' \};/);
+  const row = search.match(/function recentRow\(s, hidden\) \{[^]*?\n  \}/)[0];
+  assert.match(row, /info\.repo \? esc\(info\.repo\) : '', GROUP_NOTE\[info\.group\] \?\? ''/, 'a recent session says its repo and its group');
+  assert.match(row, /isMine\(g\) \? ` \$\{mineTag\}` : ''/, 'and keeps the tag on a goal I cited it in');
+  // A closed result row still says a folded reason is ambiguous.
+  assert.match(search, /refs\.slice\(1\)\.some\(\(r\) => r\.ambiguous\) \? ` \$\{chip\('ambiguous', 'one of the other reasons'\)\}`/);
+  // The folded word search counts every kind of match, not prompts alone.
+  assert.match(search, /<h2>Also mentioned in words<\/h2> <span class="hcount">\$\{plural\(wordsFound\(words\), 'match', 'matches'\)\}/);
+  // The window isn't always a week.
+  const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
+  assert.doesNotMatch(problems, /this week/);
+  assert.match(problems, /'Not found in this window'/);
+});
