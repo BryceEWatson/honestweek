@@ -4,7 +4,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { createCodexTurnReader, isCodexExecSession } from '../lib/codex-records.mjs';
@@ -12,6 +12,7 @@ import { normalizeConfig } from '../lib/config.mjs';
 import { probeSession } from '../lib/mine/corpus.mjs';
 import { scanPromptSources } from '../lib/prompt-adapters.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
+import { describe } from '../lib/replay/views.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const EXEC_ID = '0190a1b2-0000-7000-8000-00000000e0e0';
@@ -99,4 +100,46 @@ test('codex exec sessions count no typed prompt in the miner, the prompt reader 
   } finally {
     removeTempDir(root);
   }
+});
+
+test("an exec run's replies go to whatever ran it, and a child thread an exec run started keeps its parent's messages", async () => {
+  const root = makeTempDir('honestweek-codex-exec-child-');
+  try {
+    const project = join(root, 'project');
+    mkdirSync(project, { recursive: true });
+    rollouts(root, project);
+    // A child thread spawned inside a `codex exec` run: its session_meta carries the exec
+    // originator and a subagent source.
+    const CHILD_ID = '0190a1b2-0000-7000-8000-00000000c4c4';
+    const dir = join(root, 'codex', 'sessions', '2024', '06', '11');
+    writeFileSync(join(dir, `rollout-2024-06-11T12-00-00-${CHILD_ID}.jsonl`), [
+      meta(CHILD_ID, project, { originator: 'codex_exec', source: { subagent: { thread_spawn: { parent_thread_id: EXEC_ID, depth: 1, agent_nickname: 'helper' } } } }),
+      user('2024-06-11T12:00:01.000Z', 'list the test files'),
+      said('2024-06-11T12:00:02.000Z', 'Three files.'),
+      user('2024-06-11T12:00:03.000Z', 'and the slowest one'),
+    ].map((r) => JSON.stringify(r)).join('\n') + '\n');
+    const config = normalizeConfig({ identity: { authorEmails: ['you@example.com'] }, week: { timezone: 'UTC' }, repos: [{ path: project, label: 'your-project', role: 'featured' }] }, { configDir: root });
+    const h = await buildWorkHistory({ config, from: '2024-06-10', to: '2024-06-16', timezone: 'UTC', roots: { claude: [join(root, 'claude')], codex: [join(root, 'codex')] }, git: false });
+    const execKey = h.sessions.find((s) => h.events.some((e) => e.session === s.key && e.kind === 'action')).key;
+    // The child thread joins its exec run's session: the run's two replies go to whatever ran
+    // it, the child's one to its parent.
+    const replies = h.events.filter((e) => e.session === execKey && e.kind === 'message');
+    assert.deepEqual(replies.map((e) => e.facts.to), ['codex-exec', 'codex-exec', 'parent-agent']);
+    assert.match(describe(replies[0]), /^reply to whatever ran codex exec /);
+    const fromParent = h.events.filter((e) => e.facts?.from === 'parent-agent');
+    assert.deepEqual(fromParent.map((e) => [e.kind, e.actor, e.facts.text]), [
+      ['delegation-received', 'agent', 'list the test files'],
+      ['agent-message', 'agent', 'and the slowest one'],
+    ]);
+    assert.deepEqual(h.events.filter((e) => e.kind === 'prompt' && e.session === execKey), [], 'none of it is a prompt');
+    assert.equal(h.overview().totals.prompts.value, 2, 'still only the hand-typed session');
+  } finally {
+    removeTempDir(root);
+  }
+});
+
+test("the page self-test's check on who sent an exec instruction is a real word boundary", () => {
+  const src = readFileSync(new URL('../lib/view/selftest/clickthrough.js', import.meta.url), 'utf8');
+  assert.equal(src.includes(String.fromCharCode(8)), false, 'no backspace character in the self-test');
+  assert.ok(src.includes('/^(You|A person)' + String.fromCharCode(92) + 'b/'));
 });
