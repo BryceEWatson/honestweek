@@ -115,30 +115,30 @@ test('a consuming transform surfaces the session-aware daysActive without invent
   assert.ok(artifact.groups[0].sessions > 0 && artifact.groups[0].activeDays > 0);
 });
 
-test('a consuming transform surfaces the cross-cwd reconciled sessionsThisWeek + daysActive, fence-safe (Akaya-shaped)', () => {
+test('a consuming transform surfaces the cross-cwd reconciled sessionsThisWeek + daysActive, fence-safe (Fernway-shaped)', () => {
   // End to end: derive the way augmentSiteModel does (deriveProjectStats + reconcileGeneralizedSessionTotals)
   // for a repo-less group whose curated entries out-run its cwd sessions, then feed the bundle to a consuming
-  // adapter that joins EXACTLY like the brycewatson.com transform does — daysActive from projectStats,
+  // adapter that joins EXACTLY like the your-site.example transform does — daysActive from projectStats,
   // sessionsThisWeek from sessions.projectTotals[name]. Both must read 2 (the 2 entry-days), not the cwd-only
   // 1, and survive the numeric fact-fence (each is a verified number under a trusted derived root).
   const week = { start: '2026-06-29', end: '2026-07-05' };
   const chart = { days: [{ date: '2026-07-01', byRepo: {} }, { date: '2026-07-02', byRepo: {} }] };
   const sessions = {
     total: 4,
-    projectTotals: { Akaya: 1, Command: 3 },
+    projectTotals: { Fernway: 1, Quarry: 3 },
     days: [
-      { date: '2026-07-01', byProject: { Akaya: 1 } },
-      { date: '2026-07-02', byProject: { Command: 1 } }, // the Jul 2 Akaya work ran under Command's cwd
+      { date: '2026-07-01', byProject: { Fernway: 1 } },
+      { date: '2026-07-02', byProject: { Quarry: 1 } }, // the Jul 2 Fernway work ran under Quarry's cwd
     ],
   };
   const richItems = [
-    { project: 'Akaya', repo: null, status: 'in progress', date: '2026-07-01' },
-    { project: 'Akaya', repo: null, status: 'in progress', date: '2026-07-02' },
+    { project: 'Fernway', repo: null, status: 'in progress', date: '2026-07-01' },
+    { project: 'Fernway', repo: null, status: 'in progress', date: '2026-07-02' },
   ];
   const projectStats = deriveProjectStats(richItems, chart, week.start, week.end, sessions);
   reconcileGeneralizedSessionTotals(sessions, richItems, {}, week.start, week.end);
-  assert.equal(projectStats.Akaya.daysActive, 2);
-  assert.equal(sessions.projectTotals.Akaya, 2);
+  assert.equal(projectStats.Fernway.daysActive, 2);
+  assert.equal(sessions.projectTotals.Fernway, 2);
 
   const b = {
     meta: { windowDays: 7, weekStart: '2026-06-29' },
@@ -151,7 +151,7 @@ test('a consuming transform surfaces the cross-cwd reconciled sessionsThisWeek +
   const artifact = renderSiteViaTransform(
     (m) => ({
       headline: m.content.headline,
-      groups: [{ name: 'Akaya', activeDays: m.projectStats.Akaya.daysActive, sessionsThisWeek: m.sessions.projectTotals.Akaya }],
+      groups: [{ name: 'Fernway', activeDays: m.projectStats.Fernway.daysActive, sessionsThisWeek: m.sessions.projectTotals.Fernway }],
     }),
     b
   );

@@ -4,11 +4,11 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { validateItems, runValidate } from '../lib/validate.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const CONFIG = {
   identity: { authorEmails: ['me@example.com'] },
@@ -80,7 +80,7 @@ test('validateItems voice rule (--no-dashes) is opt-in', () => {
 // --- runValidate end-to-end (exit codes via injected io) ---
 
 function tmpProject(items) {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-validate-'));
+  const dir = makeTempDir('hw-validate-');
   writeFileSync(join(dir, 'honestweek.config.json'), JSON.stringify(CONFIG));
   writeFileSync(join(dir, 'honestweek.items.json'), JSON.stringify({ items }));
   return dir;
@@ -99,7 +99,7 @@ test('runValidate exits 0 and reports OK on a clean items file', async () => {
     assert.equal(code, 0);
     assert.match(io._out.join(''), /validate: OK/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -111,6 +111,6 @@ test('runValidate exits 2 and lists problems on a leaky items file', async () =>
     assert.equal(code, 2);
     assert.match(io._err.join(''), /display-role repo/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });

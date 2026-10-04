@@ -24,9 +24,9 @@ npx github:BryceEWatson/honestweek view          # your own last 7 days
 
 The demo opens a page with three parts: Search (type one of the examples it offers, or a few words), Goals (each goal in a goal list, a small JSON file of your goals, with its sessions on one timeline you can play), and Replay (one session step by step, each step with the log line behind it). Press Ctrl+C in the terminal to stop it.
 
-If you'd rather have a plain `honestweek` command, install it from GitHub with `npm install -g github:BryceEWatson/honestweek` and write `honestweek` where it says `npx github:BryceEWatson/honestweek`. From a clone of this repository, write `node bin/honestweek.mjs` there instead. `honestweek` with no command lists the same three steps, and every message that tells you what to run next names it the way you ran honestweek.
+If you'd rather have a plain `honestweek` command, install it from GitHub with `npm install -g github:BryceEWatson/honestweek` and write `honestweek` where it says `npx github:BryceEWatson/honestweek`. From a clone of this repository, write `node bin/honestweek.mjs` there instead. `honestweek` with no command lists the same three steps. The messages you meet first (that list, `init`, `view` and its pages, and the one for a missing config) name each next step the way you ran honestweek.
 
-Run `init` from your project folder, or from a new folder next to your projects. It lists the git repositories there and folds each extra working copy of one repository (a git worktree) into it, so one repository shows up once. Before it writes anything you can keep or drop repositories by number (`keep 1-5 9`, `drop 3 7-9`) or change a role (`role 2 display`; the roles are explained under [Config reference](#config-reference)). It then asks for people's names and client or project words to keep private. You can skip both, but until you list some, names in your logs show as written, and `view` says so in the terminal and on every page, with an example of where to list them. For candidates, run `discover` and then `harvest`: it writes the capitalised words that survived redaction in last week's sessions, most frequent first, to `honestweek.harvest.json`.
+Run `init` from your project folder, or from a new folder next to your projects. It lists the git repositories there and folds each extra working copy of one repository (a git worktree) into it, so one repository shows up once. Before it writes anything you can keep or drop repositories by number (`keep 1-5 9`, `drop 3 7-9`) or change a role (`role 2 display`; the roles are explained under [Config reference](#config-reference)). It then asks for people's names and client or project words to keep private, and reads back what it'll store. When you give some, it also adds `honestweek.config.json` to `.gitignore`, since the file then lists them. You can skip both, but until you list some, names in your logs show as written, and `view` says so in the terminal and on every page, with an example of where to list them. For candidates, run `discover` and then `harvest`: it writes the capitalised words that survived redaction in last week's sessions, most frequent first, to `honestweek.harvest.json`.
 
 What's further down:
 
@@ -116,7 +116,7 @@ node bin/honestweek.mjs view --from 2024-06-10 --to 2024-06-16 --goals goals.jso
 node bin/honestweek.mjs view --demo           # a made-up week, before you set anything up
 ```
 
-With no `honestweek.config.json`, it stops and points to `honestweek init` to set one up and `honestweek view --demo` to look around first. The commands it names, there and on the page, are written the way you ran honestweek. While it reads the logs, the page says what it's reading and for how long. When your config lists no private words, the terminal and every page say that names and client words show as written, and where to add them. Ctrl+C stops it.
+With no `honestweek.config.json`, it stops and points to `honestweek init` to set one up and `honestweek view --demo` to look around first. The commands it names, there and on the page, are written the way you ran honestweek, except that a page names a script or package file by a placeholder (`node <your honestweek folder>/bin/honestweek.mjs`), since its steps can happen in another folder. While it reads the logs, the page says what it's reading and for how long. When your config lists no private words, the terminal and every page say that names and client words show as written, and where to add them. Ctrl+C stops it.
 
 What's on the page:
 
@@ -187,7 +187,7 @@ End-to-end happy path, in order. Each step names the artifact it produces.
 
 > Installed as the skill/plugin? Just run `/honestweek`: Claude drives these steps for you and resolves the CLI path automatically. The raw `node bin/honestweek.mjs …` commands below are for running the CLI directly **from a clone of the repo** (cwd = the repo root).
 
-1. **`init`** → writes `honestweek.config.json`, inferred from your git state (your `git config user.email` plus the nearby git repos it finds), for you to review and commit. It also drops `honestweek.config.example.json` if one isn't present. Two confirmations gate the write; accepting the defaults yields a valid config. Between them it asks for the names and client words to keep private, which go under `redaction` (either can be skipped), and before the second it shows a short summary of what the file will say.
+1. **`init`** → writes `honestweek.config.json`, inferred from your git state (your `git config user.email` plus the nearby git repos it finds), for you to review. If it finds no repositories, it writes nothing and says where to run it instead. It also drops `honestweek.config.example.json` if one isn't present. Two confirmations gate the write; accepting the defaults yields a valid config. Between them it asks for the names and client words to keep private, which go under `redaction` (either can be skipped; when you give some, the config also goes into `.gitignore`), and before the second it shows a short summary of what the file will say.
    ```bash
    node bin/honestweek.mjs init
    ```
@@ -452,7 +452,7 @@ Without the file, the report uses the shipped default and client layers. The des
 
 ## Config reference
 
-You commit your own `honestweek.config.json`. It mirrors `honestweek.config.example.json`:
+Your `honestweek.config.json` mirrors `honestweek.config.example.json`. Whether you commit it is up to you, but its `redaction` lists are the words you want hidden, so keep a config that has them out of anything public (`init` adds it to `.gitignore` when you give it private words):
 
 ```jsonc
 {
@@ -519,7 +519,7 @@ You commit your own `honestweek.config.json`. It mirrors `honestweek.config.exam
 | `honestweek.history.json` | What landed on the default branch in a period, from `history`: the raw material for a client report. **Gitignored.** Redacted before it's written; only counts are printed. |
 | `honestweek.harvest.json` | Proposed redaction-denylist candidates from `harvest`. **Gitignored.** Only the count is printed; the raw nouns stay local for you to review. |
 | `output.file` (e.g. `honestweek.digest.md`) | The final rendered output. **Yours to keep or ignore.** |
-| `honestweek.config.json` | Your config. Gitignored by default (it can hold private repo paths/terms); un-ignore it if you want it tracked. |
+| `honestweek.config.json` | Your config. `init` adds it to `.gitignore` when you give it private words, since it then lists them; it can also hold private repo paths. Un-ignore it if you want it tracked. |
 | `honestweek.archive/` (opt-in) | The local weekly snapshots + `index.json` (the "/log" series). Only written when `output.archive` is true. **Yours to keep, ignore, or commit.** |
 | `honestweek.objectives.json` (opt-in) | The goal registry that turns `page` mode multi-page (emits `goals.html`). Absent → single-page. The publish gate for goals; commit it if you want the goals page. |
 | `honestweek.goal-changelog.json` (opt-in) | Optional append-only log of structural goal-set changes, rendered as the goals page's "what changed" band. |
@@ -560,15 +560,7 @@ honestweek's two non-negotiable promises:
 
 ## Releasing (maintainers)
 
-honestweek is publish-ready but not yet on npm. To cut a release so `npx honestweek` / `npm i -g honestweek` work:
-
-1. Bump the version in `package.json` (and `.claude-plugin/plugin.json` to match), commit, and tag: `git tag v0.1.0 && git push --tags`.
-2. **Add the `NPM_TOKEN` repository secret first** (an npm automation token). Do this *before* step 3, not after. The release workflow triggers on a Release being **published**, and publishing a GitHub Release is not reversible in any quiet way: without the token the workflow reaches `npm publish` and fails on authentication, leaving a public Release announcing a version that is not on npm. Confirm with `gh secret list` that `NPM_TOKEN` is listed.
-3. **Automated:** publish a GitHub Release for the tag. The [`release` workflow](.github/workflows/release.yml) runs the tests and `npm publish --provenance --access public`.
-   **Manual alternative:** `npm publish --access public` from a clean checkout after `npm login`.
-4. The `files` allowlist in `package.json` controls what ships to npm (`bin/`, `lib/`, `SKILL.md`, the example config, the plugin manifests). Tests and fixtures are excluded.
-
-Publishing to npm and cutting a GitHub Release are the only steps that go public; everything else in this repo is local.
+honestweek isn't on npm yet; the first version there will be 0.2.0. I publish each version from my own terminal and then tag it, in the order [docs/releasing.md](docs/releasing.md) sets out. The `files` allowlist in `package.json` decides what ships (`bin/`, `lib/`, `SKILL.md`, the example config and the plugin manifests), and `test/package-contents.test.mjs` pins it.
 
 ## Contributing and security
 

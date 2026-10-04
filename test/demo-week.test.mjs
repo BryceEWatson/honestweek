@@ -5,8 +5,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, relative } from 'node:path';
 
 import { buildWorkHistory } from '../lib/replay/index.mjs';
@@ -17,6 +17,7 @@ import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { runProblems } from '../lib/problems/index.mjs';
 import { buildDemoWeek, CODEX_IDS, main as demoMain, ME, SESSION_IDS, WEEK } from '../tools/demo-week.mjs';
 import { main as inspect } from '../tools/replay-inspect.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 let d;
 let h;
@@ -25,7 +26,7 @@ const k = {};
 const scratch = [];
 
 const tmp = (prefix) => {
-  const dir = mkdtempSync(join(tmpdir(), prefix));
+  const dir = makeTempDir(prefix);
   scratch.push(dir);
   return dir;
 };
@@ -64,11 +65,7 @@ before(async () => {
 });
 after(() => {
   for (const dir of scratch) {
-    try {
-      rmSync(dir, { recursive: true, force: true });
-    } catch {
-      /* Windows can hold a lock on .git briefly */
-    }
+    removeTempDir(dir);
   }
 });
 
@@ -320,7 +317,7 @@ test('the problem checks find a spread of patterns across the three tiers, each 
     'unverified-done-claim': ['medium', 1, 0],
     'test-tampering': ['medium', 1, 0],
     'destructive-command': ['medium', 1, 1],
-    'repeated-file-reads': ['low', 1, 0],
+    'repeated-file-reads': ['low', 0, 1],
     'action-loop': ['low', 1, 0],
     'repeated-tool-error': ['low', 2, 0],
     'oversized-tool-output': ['low', 1, 0],
@@ -338,7 +335,13 @@ test('the problem checks find a spread of patterns across the three tiers, each 
   assert.deepEqual(where('unverified-done-claim'), [k.width]);
   assert.deepEqual(where('test-tampering'), [k.windows]);
   assert.deepEqual(where('destructive-command'), [k.unreleased]);
-  assert.deepEqual(where('repeated-file-reads'), [k.width]);
+  // Saturday's three reads of one short file are a routine note: each repeat added about 250
+  // tokens, under the 500 the check asks for before a repeat is worth a look. The call's own
+  // thinking no longer counts as what the read added.
+  assert.deepEqual(where('repeated-file-reads'), []);
+  const reread = r.patterns.find((p) => p.id === 'repeated-file-reads').findings;
+  assert.deepEqual(reread.map((f) => [f.severity, f.session, f.steps]), [['note', k.width, 3]]);
+  assert.match(reread[0].note, /read 3 times .* 2 of the 2 repeats added under 500 tokens/);
   assert.deepEqual(where('action-loop'), [k.upload]);
   assert.deepEqual(where('repeated-tool-error'), [k.width, k.upload].sort());
   assert.deepEqual(where('oversized-tool-output'), [k.windows]);

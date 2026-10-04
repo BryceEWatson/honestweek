@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { runBuild, assembleReportModel } from '../lib/build.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'me@example.com';
 const OTHER = 'someone@else.test';
@@ -15,7 +15,7 @@ function git(dir, args, env) {
   return execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env: env ?? process.env, stdio: ['ignore', 'pipe', 'pipe'] });
 }
 function initRepo() {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-build-repo-'));
+  const dir = makeTempDir('hw-build-repo-');
   git(dir, ['init', '-q']);
   git(dir, ['config', 'user.email', ME]);
   git(dir, ['config', 'user.name', 'Dev']);
@@ -51,7 +51,7 @@ function makeIo() {
 
 function setup({ repos, items, output, voice } = {}) {
   const repoDir = initRepo();
-  const work = mkdtempSync(join(tmpdir(), 'hw-build-work-'));
+  const work = makeTempDir('hw-build-work-');
   const outFile = join(work, 'out.md');
   const config = {
     identity: { authorEmails: [ME] },
@@ -67,7 +67,7 @@ function setup({ repos, items, output, voice } = {}) {
 }
 
 function cleanup(...dirs) {
-  for (const d of dirs) try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ }
+  for (const d of dirs) removeTempDir(d);
 }
 
 test('happy path: verifies, redacts, and emits; git-derived data overrides the items file', async () => {
@@ -197,7 +197,7 @@ test('assembleReportModel groups by repo, featured before reference, badges + re
 test('page mode: build writes a self-contained interactive HTML report with git-verified receipts', async () => {
   const repoDir = initRepo();
   const sha = commit(repoDir, { message: 'add the feature' });
-  const work = mkdtempSync(join(tmpdir(), 'hw-build-work-'));
+  const work = makeTempDir('hw-build-work-');
   const outFile = join(work, 'honestweek.report.html');
   writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify({
     identity: { authorEmails: [ME] },
@@ -231,7 +231,7 @@ test('page mode: build writes a self-contained interactive HTML report with git-
 
 test('page mode: an empty week writes the honest no-sessions report, not a crash', async () => {
   const repoDir = initRepo(); // no commits in the window
-  const work = mkdtempSync(join(tmpdir(), 'hw-build-work-'));
+  const work = makeTempDir('hw-build-work-');
   const outFile = join(work, 'honestweek.report.html');
   writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify({
     identity: { authorEmails: [ME] },
@@ -362,7 +362,7 @@ function landedAndStrandedRepo() {
 
 /** Write a minimal config + items pair for the landed-gate scenarios. */
 function landedGateSetup({ dir, mode, outFile, items, adapter }) {
-  const work = mkdtempSync(join(tmpdir(), 'hw-build-work-'));
+  const work = makeTempDir('hw-build-work-');
   writeFileSync(join(work, 'honestweek.config.json'), JSON.stringify({
     identity: { authorEmails: [ME] },
     week: { startsOn: 'monday', timezone: 'UTC' },
@@ -434,7 +434,7 @@ test('landed gate: page mode renders the unlanded item as in-progress and the le
 
 test('landed gate: site mode artifact carries the downgraded status (same items chokepoint)', async () => {
   const { dir, landedSha, strandedSha } = landedAndStrandedRepo();
-  const work = mkdtempSync(join(tmpdir(), 'hw-build-work-'));
+  const work = makeTempDir('hw-build-work-');
   const artifact = join(work, 'artifact.json');
   writeFileSync(join(work, 'adapter.json'), JSON.stringify({
     artifact,
@@ -494,8 +494,8 @@ test('landed gate: the SAME sha in two repos is judged per repo, not last-verdic
   // overwrite would happen if the key were not per repo.
   const stranded = landedAndStrandedRepo();  // `shared` lives only on `feat` here
   const shared = stranded.strandedSha;
-  const clone = mkdtempSync(join(tmpdir(), 'hw-build-clone-'));
-  const work = mkdtempSync(join(tmpdir(), 'hw-build-work-'));
+  const clone = makeTempDir('hw-build-clone-');
+  const work = makeTempDir('hw-build-work-');
   const outPath = join(work, 'out.md');
   try {
     execFileSync('git', ['clone', '-q', stranded.dir, clone], { stdio: ['ignore', 'pipe', 'pipe'] });

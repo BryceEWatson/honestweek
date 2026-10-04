@@ -2,10 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import {
-  closeSync, existsSync, fsyncSync, mkdirSync, mkdtempSync, openSync,
-  readFileSync, renameSync, rmSync, unlinkSync, writeFileSync,
+  closeSync, existsSync, fsyncSync, mkdirSync, openSync,
+  readFileSync, renameSync, unlinkSync, writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { extractDigestCues, scanDigestEvidence } from '../lib/digest-evidence.mjs';
@@ -23,6 +22,7 @@ import { hasRecurringText } from '../lib/curation-similarity.mjs';
 import { loadConfig, OUTPUT_MODES } from '../lib/config.mjs';
 import { isReservedDigestItem } from '../lib/digest-schema.mjs';
 import { buildPageModel, render as renderPage } from '../lib/emit/page.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const REPRESENTATIVE_PROOF = JSON.parse(readFileSync(
   new URL('./fixtures/representative-proof.expected.json', import.meta.url), 'utf8',
@@ -99,7 +99,7 @@ function claudeVerifiedTurn({ sessionId, cwd, prompt, final, at = '2024-06-13T10
 }
 
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), 'honestweek-digest-'));
+  const root = makeTempDir('honestweek-digest-');
   const project = join(root, 'project'); const claude = join(root, 'claude'); const codex = join(root, 'codex');
   mkdirSync(project, { recursive: true });
   const suffix = 'while removing person@example.com from this deliberately detailed local weekly summary before any public-safe artifact is written';
@@ -251,7 +251,7 @@ test('prompt-only curation deliberately replaces a balanced lane and deletion na
     assert.equal(await runPrompts({ cwd:f.root, argv:['curate'], now:f.now, roots:f.roots, io:output }), 0, output.stderr);
     assert.match(output.stdout, /Replaced the balanced version 2 lane with a prompt-only version 1 lane/);
     assert.equal(JSON.parse(readFileSync(join(f.root, 'honestweek.prompt-items.json'), 'utf8')).version, 1);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('a missing lane and a canonical empty version 1 lane produce identical bytes in every existing output mode', async () => {
@@ -294,7 +294,7 @@ test('a missing lane and a canonical empty version 1 lane produce identical byte
   } finally {
     if (oldClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = oldClaude;
     if (oldCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = oldCodex;
-    rmSync(f.root, { recursive:true, force:true });
+    removeTempDir(f.root);
   }
 });
 
@@ -376,7 +376,7 @@ test('digest source scan pins exact receipts, boundaries, exclusions, and both t
       acceptedSources:[...new Set(digest.evidence.map((value) => value.source))].sort(),
       ideaAssistantFinalExcluded:digest.scanExcluded.ideas['assistant-final'], suppressed,
     }, REPRESENTATIVE_PROOF.closedCueSuppression);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('digest second scan rejects deletion, malformed input, and new in-week turns without leaking paths', async () => {
@@ -417,7 +417,7 @@ test('digest second scan rejects deletion, malformed input, and new in-week turn
           return true;
         },
       );
-    } finally { rmSync(f.root, { recursive:true, force:true }); }
+    } finally { removeTempDir(f.root); }
   }
 });
 
@@ -469,7 +469,7 @@ test('persistent high-risk residuals in every category are withheld before publi
         value.category === category && value.state === 'kept' && value.decision === 'high-risk'), true, `${category}: keep cannot bypass privacy`);
     }
     assert.equal(keptResult.lane.items.length, 0);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('hidden and private candidates cannot supply digest recurrence evidence', async () => {
@@ -511,7 +511,7 @@ test('hidden and private candidates cannot supply digest recurrence evidence', a
     assert.equal(publicCandidate.signals.includes('recurs'), false);
     assert.equal(publicCandidate.decision, 'missing-eligibility-signal');
     assert.equal(result.lane.items.some((item) => item.itemRef === publicCandidate.itemRef), false);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('cue-derived candidates inherit a hidden origin prompt control', async () => {
@@ -538,7 +538,7 @@ test('cue-derived candidates inherit a hidden origin prompt control', async () =
     assert.ok(candidate);
     assert.equal(candidate.decision, 'hidden');
     assert.equal(result.lane.items.some((item) => item.itemRef === candidate.itemRef), false);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('human cues retain the containing prompt receipt and conservative privacy audit', async () => {
@@ -562,7 +562,7 @@ test('human cues retain the containing prompt receipt and conservative privacy a
     assert.deepEqual(candidate.receipts.map((value) => value.kind).sort(), ['human-cue', 'human-prompt']);
     assert.equal(candidate.rawDetectors.includes('capitalized-unknown'), true);
     assert.equal(result.lane.items.some((item) => item.itemRef === candidate.itemRef), false);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('disabling public renditions preserves recurrence signals in the private review model', async () => {
@@ -579,7 +579,7 @@ test('disabling public renditions preserves recurrence signals in the private re
     assert.ok(recurringIdeas.length >= 2);
     assert.equal(recurringIdeas.every((candidate) => candidate.decision === 'public-renditions-disabled'), true);
     assert.equal(result.lane.items.length, 0);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('digest keep, hide, and delete control every category through re-prepare, validate, and build', async () => {
@@ -662,7 +662,7 @@ test('digest keep, hide, and delete control every category through re-prepare, v
     } finally {
       if (oldClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = oldClaude;
       if (oldCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = oldCodex;
-      rmSync(f.root, { recursive:true, force:true });
+      removeTempDir(f.root);
     }
   }
 });
@@ -695,7 +695,7 @@ test('digest delete requires confirmation and tombstone schema failures write no
     assert.deepEqual(readFileSync(reviewPath), tampered);
     assert.deepEqual(readFileSync(lanePath), before.lane);
     assert.equal(existsSync(join(f.root, DIGEST_PENDING)), false);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('a lifecycle control fault leaves an existing recoverable digest prefix', async () => {
@@ -725,7 +725,7 @@ test('a lifecycle control fault leaves an existing recoverable digest prefix', a
     assert.equal(existsSync(join(f.root, DIGEST_PENDING)), false);
     const lane = JSON.parse(readFileSync(join(f.root, 'honestweek.prompt-items.json'), 'utf8'));
     assert.equal(lane.items.find((value) => value.itemRef === candidate.itemRef).curationState, 'kept');
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('digest prepare renders all six categories through the existing page', async () => {
@@ -804,7 +804,7 @@ test('digest prepare renders all six categories through the existing page', asyn
   } finally {
     if (oldClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = oldClaude;
     if (oldCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = oldCodex;
-    rmSync(f.root, { recursive:true, force:true });
+    removeTempDir(f.root);
   }
 });
 
@@ -832,7 +832,7 @@ test('site build rejects a configured repository label that collides with a visi
   } finally {
     if (oldClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = oldClaude;
     if (oldCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = oldCodex;
-    rmSync(f.root, { recursive:true, force:true });
+    removeTempDir(f.root);
   }
 });
 
@@ -845,7 +845,7 @@ test('pending digest transaction blocks every other state reader and writer', as
     assert.match(output.stderr, /digest\.pending/);
     output = io(); assert.equal(await runValidate({ cwd:f.root, now:f.now, io:output }), 2);
     assert.match(output.stderr, /digest\.pending/);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('version 2 schema, drift, reserved fields, and group collisions fail before page output changes', async () => {
@@ -928,7 +928,7 @@ test('version 2 schema, drift, reserved fields, and group collisions fail before
   } finally {
     if (oldClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = oldClaude;
     if (oldCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = oldCodex;
-    rmSync(f.root, { recursive:true, force:true });
+    removeTempDir(f.root);
   }
 });
 
@@ -951,7 +951,7 @@ test('global target and category caps never drop an explicit prompt keep', async
     assert.equal(lane.withheld.total['category-capacity'], review.candidates.length - 1);
     assert.equal(lane.withheld.total['overall-capacity'], 0);
     assert.match(lane.items[0].summary, /overall target 1/);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('overall capacity uses score, category, timestamp, then item-ref tie order', async () => {
@@ -985,7 +985,7 @@ test('overall capacity uses score, category, timestamp, then item-ref tie order'
     assert.equal(lane.items[0].itemRef, expected, 'item ref breaks equal score, category, and timestamp');
     assert.equal(lane.withheld.total['category-capacity'], 0);
     assert.equal(lane.withheld.total['overall-capacity'], review.candidates.length - 1);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('digest prepare recovers every ordered transaction prefix and rejects a mixed prefix', async () => {
@@ -1027,7 +1027,7 @@ test('digest prepare recovers every ordered transaction prefix and rejects a mix
     const unchanged = digestBytes(f.root);
     for (const key of Object.keys(mixed)) assert.deepEqual(unchanged[key], mixed[key]);
     assert.equal(existsSync(join(f.root, DIGEST_PENDING)), true);
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('digest transaction faults leave only documented recoverable prefixes', async () => {
@@ -1070,7 +1070,7 @@ test('digest transaction faults leave only documented recoverable prefixes', asy
         assert.equal(existsSync(join(f.root, DIGEST_PENDING)), false);
       }
     }
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });
 
 test('all six categories apply unchanged, edited, private, and ambiguous privacy outcomes', async () => {
@@ -1296,7 +1296,7 @@ test('all six categories apply unchanged, edited, private, and ambiguous privacy
   } finally {
     if (oldClaude === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = oldClaude;
     if (oldCodex === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = oldCodex;
-    rmSync(f.root, { recursive:true, force:true });
+    removeTempDir(f.root);
   }
 });
 
@@ -1315,5 +1315,5 @@ test('disabled public renditions withhold every otherwise visible category', asy
     for (const category of DIGEST_CATEGORIES) {
       assert.equal(review.candidates.some((item) => item.category === category && item.decision === 'public-renditions-disabled'), true, category);
     }
-  } finally { rmSync(f.root, { recursive:true, force:true }); }
+  } finally { removeTempDir(f.root); }
 });

@@ -3,15 +3,15 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { harvestNouns, harvestFromDigest, runHarvest } from '../lib/harvest.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 test('harvestNouns proposes CamelCase / ALLCAPS / capitalized tokens and counts them', () => {
-  const counts = harvestNouns('ShopForge shipped. ShopForge again. ACME and Zephyr. The Monday build.');
-  assert.equal(counts.get('ShopForge'), 2);
+  const counts = harvestNouns('LarkBoard shipped. LarkBoard again. ACME and Zephyr. The Monday build.');
+  assert.equal(counts.get('LarkBoard'), 2);
   assert.equal(counts.get('ACME'), 1);
   assert.equal(counts.get('Zephyr'), 1);
   assert.ok(!counts.has('The'), 'common word excluded');
@@ -31,7 +31,7 @@ test('harvestFromDigest walks nested strings and excludes listed terms + repo la
     redaction: { codenames: ['Falcon'], names: [], terms: [] },
   };
   const digest = {
-    sessions: [{ steers: ['Falcon work on App with Zephyr'], notes: ['ShopForge and Zephyr again'] }],
+    sessions: [{ steers: ['Falcon work on App with Zephyr'], notes: ['LarkBoard and Zephyr again'] }],
     handoffs: [{ claims: [{ text: 'Zephyr integration' }] }],
   };
   const got = harvestFromDigest(digest, config);
@@ -40,11 +40,11 @@ test('harvestFromDigest walks nested strings and excludes listed terms + repo la
   assert.ok(!terms.includes('App'), 'repo label excluded');
   assert.equal(got[0].term, 'Zephyr', 'most-frequent candidate first');
   assert.equal(got[0].count, 3);
-  assert.ok(terms.includes('ShopForge'));
+  assert.ok(terms.includes('LarkBoard'));
 });
 
 test('runHarvest writes a gitignored sidecar with candidates and prints only the count', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-harvest-'));
+  const dir = makeTempDir('hw-harvest-');
   try {
     writeFileSync(join(dir, 'honestweek.config.json'), JSON.stringify({
       identity: { authorEmails: ['me@example.com'] },
@@ -52,7 +52,7 @@ test('runHarvest writes a gitignored sidecar with candidates and prints only the
       redaction: { codenames: [], names: [], terms: [] },
     }));
     writeFileSync(join(dir, 'honestweek.draft.json'), JSON.stringify({
-      sessions: [{ steers: ['Worked with Zephyr on the ShopForge migration'] }],
+      sessions: [{ steers: ['Worked with Zephyr on the LarkBoard migration'] }],
     }));
 
     const out = [];
@@ -61,14 +61,14 @@ test('runHarvest writes a gitignored sidecar with candidates and prints only the
 
     const sidecar = JSON.parse(readFileSync(join(dir, 'honestweek.harvest.json'), 'utf8'));
     const terms = sidecar.candidates.map((c) => c.term);
-    assert.ok(terms.includes('Zephyr') && terms.includes('ShopForge'), 'candidates captured in the sidecar');
+    assert.ok(terms.includes('Zephyr') && terms.includes('LarkBoard'), 'candidates captured in the sidecar');
 
     const stdout = out.join('');
     assert.match(stdout, /candidate noun\(s\)/);
-    assert.doesNotMatch(stdout, /Zephyr|ShopForge/, 'raw candidate nouns must NEVER reach stdout');
+    assert.doesNotMatch(stdout, /Zephyr|LarkBoard/, 'raw candidate nouns must NEVER reach stdout');
 
     assert.match(readFileSync(join(dir, '.gitignore'), 'utf8'), /honestweek\.harvest\.json/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });

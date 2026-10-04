@@ -7,11 +7,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { deriveChart, deriveProvenance, deriveProjectStats, reconcileGeneralizedSessionTotals, augmentSiteModel } from '../lib/site/derive.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'me@example.com';
 let counter = 0;
@@ -20,7 +20,7 @@ function git(dir, args, env) {
   return execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env: env ?? process.env, stdio: ['ignore', 'pipe', 'pipe'] });
 }
 function initRepo() {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-derive-repo-'));
+  const dir = makeTempDir('hw-derive-repo-');
   git(dir, ['init', '-q']);
   git(dir, ['config', 'user.email', ME]);
   git(dir, ['config', 'user.name', 'Dev']);
@@ -75,8 +75,8 @@ test('deriveChart buckets own commits per day; display repos are never git-read'
     // No display commit leaked into any day.
     assert.ok(chart.days.every((d) => !('disp' in d.byRepo)));
   } finally {
-    rmSync(featured, { recursive: true, force: true });
-    rmSync(display, { recursive: true, force: true });
+    removeTempDir(featured);
+    removeTempDir(display);
   }
 });
 
@@ -149,8 +149,8 @@ test('deriveChart charts FEATURED repos only (reference repos are verify-only, n
     assert.equal(chart.repoTotals.feat, 1);
     assert.equal('ref' in chart.repoTotals, false, 'a reference repo is not charted');
   } finally {
-    rmSync(featured, { recursive: true, force: true });
-    rmSync(reference, { recursive: true, force: true });
+    removeTempDir(featured);
+    removeTempDir(reference);
   }
 });
 
@@ -189,11 +189,11 @@ test('deriveProjectStats counts session-active days for a project that carries a
 });
 
 test('deriveProjectStats counts session-active days for a REPO-LESS (repo:null) display project — issue #47', () => {
-  // The genuine display-role / session-only case the brycewatson.com consumer hit: the project carries
+  // The genuine display-role / session-only case the first real site consumer (your-site.example) hit: the project carries
   // NO repo (repo:null), so #45's sessionDays(_repo=null) returned 0 -> "N sessions / 0 active days". The
-  // fix falls back to the STATS KEY (the project name 'Akaya') — the same key the session bundle buckets
+  // fix falls back to the STATS KEY (the project name 'Fernway') — the same key the session bundle buckets
   // under (byProject) and that the consumer joins sessionsThisWeek by. Sessions on EXACTLY 2 distinct
-  // in-week days under 'Akaya' (plus a 3rd in-week day with none) -> daysActive is that distinct-day
+  // in-week days under 'Fernway' (plus a 3rd in-week day with none) -> daysActive is that distinct-day
   // count (2), a deterministic value, not one inherited from another fixture.
   const chart = {
     days: [
@@ -203,30 +203,30 @@ test('deriveProjectStats counts session-active days for a REPO-LESS (repo:null) 
     ],
   };
   const sessions = {
-    projectTotals: { Akaya: 3 },
+    projectTotals: { Fernway: 3 },
     days: [
-      { date: '2024-06-12', byProject: { Akaya: 1 } },
-      { date: '2024-06-13', byProject: { Akaya: 2 } },
-      { date: '2024-06-14', byProject: {} }, // an in-week day with no Akaya session -> not a session-day
+      { date: '2024-06-12', byProject: { Fernway: 1 } },
+      { date: '2024-06-13', byProject: { Fernway: 2 } },
+      { date: '2024-06-14', byProject: {} }, // an in-week day with no Fernway session -> not a session-day
     ],
   };
   const richItems = [
-    { project: 'Akaya', repo: null, status: 'shipped', date: '2024-06-12' },
-    { project: 'Akaya', repo: null, status: 'in progress', date: '2024-06-13' },
+    { project: 'Fernway', repo: null, status: 'shipped', date: '2024-06-12' },
+    { project: 'Fernway', repo: null, status: 'in progress', date: '2024-06-13' },
   ];
   const stats = deriveProjectStats(richItems, chart, WEEK.start, WEEK.end, sessions);
-  assert.equal(stats.Akaya.daysActive, 2, 'repo-less project counts its 2 distinct session-active days, not 0');
+  assert.equal(stats.Fernway.daysActive, 2, 'repo-less project counts its 2 distinct session-active days, not 0');
   // The issue #47 contradiction is gone: sessionsThisWeek (projectTotals[name]) > 0 alongside daysActive > 0.
   assert.ok(
-    sessions.projectTotals.Akaya > 0 && stats.Akaya.daysActive > 0,
+    sessions.projectTotals.Fernway > 0 && stats.Fernway.daysActive > 0,
     'no "N sessions / 0 active days" for the repo-less project'
   );
 });
 
-test('cross-cwd generalized group: daysActive + session total floor at entry-days, not the cwd-only count (Akaya-shaped)', () => {
-  // The live brycewatson.com Akaya defect. A repo-less generalized project had:
-  //   - a session in its OWN cwd on Jul 1 -> the cwd bundle buckets 1 session under 'Akaya' on 1 day;
-  //   - a Jul 2 session run from ANOTHER project's cwd ('Command'), curated here BY CONTENT.
+test('cross-cwd generalized group: daysActive + session total floor at entry-days, not the cwd-only count (Fernway-shaped)', () => {
+  // The live your-site.example Fernway defect. A repo-less generalized project had:
+  //   - a session in its OWN cwd on Jul 1 -> the cwd bundle buckets 1 session under 'Fernway' on 1 day;
+  //   - a Jul 2 session run from ANOTHER project's cwd ('Quarry'), curated here BY CONTENT.
   // So its curated entries span 2 days (Jul 1 + Jul 2) while the cwd bundle sees 1 session / 1 day, and
   // the header rendered "1 session · active 1/7 days" above 2 rows dated on 2 days. The fix floors BOTH
   // the active-day count AND the generalized session total at the distinct entry-day count.
@@ -240,27 +240,27 @@ test('cross-cwd generalized group: daysActive + session total floor at entry-day
   const sessions = {
     total: 4,
     interactiveTotal: 4, // == sum(projectTotals) BEFORE reconciliation (a strict partition)
-    projectTotals: { Akaya: 1, Command: 3 },
+    projectTotals: { Fernway: 1, Quarry: 3 },
     days: [
-      { date: '2026-07-01', byProject: { Akaya: 1 } }, // Akaya's own-cwd session
-      { date: '2026-07-02', byProject: { Command: 1 } }, // the cross-cwd session -> bucketed under Command, NOT Akaya
+      { date: '2026-07-01', byProject: { Fernway: 1 } }, // Fernway's own-cwd session
+      { date: '2026-07-02', byProject: { Quarry: 1 } }, // the cross-cwd session -> bucketed under Quarry, NOT Fernway
     ],
   };
   const richItems = [
-    { project: 'Akaya', repo: null, status: 'in progress', date: '2026-07-01' },
-    { project: 'Akaya', repo: null, status: 'in progress', date: '2026-07-02' }, // the cross-cwd work, curated to Akaya
-    { project: 'Command', repo: 'Command', status: 'shipped', date: '2026-07-02' },
+    { project: 'Fernway', repo: null, status: 'in progress', date: '2026-07-01' },
+    { project: 'Fernway', repo: null, status: 'in progress', date: '2026-07-02' }, // the cross-cwd work, curated to Fernway
+    { project: 'Quarry', repo: 'Quarry', status: 'shipped', date: '2026-07-02' },
   ];
   const stats = deriveProjectStats(richItems, chart, WK.start, WK.end, sessions);
-  // daysActive: Akaya's cwd sessions cover 1 day, but its entries span 2 -> floored to 2 (the bug: it was 1).
-  assert.equal(stats.Akaya.daysActive, 2, 'daysActive floors at the 2 distinct entry-days, not the 1 cwd session-day');
+  // daysActive: Fernway's cwd sessions cover 1 day, but its entries span 2 -> floored to 2 (the bug: it was 1).
+  assert.equal(stats.Fernway.daysActive, 2, 'daysActive floors at the 2 distinct entry-days, not the 1 cwd session-day');
 
   // reconcile lifts the GENERALIZED group's cwd session total to its entry-day floor; a consumer joins
   // sessionsThisWeek from projectTotals[name], so this is what kills the "1 session above 2 rows" teaser.
   reconcileGeneralizedSessionTotals(sessions, richItems, {}, WK.start, WK.end);
-  assert.equal(sessions.projectTotals.Akaya, 2, 'the generalized group session total is lifted 1 -> 2 to match its 2 entry-days');
-  // The git-backed 'Command' project keeps its pure cwd count (never reconciled) so the mis-wiring gate stays honest.
-  assert.equal(sessions.projectTotals.Command, 3, 'a git-backed project keeps its cwd session partition (not reconciled)');
+  assert.equal(sessions.projectTotals.Fernway, 2, 'the generalized group session total is lifted 1 -> 2 to match its 2 entry-days');
+  // The git-backed 'Quarry' project keeps its pure cwd count (never reconciled) so the mis-wiring gate stays honest.
+  assert.equal(sessions.projectTotals.Quarry, 3, 'a git-backed project keeps its cwd session partition (not reconciled)');
   // PARTITION CONTRACT (deliberate, documented): the lift does NOT touch the deduplicated total (a cross-cwd
   // session is one real session — inflating `total` would be dishonest), so afterwards sum(projectTotals) can
   // EXCEED total. Pin both halves so the relaxation is a conscious choice, not silent drift.
@@ -270,7 +270,7 @@ test('cross-cwd generalized group: daysActive + session total floor at entry-day
   assert.equal(sumTotals, 5, 'sum(projectTotals) is now 5 > total 4 — projectTotals is no longer a strict partition (by design)');
   // The contradiction is gone: neither number can undercount the 2 rows across 2 days.
   assert.ok(
-    stats.Akaya.daysActive >= 2 && sessions.projectTotals.Akaya >= 2,
+    stats.Fernway.daysActive >= 2 && sessions.projectTotals.Fernway >= 2,
     'header can never render fewer sessions/days than the 2 rows shown beneath it'
   );
 });
@@ -372,7 +372,7 @@ test('deriveProjectStats never credits the catch-all "other" session pool to a n
 
 test('augmentSiteModel attaches chart/sessions/provenance and places day items by date', () => {
   const featured = initRepo();
-  const emptySessions = mkdtempSync(join(tmpdir(), 'hw-derive-sess-'));
+  const emptySessions = makeTempDir('hw-derive-sess-');
   try {
     const sha = commit(featured, '2024-06-12T10:00:00Z', 'ship it');
     const config = {
@@ -398,7 +398,7 @@ test('augmentSiteModel attaches chart/sessions/provenance and places day items b
     // The same per-day items also reconnect the session hero.
     assert.deepEqual(out.sessions.days.find((d) => d.date === '2024-06-12').items, day12.items);
   } finally {
-    rmSync(featured, { recursive: true, force: true });
-    rmSync(emptySessions, { recursive: true, force: true });
+    removeTempDir(featured);
+    removeTempDir(emptySessions);
   }
 });

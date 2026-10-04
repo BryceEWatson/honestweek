@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { readdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { existingDisplayRepos, inferAuthorEmail } from '../lib/init.mjs';
 import { ensureDraftGitignored } from '../lib/discover.mjs';
@@ -17,8 +17,8 @@ const git = (dir, args) => execFileSync('git', ['-C', dir, ...args], { stdio: ['
  * makes the test walk every entry there: slow, and it reads repos the test doesn't own.
  */
 function tempRepo(t) {
-  const root = mkdtempSync(join(tmpdir(), 'hw-display-'));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const root = makeTempDir('hw-display-');
+  t.after(() => removeTempDir(root));
   const dir = join(root, 'repo');
   execFileSync('git', ['init', '-q', dir]);
   return dir;
@@ -29,12 +29,12 @@ const silentIo = () => {
 };
 
 test('a display path written with ~ resolves under the home folder', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-display-cfg-'));
+  const dir = makeTempDir('hw-display-cfg-');
   try {
     writeFileSync(join(dir, 'honestweek.config.json'), JSON.stringify({ repos: [{ path: '~/code/client-repo', role: 'display' }] }));
     assert.deepEqual(existingDisplayRepos(dir), [resolve(homedir(), 'code/client-repo')]);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -63,6 +63,7 @@ test('discover never asks git about a display-only folder, even when its draft i
 // run in is display-only, and pass that to the guards above.
 import { runInit } from '../lib/init.mjs';
 import { runDiscover } from '../lib/discover.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 function folderWithConfig(t, role) {
   const dir = tempRepo(t);

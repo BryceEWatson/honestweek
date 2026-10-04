@@ -7,12 +7,12 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { normalizeConfig } from '../lib/config.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'you@example.com';
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
@@ -31,7 +31,7 @@ function commitIdAt(t) {
 }
 
 before(async () => {
-  dir = mkdtempSync(join(tmpdir(), 'hw-digit-sha-'));
+  dir = makeTempDir('hw-digit-sha-');
   const repo = join(dir, 'your-project');
   mkdirSync(repo);
   // A commit time whose id starts with twelve digits.
@@ -66,11 +66,7 @@ before(async () => {
   h = await buildWorkHistory({ config, from: '2025-03-10', to: '2025-03-16', timezone: 'UTC', roots: { claude: [join(dir, 'claude', 'projects')], codex: [] } });
 });
 after(() => {
-  try {
-    rmSync(dir, { recursive: true, force: true });
-  } catch {
-    /* Windows can hold a lock on .git briefly */
-  }
+  removeTempDir(dir);
 });
 
 test('an all-digit commit id stays a commit id in the outcome, the call, and a lookup', () => {
