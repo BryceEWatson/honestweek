@@ -19,12 +19,12 @@ const ASSETS = join(HERE, '..', 'lib', 'view', 'assets');
 const SELFTEST = join(HERE, '..', 'lib', 'view', 'selftest');
 const PAGES = ['search.html', 'goal.html', 'replay.html', 'problems.html'];
 // The scripts each page loads after the shared ones, in order.
-const PAGE_SCRIPTS = { 'search.html': ['prefs.js', 'search.js'], 'goal.html': ['prefs.js', 'strip.js', 'goal.js'], 'replay.html': ['prefs.js', 'strip.js', 'replay.js'], 'problems.html': ['prefs.js', 'insights.js', 'problems.js'] };
+const PAGE_SCRIPTS = { 'search.html': ['prefs.js', 'search.js'], 'goal.html': ['prefs.js', 'strip.js', 'goal.js'], 'replay.html': ['prefs.js', 'strip.js', 'facts.js', 'replay.js'], 'problems.html': ['prefs.js', 'insights.js', 'facts.js', 'problems.js'] };
 // The package author's name, read from package.json so this test doesn't spell out a real name.
 const OWNER_WORDS = String(JSON.parse(readFileSync(join(HERE, '..', 'package.json'), 'utf8')).author ?? '')
   .split(/\s+/)
   .filter((w) => /^[A-Za-z]{3,}$/.test(w));
-const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js', 'problems.js', 'insights.js', 'prefs.js', 'strip.js'];
+const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js', 'problems.js', 'insights.js', 'facts.js', 'prefs.js', 'strip.js'];
 const files = () => [...readdirSync(ASSETS).map((f) => ({ name: f, path: join(ASSETS, f) })), ...readdirSync(SELFTEST).map((f) => ({ name: `selftest/${f}`, path: join(SELFTEST, f) }))].map((f) => ({ ...f, text: readFileSync(f.path, 'utf8') }));
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
 
