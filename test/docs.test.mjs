@@ -13,7 +13,6 @@ const SKILL = readFileSync(resolve(ROOT, 'SKILL.md'), 'utf8');
 const BIN = readFileSync(resolve(ROOT, 'bin', 'honestweek.mjs'), 'utf8');
 const GITIGNORE = readFileSync(resolve(ROOT, '.gitignore'), 'utf8');
 const EXAMPLE = JSON.parse(readFileSync(resolve(ROOT, 'honestweek.config.example.json'), 'utf8'));
-const CONTRACT_VERIFIER = resolve(ROOT, '.claude', 'work', 'prompt-lanes', 'spec-v2', 'verify-contracts.mjs');
 
 /** The subcommands the dispatcher actually accepts. */
 function actualSubcommands() {
@@ -177,9 +176,19 @@ test('clean-room: README contains no real personal data', () => {
   assert.doesNotMatch(README, /\/home\/[a-z]+\/|C:\\Users\\[A-Za-z]+\\/);
 });
 
-test('the contract verifier resolves its own default spec directory cross-platform', () => {
-  const output = execFileSync(process.execPath, [CONTRACT_VERIFIER], { cwd:ROOT, encoding:'utf8' });
-  assert.match(output, /verify-contracts: OK/);
+// The repo's own .claude/ folder holds local working files (hand-offs, research, test logs,
+// prototypes built from real sessions). None of it may be committed, so the root ignore file
+// covers the whole folder and nothing under it is tracked.
+test('the local .claude/ working folder is ignored and nothing under it is tracked', () => {
+  const lines = GITIGNORE.split(/\r?\n/).map((l) => l.trim());
+  assert.ok(lines.includes('/.claude/'), '.gitignore ignores the root .claude/ folder');
+  let tracked;
+  try {
+    tracked = execFileSync('git', ['ls-files', '--', '.claude'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch {
+    return; // not a git checkout (an unpacked tarball): the ignore rule above is all there is to check
+  }
+  assert.equal(tracked.trim(), '', 'no file under .claude/ is tracked');
 });
 
 test('contributor docs: no dashes, links resolve, no personal data, private reporting documented', () => {
@@ -187,8 +196,8 @@ test('contributor docs: no dashes, links resolve, no personal data, private repo
   for (const f of files) {
     const text = readFileSync(resolve(ROOT, f), 'utf8');
     assert.doesNotMatch(text, /[\u2014\u2013]| -- /, `${f} uses an em or en dash`);
-    assert.doesNotMatch(text, /@(?:gmail|outlook|yahoo|proton|icloud)\.com/i, `${f} holds a personal email`);
-    assert.doesNotMatch(text, /\/home\/[a-z]+\/|C:\\Users\\[A-Za-z]+\\/, `${f} holds a personal path`);
+    assert.doesNotMatch(text, /@(?:gmail|outlook|yahoo|proton|icloud|hotmail)\.com/i, `${f} holds a personal email`);
+    assert.doesNotMatch(text, /\/home\/[a-z]+\/|\/Users\/[A-Za-z]+\/|[A-Z]:\\Users\\[A-Za-z]+\\/, `${f} holds a personal path`);
     for (const [, target] of text.matchAll(/\]\((?!https?:|#|mailto:)([^)#\s]+)/g)) {
       const linked = resolve(ROOT, dirname(f), target);
       assert.doesNotThrow(() => readFileSync(linked), `${f} links to ${target}, which doesn't exist`);

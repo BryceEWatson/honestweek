@@ -520,15 +520,7 @@ honestweek's two non-negotiable promises:
 
 ## Releasing (maintainers)
 
-honestweek is publish-ready but not yet on npm. To cut a release so `npx honestweek` / `npm i -g honestweek` work:
-
-1. Bump the version in `package.json` (and `.claude-plugin/plugin.json` to match), commit, and tag: `git tag v0.1.0 && git push --tags`.
-2. **Add the `NPM_TOKEN` repository secret first** (an npm automation token). Do this *before* step 3, not after. The release workflow triggers on a Release being **published**, and publishing a GitHub Release is not reversible in any quiet way: without the token the workflow reaches `npm publish` and fails on authentication, leaving a public Release announcing a version that is not on npm. Confirm with `gh secret list` that `NPM_TOKEN` is listed.
-3. **Automated:** publish a GitHub Release for the tag. The [`release` workflow](.github/workflows/release.yml) runs the tests and `npm publish --provenance --access public`.
-   **Manual alternative:** `npm publish --access public` from a clean checkout after `npm login`.
-4. The `files` allowlist in `package.json` controls what ships to npm (`bin/`, `lib/`, `SKILL.md`, the example config, the plugin manifests). Tests and fixtures are excluded.
-
-Publishing to npm and cutting a GitHub Release are the only steps that go public; everything else in this repo is local.
+honestweek isn't on npm yet; the first version there will be 0.2.0. I publish each version from my own terminal and then tag it, in the order [docs/releasing.md](docs/releasing.md) sets out. The `files` allowlist in `package.json` decides what ships (`bin/`, `lib/`, `SKILL.md`, the example config and the plugin manifests), and `test/package-contents.test.mjs` pins it.
 
 ## Contributing and security
 
