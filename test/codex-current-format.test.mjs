@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join, normalize } from 'node:path';
 
 import { normalizeConfig } from '../lib/config.mjs';
 import { runProblems } from '../lib/problems/index.mjs';
@@ -123,6 +123,11 @@ function rollouts(root) {
     out(7, 'q3', 'completed', 'a\n', 'b\n'),
     program(8, 'q4', `const patch = ${JSON.stringify(patchText('src/notes.mjs', 'old', 'new'))};\ntext(await tools.apply_patch(patch));`),
     out(9, 'q4', 'completed', '{}'),
+    program(9.2, 'q5', `const r = ${run('cat report.json', project)};
+text(r.output);`),
+    out(9.4, 'q5', 'completed', JSON.stringify({ exit_code: 3, wall_time_seconds: 1, chunk_id: 'x' })),
+    program(9.6, 'q6', `text(${run('cat report.json', project)});`),
+    out(9.8, 'q6', 'completed', JSON.stringify({ chunk_id: 'q6', wall_time_seconds: 0.1, exit_code: 0, original_token_count: 9, output: JSON.stringify({ exit_code: 3 }) })),
     say(10, 'One test fails; two files changed.'),
   ]);
 
@@ -138,7 +143,10 @@ function rollouts(root) {
     out(7, 'b1', 'completed', 'ok\n'),
     program(8, 'b3', `const r = await tools.exec_command({ cmd: "npm run serve", workdir: ${JSON.stringify(project)}, yield_time_ms: 1000 });\ntext(JSON.stringify(r));`),
     out(9, 'b3', 'completed', JSON.stringify({ chunk_id: 'b3', wall_time_seconds: 1, session_id: 7, output: 'listening\n' })),
+    // A later program only checks in on it, and is the one open when its record arrives.
+    program(29, 'b4', 'text(JSON.stringify(await tools.write_stdin({ session_id: 7, chars: "" })));'),
     cmdItem(30, project, 'npm run serve', 0, 'listening\nstopped\n'),
+    out(30.5, 'b4', 'completed', '{"session_id":7,"output":"stopped\\n"}'),
     say(31, 'Tests and lint pass; the server ran and stopped.'),
   ]);
 
@@ -239,8 +247,12 @@ test('with no item records, commands and patches are read from the program text 
   // q1: the program printed the whole result, so the exit code is the command's own.
   assert.deepEqual([shell[0].facts.command, shell[0].facts.exitCode, shell[0].facts.result, shell[0].evidence], ['node --test', 1, 'error', 'derived']);
   assert.equal(shell[0].derived.tests.fail, 1);
-  // q2: each printed result names its command.
-  assert.deepEqual(shell.slice(1, 3).map((e) => [e.facts.command, e.facts.exitCode, e.facts.result]), [['git status --short', 0, 'ok'], ['git diff --stat', 0, 'ok']]);
+  // q2: the program built its own JSON of the results, so its exit codes are its text, not
+  // Codex's records: both commands ran (the program completed), and their results stay unknown.
+  assert.deepEqual(shell.slice(1, 3).map((e) => [e.facts.command, e.facts.exitCode, e.facts.result]), [['git status --short', undefined, 'recorded'], ['git diff --stat', undefined, 'recorded']]);
+  // q5 and q6: a JSON file holding exit_code is never the command's exit code; Codex's own result is.
+  const cat = shell.filter((e) => e.facts.command === 'cat report.json');
+  assert.deepEqual(cat.map((e) => [e.facts.exitCode, e.facts.result]), [[undefined, 'recorded'], [0, 'ok']]);
   // q3: a loop runs its call an unknown number of times, so the program is shown, not read.
   const loop = steps.find((e) => e.facts.tool === 'exec');
   assert.equal(loop.evidence, 'recorded');
@@ -265,6 +277,10 @@ test('programs running at once: a record goes to the program that names it; one 
   // The background command: one step, the harness's record of it, issued by its program.
   const serve = steps.filter((e) => e.facts.command === 'npm run serve');
   assert.deepEqual(serve.map((e) => [e.evidence, e.facts.result, e.refs.length]), [['recorded', 'ok', 2]]);
+  // It belongs to the program that started it, not the check-in open when it was recorded.
+  const poll = steps.find((e) => e.facts.tool === 'write_stdin');
+  assert.equal(poll.evidence, 'derived');
+  assert.ok(serve[0].refs[0].line < poll.refs[0].line, 'issued by the program that ran it');
 });
 
 test("a fork's copied records aren't its work, and the older format reads as before", async (t) => {
@@ -334,12 +350,23 @@ test('the program reader: literals only, straight runs only, and outputs read as
   const o = programOutcome([{ type: 'input_text', text: 'Script failed\nWall time 0.1 seconds\nOutput:\n' }, { type: 'input_text', text: 'Script error: exec_command failed: CreateProcess { message: "Rejected(\\"x\\")" }' }]);
   assert.deepEqual([o.status, /^exec_command failed/.test(o.error)], ['failed', true]);
   assert.deepEqual(programOutcome('Script running with cell ID 12\nWall time 10.0 seconds\nOutput:\n').cellId, '12');
-  assert.deepEqual(programOutcome([{ text: 'Script completed\nOutput:\n' }, { text: '{"chunk_id":"a","exit_code":3,"output":"x"}' }]).results, [{ exit: 3, cmd: null, output: 'x' }]);
+  assert.deepEqual(programOutcome([{ text: 'Script completed\nOutput:\n' }, { text: '{"chunk_id":"a","exit_code":3,"output":"x"}' }]).results, [{ exit: 3, output: 'x' }]);
+  // JSON the program built, or nested deeper, isn't Codex's result.
+  assert.deepEqual(programOutcome([{ text: 'Script completed\nOutput:\n' }, { text: '[{"cmd":"a","result":{"exit_code":3}}]' }, { text: '{"exit_code":3}' }]).results, []);
 
   assert.equal(itemCommand({ command: ['/bin/bash', '-lc', 'ls -la'], parsed_cmd: [] }), 'ls -la');
   assert.equal(itemCommand({ command: ['pwsh.exe', '-Command', 'Get-ChildItem'], parsed_cmd: [{ type: 'unknown', cmd: 'Get-ChildItem' }] }), 'Get-ChildItem');
   const fc = fileChangePatch({ '/path/to/your/repo/a.txt': { type: 'add', content: 'one\ntwo\n' }, '/path/to/your/repo/b.txt': { type: 'delete', content: 'gone\n' } });
   assert.deepEqual([fc.added, fc.removed, fc.files.map((f) => f.op)], [2, 1, ['add', 'delete']]);
+});
+
+test("the demo's file-change records name each file by a native absolute path, as Codex does", (t) => {
+  const root = makeTempDir('hw-codex-paths-');
+  t.after(() => removeTempDir(root));
+  const d = buildDemoWeek({ root: join(root, 'week') });
+  const keys = d.files.codex.flatMap((f) => readFileSync(f, 'utf8').split('\n').filter((l) => l.includes('"FileChange"')).flatMap((l) => Object.keys(JSON.parse(l).payload.item.changes)));
+  assert.ok(keys.length >= 6);
+  for (const k of keys) assert.ok(isAbsolute(k) && k === normalize(k), k);
 });
 
 // Invariant 6: absent today's format, existing output stays byte-identical. The fixture was

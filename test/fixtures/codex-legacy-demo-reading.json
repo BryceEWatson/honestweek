@@ -3135,7 +3135,7 @@
    "at": "2025-03-14T16:20:36.635Z",
    "lastAt": "2025-03-14T16:20:45.135Z",
    "kind": "failed command run again unchanged",
-   "estimate": 8482,
+   "estimate": 8479,
    "events": [
     "cx-elajhinpbkjj.12.0",
     "cx-elajhinpbkjj.16.0"
@@ -3156,7 +3156,7 @@
    "at": "2025-03-14T16:20:36.635Z",
    "lastAt": "2025-03-14T16:20:45.135Z",
    "kind": "shell: non-zero exit",
-   "estimate": 8482,
+   "estimate": 8479,
    "events": [
     "cx-elajhinpbkjj.12.0",
     "cx-elajhinpbkjj.16.0"
