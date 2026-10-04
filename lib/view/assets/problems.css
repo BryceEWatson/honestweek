@@ -35,6 +35,14 @@ details.restlist.possible > summary, details.restlist.dismissed > summary { padd
 .pfoot > summary h2 { display: inline; }
 .offscreen { position: fixed; top: -1000px; left: -1000px; opacity: 0; }
 
+/* The optional /insights group: apart from the findings, with its own toggle and Run button. */
+.pins { margin: 16px 0; padding: 10px 20px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--raised); }
+.ins-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; }
+.ins-group .sh { margin: 12px 0 6px; font-size: 15px; }
+.ins-list { margin: 0; padding-left: 1.2em; }
+.ins-item { margin: 4px 0; overflow-wrap: anywhere; }
+.ins-item .num { margin-right: 4px; }
+
 @media (max-width: 760px) {
   .pcard > summary { grid-template-columns: auto minmax(0, 1fr) 28px; }
   .pfound { white-space: normal; }
