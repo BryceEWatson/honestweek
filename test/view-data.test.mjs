@@ -704,15 +704,16 @@ test('a record for a command step includes its shortened, redacted output, and i
   for (const f of frames) assert.deepEqual(f.evidence.testRuns, tl.stateAt(f.t).countEvidence.testRuns);
 });
 
-test('who wrote a prompt: You, recorded or inferred, or a person or a script', async () => {
+test("who wrote a prompt: You, recorded or inferred; a codex exec run's instruction is the agent's", async () => {
   const r = await body('/api/replay', { session: w.keys.featured });
   const prompts = r.events.filter((e) => e.kind === 'prompt');
   const typed = await body('/api/record', { event: prompts[0].id });
   assert.deepEqual(typed.who, { label: 'You', evidence: 'recorded', rule: null });
   const noOrigin = await body('/api/record', { event: prompts.find((e) => e.text.includes('tidy the changelog')).id });
   assert.deepEqual(noOrigin.who, { label: 'You', evidence: 'inferred', rule: 'prompt.authorship.no-origin' });
-  const exec = (await body('/api/replay', { session: w.keys.exec })).events.find((e) => e.kind === 'prompt');
-  assert.deepEqual(exec.who, { label: 'a person or a script', evidence: 'inferred', rule: 'prompt.authorship.exec-session' });
+  const exec = (await body('/api/replay', { session: w.keys.exec })).events;
+  assert.equal(exec.filter((e) => e.kind === 'prompt').length, 0);
+  assert.deepEqual(exec.find((e) => e.kind === 'delegation-received').who, { label: 'the main agent', evidence: 'recorded', rule: null });
   const agent = r.events.find((e) => e.actor === 'agent' && e.agent && !e.agent.endsWith(':main'));
   assert.match(agent.who.label, /sub-agent "Check the dates"/);
   assert.equal(r.events.find((e) => e.actor === 'agent' && e.agent?.endsWith(':main')).who.label, 'the main agent');

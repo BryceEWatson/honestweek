@@ -26,6 +26,7 @@ This will be the first version on npm. 0.1.0 was released on GitHub, but its npm
 - Redaction is much faster on short text, and the prompt privacy check stays fast on large prompts with thousands of matches. What gets hidden is unchanged. (#77, #82)
 - New tests make sure two repositories that share a pull request number stay apart in lookups and goals. (#75)
 - The npm package has a new description and keywords, and runs the full test suite before every publish. CI now runs on Windows and macOS as well as Linux. (#88)
+- A Codex session started with `codex exec` no longer counts as yours. Another agent or a script usually starts those, so none of its messages becomes a prompt in the inbox, the digest or `mine`, and the history shows its first message as the agent's starting instruction. Its steps still show. (#62)
 
 ### Fixed
 
@@ -42,6 +43,9 @@ This will be the first version on npm. 0.1.0 was released on GitHub, but its npm
 - Secret fields are hidden in everything honestweek writes, not only on screen: passwords in JSON, `Authorization` and `x-api-key` headers, `DB_PASS=` and similar, `--password` flags and `curl -u`. (#79)
 - Private words are hidden before the engine shortens a long text, so a name the cut would split can't show its first letters. (#83)
 - The engine can build a history for your own screen where names and folders show as written and secrets stay hidden. No command writes it to a file, and the engine refuses to turn it into JSON whole. (#73)
+- The root account's home folder, `/root/…`, is hidden like any other home folder. Codex's agent addresses, like `/root/wide_fixtures`, stay readable in the history. (#85)
+- Two rare redactor gaps are closed: text glued after a header's placeholder (`Authorization=[redacted:secret]'…`) is hidden, and text the redactor used to change on a second pass, like JSON-escaped keys nested in each other, is settled on the first, so fewer digest items are held back. (#80)
+- `init`, Setup and Settings refuse a display-only folder inside a repository git reads, and a read repository inside a display-only folder, since git reading the outer one would read the other too. Folders are compared by their real paths, so a link can't hide it. (#103)
 
 ## 0.1.0 (14 August 2026)
 
