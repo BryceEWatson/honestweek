@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { NOTHING_TO_CHECK, runProblems, priorityOf } from '../lib/problems/index.mjs';
+import { earlierWindow, NOTHING_TO_CHECK, runProblems, priorityOf, trendCounts, trendOf } from '../lib/problems/index.mjs';
 import { CHECKS, runChecks } from '../lib/problems/checks.mjs';
 import { createContext } from '../lib/problems/context.mjs';
 
@@ -104,7 +104,8 @@ test('says done without checking: a flat claim after edits with no check after t
   };
   const flagged = make((h) => h.say('s1', min(3), 'Done. The parser handles tabs now.'));
   assert.equal(looks(flagged, 'unverified-done-claim').length, 1);
-  assert.equal(looks(flagged, 'unverified-done-claim')[0].verdictEvidence, 'inferred');
+  // Every part is in the log (only the edit, then the message, which opens with 'Done.'), so it's worked out.
+  assert.equal(looks(flagged, 'unverified-done-claim')[0].verdictEvidence, 'derived');
   // Failing partner: a test run after the last edit.
   const checked = make((h) => {
     h.shell('s1', min(2), 'node --test', { tests: { pass: 3, fail: 0 } });
@@ -572,4 +573,120 @@ test('a window with no session to read: nothing was checked, so no pattern reads
   assert.equal(quiet.coverage.sessions.value, 1);
   assert.ok(quiet.statusCounts.clear > 0, 'with a session to read, a pattern can be checked and clear');
   assert.ok(quiet.checks.some((c) => c.ran));
+});
+
+// ---- claims not backed: when a finding is worked out from the log, and when it stays a guess ----
+
+test('says done without checking reaches derived only when the log records every part; near misses stay inferred', () => {
+  const make = (afterEdit, { hook = false } = {}) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Make the parser handle tabs.');
+    h.edit('s1', min(1), `${CWD}/src/parse.js`, 'a', 'b');
+    if (hook) h.ev('hook', 's1', min(1, 30), { actor: 'harness', facts: { hook: 'PostToolUse', result: 'ok' } });
+    afterEdit(h);
+    return looks(run(h.build()), 'unverified-done-claim')[0];
+  };
+  // Every part in the log: the edit, only a read after it, and a message that opens with "Done.".
+  const sure = make((h) => {
+    h.read('s1', min(2), `${CWD}/src/parse.js`);
+    h.say('s1', min(3), 'Done. The parser handles tabs now.');
+  });
+  assert.equal(sure.verdictEvidence, 'derived');
+  assert.deepEqual(sure.basis.map((b) => [b.part, b.level]), [['The last edit', 'recorded'], ['No check after it', 'derived'], ['The done claim', 'derived']]);
+  // A heading or bold marker before the word is set aside.
+  assert.equal(make((h) => h.say('s1', min(3), '**Fixed:** tabs are handled.')).verdictEvidence, 'derived');
+  // Near misses, each one fact away. The claim is a reading, not an exact match at the start:
+  const reading = make((h) => h.say('s1', min(3), 'The parser handles tabs now, so this is fixed.'));
+  assert.equal(reading.verdictEvidence, 'inferred');
+  assert.deepEqual(reading.basis.map((b) => b.level), ['recorded', 'derived', 'inferred']);
+  // a later sentence takes part of it back:
+  assert.equal(make((h) => h.say('s1', min(3), "Done. I haven't wired the docs yet.")).verdictEvidence, 'inferred');
+  // a shell step after the edit (whether it was a check is a rule's call, so the absence is too):
+  const shell = make((h) => {
+    h.shell('s1', min(2), 'ls src');
+    h.say('s1', min(3), 'Done. The parser handles tabs now.');
+  });
+  assert.equal(shell.verdictEvidence, 'inferred');
+  assert.equal(shell.basis[1].level, 'inferred');
+  // a hook record after the edit, which could have run a check the steps don't show.
+  assert.equal(make((h) => h.say('s1', min(3), 'Done. The parser handles tabs now.'), { hook: true }).verdictEvidence, 'inferred');
+  const h = history().session('s1');
+  h.prompt('s1', min(0), 'Make the parser handle tabs.');
+  h.edit('s1', min(1), `${CWD}/src/parse.js`, 'a', 'b');
+  h.say('s1', min(3), 'Done.');
+  assert.equal(check(run(h.build()), 'unverified-done-claim').stats.find((s) => /worked out from the log alone/.test(s.label)).value, 1);
+});
+
+test('a success claim after a failed run reaches derived only when the failure and the claim are both in the record', () => {
+  const make = ({ result = 'error', tests = { pass: 2, fail: 1 }, cmd = 'node --test', after = null, say = 'All tests pass.' } = {}) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Fix the wrap test.');
+    h.edit('s1', min(1), `${CWD}/src/wrap.js`, 'a', 'b');
+    h.shell('s1', min(2), cmd, { result, tests });
+    if (after) after(h);
+    h.say('s1', min(4), say);
+    return findingsOf(run(h.build()), 'claim-contradicts-evidence').find((f) => f.check === 'claim-contradicts-evidence');
+  };
+  const sure = make();
+  assert.equal(sure.verdictEvidence, 'derived');
+  assert.deepEqual(sure.basis.map((b) => b.level), ['derived', 'derived', 'derived']);
+  assert.equal(make({ say: 'Done: the wrap test is fixed.' }).verdictEvidence, 'derived');
+  // Near misses. The command recorded success though the summary counts a failure, so the
+  // failure is only the summary's reading:
+  assert.equal(make({ result: 'ok' }).verdictEvidence, 'inferred');
+  // a build that failed (whether the command is a build is a rule's call):
+  assert.equal(make({ cmd: 'npm run build', tests: null }).verdictEvidence, 'inferred');
+  // a claim that reads as success but doesn't open the message:
+  assert.equal(make({ say: 'I ran the suite and everything is green now.' }).verdictEvidence, 'inferred');
+  // another shell step after the failed run.
+  assert.equal(make({ after: (h) => h.shell('s1', min(3), 'git status') }).verdictEvidence, 'inferred');
+});
+
+// ---- the trend: two windows of the same length ------------------------------------------------
+
+test('the trend counts each window apart, and says so when the earlier window has no logs', () => {
+  assert.deepEqual(earlierWindow({ from: '2025-03-10', to: '2025-03-16' }), { from: '2025-03-03', to: '2025-03-09', days: 7 });
+  assert.deepEqual(earlierWindow({ from: '2025-03-01', to: '2025-03-01' }), { from: '2025-02-28', to: '2025-02-28', days: 1 });
+  assert.equal(earlierWindow({ from: '2025-03-16', to: '2025-03-10' }), null);
+
+  const DAY = 86_400_000;
+  const EARLIER = { ...WINDOW, from: '2025-03-03', to: '2025-03-09', startAt: '2025-03-03T00:00:00.000Z', endAt: '2025-03-10T00:00:00.000Z', startT: WINDOW.startT - 7 * DAY, endT: WINDOW.startT };
+  // The earlier week: four turns that end on a flat "Done." with nothing after the edit (each
+  // worked out), and one whose claim is only a reading (possible).
+  const before = history().session('b1');
+  for (let i = 0; i < 5; i++) {
+    const t = min(i * 10) - 7 * DAY;
+    before.prompt('b1', t, 'Change the parser.');
+    before.edit('b1', t + 60e3, `${CWD}/src/parse.js`, `a${i}`, `b${i}`);
+    before.say('b1', t + 120e3, i < 4 ? 'Done.' : 'The parser is fixed now.');
+  }
+  const hb = before.build();
+  hb.window = EARLIER;
+  // This week: one.
+  const now = history().session('s1');
+  now.prompt('s1', min(0), 'Change the parser.');
+  now.edit('s1', min(1), `${CWD}/src/parse.js`, 'a', 'b');
+  now.say('s1', min(2), 'Done.');
+  const nowCounts = trendCounts(run(now.build()));
+  const t = trendOf(nowCounts, trendCounts(run(hb)))['unverified-done-claim'];
+  assert.deepEqual(t.sure, { now: { value: 1, evidence: 'derived' }, before: { value: 4, evidence: 'derived' } });
+  assert.deepEqual(t.possible.before, { value: 1, evidence: 'inferred' });
+  assert.equal(t.possible.now.value, 0);
+  assert.equal(t.why, null);
+
+  // An earlier window with no logs: no count before, and why.
+  const empty = history().build();
+  empty.window = EARLIER;
+  const e = trendOf(nowCounts, trendCounts(run(empty)))['unverified-done-claim'];
+  assert.equal(e.why, 'no-logs');
+  assert.equal(e.sure.before, null, 'never a zero for a window with nothing to read');
+  assert.deepEqual(e.sure.now, { value: 1, evidence: 'derived' });
+  // An earlier window that couldn't be read.
+  assert.equal(trendOf(nowCounts, { error: 'unreadable' })['unverified-done-claim'].why, 'failed');
+  // A pattern whose checks couldn't run there (they read raw text, and there was none) isn't a zero either.
+  const noRaw = history().session('b1');
+  noRaw.ev('prompt', 'b1', min(0) - 7 * DAY, { facts: { text: 'Change the parser.' } });
+  const hn = noRaw.build();
+  hn.window = EARLIER;
+  assert.equal(trendOf(nowCounts, trendCounts(run(hn)))['scope-creep'].why, 'not-checked');
 });

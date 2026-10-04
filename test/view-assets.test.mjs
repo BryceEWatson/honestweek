@@ -29,7 +29,7 @@ const files = () => [...readdirSync(ASSETS).map((f) => ({ name: f, path: join(AS
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
 
 test('assets: the shipped page files are all there, and nothing else', () => {
-  assert.deepEqual(readdirSync(ASSETS).sort(), [...PAGES, ...SCRIPTS, 'common.css'].sort());
+  assert.deepEqual(readdirSync(ASSETS).sort(), [...PAGES, ...SCRIPTS, 'common.css', 'problems.css'].sort());
   assert.deepEqual(readdirSync(SELFTEST).sort(), ['clickthrough.html', 'clickthrough.js']);
 });
 
@@ -63,9 +63,8 @@ test('assets: no script writes an inline style, a handler attribute, an inline s
       assert.doesNotMatch(m[0], /\son[a-z]+\s*=\s*["'`$\\]/i, `${f.name}:${lineOf(t, m.index)}: markup with an inline handler`);
     }
   }
-  // The stylesheet is the only place styles live, and it imports nothing.
-  const css = readFileSync(join(ASSETS, 'common.css'), 'utf8');
-  assert.doesNotMatch(css, /@import|url\((?!#)/i);
+  // The stylesheets are the only place styles live, and they import nothing.
+  for (const name of ['common.css', 'problems.css']) assert.doesNotMatch(readFileSync(join(ASSETS, name), 'utf8'), /@import|url\((?!#)/i, name);
 });
 
 test('assets: every page loads the same files in the same order, and has the shared header', () => {
@@ -73,7 +72,8 @@ test('assets: every page loads the same files in the same order, and has the sha
     const t = readFileSync(join(ASSETS, p), 'utf8');
     const srcs = [...t.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
     assert.deepEqual(srcs, ['evidence.js', 'key.js', 'private-text.js', 'common.js', ...PAGE_SCRIPTS[p]], p);
-    assert.deepEqual([...t.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]), ['common.css'], p);
+    // The Problems page adds its own stylesheet after the shared one, which stays as it is.
+    assert.deepEqual([...t.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]), p === 'problems.html' ? ['common.css', 'problems.css'] : ['common.css'], p);
     for (const id of ['window', 'privacy', 'demo', 'status', 'content', 'quiet', 'privnote', 'navHigh']) assert.match(t, new RegExp(`id="${id}"`), `${p}: #${id}`);
     assert.match(t, /data-evkey/, `${p}: the evidence key`);
     // The key is one click away: a "?" button in the header opens it, named for a screen reader.
@@ -399,8 +399,8 @@ test("a share rounds down on every page, and an estimate past the window's total
   assert.match(search, /share > 1 \? "more than all the window's tokens" : `\$\{HW\.pct\(share\)\} of the window's tokens`/, 'the Find card');
   const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
   assert.match(problems, /const OVER = "more than all the window's tokens, since estimates for neighbouring steps overlap";/);
-  const start = problems.match(/function startCard\(p\) \{[^]*?\n  \}/)[0];
-  assert.match(start, /p\.tokens\.tokens > D\.coverage\.tokens\.value \? `, \$\{OVER\}` : `, \$\{pct\(/, '"Start with these"');
+  const body = problems.match(/function bodyHtml\(p\) \{[^]*?\n  \}/)[0];
+  assert.match(body, /p\.tokens\.tokens > D\.coverage\.tokens\.value \? `, \$\{OVER\}` : `, \$\{pct\(/, "a row's estimated cost");
 });
 
 // ---- before the first release: focus, wording that never over-claims, and the leak counter ----
@@ -430,11 +430,10 @@ test('closing the record panel never drops focus to the page: with no step or op
   assert.match(nearbyStep, /h\.setAttribute\('tabindex', '-1'\)/);
 });
 
-test('"Show routine notes" inside a row keeps focus on its button after the row is redrawn', () => {
+test('"Show routine notes" is one switch under the list, and it redraws the open rows', () => {
   const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
-  const block = problems.match(/if \(ev\.target\.closest\('\[data-routine\]'\)\) \{[^]*?return;\n      \}/)[0];
-  assert.match(block, /const row = ev\.target\.closest\('details\.pcard'\)\?\.id;/, 'the row is read before the redraw');
-  assert.ok(block.indexOf('dispatchEvent') < block.indexOf("querySelector('[data-routine]')?.focus()"), 'and focus moves to the new button after it');
+  assert.doesNotMatch(problems, /data-routine[^-]/, 'no second switch inside each row');
+  assert.match(problems, /routineShown = ev\.target\.checked;\s+cards\.classList\.toggle\('show-routine', routineShown\);\s+redrawBodies\(\);/);
   // The count beside the switch is of notes found, which can be more than the open rows show.
   assert.match(problems, /Show routine notes \(\$\{full\(routine\)\} found\)/);
 });
@@ -454,7 +453,7 @@ test('the Find cards: a capped list never says "all", and "Worth a look" lists o
 test('with no session to check, the Problems page and the Find card say nothing was checked', () => {
   const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
   assert.match(problems, /const nothing = Number\(num\(cov\.sessions\)\) === 0 && n === 0;/);
-  assert.match(problems, /so there was nothing to check against the \$\{D\.patterns\.length\} known problems/);
+  assert.match(problems, /No session with a record in this window \$\{lvl\}, so nothing was checked\./);
   assert.match(problems, /unchecked: \{ icon: '○', word: 'Not checked' \}/);
   assert.match(problems, /\(p\.measures \?\? \[\]\)\.length \? 'not checked' : 'no check here yet'/, 'a pattern whose check did not run is not "no check here yet"');
   const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
