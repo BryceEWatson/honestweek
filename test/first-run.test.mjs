@@ -79,11 +79,25 @@ test('honestweek with no arguments starts with the three first commands, in the 
   assert.doesNotMatch(none.out, /—|–| -- /, 'no em or en dashes');
 });
 
-test('view before any setup names init and the demo in the form it was run, and writes nothing', () => {
+test('view before any setup opens the Setup page, names init for scripts in the form it was run, and writes nothing', async () => {
   const { workspace } = tree('no-config');
-  const r = cli(['view'], { cwd: workspace });
-  assert.equal(r.code, 1);
-  assert.ok(r.err.includes(`Run ${FORM} init to set one up, or ${FORM} view --demo to look around a made-up week first.`), r.err);
+  const child = spawn(process.execPath, [BIN, 'view', '--no-open'], { cwd: workspace, env: ENV, stdio: ['pipe', 'pipe', 'pipe'] });
+  children.push(child);
+  let out = '';
+  child.stdout.on('data', (c) => (out += c));
+  child.stderr.on('data', (c) => (out += c));
+  for (let i = 0; i < 600 && !/#c=[0-9a-f]+/.test(out); i++) await new Promise((r) => setTimeout(r, 50));
+  const m = /http:\/\/127\.0\.0\.1:(\d+)\/setup\.html#c=([0-9a-f]+)/.exec(out);
+  assert.ok(m, `view printed the Setup page's address: ${out}`);
+  assert.ok(out.includes('so setup is open in your browser'), out);
+  assert.ok(out.includes(`For scripts and CI, ${FORM} init still works.`), out);
+  const port = Number(m[1]);
+  const key = (await get(port, '/api/claim', { [CODE_HEADER]: m[2] })).json.key;
+  const info = (await get(port, '/api/setup', { [KEY_HEADER]: key })).json;
+  assert.deepEqual(info.repos.map((r) => r.label), ['alpha', 'beta'], 'the repositories next to it, the worktree folded in');
+  assert.deepEqual(info.authorEmails, ['you@example.com']);
+  child.kill();
+  await new Promise((r) => (child.exitCode === null ? child.on('exit', r) : r()));
   assert.deepEqual(readdirSync(workspace), []);
 });
 
