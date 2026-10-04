@@ -774,3 +774,4 @@ details.facts > .fwhy[open] { display: block; font-size: 13px; color: var(--ink-
 .facts-t { border-collapse: collapse; font-size: 13px; width: 100%; }
 .facts-t th { text-align: left; font-weight: normal; color: var(--ink-2); padding: 2px 8px 2px 0; white-space: nowrap; vertical-align: top; }
 .facts-t td { padding: 2px 4px; overflow-wrap: anywhere; vertical-align: top; }
+.facts-t .factstep { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }

@@ -20,7 +20,7 @@ import { normalizeConfig } from '../lib/config.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { createRedactor } from '../lib/redact.mjs';
 import { scanPromptSources } from '../lib/prompt-adapters.mjs';
-import { coverage, FACT_NAMES, sessionFacts, windowTotals } from '../lib/view/facts.mjs';
+import { coverage, DESTRUCTIVE_RULE, FACT_NAMES, GIT_RULE, sessionFacts, windowTotals } from '../lib/view/facts.mjs';
 import { CODEX_ARGS, createCodexJudge, facetsOf, FACET_FIELDS, JUDGE_DIR, JUDGE_PROMPT, judgeInput, parseAnswer, readJudgments } from '../lib/view/codex-judge.mjs';
 import { createInsights, findOnPath } from '../lib/view/insights.mjs';
 import { createViewData } from '../lib/view/data.mjs';
@@ -148,9 +148,22 @@ test('facts: the same work gives the same facts for a Claude Code session and a 
   // How each is known: a start time is recorded, a count derived, the risky-command count inferred.
   for (const f of [cc, cx]) {
     assert.equal(f.facts.start_time.how, 'recorded');
-    assert.equal(f.facts.git_commits.how, 'derived');
-    assert.equal(f.facts.destructive_command_count.how, 'inferred');
+    assert.equal(f.facts.tool_errors.how, 'derived');
+    // A git or rm -rf count matches a pattern on the command's text, so it's inferred and names its rule.
+    assert.deepEqual([f.facts.git_commits.how, f.facts.git_commits.rule], ['inferred', GIT_RULE]);
+    assert.deepEqual([f.facts.destructive_command_count.how, f.facts.destructive_command_count.rule], ['inferred', DESTRUCTIVE_RULE]);
     assert.deepEqual(Object.keys(f.facts), FACT_NAMES);
+    // A receipt on every fact: the steps it was read or counted from, each a real step of this
+    // session, or for tokens the log lines; only a fact with nothing to point at has none.
+    const steps = new Map(h.events.filter((e) => e.session === f.key).map((e) => [e.id, e]));
+    for (const n of FACT_NAMES) {
+      const x = f.facts[n];
+      if (x.how === 'not-recorded') continue;
+      if (n.endsWith('_tokens')) assert.ok(x.refs.length > 0 && x.refs.every((r) => typeof r.src === 'string' && r.lines.length), `${n} names its log lines`);
+      else if (x.value !== 0 && x.value !== false && !(x.value && typeof x.value === 'object' && !Array.isArray(x.value) && !Object.keys(x.value).length)) assert.ok(x.basis.length > 0, `${n} has a receipt`);
+      for (const id of x.basis) assert.ok(steps.has(id), `${n}: ${id} is a step of this session`);
+    }
+    assert.deepEqual(f.facts.git_commits.basis.map((id) => steps.get(id).facts.command), [COMMANDS[0]]);
   }
 });
 
@@ -165,8 +178,8 @@ test('facts: what an agent\'s logs don\'t carry says "not recorded", never 0', (
   for (const f of [cc, cx, bare]) for (const n of nr(f)) assert.equal(f.facts[n].value, null, `${n} has no value`);
   // Totals: a fact no session records stays not recorded; a partly known one says for how many.
   const t = windowTotals([cc, cx, bare]);
-  assert.deepEqual(t.codex.facts.bash_would_prompt_count, { value: null, how: 'not-recorded', known: 0 });
-  assert.deepEqual(t.codex.facts.input_tokens, { value: 200, how: 'derived', known: 1 });
+  assert.deepEqual(t.codex.facts.bash_would_prompt_count, { value: null, how: 'not-recorded', known: 0, basis: [] });
+  assert.deepEqual(t.codex.facts.input_tokens, { value: 200, how: 'derived', known: 1, basis: [cx.key] });
   assert.equal(t.all.facts.uses_web_search.known, 1);
   assert.equal(t.all.facts.git_commits.value, 3);
   assert.equal(t.all.facts.destructive_command_count.how, 'inferred');
@@ -196,7 +209,7 @@ test('an answer is the facet fields exactly; anything else is malformed', () => 
   assert.deepEqual(parseAnswer(JSON.stringify(GOOD)), GOOD);
   assert.deepEqual(parseAnswer(`\`\`\`json\n${JSON.stringify(GOOD)}\n\`\`\``), GOOD);
   assert.deepEqual(parseAnswer(JSON.stringify({ ...GOOD, extra: 'dropped' })), GOOD, 'another key is dropped');
-  for (const bad of ['', 'not json', '[1,2]', `Here you go: ${JSON.stringify(GOOD)}`, JSON.stringify({ ...GOOD, outcome: 3 }), JSON.stringify({ ...GOOD, friction_counts: { x: -1 } }), JSON.stringify({ ...GOOD, goal_categories: { x: 1.5 } }), JSON.stringify((({ brief_summary, ...rest }) => rest)(GOOD)), `{${'"a":1,'.repeat(20000)}"b":2}`]) {
+  for (const bad of ['', 'not json', '[1,2]', `Here you go: ${JSON.stringify(GOOD)}`, JSON.stringify({ ...GOOD, outcome: 3 }), JSON.stringify({ ...GOOD, outcome: 'maybe' }), JSON.stringify({ ...GOOD, claude_helpfulness: 'great' }), JSON.stringify({ ...GOOD, friction_counts: { x: -1 } }), JSON.stringify({ ...GOOD, goal_categories: { x: 1.5 } }), JSON.stringify((({ brief_summary, ...rest }) => rest)(GOOD)), `{${'"a":1,'.repeat(20000)}"b":2}`]) {
     assert.equal(parseAnswer(bad), null, bad.slice(0, 60));
   }
   assert.equal(facetsOf(null), null);
@@ -206,19 +219,22 @@ test('an answer is the facet fields exactly; anything else is malformed', () => 
 
 // ---- the Run with Codex button: a fake codex -----------------------------------------------
 
-/** A fake codex: logs its arguments and standard input, then answers by FAKE_MODES (one per call). */
-function fakeCodex(name) {
+/** A fake codex: logs its arguments, standard input and environment names, then answers by
+ *  FAKE_MODES (one per call). Its settings sit in fake.json beside it: codex gets only a short
+ *  list of environment variables, so the fake can't read them from there. */
+function fakeCodex(name, settings) {
   const dir = join(scratch, name);
   mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'fake.json'), JSON.stringify(settings));
   writeFileSync(join(dir, 'fake-codex.mjs'), `import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
-const e = process.env;
+const e = JSON.parse(readFileSync(new URL('./fake.json', import.meta.url), 'utf8'));
 let input = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (d) => (input += d));
 process.stdin.on('end', () => {
   const n = existsSync(e.FAKE_COUNT) ? Number(readFileSync(e.FAKE_COUNT, 'utf8')) : 0;
   writeFileSync(e.FAKE_COUNT, String(n + 1));
-  appendFileSync(e.FAKE_LOG, JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd(), input, env: Object.keys(e).filter((k) => /^HW_|^X_/i.test(k)) }) + '\\n');
+  appendFileSync(e.FAKE_LOG, JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd(), input, env: Object.keys(process.env) }) + '\\n');
   const modes = String(e.FAKE_MODES || 'good').split(',');
   const mode = modes[n % modes.length];
   const good = ${JSON.stringify(JSON.stringify({ ...GOOD, friction_detail: `${NAME} pasted ${SECRETS.github} into the ${TERM} chat.`, brief_summary: `Worked on ${PRIVATE} and ${OTHER_TERM}.`, friction_counts: { [`${TERM} confusion`]: 2 } }))};
@@ -252,11 +268,12 @@ const work = (sessions) => {
 };
 
 test('a run judges each waiting Codex session once, sends redacted text on stdin with fixed arguments, and keeps redacted answers beside the config', async () => {
-  const bin = fakeCodex('bin-good');
+  const log = join(scratch, 'good.log');
+  const bin = fakeCodex('bin-good', { FAKE_LOG: log, FAKE_COUNT: join(scratch, 'good.count'), FAKE_MODES: 'good,bad' });
   const cfgDir = join(scratch, 'cfg-good');
   mkdirSync(cfgDir, { recursive: true });
-  const log = join(scratch, 'good.log');
-  const env = { ...baseEnv(), PATH: bin, FAKE_LOG: log, FAKE_COUNT: join(scratch, 'good.count'), FAKE_MODES: 'good,bad' };
+  // A token this process holds never reaches codex.
+  const env = { ...baseEnv(), PATH: bin, HW_SECRET_TOKEN: SECRETS.apiKey };
   const d = createViewData({ config: mw.config, roots: mw.roots, ...WINDOW, buildHistory: async (o) => buildWorkHistory({ ...o, git: false }) });
   await d.start();
   const w2 = d.codexWork();
@@ -276,6 +293,8 @@ test('a run judges each waiting Codex session once, sends redacted text on stdin
     assert.deepEqual(c.argv, [...CODEX_ARGS, join(cfgDir, JUDGE_DIR, 'work'), '-'], 'the fixed arguments and the empty work folder');
     assert.ok(c.input.startsWith(JUDGE_PROMPT), 'the fixed prompt first');
     for (const word of [PRIVATE, SECRETS.github]) assert.ok(!c.input.includes(word), `${word} never reaches codex`);
+    assert.ok(!c.env.includes('HW_SECRET_TOKEN'), 'only the environment codex needs');
+    assert.ok(c.env.some((k) => k.toUpperCase() === 'PATH'), 'codex still gets its PATH');
   }
   // Kept beside the config, git-ignored, and redacted before it was written.
   const dir = join(cfgDir, JUDGE_DIR);
@@ -295,10 +314,9 @@ test('a run judges each waiting Codex session once, sends redacted text on stdin
 });
 
 test('a run judges at most its cap and says how many wait; a slow codex is stopped on time with everything it started', async () => {
-  const bin = fakeCodex('bin-cap');
+  const bin = fakeCodex('bin-cap', { FAKE_LOG: join(scratch, 'cap.log'), FAKE_COUNT: join(scratch, 'cap.count') });
   const cfgDir = join(scratch, 'cfg-cap');
-  const log = join(scratch, 'cap.log');
-  const env = { ...baseEnv(), PATH: bin, FAKE_LOG: log, FAKE_COUNT: join(scratch, 'cap.count') };
+  const env = { ...baseEnv(), PATH: bin };
   const sessions = [ID.codex, ID.bare].map((id, i) => ({ key: `k${i}`, id, text: 'Person: hello' }));
   const judge = createCodexJudge({ configDir: cfgDir, env, cap: 1 });
   assert.equal((await judge.run(work(sessions))).body.run.left, 1);
@@ -306,14 +324,14 @@ test('a run judges at most its cap and says how many wait; a slow codex is stopp
   assert.deepEqual([r.judged, r.left, r.cap], [1, 1, 1]);
   // Slow: the run's own limit stops it, and the codex it started never finishes.
   const slowLog = join(scratch, 'slow.log');
-  const slow = createCodexJudge({ configDir: join(scratch, 'cfg-slow'), env: { ...env, FAKE_LOG: slowLog, FAKE_COUNT: join(scratch, 'slow.count'), FAKE_MODES: 'slow' }, timeoutMs: 700 });
+  const slow = createCodexJudge({ configDir: join(scratch, 'cfg-slow'), env: { ...env, PATH: fakeCodex('bin-slow', { FAKE_LOG: slowLog, FAKE_COUNT: join(scratch, 'slow.count'), FAKE_MODES: 'slow' }) }, timeoutMs: 700 });
   assert.equal((await slow.run(work(sessions))).status, 200);
   assert.equal((await settle(slow)).state, 'timeout');
   await sleep(5500);
   assert.ok(existsSync(slowLog), 'the fake codex started');
   assert.ok(!readFileSync(slowLog, 'utf8').includes('finished'), 'it was stopped before it answered');
   // One session over its own limit fails, and the run goes on.
-  const one = createCodexJudge({ configDir: join(scratch, 'cfg-one'), env: { ...env, FAKE_LOG: join(scratch, 'one.log'), FAKE_COUNT: join(scratch, 'one.count'), FAKE_MODES: 'slow,good' }, sessionTimeoutMs: 700 });
+  const one = createCodexJudge({ configDir: join(scratch, 'cfg-one'), env: { ...env, PATH: fakeCodex('bin-one', { FAKE_LOG: join(scratch, 'one.log'), FAKE_COUNT: join(scratch, 'one.count'), FAKE_MODES: 'slow,good' }) }, sessionTimeoutMs: 700 });
   await one.run(work(sessions));
   const o = await settle(one);
   assert.deepEqual([o.state, o.failed, o.judged], ['done', 1, 1]);
@@ -325,8 +343,8 @@ test('the run refuses the demo, a missing codex, a missing config and a week sti
   assert.deepEqual([(await demo.run(work(sessions))).body.error, demo.info().codex], ['demo', null]);
   const none = createCodexJudge({ configDir: join(scratch, 'cfg-none'), env: { ...baseEnv(), PATH: join(scratch, 'empty-bin') } });
   assert.deepEqual([(await none.run(work(sessions))).body.error, none.info().codex], ['no-codex', false]);
-  const bin = fakeCodex('bin-refuse');
-  const env = { ...baseEnv(), PATH: bin, FAKE_LOG: join(scratch, 'refuse.log'), FAKE_COUNT: join(scratch, 'refuse.count'), FAKE_MODES: 'fail' };
+  const bin = fakeCodex('bin-refuse', { FAKE_LOG: join(scratch, 'refuse.log'), FAKE_COUNT: join(scratch, 'refuse.count'), FAKE_MODES: 'fail' });
+  const env = { ...baseEnv(), PATH: bin };
   const noCfg = createCodexJudge({ configDir: () => null, env });
   assert.equal((await noCfg.run(work(sessions))).body.error, 'no-config');
   const loading = createCodexJudge({ configDir: join(scratch, 'cfg-load'), env });
@@ -445,13 +463,13 @@ const gitDir = (() => {
 test('Run with Codex needs the key, takes POST only, refuses other hosts and sites, runs once at a time, and passes nothing from the request on', async (t) => {
   if (!gitDir) return t.skip('git is not on the PATH');
   if (findOnPath('codex', { ...process.env, PATH: gitDir })) return t.skip('codex sits in the same folder as git here, so the fake one cannot stand alone');
-  const bin = fakeCodex('bin-server');
+  const log = join(scratch, 'server.log');
+  const bin = fakeCodex('bin-server', { FAKE_LOG: log, FAKE_COUNT: join(scratch, 'server.count'), FAKE_MODES: 'good,bad' });
   const cwd = join(scratch, 'server');
   mkdirSync(cwd, { recursive: true });
   const cfg = { identity: { authorEmails: [ME] }, week: { startsOn: 'monday', timezone: 'UTC' }, repos: vw.config.repos.map((r) => ({ path: r.resolvedPath ?? r.path, label: r.label, role: r.role })), redaction: { names: [NAME], terms: [TERM, OTHER_TERM] }, insights: true };
   writeFileSync(join(cwd, 'honestweek.config.json'), `${JSON.stringify(cfg, null, 2)}\n`);
-  const log = join(scratch, 'server.log');
-  const env = { ...baseEnv(), PATH: `${bin}${SEP}${gitDir}`, CLAUDE_CONFIG_DIR: dirname(vw.roots.claude[0]), CODEX_HOME: dirname(vw.roots.codex[0]), FAKE_LOG: log, FAKE_COUNT: join(scratch, 'server.count'), FAKE_MODES: 'good,bad' };
+  const env = { ...baseEnv(), PATH: `${bin}${SEP}${gitDir}`, CLAUDE_CONFIG_DIR: dirname(vw.roots.claude[0]), CODEX_HOME: dirname(vw.roots.codex[0]) };
   let handle = null;
   const err = [];
   const code = await runView({ argv: ['--no-open', '--from', WEEK.from, '--to', WEEK.to], cwd, env, io: { out: () => {}, err: (s) => err.push(s) }, input: null, block: false, now: () => NOW, onServe: (x) => (handle = x) });
@@ -491,7 +509,7 @@ test('Run with Codex needs the key, takes POST only, refuses other hosts and sit
   assert.ok(calls.length >= 2);
   for (const x of calls) {
     assert.deepEqual(x.argv, [...CODEX_ARGS, join(cwd, JUDGE_DIR, 'work'), '-'], 'nothing from the request on the command line');
-    assert.deepEqual(x.env, [], 'nothing from the request in the environment');
+    assert.ok(!x.env.some((k) => /^HW_EVIL$/i.test(k)), 'nothing from the request in the environment');
   }
   assert.equal(a.codex.run.malformed, Math.floor(calls.length / 2), 'every other answer is malformed, and skipped');
   assert.equal(a.codex.data.items.length, a.codex.run.judged);
