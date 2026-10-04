@@ -23,16 +23,16 @@ import {
 
 test('deidentify strips a home directory in every path spelling', () => {
   const cases = [
-    'C:\\Users\\Bryce\\Projects\\x',
-    "Error: ENOENT: open 'C:\\c\\Users\\Bryce\\.claude\\projects\\a.jsonl'",
-    '/c/Users/Bryce/.claude/settings.json',
-    '/home/bryce/.config/app',
-    'C:/Users/Bryce/AppData/Roaming/Acme/logs/x.log',
-    '/Users/bryce/Library/Application Support/Acme',
+    'C:\\Users\\you\\Projects\\x',
+    "Error: ENOENT: open 'C:\\c\\Users\\you\\.claude\\projects\\a.jsonl'",
+    '/c/Users/you/.claude/settings.json',
+    '/home/you/.config/app',
+    'C:/Users/you/AppData/Roaming/Acme/logs/x.log',
+    '/Users/you/Library/Application Support/Acme',
   ];
   for (const c of cases) {
     const out = deidentify(c);
-    assert.doesNotMatch(out, /bryce/i, `username survived de-identification: ${c} -> ${out}`);
+    assert.doesNotMatch(out, /\byou\b/i, `username survived de-identification: ${c} -> ${out}`);
     assert.match(out, /<home>/, `home marker missing: ${c} -> ${out}`);
   }
 });
@@ -95,17 +95,18 @@ test('quotableErrors rejects your own toolchain and your own VCS', () => {
 });
 
 test('quotableErrors rejects tool framing that merely looks error-shaped', () => {
-  // Every one of these reached a top-15 ranking slot before it was filtered out.
+  // Each line has the shape of one that reached a top-15 ranking slot before it was
+  // filtered out. The text itself is made up.
   const rejected = [
     '   42→  const failed = true; // error handling',
-    '- **Security model inconsistency**: content scripts cannot execute',
-    '2. **Universal failure pattern**: the identical error across every origin',
-    '=== was a PR EVER opened for the stalled branches? ===',
-    '"lastToolSummary": "No original content post has EVER been published",',
-    'docs/WIKI-EXPORT-DESIGN.md',
-    'Every call fails with a CDP-level error:',
-    'src/lib/eval.ts:1:105: ERROR: Syntax error "c"',
-    "Here's a summary of what I found regarding the error code",
+    '- **Retry gap**: the worker cannot reconnect after a timeout',
+    '2. **Shared failure mode**: the same error on every run',
+    '=== checking whether the nightly upload failed ===',
+    '"lastStatus": "Upload failed for the nightly export",',
+    'docs/ERROR-HANDLING-NOTES.md',
+    'Every request fails with a gateway error:',
+    'src/app/main.ts:3:17: ERROR: Unexpected token "x"',
+    "Here's what I found about the timeout error",
   ];
   for (const line of rejected) {
     assert.deepEqual(quotableErrors(line, 'C:/repo'), [], `should have rejected: ${line}`);
@@ -118,10 +119,10 @@ test('quotableErrors rejects a line naming the session working tree', () => {
 });
 
 test('quotableErrors never emits a home directory', () => {
-  const body = "Error: ENOENT: no such file or directory, open 'C:\\Users\\Bryce\\AppData\\Roaming\\Acme\\state.json'";
+  const body = "Error: ENOENT: no such file or directory, open 'C:\\Users\\you\\AppData\\Roaming\\Acme\\state.json'";
   const out = quotableErrors(body, 'C:/repo');
   assert.equal(out.length, 1);
-  assert.doesNotMatch(out[0], /bryce/i);
+  assert.doesNotMatch(out[0], /\byou\b/i);
 });
 
 // ---------------------------------------------------------------------------

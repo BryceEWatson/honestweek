@@ -6,9 +6,9 @@
 
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 import { createRedactor, createSecretsOnlyRedactor } from '../lib/redact.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { createLeakCounter, EXEMPT_FIELDS, setAsideAllowed, stringsIn, unglue, unglueIds } from '../lib/view/leaks.mjs';
@@ -16,10 +16,9 @@ import { createLru, createViewData, goalKey, memberCount } from '../lib/view/dat
 import { REPLAY_EVENT_FIELDS } from '../lib/view/replay-export.mjs';
 import { buildCorpus } from './fixtures/replay/corpus.mjs';
 import { buildViewWeek, EMAIL, LONG_WORD, NOT_PROMPT_WORDS, OTHER_TERM, PRIVATE_WORDS, QUEUED_WORD, SECRETS, SEEDED, STRADDLE_WORD, SUMMARY_WORD, TERM, WEEK } from './fixtures/view/week.mjs';
-import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const scratch = makeTempDir('hw-view-data-');
-after(() => rmSync(scratch, { recursive: true, force: true }));
+after(() => removeTempDir(scratch));
 
 const w = buildViewWeek(join(scratch, 'week'));
 const WINDOW = { from: WEEK.from, to: WEEK.to, timezone: 'UTC' };
@@ -84,11 +83,25 @@ async function everyAnswer(priv) {
 const redactedAnswers = await everyAnswer(false);
 const privateAnswers = await everyAnswer(true);
 
+// A search's id is random letters a to p, which can spell a planted word ("dana") by
+// chance. It never holds text, and the redactor and the leak counter leave ids alone too,
+// so a planted value is looked for in everything but those ids.
+const QUERY_ID_TOKEN = /\bq[a-p]{16}\b/g;
 const literalHits = (answer, values) => {
   const hits = [];
-  for (const s of stringsIn(answer)) for (const v of values) if (s.toLowerCase().includes(String(v).toLowerCase())) hits.push(v);
+  for (const s of stringsIn(answer)) {
+    const text = s.replace(QUERY_ID_TOKEN, ' ').toLowerCase();
+    for (const v of values) if (text.includes(String(v).toLowerCase())) hits.push(v);
+  }
   return hits;
 };
+
+test("the planted-value check skips a search id that spells a planted word by chance, and nothing else", () => {
+  const id = `qhdana${'p'.repeat(11)}`;
+  assert.match(id, /^q[a-p]{16}$/, 'shaped like the ids the server makes');
+  assert.deepEqual(literalHits({ queryId: id, note: `search.html#q=${id}~w` }, ['Dana']), []);
+  for (const s of ['Ask Dana first', 'see /home/dana/notes', `${id}a`, `x${id}`]) assert.deepEqual(literalHits({ s }, ['Dana']), ['Dana'], s);
+});
 
 // ---- privacy everywhere -----------------------------------------------------------------
 

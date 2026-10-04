@@ -6,26 +6,26 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 import { HELP, parseViewPort, resolveViewWindow, runView } from '../lib/view.mjs';
 import { setCommandForm } from '../lib/invocation.mjs';
 import { CODE_HEADER, KEY_HEADER } from '../lib/view/server.mjs';
 import { createLeakCounter } from '../lib/view/leaks.mjs';
 import { buildViewWeek, PRIVATE_WORDS, TERM, WEEK } from './fixtures/view/week.mjs';
-import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const scratch = makeTempDir('hw-view-cli-');
 const running = [];
 after(async () => {
   for (const h of running) await h.stop();
-  rmSync(scratch, { recursive: true, force: true });
+  removeTempDir(scratch);
 });
 
 // The seeded week, with a project folder whose config names its repositories, and the
