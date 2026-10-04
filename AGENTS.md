@@ -23,10 +23,11 @@ link is known. That work lives in the work-history engine (`lib/replay/`, descri
 - **Zero runtime dependencies.** Node built-ins plus the system `git` CLI only. Do not add a
   package, a lockfile, or an `npm install` step. CI installs nothing.
 - **Node >= 18.** CI runs the suite on Node 18, 20, and 22. Do not use an API newer than Node 18.
-- **Cross-platform.** CI runs on ubuntu; development happens on Windows. Never hardcode a path
+- **Cross-platform.** CI runs on Linux, Windows and macOS; development happens on Windows. Never hardcode a path
   separator, and normalize before comparing paths.
-- **No network egress.** No telemetry, no fetch, no outbound calls. The optional `preview` server
-  binds to loopback only.
+- **No network egress.** No telemetry, no fetch, no outbound calls. The two local servers,
+  `preview` and `view`, bind to loopback only. `view` also refuses other hosts and other sites, and
+  answers data requests only with its per-run key.
 - **Clean-room.** No real names, paths, repo names, author emails, or codenames anywhere in the
   repo. Examples use generic placeholders (`you@example.com`, `/path/to/your/repo`, `your-project`).
 

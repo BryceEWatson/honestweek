@@ -2,6 +2,8 @@
 
 honestweek reads your local AI coding session logs and turns them into accounts of your work that never claim more than the logs and git can back. I welcome contributions, from people and from coding agents. This page covers what you need to know before you open an issue or a pull request.
 
+Everyone who takes part, in issues, pull requests and reviews, follows the [code of conduct](CODE_OF_CONDUCT.md). It's short, and it says how to tell me privately if something goes wrong.
+
 ## The one rule that decides most reviews
 
 honestweek's value is that it refuses to state anything it can't back. A change that makes it faster, prettier or more featureful at the cost of that guarantee is a regression, not a tradeoff. When evidence is mixed, the weaker claim wins.
@@ -16,14 +18,14 @@ cd honestweek
 node --test
 ```
 
-Run `node --test` from the repository root with no path argument (passing `test/` fails, because Node treats it as a module name). `npm test` runs the same thing. CI runs the suite on Node 18, 20 and 22, on Linux, and development happens on Windows too, so a change has to work on both.
+Run `node --test` from the repository root with no path argument (passing `test/` fails, because Node treats it as a module name). `npm test` runs the same thing. CI runs the suite on Node 18, 20 and 22 on Linux, and on Node 22 on Windows and macOS, so a change has to work on all three.
 
 ## The constraints every change keeps
 
 [`AGENTS.md`](AGENTS.md) is the full list, written for coding agents but meant for everyone. In short:
 
 - **Zero runtime dependencies.** Node built-ins and the system `git` only. No package, no lockfile, no install step.
-- **No network calls.** No telemetry, no fetch. The optional `preview` command (a small local server that shows your built output) binds to `127.0.0.1` only.
+- **No network calls.** No telemetry, no fetch. Two commands start a small local server, and both bind to `127.0.0.1` only: `preview`, which shows your built output, and `view`, a page for finding and replaying your sessions.
 - **Node 18 APIs only**, and no hardcoded path separators.
 - **Redact before disk.** honestweek's redactor scrubs secrets, personal paths and any terms you list. Every string that reaches a written file passes through it first.
 - **Display-only repositories never reach `git`.** A repository you mark `display` in your config gets a generic summary, and no code path runs `git` against it.
@@ -49,13 +51,21 @@ Pull request bodies open with an **In plain terms** section of two to four sente
 - No secrets, debug code or scratch files.
 - Releases, tags and npm publishing are the maintainer's call; please don't include version bumps.
 
+## The npm package and releases
+
+honestweek's npm package is `honestweek`, and the first version on npm is 0.2.0. It has no dependencies, so installing it fetches honestweek's own files and nothing else, and a pull request that adds a dependency won't be merged.
+
+The `files` list in `package.json` decides what ships: the CLI in `bin/`, everything in `lib/`, `SKILL.md`, the example config and the plugin manifests. Tests, fixtures, docs and tools stay in the repository. `test/package-contents.test.mjs` pins that list. If you add a file the tool reads while it runs, put it under `lib/`: every file git tracks there ships, and the test checks it does.
+
+I cut releases myself. A release pull request bumps the version, then I publish to npm, tag the commit and write the GitHub release. [`docs/releasing.md`](docs/releasing.md) has the exact steps, and [`CHANGELOG.md`](CHANGELOG.md) lists what changed in each version.
+
 ## Reporting a bug without leaking your logs
 
 Session logs hold your prompts, file paths and sometimes secrets. Don't paste a real transcript into an issue. Describe the record's shape (its `type` and which fields it has), or write a synthetic line that reproduces the problem. The bug report template walks through this.
 
 ## Security
 
-If you find a way honestweek could send data off your machine, write an unredacted secret to an output file, run `git` against a display-only repository, or expose the `preview` server beyond your own machine, please report it privately as described in [`SECURITY.md`](SECURITY.md) rather than in a public issue.
+If you find a way honestweek could send data off your machine, write an unredacted secret to an output file, run `git` against a display-only repository, or expose the `preview` or `view` server beyond your own machine, please report it privately as described in [`SECURITY.md`](SECURITY.md) rather than in a public issue.
 
 ## License
 

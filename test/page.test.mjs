@@ -1,5 +1,5 @@
 // test/page.test.mjs — the standalone `page` mode (self-contained interactive HTML
-// report in the adopted brycewatson.com console design).
+// report in the adopted dark console design).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

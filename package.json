@@ -1,13 +1,14 @@
 {
   "name": "honestweek",
   "version": "0.1.0",
-  "description": "Turn a week of your AI coding sessions into an honest, git-verified, private-by-default work summary.",
+  "description": "Find, replay and check your Claude Code and Codex sessions on your own machine, and turn a week of them into an honest, git-checked summary.",
   "type": "module",
   "bin": {
     "honestweek": "bin/honestweek.mjs"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "prepublishOnly": "node --test"
   },
   "engines": {
     "node": ">=18"
@@ -30,11 +31,15 @@
     ".claude-plugin/"
   ],
   "keywords": [
+    "claude-code",
+    "codex",
+    "claude-skill",
+    "session-replay",
     "weekly-summary",
     "git",
-    "claude-code",
-    "claude-skill",
     "privacy",
-    "changelog"
+    "local-first",
+    "ai-agents",
+    "developer-tools"
   ]
 }

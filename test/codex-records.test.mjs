@@ -52,8 +52,8 @@ test('a machine-authored block rejects the whole message', () => {
     '<codex_delegation>\n<source_thread_id>t</source_thread_id>',
     '<realtime_delegation>go</realtime_delegation>',
     '<heartbeat>tick</heartbeat>',
-    'Automation: Project task change monitor',
-    '<!-- command:dispatched-packet -->',
+    'Automation: Nightly dependency check',
+    '<!-- command:queued-task -->',
     '>>> APPROVAL REQUEST START',
     'The following is the Codex agent history',
   ]) {
