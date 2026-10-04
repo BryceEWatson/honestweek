@@ -276,3 +276,17 @@ test('risky commands: a long run of rm flags reads in one pass', () => {
   assert.deepEqual(riskyKinds(`sudo ${'-u me '.repeat(20_000)}git push`, false), []);
   assert.ok(Date.now() - t < 1000, `took ${Date.now() - t} ms`);
 });
+
+test('a label in front of a secret-named field never hides it from the count', () => {
+  for (const s of ['one: DOCS_TOKEN=Xk9fQ2mL7pR4sT8vB3', 'label=PASSWORD=Xk9fQ2mL7pR4sT8vB3', 'note: "api_key": "Xk9fQ2mL7pR4sT8vB3"', 'a: b: c: SECRET_KEY=Xk9fQ2mL7pR4sT8vB3']) {
+    assert.equal(secretShapes(s).field, 1, s);
+  }
+  // Partners: a label in front of an ordinary field, or of a value made of words, stays at zero.
+  assert.deepEqual(secretShapes('one: build_id=Xk9fQ2mL7pR4sT8vB3'), {});
+  assert.deepEqual(secretShapes('one: DOCS_TOKEN=see-the-readme-for-setup'), {});
+  // Read in one pass: a long run of labels finishes quickly.
+  const t = Date.now();
+  assert.deepEqual(secretShapes(`${'k: '.repeat(60_000)}v`), {});
+  assert.deepEqual(secretShapes(`${'a=b'.repeat(60_000)}`), {});
+  assert.ok(Date.now() - t < 1000, `took ${Date.now() - t} ms`);
+});
