@@ -217,11 +217,14 @@ test('DOCS-CONSISTENCY: the README counts the subcommands the dispatcher has', (
   assert.equal(m[1], words[actualSubcommands().length], `the README says ${m[1]}; the dispatcher has ${actualSubcommands().length}`);
 });
 
-test('a newcomer meets the first three commands before the weekly pipeline, in the order they run them', () => {
+test('a newcomer meets the demo, then view with its Setup page, before the weekly pipeline', () => {
   const tryIt = README.indexOf('## Try it');
   assert.ok(tryIt > 0 && tryIt < README.indexOf('## Install') && tryIt < README.indexOf('## The flow'), 'Try it comes before Install and the weekly flow');
   const block = README.slice(tryIt, README.indexOf('```', README.indexOf('```bash', tryIt) + 7));
-  const steps = ['npx github:BryceEWatson/honestweek view --demo', 'npx github:BryceEWatson/honestweek init', 'npx github:BryceEWatson/honestweek view '];
+  // view sets itself up in the browser the first time, so init is no longer a step of its own.
+  const steps = ['npx github:BryceEWatson/honestweek view --demo', 'npx github:BryceEWatson/honestweek view '];
+  assert.ok(!block.includes('honestweek init '), 'Try it leads with view, not init');
+  assert.match(README.slice(tryIt, tryIt + 3000), /the page that opens is Setup[^]*For scripts and CI, `init`/);
   let at = -1;
   for (const s of steps) {
     const i = block.indexOf(s, at + 1);
