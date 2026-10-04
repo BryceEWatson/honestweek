@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync, readdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -9,6 +8,7 @@ import { emit, renderFor } from '../lib/emit/index.mjs';
 import * as digest from '../lib/emit/digest.mjs';
 import * as post from '../lib/emit/post.mjs';
 import * as changelog from '../lib/emit/changelog.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const EMIT_DIR = resolve(HERE, '..', 'lib', 'emit');
@@ -26,7 +26,7 @@ function model(overrides = {}) {
 }
 
 function tmp() {
-  return mkdtempSync(join(tmpdir(), 'hw-emit-'));
+  return makeTempDir('hw-emit-');
 }
 
 test('renderFor / emit dispatch strictly by mode; unknown mode throws naming the value and valid set', () => {
@@ -100,7 +100,7 @@ test('changelog appends a dated section, replaces same-week in place, preserves 
     assert.match(after, /Some unrelated notes\./);
     assert.match(after, /2024-06-03 – 2024-06-09/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -115,7 +115,7 @@ test('digest is the default mode and writes to the default path when file is uns
     assert.ok(existsSync(join(dir, 'honestweek.digest.md')));
   } finally {
     process.chdir(cwd);
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -127,7 +127,7 @@ test('output.file when set wins over the default path', () => {
     assert.equal(res.path, file);
     assert.ok(existsSync(file));
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 
@@ -143,7 +143,7 @@ test('rendering is deterministic — byte-identical for a fixed model + config',
     const b = readFileSync(file, 'utf8');
     assert.equal(a, b);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   }
 });
 

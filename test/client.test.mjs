@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -11,6 +11,7 @@ import { landedCommitsInWindow, prNumberFromSubject } from '../lib/git.mjs';
 import { buildClientModel, deriveClientStats, periodLabel } from '../lib/client.mjs';
 import { render } from '../lib/emit/client.mjs';
 import { normalizeConfig, OUTPUT_MODES, DEFAULT_OUTPUT_FILES } from '../lib/config.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'me@example.com';
 const OTHER = 'someone@else.test';
@@ -21,7 +22,7 @@ function git(dir, args, env) {
   return execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env: env ?? process.env, stdio: ['ignore', 'pipe', 'pipe'] });
 }
 function tmp(prefix) {
-  const d = mkdtempSync(join(tmpdir(), prefix));
+  const d = makeTempDir(prefix);
   dirs.push(d);
   return d;
 }
@@ -112,7 +113,7 @@ function goodItems(shas, overrides = {}) {
   };
 }
 
-test.after(() => { for (const d of dirs) try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } });
+test.after(() => { for (const d of dirs) removeTempDir(d); });
 
 test('appendix titles read like titles', async () => {
   const { readableTitle } = await import('../lib/client.mjs');

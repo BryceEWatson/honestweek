@@ -8,11 +8,11 @@
 // and the config to read them with.
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { normalizeConfig } from '../../../lib/config.mjs';
+import { makeTempDir } from '../../helpers/temp-dir.mjs';
 
 export const ME = 'you@example.com';
 export const SECRET_REASONING = 'PRIVATE-REASONING-SENTINEL';
@@ -92,7 +92,7 @@ function write(file, lines, { trailingPartial = null } = {}) {
  * returns `goalRecord`, `goalsFile`, `goalIds`, `worktreeDir` and `displaySquashSha`;
  * without it the corpus is exactly the one the model tests read.
  */
-export function buildCorpus({ root = mkdtempSync(join(tmpdir(), 'hw-replay-')), goals = false } = {}) {
+export function buildCorpus({ root = makeTempDir('hw-replay-'), goals = false } = {}) {
   const repo = makeRepo(root);
   const displayDir = join(root, 'a-private-project');
   const displaySha = makeDisplayRepo(displayDir);

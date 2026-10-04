@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { defaultBranchRefs, lookupCommit, commitsInWindow, verifyItems, emailInList } from '../lib/git.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'me@example.com';
 const OTHER = 'someone@else.test';
@@ -19,7 +19,7 @@ function git(dir, args, env) {
 }
 
 function initRepo() {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-git-'));
+  const dir = makeTempDir('hw-git-');
   git(dir, ['init', '-q']);
   git(dir, ['config', 'user.name', 'Test']);
   git(dir, ['config', 'user.email', ME]);
@@ -46,11 +46,7 @@ function commit(dir, { email, message, dateISO }) {
 }
 
 function cleanup(dir) {
-  try {
-    rmSync(dir, { recursive: true, force: true });
-  } catch {
-    /* Windows may transiently lock .git; ignore teardown errors */
-  }
+  removeTempDir(dir);
 }
 
 function featuredConfig(dir, label = 'r') {
@@ -110,7 +106,7 @@ test('lookupCommit returns a detectable not-found result for an unresolved sha (
 });
 
 test('lookupCommit throws when the path is not a git repository', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-notrepo-'));
+  const dir = makeTempDir('hw-notrepo-');
   try {
     assert.throws(() => lookupCommit(dir, 'abcdef0', [ME]), /not a git repository/);
   } finally {
@@ -192,7 +188,7 @@ test('verifyItems — a display-role citation is a problem and NO git read is at
   // The display repo path is NOT a git repo: if verifyItems shelled out to git
   // against it, the recorded reason would be "not a git repository". Because it
   // is guarded BEFORE any git call, the reason names the display violation.
-  const nonRepo = mkdtempSync(join(tmpdir(), 'hw-display-'));
+  const nonRepo = makeTempDir('hw-display-');
   try {
     const config = {
       identity: { authorEmails: [ME] },
@@ -296,7 +292,7 @@ test('defaultBranchRefs — multiple non-conventional branches with no origin ->
 
 test('defaultBranchRefs — origin/HEAD recorded at clone wins, remote-tracking + local refs both returned', () => {
   const src = initRepo();
-  const dst = mkdtempSync(join(tmpdir(), 'hw-git-clone-'));
+  const dst = makeTempDir('hw-git-clone-');
   try {
     commit(src, { email: ME, message: 'first', dateISO: '2024-06-12T10:00:00Z' });
     normalizeBranch(src, 'trunk');
@@ -371,7 +367,7 @@ test('verifyItems — a commit on the remote-tracking default branch is landed e
   // The everyday PR state: merged remotely, fetched, local default branch not
   // yet fast-forwarded. Reachability from EITHER ref of the default branch counts.
   const src = initRepo();
-  const dst = mkdtempSync(join(tmpdir(), 'hw-git-behind-'));
+  const dst = makeTempDir('hw-git-behind-');
   try {
     commit(src, { email: ME, message: 'base', dateISO: '2024-06-12T10:00:00Z' });
     normalizeBranch(src, 'main');

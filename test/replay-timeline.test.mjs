@@ -2,13 +2,13 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { cpSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { cpSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { normalizeConfig } from '../lib/config.mjs';
 import { buildCorpus, ME } from './fixtures/replay/corpus.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 let fx;
 let h;
@@ -19,11 +19,7 @@ before(async () => {
   h = await buildWorkHistory(opts({ claude: [fx.claudeRoot], codex: [fx.codexRoot] }));
 });
 after(() => {
-  try {
-    rmSync(fx.root, { recursive: true, force: true });
-  } catch {
-    /* ignore */
-  }
+  removeTempDir(fx.root);
 });
 
 test('the same inputs build the same history, byte for byte', async () => {
@@ -32,7 +28,7 @@ test('the same inputs build the same history, byte for byte', async () => {
 });
 
 test('root order and a repeated root do not change the history', async () => {
-  const split = mkdtempSync(join(tmpdir(), 'hw-replay-split-'));
+  const split = makeTempDir('hw-replay-split-');
   try {
     const second = join(split, 'second');
     mkdirSync(second, { recursive: true });
@@ -46,7 +42,7 @@ test('root order and a repeated root do not change the history', async () => {
     assert.equal(JSON.stringify(twice.events), JSON.stringify(h.events));
     assert.equal(twice.sessions.length, h.sessions.length);
   } finally {
-    rmSync(split, { recursive: true, force: true });
+    removeTempDir(split);
   }
 });
 
@@ -136,7 +132,7 @@ test('a thread timeline holds only that thread, and its final state matches the 
 });
 
 test('a large history builds, seeks consistently, and stays bounded', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'hw-replay-large-'));
+  const root = makeTempDir('hw-replay-large-');
   try {
     const repoDir = join(root, 'repo');
     mkdirSync(repoDir);
@@ -172,6 +168,6 @@ test('a large history builds, seeks consistently, and stays bounded', async () =
     assert.equal(end.counts.edits, CALLS / 5);
     assert.equal(end.filesEdited, 8, 'every fifth call edits one of f0, f5, … f35');
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    removeTempDir(root);
   }
 });

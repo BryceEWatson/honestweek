@@ -8,9 +8,8 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
-import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,10 +18,11 @@ import { NAMES_QUESTION, TERMS_QUESTION } from '../lib/init.mjs';
 import { privateWordsNote } from '../lib/private-words.mjs';
 import { pageCommand } from '../lib/invocation.mjs';
 import { CODE_HEADER, KEY_HEADER } from '../lib/view/server.mjs';
+import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BIN = join(ROOT, 'bin', 'honestweek.mjs');
-const scratch = mkdtempSync(join(tmpdir(), 'hw-first-run-'));
+const scratch = makeTempDir('hw-first-run-');
 const children = [];
 after(() => {
   for (const c of children) if (c.exitCode === null) c.kill();

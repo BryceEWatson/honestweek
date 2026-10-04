@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,7 @@ import {
   reducePath,
 } from '../lib/claude-adapter.mjs';
 import { createRedactor } from '../lib/redact.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(HERE, 'fixtures', 'claude-projects');
@@ -142,7 +143,7 @@ test('REGRESSION (leak-hunt): reducePath bounds the extension and strips trailer
 });
 
 test('REGRESSION (leak-hunt): a non-hex session id is hashed, never echoing a configured term', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'hw-id-'));
+  const root = makeTempDir('hw-id-');
   try {
     const dir = join(root, 'p');
     mkdirSync(dir);
@@ -157,7 +158,7 @@ test('REGRESSION (leak-hunt): a non-hex session id is hashed, never echoing a co
     assert.ok(!entries[0].id.includes('Falcon'), 'configured codename must not leak through the id');
     assert.match(entries[0].id, /^session-[0-9a-f]{8}$/);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    removeTempDir(root);
   }
 });
 
@@ -188,7 +189,7 @@ test('malformed JSON lines and unknown types are skipped without throwing (featu
 });
 
 test('classification reads only a bounded head: a human turn beyond the head is not seen', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'hw-head-'));
+  const root = makeTempDir('hw-head-');
   try {
     const dir = join(root, 'proj');
     mkdirSync(dir);
@@ -208,7 +209,7 @@ test('classification reads only a bounded head: a human turn beyond the head is 
     const entries = await adaptSessions({ config: cfg, weekStart: WEEK_START, weekEnd: WEEK_END, redactor: createRedactor(cfg), projectsRoot: root });
     assert.equal(entries.length, 0, 'a human turn beyond the bounded head is not classified interactive');
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    removeTempDir(root);
   }
 });
 

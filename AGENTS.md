@@ -23,7 +23,7 @@ link is known. That work lives in the work-history engine (`lib/replay/`, descri
 - **Zero runtime dependencies.** Node built-ins plus the system `git` CLI only. Do not add a
   package, a lockfile, or an `npm install` step. CI installs nothing.
 - **Node >= 18.** CI runs the suite on Node 18, 20, and 22. Do not use an API newer than Node 18.
-- **Cross-platform.** CI runs on ubuntu; development happens on Windows. Never hardcode a path
+- **Cross-platform.** CI runs on Linux, Windows and macOS; development happens on Windows. Never hardcode a path
   separator, and normalize before comparing paths.
 - **No network egress.** No telemetry, no fetch, no outbound calls. The two local servers,
   `preview` and `view`, bind to loopback only. `view` also refuses other hosts and other sites, and
@@ -40,6 +40,10 @@ node --test
 Run it from the repository root, with no path argument (passing `test/` fails: Node treats it as a
 module specifier). `npm test` runs the same thing. Every change ships with tests, and the suite must
 be green before you report the work done.
+
+Make a test's temp folders with `makeTempDir` from `test/helpers/temp-dir.mjs`, never `mkdtempSync`
+directly. The helper removes every folder it made when the test process exits, pass or fail, and
+`test/temp-cleanup.test.mjs` fails on a direct `mkdtemp` call.
 
 ## Invariants that must not break
 

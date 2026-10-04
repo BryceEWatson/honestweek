@@ -6,21 +6,20 @@
 
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 import { createRedactor, createSecretsOnlyRedactor } from '../lib/redact.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
-import { createLeakCounter, EXEMPT_FIELDS, setAsideAllowed, stringsIn, unglue } from '../lib/view/leaks.mjs';
+import { createLeakCounter, EXEMPT_FIELDS, setAsideAllowed, stringsIn, unglue, unglueIds } from '../lib/view/leaks.mjs';
 import { createLru, createViewData, goalKey, memberCount } from '../lib/view/data.mjs';
 import { REPLAY_EVENT_FIELDS } from '../lib/view/replay-export.mjs';
 import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { buildCorpus } from './fixtures/replay/corpus.mjs';
 import { buildViewWeek, EMAIL, LONG_WORD, NOT_PROMPT_WORDS, OTHER_TERM, PRIVATE_WORDS, QUEUED_WORD, SECRETS, SEEDED, STRADDLE_WORD, SUMMARY_WORD, TERM, WEEK } from './fixtures/view/week.mjs';
 
-const scratch = mkdtempSync(join(tmpdir(), 'hw-view-data-'));
-after(() => rmSync(scratch, { recursive: true, force: true }));
+const scratch = makeTempDir('hw-view-data-');
+after(() => removeTempDir(scratch));
 
 const w = buildViewWeek(join(scratch, 'week'));
 const WINDOW = { from: WEEK.from, to: WEEK.to, timezone: 'UTC' };
@@ -85,11 +84,25 @@ async function everyAnswer(priv) {
 const redactedAnswers = await everyAnswer(false);
 const privateAnswers = await everyAnswer(true);
 
+// A search's id is random letters a to p, which can spell a planted word ("dana") by
+// chance. It never holds text, and the redactor and the leak counter leave ids alone too,
+// so a planted value is looked for in everything but those ids.
+const QUERY_ID_TOKEN = /\bq[a-p]{16}\b/g;
 const literalHits = (answer, values) => {
   const hits = [];
-  for (const s of stringsIn(answer)) for (const v of values) if (s.toLowerCase().includes(String(v).toLowerCase())) hits.push(v);
+  for (const s of stringsIn(answer)) {
+    const text = s.replace(QUERY_ID_TOKEN, ' ').toLowerCase();
+    for (const v of values) if (text.includes(String(v).toLowerCase())) hits.push(v);
+  }
   return hits;
 };
+
+test("the planted-value check skips a search id that spells a planted word by chance, and nothing else", () => {
+  const id = `qhdana${'p'.repeat(11)}`;
+  assert.match(id, /^q[a-p]{16}$/, 'shaped like the ids the server makes');
+  assert.deepEqual(literalHits({ queryId: id, note: `search.html#q=${id}~w` }, ['Dana']), []);
+  for (const s of ['Ask Dana first', 'see /home/dana/notes', `${id}a`, `x${id}`]) assert.deepEqual(literalHits({ s }, ['Dana']), ['Dana'], s);
+});
 
 // ---- privacy everywhere -----------------------------------------------------------------
 
@@ -161,6 +174,25 @@ test('a value shown next to a placeholder or a cut mark still counts as a leak',
     'add a --token-file … then --token 7Qx2Lk9pR3vT6nW8zB4f',
   ];
   for (const s of near) assert.deepEqual([leaks.redacted(s).secrets, leaks.secrets(s).total], [1, 1], s);
+});
+
+// The counter reads each text twice, with a JSON escape as a break and as written, and sets the
+// page's own punctuation apart on both readings. A backslash in the text makes the two readings
+// differ, so these fail if either reading skips the punctuation step, or if that step hides a
+// value only the as-written reading finds.
+test('both readings of a backslash set the page\'s punctuation apart, and neither hides a value', () => {
+  const quiet = [
+    'ran "cd C:\\tmp\\new && DOCS_TOKEN=[redacted:secret]"',
+    'in C:\\repo\\notes: add a --token-file …',
+    'out "exit=0\\nDOCS_TOKEN=[redacted:secret]".',
+  ];
+  for (const s of quiet) assert.deepEqual([leaks.redacted(s).total, leaks.secrets(s).total], [0, 0], s);
+  const shown = [
+    'cd C:\\token=abc123secretvalue "KEY=[redacted:secret]"',
+    'x\\tQ1w2E3r4T5y6U7i8O9p0A1s2D3f4G5h add a --token-file …',
+    'ran "cd C:\\tmp\\new && DOCS_TOKEN=[redacted:secret]"7Qx2Lk9pR3vT6nW8zB4f',
+  ];
+  for (const s of shown) assert.deepEqual([leaks.redacted(s).secrets, leaks.secrets(s).total], [1, 1], s);
 });
 
 test('private text is served only when a request asks with private=1', async () => {
@@ -731,6 +763,18 @@ test('the leak counter reads a JSON line break as a break, so a commit id after 
   assert.equal(unglue('C:\\\\new\\\\x'), 'C:\\\\new\\\\x');
   assert.equal(unglue('a\\nb'), 'a\\ b');
   assert.equal(unglue('a\\\\\\nb'), 'a\\\\\\ b', 'an odd run of backslashes ends in an escape');
+  // A backslash outside JSON text isn't an escape, and its letter starts a word: the text as
+  // written is read too, so a secret there still counts, with the switch off and on.
+  for (const shown of ['cd C:\\token=abc123secretvalue', 'x\\tQ1w2E3r4T5y6U7i8O9p0A1s2D3f4G5h']) {
+    assert.equal(counter.redacted(shown).secrets, 1, shown);
+    assert.equal(counter.secrets(shown).secrets, 1, shown);
+  }
+  // As written, only an escape that runs into a commit id is still a break.
+  assert.equal(unglueIds(`a\\n${sha} b\\tokens`), `a\\ ${sha} b\\tokens`);
+  assert.equal(unglueIds(`a\\\\n${sha}`), `a\\\\n${sha}`, 'an escaped backslash before an n is not an escape');
+  for (const sep of ['\n', '\r', '\t']) {
+    assert.equal(counter.redacted(JSON.stringify({ out: `exit=0${sep}${sha}` })).secrets, 0, `a commit id after ${JSON.stringify(sep)}`);
+  }
 });
 
 test('a session with no prompt says what opened it, from its records, and sessions with a prompt come first', async () => {
@@ -752,7 +796,7 @@ test('a session with no prompt says what opened it, from its records, and sessio
   assert.ok(firstEmpty > 0, 'the newest sessions have no prompt, yet a session with one comes first');
   assert.ok(recent.slice(firstEmpty).every((r) => r.prompts.value === 0), 'every session with a prompt comes before every one without');
   const by = Object.fromEntries(recent.filter((r) => r.session.startsWith('cc-zz')).map((r) => [r.session, r.startedBy]));
-  assert.deepEqual(by['cc-zzcmd'], { text: 'started with a command you typed (/review), no prompt', evidence: 'recorded' });
+  assert.deepEqual(by['cc-zzcmd'], { text: 'started with a command (/review), no prompt', evidence: 'recorded' });
   assert.deepEqual(by['cc-zzsched'], { text: 'started by a schedule, no prompt', evidence: 'recorded' });
   assert.deepEqual(by['cc-zzbare'], { text: `no prompt between ${WINDOW.from} and ${WINDOW.to}`, evidence: 'derived' });
   for (const r of recent.filter((x) => x.session.startsWith('cc-zz'))) assert.equal(r.title, null, 'no title is made up');
@@ -763,5 +807,20 @@ test('a session with no prompt says what opened it, from its records, and sessio
   const d2 = createViewData({ config: w.config, roots: w.roots, ...WINDOW, buildHistory: async () => h2 });
   await d2.start();
   const r2 = (await d2.route('/api/home', params())).body.recent.find((r) => r.session === 'cc-zzcmd');
-  assert.equal(r2.startedBy.text, 'started with a command you typed, no prompt');
+  assert.equal(r2.startedBy.text, 'started with a command, no prompt');
+});
+
+test('the command a page names goes through the redactor, so a private word in it stays hidden', async () => {
+  // A package owner, or a folder in a script's path, can be a client's name.
+  const config = { ...w.config, redaction: { ...w.config.redaction, terms: [...(w.config.redaction?.terms ?? []), 'Zephyrcorp'] } };
+  const d = createViewData({ config, roots: w.roots, ...WINDOW, demo: true, command: 'npx github:Zephyrcorp/honestweek', buildHistory: async () => reference });
+  await d.start();
+  const status = await d.status();
+  assert.doesNotMatch(JSON.stringify(status), /Zephyrcorp/);
+  assert.equal(createLeakCounter(config).redacted(status).total, 0);
+  // Failing-path partner: a command with no private word in it is named as it is.
+  const plain = createViewData({ config, roots: w.roots, ...WINDOW, demo: true, command: 'npx github:your-org/honestweek', buildHistory: async () => reference });
+  await plain.start();
+  assert.equal((await plain.status()).command, 'npx github:your-org/honestweek');
+  assert.ok((await plain.status()).demo.commands.some((c) => c.command === 'npx github:your-org/honestweek init'));
 });

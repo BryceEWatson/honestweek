@@ -6,10 +6,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const CLI = new URL('../bin/honestweek.mjs', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const jsonl = (...r) => r.map((x) => JSON.stringify(x)).join('\n') + '\n';
@@ -24,7 +24,7 @@ const jsonl = (...r) => r.map((x) => JSON.stringify(x)).join('\n') + '\n';
  * was the thing that was wrong, not the bar.
  */
 function fixture() {
-  const dir = mkdtempSync(join(tmpdir(), 'hw-mine-cli-'));
+  const dir = makeTempDir('hw-mine-cli-');
   const projects = join(dir, 'projects', 'C--repo');
   mkdirSync(projects, { recursive: true });
   const search = (q) => ({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'WebSearch', input: { query: q } }] } });
@@ -109,7 +109,7 @@ test('finds a solved third-party failure and puts it in the backlog', () => {
   // picks the more searchable one. What matters is that the finding is about the
   // failure and not about something else in the session.
   assert.match(json.publishable[0].primaryError, /Failed to start Acme's workspace|VM service not running/);
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('--draft writes a real file and moves the finding to drafted', () => {
@@ -125,7 +125,7 @@ test('--draft writes a real file and moves the finding to drafted', () => {
   const ledger = JSON.parse(readFileSync(fx.ledger, 'utf8'));
   assert.equal(ledger.findings[0].status, 'drafted');
   assert.equal(json.signal.backlog, 1, 'drafting does not decide anything, so the backlog holds');
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('--decide clears the backlog and the decision survives a re-run', () => {
@@ -142,7 +142,7 @@ test('--decide clears the backlog and the decision survives a re-run', () => {
   assert.equal(after.json.signal.backlog, 0, 'a declined finding must not come back');
   assert.equal(after.json.merge.suppressed, 1);
   assert.equal(after.json.signal.counts.declined, 1);
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('a blind sensor exits 2, so a zero can never be read as a quiet week', () => {
@@ -153,7 +153,7 @@ test('a blind sensor exits 2, so a zero can never be read as a quiet week', () =
   assert.equal(code, 2);
   assert.equal(json.sensorOk, false);
   assert.deepEqual(json.blindCorpora, ['claude-code']);
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('the run record says what was seen, not just what was found', () => {
@@ -165,7 +165,7 @@ test('the run record says what was seen, not just what was found', () => {
   assert.equal(run.sessionsScanned, 1);
   assert.ok(run.corpusFloor, 'the retention floor bounds what could ever be found');
   assert.ok(Array.isArray(run.corpora) && run.corpora[0].filesFound >= 1);
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('the ledger is written through the configured redactor, not just de-identified', () => {
@@ -184,7 +184,7 @@ test('the ledger is written through the configured redactor, not just de-identif
   // so the term itself must not survive anywhere in the ledger.
   assert.ok(!/\bAcme\b/.test(raw), 'a configured codename reached the ledger unredacted');
   assert.match(raw, /\[redacted/, 'expected the redactor to have visibly run');
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('--decide works on a key containing an equals sign', () => {
@@ -203,7 +203,7 @@ test('--decide works on a key containing an equals sign', () => {
   });
   const after = JSON.parse(readFileSync(fx.ledger, 'utf8'));
   assert.equal(after.findings[0].status, 'declined');
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('--decide rejects a bad status by name instead of throwing', () => {
@@ -223,7 +223,7 @@ test('--decide rejects a bad status by name instead of throwing', () => {
   }
   assert.match(stderr, /unknown finding status/);
   assert.match(stderr, /published/, 'the error should name the valid statuses');
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('an explicitly requested corpus with no root at all is blind, not quiet', () => {
@@ -248,7 +248,7 @@ test('an explicitly requested corpus with no root at all is blind, not quiet', (
   assert.equal(code, 2, 'asking for a corpus and getting nothing back is a fault');
   assert.deepEqual(json.blindCorpora, ['cowork']);
   assert.ok(json.diagnostics.corpora.length >= 1, 'a requested corpus must always appear in diagnostics');
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('a corpus merely absent from the default sweep is not a fault', () => {
@@ -257,7 +257,7 @@ test('a corpus merely absent from the default sweep is not a fault', () => {
   const { code, json } = runMine(fx, [], { env: { APPDATA: join(fx.dir, 'no-such-appdata'), CODEX_HOME: join(fx.dir, 'no-such-codex') } });
   assert.equal(code, 0);
   assert.equal(json.sensorOk, true);
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('an unknown option fails loudly instead of being ignored', () => {
@@ -265,7 +265,7 @@ test('an unknown option fails loudly instead of being ignored', () => {
   const r = runMine(fx, ['--not-a-flag']);
   assert.equal(r.code, 1);
   assert.match(String(r.stderr), /unknown option/);
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('a mistyped --corpus fails loudly instead of scanning nothing', () => {
@@ -279,7 +279,7 @@ test('a mistyped --corpus fails loudly instead of scanning nothing', () => {
   assert.match(String(r.stderr), /claude-code, codex, cowork/, 'the error must name the valid list');
   const empty = runMine(fx, ['--corpus', '']);
   assert.equal(empty.code, 1, 'an empty --corpus value is a mistake, not "all"');
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('garbage values for value-taking flags fail loudly instead of degrading', () => {
@@ -297,7 +297,7 @@ test('garbage values for value-taking flags fail loudly instead of degrading', (
   const bare = runMine(fx, ['--decide']);
   assert.equal(bare.code, 1, 'a value-taking flag with no value is a mistake, not a default');
   assert.match(String(bare.stderr), /--decide expects a value/);
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('a corpus whose files cannot be probed is blind, not quiet', () => {
@@ -309,7 +309,7 @@ test('a corpus whose files cannot be probed is blind, not quiet', () => {
   const { code, json } = runMine(fx);
   assert.equal(code, 2);
   assert.deepEqual(json.blindCorpora, ['claude-code']);
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('a probed-but-date-filtered window is quiet, not blind', () => {
@@ -321,7 +321,7 @@ test('a probed-but-date-filtered window is quiet, not blind', () => {
   assert.equal(code, 0, JSON.stringify(json?.blindCorpora));
   assert.equal(json.sensorOk, true);
   assert.equal(json.diagnostics.corpora[0].filesProbed, 1, 'the file must actually have been probed');
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('an explicit --config that is unusable fails loudly, never a silent downgrade', () => {
@@ -343,7 +343,7 @@ test('an explicit --config that is unusable fails loudly, never a silent downgra
   const missing = runMine(fx);
   assert.equal(missing.code, 1, 'a --config that names a missing file is a fault');
   assert.match(String(missing.stderr), /unusable config/);
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });
 
 test('an absent DEFAULT config downgrades with a note; a broken one fails', () => {
@@ -367,5 +367,5 @@ test('an absent DEFAULT config downgrades with a note; a broken one fails', () =
     assert.equal(err.status, 1);
     assert.match(String(err.stderr), /unusable config/);
   }
-  rmSync(fx.dir, { recursive: true, force: true });
+  removeTempDir(fx.dir);
 });

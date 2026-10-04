@@ -1,8 +1,13 @@
 name: Release
 
-# Publishes to npm when you publish a GitHub Release. Requires an NPM_TOKEN
-# repository secret (an npm automation token). Until then, this workflow is
-# dormant and nothing is published.
+# Runs when a GitHub Release is published. It publishes to npm only when the release is
+# a full release (not a prerelease), its tag matches package.json, an NPM_TOKEN
+# repository secret is set and the version isn't on npm yet. A tag that doesn't match,
+# or an npm lookup that fails for any reason other than "not found" while a token is
+# set, fails the run with an error. Otherwise it says why on the run page and stops
+# without failing. The usual way to publish is from your own terminal, as
+# docs/releasing.md describes, and then this workflow finds the version already on npm
+# and does nothing.
 
 on:
   release:
@@ -21,9 +26,49 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+      - name: Decide whether this release publishes to npm
+        id: decide
+        env:
+          HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+          TAG: ${{ github.event.release.tag_name }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::The release tag is $TAG but package.json says $version. Nothing was published."
+            exit 1
+          fi
+          if [ "$PRERELEASE" = "true" ] || [ "$version" != "${version%%-*}" ]; then
+            echo "::notice::$TAG is a prerelease, and this workflow never publishes one: npm would make it the version everyone installs. Publish it from your own terminal with --tag next."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if lookup="$(npm view "honestweek@$version" version 2>&1)"; then
+            on_npm=true
+          elif printf '%s' "$lookup" | grep -q 'E404'; then
+            on_npm=false
+          elif [ "$HAS_NPM_TOKEN" != "true" ]; then
+            echo "::notice::Couldn't check npm for honestweek $version, and no NPM_TOKEN secret is set, so this run doesn't publish either way."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          else
+            echo "::error::Couldn't check npm for honestweek $version, so nothing was published: $lookup"
+            exit 1
+          fi
+          if [ "$on_npm" = "true" ]; then
+            echo "::notice::honestweek $version is already on npm, so there's nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif [ "$HAS_NPM_TOKEN" != "true" ]; then
+            echo "::notice::No NPM_TOKEN secret is set, so this run doesn't publish. Publish from your own terminal (docs/releasing.md)."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Verify the suite is green before publishing
+        if: steps.decide.outputs.publish == 'true'
         run: node --test
       - name: Publish to npm
+        if: steps.decide.outputs.publish == 'true'
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
