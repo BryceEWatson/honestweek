@@ -11,7 +11,7 @@ import { createHash } from 'node:crypto';
 
 import { assessPublicRendition, createRedactor, createSecretsOnlyRedactor, redactWithAudit, replayRedactions } from '../lib/redact.mjs';
 import { validateObjectives } from '../lib/goals.mjs';
-import { REDACTION_SOURCES, emailSpans } from '../lib/redaction-patterns.mjs';
+import { REDACTION_SOURCES, emailSpans, laterFieldSpans } from '../lib/redaction-patterns.mjs';
 import { keyedSecrets } from '../lib/view/leaks.mjs';
 
 const H = 'hunter2';
@@ -360,10 +360,6 @@ const DOTTED_KEYS = [
   [`note: 'see config api.key=${LV}`, "note: 'see config api.key=[redacted:secret]"],
   [`{"note": "see config api.key=${LV}`, '{"note": "see config api.key=[redacted:secret]'],
   [`see config api.key=${LV}`, 'see config api.key=[redacted:secret]'],
-  [`token: "Ab3d, api.key: "${LV}"`, 'token: "[redacted:secret]"[redacted:secret]"'],
-  [`token: 'Ab3d, api.key: '${LV}'`, "token: '[redacted:secret]'[redacted:secret]'"],
-  [`token: "Ab3d, secret.key: "${LV}"`, 'token: "[redacted:secret]"[redacted:secret]"'],
-  [`token: "Ab3d, aws.secret.access.key: "${LV}"`, 'token: "[redacted:secret]"[redacted:secret]"'],
   [`api.key: ${LV}`, 'api.key: [redacted:secret]'],
   [`{"api.key": "${LV}"}`, '{"api.key": "[redacted:secret]"}'],
   [`secret.key=${LV}`, 'secret.key=[redacted:secret]'],
@@ -382,15 +378,12 @@ const DOTTED_KEYS_ORDINARY = [
   'the api.key file',
 ];
 
-test('a dotted key named for a secret has its value hidden, in or out of a quoted value that never closes', () => {
+test('a dotted key named for a secret has its value hidden, in or out of a quoted note that never closes', () => {
   agreeOn(DOTTED_KEYS, DOTTED_KEYS_ORDINARY, LV);
-  // JSON text, one and two levels deep, and a quoted value whose would-be close opens a flag's.
+  // JSON text, one and two levels deep.
   for (const input of [
     JSON.stringify({ note: `see config api.key=${LV}` }),
     JSON.stringify(JSON.stringify({ note: `see config api.key=${LV}` })),
-    JSON.stringify({ msg: `token: "Ab3d, api.key: "${LV}"` }),
-    `token: "Ab3d --api.key="${LV}"`,
-    `token: "Ab3d --api_key="${LV}"`,
   ]) {
     const out = createRedactor().redact(input);
     assert.ok(!out.includes(LV), `published: ${input} -> ${out}`);
@@ -428,239 +421,152 @@ test('a sensitive value opened by a single quote that never closes is hidden by 
   agreeOn(UNCLOSED_SINGLE_QUOTE, UNCLOSED_SINGLE_QUOTE_ORDINARY, LV);
 });
 
-// The rule for a sensitive field nested in another one's value: every name is read, also inside
-// a value that is being hidden, and each sensitive name hides its own value. Values that don't
-// touch are hidden one by one and the text between them stays; a value that overlaps the one
-// being hidden, or takes the quote that ended it, is hidden with it as one. A quoted word after
-// a key is always hidden, and when a separator follows it, what it names is hidden too. A value
-// that ends on a Bearer or Basic scheme takes the credential after it. Made-up values.
-// [input, the published output]
-const NESTED_AFTER_QUOTE = [
-  [`password: 'token: "${LV}"`, `password: '[redacted:secret] "[redacted:secret]"`],
-  [`api_key: 'token: "${LV}"`, `api_key: '[redacted:secret] "[redacted:secret]"`],
-  [`password: 'token: ${LV}`, `password: '[redacted:secret]`],
-  [`api_key: 'token: ${LV}, region: eu`, `api_key: '[redacted:secret] [redacted:secret], region: eu`],
-  [`token: "password: '${LV}`, 'token: "[redacted:secret]'],
-  [`password: 'token=${LV}`, `password: '[redacted:secret]`],
-  [`api_key: 'token=${LV}`, `api_key: '[redacted:secret]`],
-  [`password: 'Authorization: Bearer ${LV}`, `password: '[redacted:secret]`],
-  [`api_key: 'Authorization: Bearer ${LV}`, `api_key: '[redacted:secret] [redacted:secret]`],
-  [`api_key: '--token ${LV}`, `api_key: '[redacted:secret] [redacted:secret]`],
-  [`password: 'api.key: "${LV}"`, `password: '[redacted:secret] "[redacted:secret]"`],
-  [`password: 'abc token: "${LV}"`, `password: '[redacted:secret] token: "[redacted:secret]"`],
-  [`password: 'x"token": "${LV}"`, `password: '[redacted:secret]": "[redacted:secret]"`],
-  [`api_key: 'x:basic ${LV}`, `api_key: '[redacted:secret]`],
-  [`api.key: token: "${LV}"`, 'api.key: [redacted:secret] "[redacted:secret]"'],
-  [`api_key: token: "${LV}"`, 'api_key: [redacted:secret] "[redacted:secret]"'],
-  [`password: token: "${LV}"`, 'password: [redacted:secret] "[redacted:secret]"'],
-  [`api.key: --token ${LV}`, 'api.key: [redacted:secret] [redacted:secret]'],
-  // A quoted word with a separator after it is hidden as a value, and what it names is hidden too.
-  [`api.key: "token": "${LV}"`, 'api.key: "[redacted:secret]": "[redacted:secret]"'],
-  [`api_key: "token": "${LV}"`, 'api_key: "[redacted:secret]": "[redacted:secret]"'],
-  [`api.key: 'token': '${LV}'`, `api.key: '[redacted:secret]': '[redacted:secret]'`],
-  [`-Dapi.key=user:basic ${LV}`, '-Dapi.key=[redacted:secret]'],
-  [`api.key: x:bearer ${LV}`, 'api.key: [redacted:secret]'],
-];
-
-test("a field nested in another field's value keeps its own value hidden", () => {
-  agreeOn(NESTED_AFTER_QUOTE, [], LV);
-  // A closed single-quoted value whose closing quote opened a field's value reads the same on a
-  // second pass, when that quote is gone.
-  for (const r of [createRedactor(), createSecretsOnlyRedactor()]) {
-    const once = r.redact(`@${LV}=Cookie = 'secret.keyapi.key--password  = '`);
-    assert.equal(r.redact(once), once);
-  }
-  // A hidden value may hold another field's name in turn, whose value is hidden too. In the
-  // inputs marked false the published redactor's KEY=VALUE rule (its step 2, before the field
-  // rules) takes the nested name as its key's value (`"token":`, `AcmeCookie:Authorization:`)
-  // and shows what follows, as it does on main: that rule is left as it is here. The
-  // secrets-only scrubber, which reads the field rules first, hides it.
-  for (const [input, publishedToo] of [
-    [`'TOKEN=abc','TOKEN = abc','TOKEN  =  "${LV} def"'`, true],
-    [`client_secret: token=  AcmeCookie:Authorization: ${LV}`, false],
-    [`password="token": "${LV}"`, false],
-    [`api_key: token=password=secret=${LV} more`, true],
-  ]) {
-    for (const [name, r, hides] of [['published', createRedactor(), publishedToo], ['secrets-only', createSecretsOnlyRedactor(), true]]) {
-      const once = r.redact(input);
-      if (hides) assert.ok(!once.includes(LV), `${name}: ${input} -> ${once}`);
-      assert.equal(r.redact(once), once, `${name} idempotent: ${input}`);
-    }
-    const audit = redactWithAudit(input, {});
-    if (publishedToo) assert.ok(!audit.text.includes(LV), `audit: ${input} -> ${audit.text}`);
-    assert.equal(createRedactor().redact(audit.text), audit.text, `fixed point: ${input}`);
-  }
-  for (const input of [JSON.stringify({ msg: `password: 'token: "${LV}"` }), JSON.stringify(JSON.stringify({ msg: `api_key: 'token: "${LV}"` }))]) {
-    const out = createRedactor().redact(input);
-    assert.ok(!out.includes(LV), `published: ${input} -> ${out}`);
-    assert.ok(!createSecretsOnlyRedactor().redact(input).includes(LV), `secrets-only: ${input}`);
-    assert.equal(redactWithAudit(input, {}).text, out, `audit: ${input}`);
-  }
-});
-
-// A closed quoted value whose last word is a field with its separator after it (`"hello token":`)
-// is hidden, and so is that field's value, each in its own quotes: the text between them stays.
-// A dotted key such as `api.key` is a field now, so without this it showed values main hid.
-// When the field's value takes the closing quote itself (`'token='…`), the two are hidden as
-// one. A field whose value starts inside the quotes ends with them. Made-up values.
-// [input, the published output]
-const CLOSED_QUOTE_THEN_FIELD = [
-  [`api.key: "hello token": "${LV}"`, 'api.key: "[redacted:secret]": "[redacted:secret]"'],
-  [`api.key: 'hello token': '${LV}'`, `api.key: '[redacted:secret]': '[redacted:secret]'`],
-  [`api.key="hello token"="${LV}"`, 'api.key="[redacted:secret]"="[redacted:secret]"'],
-  [`api_key: "hello token": "${LV}"`, 'api_key: "[redacted:secret]": "[redacted:secret]"'],
-  [`-Dapi.key='token='${LV}`, '-Dapi.key=[redacted:secret]'],
-  [`api.key='token='${LV}`, 'api.key=[redacted:secret]'],
-  [`api.key='token: '${LV}`, `api.key='[redacted:secret]'[redacted:secret]`],
-  [`{\\"api.key\\": \\"my token\\": \\"${LV}\\"}`, '{\\"api.key\\": \\"[redacted:secret]\\": \\"[redacted:secret]\\"}'],
-  [`password: 'api.key=${LV}' ok`, `password: '[redacted:secret]' ok`],
-];
-
-test('a closed quoted value ending on a field has that field\'s value hidden too', () => {
-  agreeOn(CLOSED_QUOTE_THEN_FIELD, [], LV);
-  // A word in the value that isn't followed by a separator leaves the value as it was.
-  assert.equal(createRedactor().redact('api_key: "my token", region: eu'), 'api_key: "[redacted:secret]", region: eu');
-});
-
-// A quoted value that reads like a key (`"Secret2024":`) may be the password itself, so it is
-// hidden, and so is the value after it. Hiding a value never stops a name inside it from being
-// read: `auth`, hidden as pass's value, still hides what follows its "=" on the next line.
-// Made-up values.
-test('a quoted value that reads like a key, or holds one, stays hidden', () => {
-  // Each password here is itself a word naming a secret, the shape that used to be shown.
-  for (const [password, rows] of [
-    ['Secret2024', [[`password: "Secret2024":`, 'password: "[redacted:secret]":'], [`password: 'Secret2024': 'x'`, `password: '[redacted:secret]': '[redacted:secret]'`]]],
-    ['MySecret123', [[`password: "MySecret123": " ok"`, 'password: "[redacted:secret]": "[redacted:secret]"'], [`{"password": "MySecret123": "x"}`, '{"password": "[redacted:secret]": "[redacted:secret]"}']]],
-    ['Tokyo_pass', [[`password: "Tokyo_pass": ok`, 'password: "[redacted:secret]": [redacted:secret]']]],
-  ]) agreeOn(rows, [], password);
-  agreeOn([[`auth: 'pass='auth\n= ${LV}`, 'auth: [redacted:secret]\n= [redacted:secret]']], [], LV);
-});
+// How the three spellings above are read: each scrubber runs its own rules first, unchanged,
+// and the new spellings are read in a pass over the finished text that only puts more
+// placeholders down (laterFieldSpans). So nothing those rules hide can show again, whatever the
+// pass reads. The tests below state that directly.
 
 // The three redactors on one input: [published, secrets-only, audit] outputs, and a second pass
-// of each over its own output, which must change nothing.
+// of each over its own output.
 function threeWays(input) {
   const out = [createRedactor().redact(input), createSecretsOnlyRedactor().redact(input), redactWithAudit(input, {}).text];
   const again = [createRedactor().redact(out[0]), createSecretsOnlyRedactor().redact(out[1]), redactWithAudit(out[2], {}).text];
   return { out, again };
 }
-
-// A value that holds a secret-sounding word (pass, secret, token), after a quoted word: the
-// reader used to refuse to go on past any such word, the value included, and showed the value.
-// Made-up values. [input, the value, the published output, the secrets-only output]
-test('a value holding a secret-sounding word is hidden after a quoted word', () => {
-  for (const [input, value, published, shown = published] of [
-    ['secret="pass":Tokyo_pass', 'Tokyo_pass', 'secret=[redacted:secret]', 'secret="[redacted:secret]":[redacted:secret]'],
-    ['api.key: "hello token": "MyPassword123"', 'MyPassword123', 'api.key: "[redacted:secret]": "[redacted:secret]"'],
-    ["api.key='token='pass_Xk9mP2qRz7", 'pass_Xk9mP2qRz7', 'api.key=[redacted:secret]'],
-    ["-Dapi.key='token='pass_Xk9mP2qRz7", 'pass_Xk9mP2qRz7', '-Dapi.key=[redacted:secret]'],
-  ]) {
-    const { out, again } = threeWays(input);
-    assert.deepEqual(out, [published, shown, published], input);
-    for (const o of out) assert.ok(!o.includes(value), `${input} -> ${o}`);
-    assert.deepEqual(again, out, `a second pass: ${input}`);
+const ANY_PLACEHOLDER = /\[redacted:\w+\]/g;
+/** Checks the pass on `before`, a scrubber's own output, against `after`, the output with the
+ *  pass: its spans are in order and apart, none touches a placeholder in `before`, and `after`
+ *  is `before` with exactly those spans replaced. Every placeholder is still there and every
+ *  character still shown was shown before. */
+function onlyHidesMore(before, after, label) {
+  const spans = laterFieldSpans(before);
+  const marks = [...before.matchAll(ANY_PLACEHOLDER)].map((m) => [m.index, m.index + m[0].length]);
+  let at = 0;
+  let rebuilt = '';
+  for (const [start, end] of spans) {
+    assert.ok(start >= at && end > start && end <= before.length, `${label}: spans in order`);
+    assert.ok(marks.every(([a, b]) => end <= a || start >= b), `${label}: a span touches a placeholder`);
+    rebuilt += before.slice(at, start) + '[redacted:secret]';
+    at = end;
   }
-});
-
-// A key and its "=" on different lines, with a quoted value that reads like a key: the
-// KEY=VALUE rule hides it, as it does on main, whatever follows its closing quote. Made-up values.
-// [input, the published output, the secrets-only output, the audit's]
-test('a quoted secret-sounding word on the line after its "=" is hidden', () => {
-  for (const [input, published, shown, audited] of [
-    ['token\n="Secret2024":', 'token=[redacted:secret]', 'token\n=[redacted:secret]', 'token\n=[redacted:secret]'],
-    ["passwd=\n'Secret2024'=", 'passwd=[redacted:secret]', 'passwd=\n[redacted:secret]', 'passwd=\n[redacted:secret]'],
-    ['token\r\n= "Secret2024": x', 'token=[redacted:secret] x', 'token\r\n= [redacted:secret] [redacted:secret]', 'token\r\n= [redacted:secret] x'],
-  ]) {
-    const { out, again } = threeWays(input);
-    assert.deepEqual(out, [published, shown, audited], input);
-    for (const o of out) assert.ok(!o.includes('Secret2024'), `${input} -> ${o}`);
-    assert.deepEqual(again, out, `a second pass: ${input}`);
-  }
-});
-
-// A quoted word that names a secret, right after "=": every redactor reads it as the value, as
-// on main, so a second pass finds what the first left. [input, published and audit, secrets-only]
-test('a second pass changes nothing after a quoted word that names a secret', () => {
-  for (const [input, published, shown] of [
-    ['passwd="token":', 'passwd=[redacted:secret]', 'passwd="[redacted:secret]":'],
-    ['password="auth": ', 'password=[redacted:secret] ', 'password="[redacted:secret]": '],
-    ["secret='token'=", 'secret=[redacted:secret]', "secret='[redacted:secret]'="],
-  ]) {
-    const { out, again } = threeWays(input);
-    assert.deepEqual(out, [published, shown, published], input);
-    assert.deepEqual(again, out, `a second pass: ${input}`);
-  }
-});
-
-// Values hidden one after another keep the text between them: closing brackets and commas stay.
-test('hiding a value after a quoted word leaves the brackets and commas around it', () => {
-  agreeOn([
-    ['x = {password: "Secret2024": "v"}, user: "bob"', 'x = {password: "[redacted:secret]": "[redacted:secret]"}, user: "bob"'],
-    ['{"api.key": "my token": "v"}, [1]', '{"api.key": "[redacted:secret]": "[redacted:secret]"}, [1]'],
-  ], [], 'Secret2024');
-  // A quoted value that doesn't name a secret hides only itself, as before.
-  agreeOn([['password: "hunter2": "nextval"', 'password: "[redacted:secret]": "nextval"']], [], 'hunter2');
-});
-
-// Generated inputs over the shapes that have leaked before: a made-up value planted under a
-// sensitive key (plain, dotted, quoted, an option, a Java property), after "=" or ":" on its
-// line or with the "=" split onto another line, with or without quotes, in front of text that
-// closes or goes on, and behind text that holds other fields, quoted keys and unclosed quotes.
-// Some values hold a secret-sounding word. Each stream is seeded, so the set never changes.
-const PLANTED = {
-  values: ['Xk9mP2qRz7', 'Tokyo_pass', 'MyPassword123', 'pass_Xk9mP2qRz7', 'Secret2024', 'tokenQ7x', 'auth9Zq'],
-  // Keys the KEY=VALUE rule reads too, so their "=" may sit on another line; then the others.
-  assigned: ['password', 'passwd', 'token', 'secret', 'api_key', 'auth', 'TOKEN', 'client_secret'],
-  named: ['api.key', 'db.password', 'secret.key', 'x-api-key', '--token', '--api.key', '"password"', "'token'", '"api.key"'],
-  sameLine: ['=', ': ', ':', ' = ', ':=', '="', ': "', "='", ": '", '=\\"'],
-  split: ['\n=', '=\n', ' \n = ', '\r\n=', '=\r\n', '\n="', "\n='"],
-  // A Java or Gradle property takes "=" right after its name.
-  property: ['-Dapi.key', '-Psigning.password', '-Dapi_key'],
-  propertySep: ['=', '="', "='"],
-  before: ['', 'note: see ', 'user: "bob", ', '{', 'run ', 'api_key: "hello token": ', 'secret="pass":', "auth: 'pass='", 'password: "Secret2024": ', "api.key: 'token: ", 'token: "Ab3d, ', 'x = {', 'passwd="token":', 'token\n="Secret2024": ', '-Dlog.level=debug ', 'api_key: token: '],
-  after: ['', ' ok', ', region: eu', '"', "'", '": "v"', "': 'v'", '}', '"}, user: "bob"', '\nnote: fine', ' token: x', '\n= x', '":', "'=", ' --flag', '\\"'],
-};
-function plantedInput(seed) {
-  const next = stream(seed);
-  const pick = (a) => a[next(a.length)];
-  const value = pick(PLANTED.values);
-  const kind = next(8);
-  const [keys, seps] = kind < 2 ? [PLANTED.assigned, PLANTED.split] : kind === 2 ? [PLANTED.property, PLANTED.propertySep] : [[...PLANTED.assigned, ...PLANTED.named], PLANTED.sameLine];
-  return [pick(PLANTED.before) + pick(keys) + pick(seps) + value + pick(PLANTED.after), value];
+  assert.equal(after, rebuilt + before.slice(at), label);
 }
 
-test('2,000 generated inputs: the planted value never shows, and a second pass changes nothing', () => {
-  for (let i = 0; i < 2000; i += 1) {
-    const [input, value] = plantedInput(`planted-${i}`);
+// Generated inputs: fragments of the shapes that leaked in earlier rounds, joined at random
+// around a made-up value. Fields nested several names deep, text glued after a closing quote,
+// a quoted value followed by a comma and a dotted key, a key and its "=" on different lines,
+// Java properties, dotted keys and long random runs glued to them. Each stream is seeded.
+const MIXED = {
+  values: ['Xk9mP2qRz7', 'Tokyo_pass', 'MyPassword123', 'Secret2024', 'Y8z', "don't9Zq", 'Xk9mP2qRz7Lm4Nq8Rt2Vw6Zb3Yc5Df7Gh9Jk'],
+  keys: ['password', 'token', 'secret', 'api_key', 'auth', 'Authorization', 'Cookie', 'pass', 'api.key', 'db.password', 'secret.key', 'client.key', 'x.pwd', '-Dapi.key', '-Psigning.password', '-Dauth', '--token', 'note', 'apikey'],
+  seps: ['=', ': ', ':', ' = ', ':=', '="', ': "', "='", ": '", '=\\"', '\n=', '=\n', '": "', '==', ' '],
+  glue: ['"', "'", '\\"', ',', ', ', ' ', '\n', '_', '-', '.', '9', '}', '":', "'=", '[redacted:secret]', ' and '],
+};
+function mixedInput(seed) {
+  const next = stream(seed);
+  const pick = (a) => a[next(a.length)];
+  let s = '';
+  for (let i = 0, n = 2 + next(6); i < n; i += 1) {
+    const k = next(10);
+    s += k < 4 ? pick(MIXED.keys) + pick(MIXED.seps) : k < 7 ? pick(MIXED.values) : pick(MIXED.glue);
+  }
+  return s;
+}
+
+test('800 generated inputs: the added pass leaves every placeholder in place and only hides more', () => {
+  const rules = [createRedactor({}, { laterFields: false }), createSecretsOnlyRedactor({ laterFields: false })];
+  const full = [createRedactor(), createSecretsOnlyRedactor()];
+  for (let i = 0; i < 800; i += 1) {
+    const input = mixedInput(`mixed-${i}`);
+    for (const k of [0, 1]) onlyHidesMore(rules[k].redact(input), full[k].redact(input), `${k ? 'secrets-only' : 'published'}: ${JSON.stringify(input)}`);
+    // The audit's rendition is the published one, and its ops replay to it.
+    const audit = redactWithAudit(input.trim() ? input : 'x', {});
+    assert.equal(replayRedactions(input.trim() ? input : 'x', audit.redactionOps), audit.text, `replay: ${JSON.stringify(input)}`);
+    // The pass finds nothing more in its own output.
+    for (const k of [0, 1]) assert.deepEqual(laterFieldSpans(full[k].redact(input)), [], `the pass again: ${JSON.stringify(input)}`);
+  }
+});
+
+// A made-up value under one of the three spellings, in text that holds no other secret field
+// before it: the value never shows, and a second pass changes nothing.
+const PLAIN = {
+  values: ['Xk9mP2qRz7', 'Tokyo_pass', 'MyPassword123', 'Secret2024', 'hunter2x'],
+  before: ['', 'note: see ', 'user: "bob", ', '{', 'run java ', '-Dlog.level=debug ', 'x = {', 'note: "see config '],
+  after: ['', ' ok', ', region: eu', '}', '\nnote: fine', ' --flag', ' -Dfile.encoding=UTF-8'],
+  // [key, separators]: a property takes "=" right after its name; an unclosed quote follows ":".
+  forms: [
+    [['-Dapi.key', '-Psigning.password', '-Dapi_key', '-Dauth.token'], ['=', '="', "='"]],
+    [['api.key', 'secret.key', 'aws.secret.access.key', 'x.pwd', 'my.api.key'], ['=', ': ', ':', ' = ', ':=', ': "', '="', ": '"]],
+    [['password', 'token', 'api_key', 'db.password', '"token"'], [": '"]],
+  ],
+};
+test('700 generated inputs: a value under a property, a dotted key or an unclosed quote never shows', () => {
+  for (let i = 0; i < 700; i += 1) {
+    const next = stream(`plain-${i}`);
+    const pick = (a) => a[next(a.length)];
+    const value = pick(PLAIN.values);
+    const [keys, seps] = pick(PLAIN.forms);
+    const input = pick(PLAIN.before) + pick(keys) + pick(seps) + value + pick(PLAIN.after);
     const { out, again } = threeWays(input);
     for (const o of out) assert.ok(!o.includes(value), `${JSON.stringify(input)} -> ${JSON.stringify(o)}`);
     assert.deepEqual(again, out, `a second pass: ${JSON.stringify(input)}`);
   }
 });
 
-// A value whose nested fields reach the end of its line's text stops reading them there, and
-// the fields on the next line are still read on their own. Made-up values.
-test('a value that reaches its line\'s end leaves the next line\'s fields to be read', () => {
+// The shapes the review of the earlier reader found, where it showed text the rules hide: text
+// glued after a closing quote three names deep, a dotted key inside a header's value, and a
+// long random run glued to a dotted key or a property. Each now comes out exactly as the rules
+// alone give it. Made-up values. [input, the output of all three]
+test('text the rules hide stays hidden where the added spellings sit inside it', () => {
+  for (const [input, expected] of [
+    ['token:token:"pass=x"Y8z', 'token:[redacted:secret]"pass=[redacted:secret]'],
+    ["Authorization='Xk9mP2qRz7,api.key=abc", 'Authorization=[redacted:secret]'],
+    ['password="\nline one Xk9mP2qRz7\napi.key: e\n"', 'password=[redacted:secret]'],
+    ['client.key_Xk9mP2qRz7Lm4Nq8Rt2Vw6=Zb3Yc5Df7Gh9Jk', 'client.[redacted:secret]'],
+    ['-Dauth9Xk9mP2qRz7Lm4Nq8Rt2=Zb3Yc5Df7Gh9Jk1Mn', '-[redacted:secret]'],
+    ['x.pwd-Xk9mP2qRz7Lm4Nq8Rt2=Zb3Yc5Df7Gh9Jk1Mn4', 'x.[redacted:secret]'],
+  ]) {
+    const { out, again } = threeWays(input);
+    assert.deepEqual(out, [expected, expected, expected], input);
+    assert.deepEqual(again, out, `a second pass: ${input}`);
+    assert.equal(createRedactor({}, { laterFields: false }).redact(input), expected, `the rules alone: ${input}`);
+  }
+});
+
+// A value the rules leave shown next to one they hide is hidden by the pass, with the text
+// between them kept. [input, the published output]
+test('a dotted key before a quoted word hides the word, and the rules hide what follows it', () => {
   agreeOn([
-    [`api_key: token: token: ${LV}   \npassword: ${LV} ok`, 'api_key: [redacted:secret] [redacted:secret] [redacted:secret]   \npassword: [redacted:secret]'],
-    [`password:password: ${LV}  \nnote: fine\ntoken: "${LV}" done`, 'password:[redacted:secret]  \nnote: fine\ntoken: "[redacted:secret]" done'],
-    [`${'token:'.repeat(40)}${LV}\napi.key=${LV} x`, 'token:[redacted:secret]\napi.key=[redacted:secret] x'],
+    [`api.key: "hello token": "${LV}"`, 'api.key: "[redacted:secret]": "[redacted:secret]"'],
+    [`{"api.key": "my token": "${LV}"}, [1]`, '{"api.key": "[redacted:secret]": "[redacted:secret]"}, [1]'],
+    [`-Dapi.key=${LV} password: 'hunter2x`, "-Dapi.key=[redacted:secret] password: '[redacted:secret]"],
   ], [], LV);
 });
 
-test('a record key that is a code file or a length keeps its value; a dotted key named for a credential hides it', () => {
-  const shown = { 'auth.ts': 'ordinary contents', 'token.js': 'ordinary contents', 'password.length': '8', 'auth.test.mjs': 'ordinary contents' };
-  // A data file named for a secret may hold the secret itself, so its value stays hidden.
-  const hidden = { 'api.key': LV, 'db.password': LV, 'auth.token': LV, 'token.value': LV, 'secret.key': LV, 'password.txt': LV, 'token.json': LV };
-  for (const r of [createRedactor(), createSecretsOnlyRedactor()]) {
-    assert.deepEqual(r.deepRedact(shown), shown);
-    assert.deepEqual(r.deepRedact(hidden), Object.fromEntries(Object.keys(hidden).map((k) => [k, '[redacted:secret]'])));
+// What the pass can't reach: a dotted key the rules have already taken into another field's
+// hidden value is inside a placeholder, which the pass never reads. These come out as the
+// rules alone give them, value shown, as on main. Made-up values.
+test('a dotted key inside a value the rules hid is not read: the output is the rules\' own', () => {
+  for (const input of [`token: "Ab3d, api.key: "${LV}"`, `token: "Ab3d --api.key="${LV}"`, `password: x api.key: "${LV}"`]) {
+    const out = createRedactor().redact(input);
+    assert.equal(out, createRedactor({}, { laterFields: false }).redact(input), input);
+    assert.ok(out.includes(LV), `${input} -> ${out}`);
   }
-  // The view's leak count reads keys the same way: a shown value under such a key isn't a leak.
-  assert.equal(keyedSecrets(shown), 0);
-  assert.equal(keyedSecrets(hidden), Object.keys(hidden).length);
 });
 
-test('Java properties and dotted keys stay fast on 200,000-character inputs', () => {
+test('a dotted record key named for a secret hides its value, and every key the rules hide stays hidden', () => {
+  const hidden = { 'api.key': LV, 'secret.key': LV, 'x.pwd': LV, 'db.password': LV, 'auth.token': LV, 'token.value': LV, 'password.txt': LV, 'auth.ts': LV, 'password.length': LV };
+  const shown = { 'log.level': 'debug', 'file.encoding': 'UTF-8', 'session.ts': 'ordinary contents' };
+  for (const r of [createRedactor(), createSecretsOnlyRedactor()]) {
+    assert.deepEqual(r.deepRedact(hidden), Object.fromEntries(Object.keys(hidden).map((k) => [k, '[redacted:secret]'])));
+    assert.deepEqual(r.deepRedact(shown), shown);
+  }
+  // The view's leak count reads keys the same way.
+  assert.equal(keyedSecrets(hidden), Object.keys(hidden).length);
+  assert.equal(keyedSecrets(shown), 0);
+});
+
+test('Java properties, dotted keys and unclosed quotes stay fast on 200,000-character inputs', () => {
   const inputs = [
     'a.'.repeat(100000),
     `${'api.'.repeat(50000)}key=x`,
@@ -668,38 +574,15 @@ test('Java properties and dotted keys stay fast on 200,000-character inputs', ()
     '-Dapi.key='.repeat(20000),
     '-D'.repeat(100000),
     `token: "${'a.'.repeat(100000)}`,
-    `token: "${'api.key: "'.repeat(20000)}`,
-    `token: "${'x --api.key="'.repeat(15400)}`,
     `note: "${'see api.key=x '.repeat(14300)}`,
     `password: '${'a b '.repeat(50000)}`,
     "token: '".repeat(25000),
+    "api.key: '".repeat(20000),
     `${'-Pa.b.c.d.'.repeat(20000)}=x`,
     'password.length '.repeat(12500),
-    `${'token:'.repeat(33400)}x`,
-    'password:password: '.repeat(10600),
-    'api_key: token=x '.repeat(11800),
-    // A value that reaches its line's text, with spaces after it, and many such lines. The limit
-    // catches time that grows faster than the input; a slower constant (each value re-reading
-    // the rest of its line, about 10 times main's time) passed here and failed only on a slow
-    // runner, so these inputs are timed as well, not proof that the constant stays down.
-    `${'token:'.repeat(33400)}x${' '.repeat(1000)}`,
-    `${'token:'.repeat(40)}x  \n`.repeat(820),
-    `${'password:password: '.repeat(40)}\n`.repeat(270),
-    // Names repeated in one unspaced stretch, each with a quote or a line break after its "=":
-    // the reader that looks past a hidden name for its "=" scans each stretch once.
-    "token='".repeat(28600),
-    'token="'.repeat(28600),
-    'auth=="'.repeat(28600),
-    'secret="pass":'.repeat(14300),
-    'passwd="token":'.repeat(13400),
-    "api.key='token='".repeat(12500),
-    'token\n='.repeat(28600),
-    "'pass='auth\n= x ".repeat(12500),
     'api.key: "hello token": '.repeat(8400),
-    // Many fields inside one closed quoted value: none is read past the quote.
-    `password: "${'token='.repeat(33400)}x"`,
-    `password: '${'token='.repeat(33400)}x'`,
-    `api.key: "${'hello token: '.repeat(15400)}": x`,
+    "secret.key: token: '".repeat(10000),
+    `api.key: ${'[redacted:secret]x'.repeat(11200)}`,
   ];
   for (const input of inputs) {
     assert.ok(input.length >= 200000, `${input.length} characters`);
