@@ -229,3 +229,29 @@ test("secret-shaped fields use the redactor's own list of sensitive names", () =
   for (const s of ['MYSQL_PWD=Xk9fQ2mL7pR4sT8vB3', 'LICENSE_KEY=Xk9fQ2mL7pR4sT8vB3', 'GPG_KEY: Xk9fQ2mL7pR4sT8vB3']) assert.equal(secretShapes(s).field, 1, s);
   assert.deepEqual(secretShapes('name=Xk9fQ2mL7pR4sT8vB3'), {});
 });
+
+test('risky commands: wrappers with their own options, lower-case config keys and rm read word by word', () => {
+  const kinds = (c) => riskyKinds(c, false).map((k) => k.kind);
+  assert.deepEqual(kinds('sudo -u me git push -f'), ['force-push']);
+  assert.deepEqual(kinds('env X=1 git push -f'), ['force-push']);
+  assert.deepEqual(kinds('GIT_TRACE=1 git push --force origin main'), ['force-push']);
+  assert.deepEqual(kinds('xargs -n 1 git push -f'), ['force-push']);
+  assert.deepEqual(kinds('git -c core.hookspath=/dev/null commit -m x'), ['skip-checks']);
+  assert.deepEqual(kinds('git config core.HOOKSPATH /dev/null'), ['skip-checks']);
+  assert.deepEqual(kinds('rm dist -rf'), ['recursive-delete']);
+  assert.deepEqual(kinds('rm --recursive --force build'), ['recursive-delete']);
+  assert.deepEqual(kinds('/bin/rm -R -f build'), ['recursive-delete']);
+  // Partners that must stay quiet.
+  assert.deepEqual(kinds('rm -r build'), []);
+  assert.deepEqual(kinds('rm -f a.txt'), []);
+  assert.deepEqual(kinds('rm -- -rf'), [], 'after a bare -- it is a file name');
+  assert.deepEqual(kinds('sudo -u me git push'), []);
+  assert.deepEqual(kinds('env X=1 git commit -m x'), []);
+});
+
+test('risky commands: a long run of rm flags reads in one pass', () => {
+  const t = Date.now();
+  assert.deepEqual(riskyKinds(`rm ${'-r '.repeat(50_000)}x`, false), []);
+  assert.deepEqual(riskyKinds(`sudo ${'-u me '.repeat(20_000)}git push`, false), []);
+  assert.ok(Date.now() - t < 1000, `took ${Date.now() - t} ms`);
+});
