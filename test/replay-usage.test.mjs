@@ -152,8 +152,8 @@ before(() => {
     tc(at(1661), 6000, { input_tokens: 0, cached_input_tokens: 0, output_tokens: 0, total_tokens: 6000 }),
     tc(at(1662), 777, { input_tokens: 700, cached_input_tokens: 0, output_tokens: 77, total_tokens: 777 }),
   ]);
-  // X9, a sub-agent of X2 whose file was written in one burst: every record carries the same
-  // time, so time can't separate its copy of X2's call from its own two calls.
+  // X9, a sub-agent of X2 whose records all carry one time (its start), so time can't separate
+  // its copy of X2's call from its own two calls.
   rollout(X9, '12-20-00', [
     spawned(at(1670), X9, X2),
     tc(at(1670), 5000, { input_tokens: 4000, cached_input_tokens: 0, output_tokens: 1000, total_tokens: 5000 }),
@@ -304,7 +304,7 @@ test("usage: a Codex total that starts again still counts each call; a sub-agent
   assert.deepEqual(of(X4), [[40, 0, 0, 10]], "a grandchild's copy of its parent's call counts in the parent");
   assert.deepEqual([...of(X5), ...of(X6)].sort(), [[2500, 0, 0, 500], [30, 0, 0, 1], [31, 0, 0, 1]], 'siblings whose parent is not read count their shared copy once');
   assert.deepEqual([of(X7), of(X8)], [[[700, 0, 0, 77]], [[700, 0, 0, 77]]], 'unrelated sessions with the same counts both count; a record with no input and no output is no call');
-  assert.deepEqual(of(X9), [[350, 0, 0, 50], [280, 0, 0, 20]], 'in a file written in one burst, own calls count and a copy its parent holds does not');
+  assert.deepEqual(of(X9), [[350, 0, 0, 50], [280, 0, 0, 20]], 'in a file whose records carry one time, own calls count and a copy its parent holds does not');
   const x3 = cxCalls.find((c) => c.source === sourceOf(X3));
   assert.equal(x3.session, cxCalls.find((c) => c.source === sourceOf(X2)).session, "a spawned sub-agent's calls belong to its parent's session");
   assert.equal(x3.agent, sourceOf(X3));
