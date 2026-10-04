@@ -74,8 +74,8 @@
           "status": "runs"
         },
         "codex": {
-          "status": "partial",
-          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs. Codex logs no hook runs, and a shell read after the edit keeps a finding a guess"
+          "status": "not yet",
+          "why": "Works on older Codex logs. In current Codex logs edits sit inside exec programs, which aren't read yet, so the done-claim half can't run. The landed-without-tests half runs, but sees a test run only when its command is readable. Codex also logs no hook runs"
         }
       },
       "mitigation": [
@@ -412,7 +412,7 @@
         },
         "codex": {
           "status": "partial",
-          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs, results and exit codes included. Codex logs no hook runs, so fewer findings are worked out"
+          "why": "Works on older Codex logs and where a test command is readable today. In current Codex logs most results and exit codes sit inside exec programs, which aren't read yet, and Codex logs no hook runs, so fewer findings are worked out"
         }
       },
       "mitigation": [
@@ -559,8 +559,8 @@
           "status": "runs"
         },
         "codex": {
-          "status": "partial",
-          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs: edits made inside them"
+          "status": "not yet",
+          "why": "Works on older Codex logs. In current Codex logs edits sit inside exec programs, which aren't read yet, so only the test-command half runs, and only on readable commands"
         }
       },
       "mitigation": [
@@ -1840,7 +1840,7 @@
         },
         "codex": {
           "status": "partial",
-          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs. An edit undone and redone is read from Claude Code's edits only"
+          "why": "Works on older Codex logs and on the commands readable today. Most commands in current Codex logs sit inside exec programs, which aren't read yet. An edit undone and redone is read from Claude Code's edits only"
         }
       },
       "mitigation": [
@@ -1963,7 +1963,7 @@
         },
         "codex": {
           "status": "partial",
-          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs: their error results"
+          "why": "Works on older Codex logs. In current Codex logs most error results sit inside exec programs, which aren't read yet"
         }
       },
       "mitigation": [
@@ -2075,7 +2075,7 @@
         },
         "codex": {
           "status": "partial",
-          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs: the commands inside them"
+          "why": "Works on older Codex logs and on the commands readable today. Most commands in current Codex logs sit inside exec programs, which aren't read yet"
         }
       },
       "mitigation": [
@@ -2755,8 +2755,8 @@
           "status": "runs"
         },
         "codex": {
-          "status": "partial",
-          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs: edits made inside them"
+          "status": "not yet",
+          "why": "Works on older Codex logs. In current Codex logs edits sit inside exec programs, which aren't read yet"
         }
       },
       "mitigation": [
@@ -3758,7 +3758,7 @@
         },
         "codex": {
           "status": "partial",
-          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs: the commands inside them"
+          "why": "Works on older Codex logs and on the commands readable today. Most commands in current Codex logs sit inside exec programs, which aren't read yet"
         }
       },
       "mitigation": [
@@ -3959,7 +3959,7 @@
         },
         "codex": {
           "status": "partial",
-          "why": "Rests on reading Codex exec programs, which is new and not yet measured on real logs: the commands inside them"
+          "why": "Works on older Codex logs and on the commands readable today. Most commands in current Codex logs sit inside exec programs, which aren't read yet"
         }
       },
       "mitigation": [
