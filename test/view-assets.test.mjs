@@ -402,3 +402,78 @@ test("a share rounds down on every page, and an estimate past the window's total
   const start = problems.match(/function startCard\(p\) \{[^]*?\n  \}/)[0];
   assert.match(start, /p\.tokens\.tokens > D\.coverage\.tokens\.value \? `, \$\{OVER\}` : `, \$\{pct\(/, '"Start with these"');
 });
+
+// ---- before the first release: focus, wording that never over-claims, and the leak counter ----
+test('closing the record panel never drops focus to the page: with no step or opener left, the nearest thing drawn', () => {
+  const common = readFileSync(join(ASSETS, 'common.js'), 'utf8');
+  const closeTarget = runInNewContext(`(${common.match(/const closeTarget = (\(back, byId, onPage, nearby\) => \{[^]*?\n  \});/)[1]})`);
+  const marks = { a: { mark: 'a' }, c: { mark: 'c' } };
+  const byId = (k) => marks[k] ?? null;
+  const opener = { mark: 'opener' };
+  const near = { mark: 'nearest' };
+  const nearby = () => near;
+  // After Next step: the step last shown, when it's drawn.
+  assert.equal(closeTarget({ el: opener, id: 'c', preferId: true }, byId, () => true, nearby), marks.c);
+  // Not drawn (a hidden kind), but the opener is still on the page.
+  assert.equal(closeTarget({ el: opener, id: 'hidden', preferId: true }, byId, () => true, nearby), opener);
+  // Opened from a mark, chart redrawn: the same step's new mark.
+  assert.equal(closeTarget({ el: opener, id: 'a' }, byId, () => false, nearby), marks.a);
+  // The case that dropped focus: the last step shown isn't drawn and the opener was redrawn away.
+  assert.equal(closeTarget({ el: opener, id: 'hidden', preferId: true }, byId, () => false, nearby), near);
+  assert.equal(closeTarget({ el: null, id: null }, byId, () => false, nearby), near);
+  assert.equal(closeTarget(null, byId, () => false, () => null), null);
+  // The panel uses it, and the fallback is the drawn step closest in time, then the chart, then the heading.
+  assert.match(common, /const target = closeTarget\(back, byId, \(el\) => document\.contains\(el\), nearbyStep\);\s+if \(target && target !== document\.body\) target\.focus\(\);/);
+  const nearbyStep = common.match(/function nearbyStep\(id\) \{[^]*?\n  \}/)[0];
+  assert.match(nearbyStep, /#chart \.mark\[data-id\]/);
+  assert.match(nearbyStep, /#chart \[tabindex="0"\]/);
+  assert.match(nearbyStep, /h\.setAttribute\('tabindex', '-1'\)/);
+});
+
+test('"Show routine notes" inside a row keeps focus on its button after the row is redrawn', () => {
+  const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
+  const block = problems.match(/if \(ev\.target\.closest\('\[data-routine\]'\)\) \{[^]*?return;\n      \}/)[0];
+  assert.match(block, /const row = ev\.target\.closest\('details\.pcard'\)\?\.id;/, 'the row is read before the redraw');
+  assert.ok(block.indexOf('dispatchEvent') < block.indexOf("querySelector('[data-routine]')?.focus()"), 'and focus moves to the new button after it');
+  // The count beside the switch is of notes found, which can be more than the open rows show.
+  assert.match(problems, /Show routine notes \(\$\{full\(routine\)\} found\)/);
+});
+
+test('the Find cards: a capped list never says "all", and "Worth a look" lists only patterns with a finding worth a look', () => {
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  assert.doesNotMatch(search, /See all \$\{recent\.length\}/, 'the server caps the recent list, so "all" could be untrue');
+  assert.match(search, /`See the \$\{recent\.length\} most recent`/);
+  assert.match(readFileSync(join(HERE, '..', 'lib', 'view', 'data.mjs'), 'utf8'), /\.slice\(0, 12\)\s+\.map\(\(s\) => \(\{ \.\.\.sessionRow/, 'the cap this wording answers');
+  assert.match(search, /const top = live\.filter\(\(p\) => Number\(p\.look\) > 0\)\.sort\(cmp\)\.slice\(0, 3\);/);
+  assert.match(search, /The checks found only routine notes in this window, nothing worth a look\./);
+  // "My priority" set in another tab reaches this card and the header's count.
+  assert.match(search, /prefs\.onChange\(fillLook\);/);
+  assert.match(readFileSync(join(ASSETS, 'common.js'), 'utf8'), /navPrefs\.onChange\(\(\) => navPatterns && navCount\(navPatterns\)\);/);
+});
+
+test('with no session to check, the Problems page and the Find card say nothing was checked', () => {
+  const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
+  assert.match(problems, /const nothing = Number\(num\(cov\.sessions\)\) === 0 && n === 0;/);
+  assert.match(problems, /so there was nothing to check against the \$\{D\.patterns\.length\} known problems/);
+  assert.match(problems, /unchecked: \{ icon: '○', word: 'Not checked' \}/);
+  assert.match(problems, /\(p\.measures \?\? \[\]\)\.length \? 'not checked' : 'no check here yet'/, 'a pattern whose check did not run is not "no check here yet"');
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  assert.match(search, /const nothing = Number\(num\(a\.coverage\?\.sessions\)\) === 0 && !found\.length;/);
+  assert.match(search, /No session in this window to check, so this says nothing about problems\./);
+});
+
+test("the leak counter: a cut mark with a closing quote glued to it is the page's own mark; a secret in that spot still counts", () => {
+  const leaks = createLeakCounter({});
+  const total = (s) => [leaks.redacted(s).total, leaks.secrets(s).total];
+  for (const s of ['add a --token-file …', 'add a --token-file …"', '"add a --token-file …"', 'add a --token-file ..."', 'password=…")', 'add a --token-file …" ']) assert.deepEqual(total(s), [0, 0], s);
+  // Failing partners: a value glued to the mark on either side, or after it, is still a leak.
+  for (const s of ['add a --token-file 7Qx2mK9pLw4ZtR8vN3bY…"', 'add a --token-file …7Qx2mK9pLw4ZtR8vN3bY"', 'password=hunter2hunter2…"', 'token: …" 7Qx2mK9pLw4ZtR8vN3bY', 'password=…" password=hunter2hunter2']) assert.deepEqual(total(s), [1, 1], s);
+});
+
+test('the README names the first page Find, as the page does, and counts four pages', () => {
+  const readme = readFileSync(join(HERE, '..', 'README.md'), 'utf8');
+  assert.doesNotMatch(readme, /\*Search\.\*|three parts: Search/);
+  assert.match(readme, /four parts: Find \(/);
+  assert.match(readme, /- \*Find\.\* Type a pull request/);
+  for (const p of PAGES) assert.match(readFileSync(join(ASSETS, p), 'utf8'), />Find<\/a>/, `${p}: the header calls it Find`);
+});

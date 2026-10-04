@@ -8,7 +8,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runInNewContext } from 'node:vm';
 
+import { createRedactor } from '../lib/redact.mjs';
 import { createViewData, goalKey } from '../lib/view/data.mjs';
 import { createLeakCounter } from '../lib/view/leaks.mjs';
 import { createProblemsRoute, redactAnswer, splitUrl } from '../lib/view/problems-route.mjs';
@@ -168,4 +170,52 @@ test('the checks run as of when the build read the logs, and a failure answers 5
   assert.equal(r.status, 500);
   assert.ok(!r.body.error.includes(word));
   assert.match(r.body.error, /couldn't run/);
+});
+
+test("a catalog source's title and address go out whole, as published; everything from the logs stays redacted", () => {
+  const catalog = JSON.parse(readFileSync(join(HERE, '..', 'lib', 'problems', 'catalog.json'), 'utf8'));
+  const full = createRedactor(w.config).redact;
+  let hidden = 0;
+  for (const p of catalog.patterns) {
+    const sent = whole.patterns.find((x) => x.id === p.id).sources;
+    assert.equal(sent.length, p.sources.length);
+    p.sources.forEach((s, i) => {
+      assert.equal(sent[i].title, s.title, `${p.id}: the title as published`);
+      assert.deepEqual(sent[i].link, splitUrl(s.url), `${p.id}: the address as published, in parts`);
+      assert.equal(sent[i].link.join(''), s.url);
+      // What the redactor would have done to it: the reason for the exception.
+      if (full(s.title) !== s.title || splitUrl(s.url).map(full).join('') !== s.url) hidden += 1;
+    });
+  }
+  assert.ok(hidden > 0, 'the redactor would hide part of at least one published title or address');
+  assert.ok(!JSON.stringify(whole.patterns.map((p) => p.sources.map((s) => [s.title, s.link]))).includes('[redacted:'));
+  // The page's own rule for a link it can open holds for every source.
+  const linkOf = runInNewContext(`(${page('problems.js').match(/const linkOf = (\(parts\) => [^\n]+);/)[1]})`);
+  for (const p of whole.patterns) for (const s of p.sources) assert.ok(linkOf(s.link), `${p.id}: ${s.title} has a working link`);
+  // The exception is the two catalog fields only: the whole answer still counts no leak, and
+  // no private word or secret from the logs shows.
+  assert.equal(leaks.redacted(whole).total, 0);
+  const t = JSON.stringify(whole);
+  for (const word of PRIVATE_WORDS) assert.ok(!t.includes(word), `no "${word}"`);
+  for (const s of Object.values(SECRETS)) assert.ok(!t.includes(s));
+});
+
+test('a private word from the logs is still hidden everywhere else when a catalog source goes out whole', () => {
+  const word = PRIVATE_WORDS[0];
+  const url = 'https://example.com/pdf/ac7c37ae-7f4c-4442-b741-2eabdeaf77e0/report.pdf';
+  const route = createProblemsRoute({
+    run: () => ({
+      window: {}, catalog: {}, groups: [], priorityRule: null, statusCounts: {}, coverage: {}, rules: {}, checks: [],
+      patterns: [{ id: 'made-up', name: `About ${word}`, group: 'g', sources: [{ title: `A report that cost $51 and names ${word}`, url, date: '2025-01-01', kind: 'docs', says: `It says ${word}.` }], detection: { level: 'derived', summary: '', signals: [], falsePositives: [] }, mitigation: [], related: [], findings: [{ pattern: 'made-up', check: 'c', severity: 'look', verdictEvidence: 'derived', note: `seen near ${word}` }] }],
+    }),
+  });
+  const redact = (s) => String(s).split(word).join('[redacted:term]').replace(/\$\d+/g, '[redacted:account]').replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, '[redacted:secret]');
+  const ctx = { mode: 'redacted', redact, b: {}, sessionByKey: new Map() };
+  const r = route(ctx, new URLSearchParams(), { redactedH: { rules: {} }, builtT: 1, goalsOf: () => [], membersOfGoal: () => null, evidenceKey: {}, idOk: () => true });
+  const p = r.patterns[0];
+  assert.equal(p.sources[0].title, `A report that cost $51 and names ${word}`, 'the published title, whole');
+  assert.equal(p.sources[0].link.join(''), url);
+  assert.equal(p.sources[0].says, 'It says [redacted:term].', "the catalog's other text still passes the redactor");
+  assert.equal(p.name, 'About [redacted:term]');
+  assert.equal(p.findings[0].note, 'seen near [redacted:term]', 'and so does everything from a log');
 });
