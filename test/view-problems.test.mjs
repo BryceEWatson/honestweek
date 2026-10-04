@@ -355,8 +355,8 @@ test('every fix says where it goes in Codex, and no Codex form names a Claude-on
 });
 
 test('a private word that is a coverage status leaves the status whole, and the reason is still redacted', async () => {
-  // "exec" is in the Codex reasons, so it shows the reason still goes through the redactor.
-  const config = { ...w.config, redaction: { ...w.config.redaction, terms: [...(w.config.redaction?.terms ?? []), 'runs', 'partial', 'not yet', 'exec'] } };
+  // "measured" is in every partial Codex reason, so it shows the reason still goes through the redactor.
+  const config = { ...w.config, redaction: { ...w.config.redaction, terms: [...(w.config.redaction?.terms ?? []), 'runs', 'partial', 'not yet', 'measured'] } };
   const own = createViewData({ config, roots: w.roots, ...WINDOW, goalRecord: w.goalRecord });
   await own.start();
   const r = await own.route('/api/problems', params());
@@ -367,8 +367,8 @@ test('a private word that is a coverage status leaves the status whole, and the 
     for (const agent of ['claudeCode', 'codex']) assert.equal(p.coverage[agent].status, cat[agent].status, `${p.id}.${agent}: the status the catalog gives`);
   }
   const partial = r.body.patterns.find((p) => p.coverage.codex.status === 'partial');
-  assert.match(catalog.find((x) => x.id === partial.id).coverage.codex.why, /exec/);
-  assert.doesNotMatch(partial.coverage.codex.why, /exec/, 'the reason is redacted');
+  assert.match(catalog.find((x) => x.id === partial.id).coverage.codex.why, /measured/);
+  assert.doesNotMatch(partial.coverage.codex.why, /measured/, 'the reason is redacted');
   assert.match(partial.coverage.codex.why, /\[redacted:/);
   await own.stop?.();
 });

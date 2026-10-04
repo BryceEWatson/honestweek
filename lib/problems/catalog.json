@@ -74,8 +74,7 @@
           "status": "runs"
         },
         "codex": {
-          "status": "not yet",
-          "why": "Works on older Codex logs. In current Codex logs edits sit inside exec programs, which aren't read yet, so the done-claim half can't run. The landed-without-tests half runs, but sees a test run only when its command is readable. Codex also logs no hook runs"
+          "status": "runs"
         }
       },
       "mitigation": [
@@ -411,8 +410,7 @@
           "status": "runs"
         },
         "codex": {
-          "status": "partial",
-          "why": "Works on older Codex logs and where a test command is readable today. In current Codex logs most results and exit codes sit inside exec programs, which aren't read yet, and Codex logs no hook runs, so fewer findings are worked out"
+          "status": "runs"
         }
       },
       "mitigation": [
@@ -559,8 +557,7 @@
           "status": "runs"
         },
         "codex": {
-          "status": "not yet",
-          "why": "Works on older Codex logs. In current Codex logs edits sit inside exec programs, which aren't read yet, so only the test-command half runs, and only on readable commands"
+          "status": "runs"
         }
       },
       "mitigation": [
@@ -1606,8 +1603,7 @@
           "status": "runs"
         },
         "codex": {
-          "status": "not yet",
-          "why": "The check counts Claude Code's file-read tool; Codex reads files through the shell"
+          "status": "runs"
         }
       },
       "mitigation": [
@@ -1620,7 +1616,7 @@
           "action": "Add a code-intelligence plugin for typed languages."
         }
       ],
-      "testPrompt": "Read README.md with the Read tool three times in a row, then tell me its first line.",
+      "testPrompt": "Read README.md three times in a row, then tell me its first line.",
       "related": [
         "unscoped-exploration",
         "post-compaction-amnesia"
@@ -1839,8 +1835,7 @@
           "status": "runs"
         },
         "codex": {
-          "status": "partial",
-          "why": "Works on older Codex logs and on the commands readable today. Most commands in current Codex logs sit inside exec programs, which aren't read yet. An edit undone and redone is read from Claude Code's edits only"
+          "status": "runs"
         }
       },
       "mitigation": [
@@ -1962,8 +1957,7 @@
           "status": "runs"
         },
         "codex": {
-          "status": "partial",
-          "why": "Works on older Codex logs. In current Codex logs most error results sit inside exec programs, which aren't read yet"
+          "status": "runs"
         }
       },
       "mitigation": [
@@ -2074,8 +2068,7 @@
           "status": "runs"
         },
         "codex": {
-          "status": "partial",
-          "why": "Works on older Codex logs and on the commands readable today. Most commands in current Codex logs sit inside exec programs, which aren't read yet"
+          "status": "runs"
         }
       },
       "mitigation": [
@@ -2399,8 +2392,7 @@
           "status": "runs"
         },
         "codex": {
-          "status": "not yet",
-          "why": "The check skips Codex child threads"
+          "status": "runs"
         }
       },
       "mitigation": [
@@ -2755,8 +2747,8 @@
           "status": "runs"
         },
         "codex": {
-          "status": "not yet",
-          "why": "Works on older Codex logs. In current Codex logs edits sit inside exec programs, which aren't read yet"
+          "status": "partial",
+          "why": "The check reads Codex's prompts and edits, but in the week it was measured on no Codex edit after a question-only prompt was in the session's own folder, so it hasn't been seen to fire on real Codex logs"
         }
       },
       "mitigation": [
@@ -3022,8 +3014,8 @@
           "status": "runs"
         },
         "codex": {
-          "status": "not yet",
-          "why": "The check reads Claude Code's plan mode; Codex's isn't read"
+          "status": "partial",
+          "why": "The check reads Codex's plan mode from each turn's recorded settings, but no plan-mode turn appeared in the Codex logs it was measured on, so it hasn't been seen to work on real ones"
         }
       },
       "mitigation": [
@@ -3757,8 +3749,7 @@
           "status": "runs"
         },
         "codex": {
-          "status": "partial",
-          "why": "Works on older Codex logs and on the commands readable today. Most commands in current Codex logs sit inside exec programs, which aren't read yet"
+          "status": "runs"
         }
       },
       "mitigation": [
@@ -3959,7 +3950,7 @@
         },
         "codex": {
           "status": "partial",
-          "why": "Works on older Codex logs and on the commands readable today. Most commands in current Codex logs sit inside exec programs, which aren't read yet"
+          "why": "The check reads Codex commands, but none that skips git hooks appeared in the Codex logs it was measured on, so it hasn't been seen to fire on real ones. About a fifth of commands in current Codex logs sit in programs whose text can't be read as one command"
         }
       },
       "mitigation": [
