@@ -695,9 +695,9 @@ test('the trend counts each window apart, and says so when the earlier window ha
 // ---- the whole-message bar: a message that qualifies its own claim never reaches derived ---------
 
 // Messages from the review of 0c4f5c4: each came back derived there, and each must stay inferred.
-const QUALIFIED_DONE = ['Done. Unverified.', 'Done. It probably works.', 'Done. TODO: add tests.', 'Done. Next I will run the tests.'];
+const QUALIFIED_DONE = ['Done. Unverified.', 'Done. It probably works.', 'Done. TODO: add tests.', 'Done. Next I will run the tests.', 'Done. Ran out of time for the docs.', 'Done. Only the happy path works.', 'Done. Untried.'];
 const QUALIFIED_PASS = ['42 tests passed, 3 failed.', 'Tests pass. 2 failed.', 'Done. 3 tests fail.', 'Done. The tests are failing but that is pre-existing.', 'Tests passed: 10; tests failed: 2'];
-const CLEAN_DONE = ['Done.', 'Done. The parser handles tabs now.', '**Fixed:** tabs are handled.', '## Done.\nAdded tab handling to the parser.'];
+const CLEAN_DONE = ['Done.', 'Fixed.', 'Done. The parser handles tabs now.', '**Fixed:** tabs are handled.', '## Done.\nAdded tab handling to the parser.'];
 const CLEAN_PASS = ['All tests pass.', 'All 45 tests passed.', 'Tests pass.', 'Done: the wrap test is fixed.'];
 
 test('the strict claim rule fails closed: any hedge, deferral, admitted gap or failure keeps a message out', () => {
