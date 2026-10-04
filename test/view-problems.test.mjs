@@ -50,7 +50,7 @@ test('the whole page: forty patterns with the fields the page reads, and the che
   for (const f of allFindings(whole)) {
     for (const k of ['pattern', 'check', 'checkTitle', 'severity', 'verdictEvidence', 'rule', 'session', 'thread', 'event', 'related', 'at', 'note', 'text', 'events', 'estimate', 'goals']) assert.ok(k in f, `finding.${k}`);
     assert.ok(['look', 'note'].includes(f.severity));
-    assert.ok(['recorded', 'derived', 'inferred'].includes(f.verdictEvidence));
+    assert.ok(['recorded', 'derived', 'inferred', 'missing'].includes(f.verdictEvidence), f.verdictEvidence);
   }
   // The seeded secrets are found, counted, and never shown.
   assert.equal(whole.patterns.find((p) => p.id === 'secret-exposure').status, 'found');

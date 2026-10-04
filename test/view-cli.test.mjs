@@ -366,7 +366,7 @@ test('a demo run reads only the made-up week, carries the notice, and deletes it
   assert.deepEqual([words.goals, words.sessions, words.prompts], [[], [], []]);
   const home2 = (await get(r.handle.port, '/api/home', { [KEY_HEADER]: key })).json;
   assert.ok(home2.recent.every((s) => !String(s.title ?? '').includes('zebracrossing')));
-  assert.equal(home2.coverage.sessionsRead.value, 9, 'only the demo week\'s nine sessions');
+  assert.equal(home2.coverage.sessionsRead.value, 20, 'only the demo week\'s twenty sessions');
   // The made-up project name is hidden with the switch off and shown with it on.
   const lookup = (await get(r.handle.port, '/api/lookup?q=%2312', { [KEY_HEADER]: key })).json;
   assert.ok(lookup.sessions.length >= 1);

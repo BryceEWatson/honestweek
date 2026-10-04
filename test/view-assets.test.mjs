@@ -283,6 +283,20 @@ test('assets: the click-through counts policy violations as failures and keeps i
   for (const m of ct.matchAll(/skip\('([\w-]+)'\)/g)) assert.ok(new RegExp(`'${m[1]}':|${m[1].replace(/-/g, '\\-')}:`).test(ct.match(/const SKIPS = \{([^]*?)\n  \};/)[1]) || m[1] === 'page-did-not-load', `skip "${m[1]}" isn't on the named list`);
 });
 
+test('assets: on the demo week the click-through allows only the skips that cannot apply to it', () => {
+  const ct = readFileSync(join(SELFTEST, 'clickthrough.js'), 'utf8');
+  const keys = (name) => [...ct.match(new RegExp(`const ${name} = \\{([^]*?)\\n  \\};`))[1].matchAll(/^\s+'([\w-]+)':/gm)].map((m) => m[1]);
+  const all = keys('SKIPS');
+  const demo = keys('DEMO_SKIPS');
+  // The demo week holds every other case on purpose (docs/demo-week.md), so a skip for one
+  // of them on the demo fails the step.
+  assert.deepEqual(demo, ['built-before-test', 'private-words-set', 'goal-list-set']);
+  for (const id of demo) assert.ok(all.includes(id), `${id} is on the named list`);
+  for (const id of ['no-inferred-author', 'no-script-prompt', 'no-moved-time', 'no-borrowed-time', 'no-crowded-marks', 'no-routine-note', 'no-strip-finding', 'no-problem-found']) assert.ok(all.includes(id) && !demo.includes(id), id);
+  assert.match(ct, /const demoAllows = !env\.demo \|\| !!DEMO_SKIPS\[err\.id\];/);
+  assert.match(ct, /status = named && demoAllows \? 'SKIP' : 'FAIL';/);
+});
+
 // No real data in these files. The named tokens of the clean-room fence are checked over them by
 // test/site-cleanroom.test.mjs, which keeps that list in one place; this checks the shapes.
 test('assets: no real data: names, home folders, addresses or codenames', () => {

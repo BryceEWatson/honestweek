@@ -4,7 +4,7 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, relative } from 'node:path';
@@ -14,6 +14,7 @@ import { RULES } from '../lib/replay/classify.mjs';
 import { assertEventContract } from '../lib/replay/evidence.mjs';
 import { sourceKey } from '../lib/replay/ids.mjs';
 import { claudeSessionKey } from '../lib/replay/sources.mjs';
+import { runProblems } from '../lib/problems/index.mjs';
 import { buildDemoWeek, CODEX_IDS, main as demoMain, ME, SESSION_IDS, WEEK } from '../tools/demo-week.mjs';
 import { main as inspect } from '../tools/replay-inspect.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
@@ -44,8 +45,19 @@ before(async () => {
     site: claudeSessionKey(dirs.site, SESSION_IDS.sitePost),
     lookup: claudeSessionKey(dirs.lantern, SESSION_IDS.goalLookup),
     scratch: claudeSessionKey(dirs.scratch, SESSION_IDS.scratch),
+    breaking: claudeSessionKey(dirs.lantern, SESSION_IDS.breakingQuestion),
+    bare: claudeSessionKey(dirs.lantern, SESSION_IDS.bracketless),
+    markdown: claudeSessionKey(dirs.markdownWorktree, SESSION_IDS.markdownOutput),
+    windows: claudeSessionKey(dirs.lantern, SESSION_IDS.windowsCi),
+    release: claudeSessionKey(dirs.releaseWorktree, SESSION_IDS.releaseScript),
+    unreleased: claudeSessionKey(dirs.lantern, SESSION_IDS.unreleased),
+    width: claudeSessionKey(dirs.lantern, SESSION_IDS.widthCheck),
+    widthCommit: claudeSessionKey(dirs.lantern, SESSION_IDS.widthCommit),
     wide: sourceKey('cx', CODEX_IDS.wideChars),
+    contributing: sourceKey('cx', CODEX_IDS.contributing),
     node18: sourceKey('cx', CODEX_IDS.node18),
+    upload: sourceKey('cx', CODEX_IDS.uploadFix),
+    summary: sourceKey('cx', CODEX_IDS.weekSummary),
   });
   const options = { config: d.config, from: WEEK.from, to: WEEK.to, roots: d.roots };
   h = await buildWorkHistory(options);
@@ -57,16 +69,17 @@ after(() => {
   }
 });
 
-test('eight sessions on five days, two of them Codex, and one more outside the configured repos', () => {
-  assert.equal(h.sessions.length, 8);
-  assert.deepEqual(h.sessions.map((s) => s.tool).sort(), ['claude-code', 'claude-code', 'claude-code', 'claude-code', 'claude-code', 'claude-code', 'codex', 'codex']);
+test('nineteen sessions on six days, five of them Codex, and one more outside the configured repos', () => {
+  assert.equal(h.sessions.length, 19);
+  const tools = h.sessions.map((s) => s.tool);
+  assert.deepEqual([tools.filter((t) => t === 'claude-code').length, tools.filter((t) => t === 'codex').length], [14, 5]);
   assert.equal(h.skipped.outsideConfiguredRepos, 1);
-  assert.equal(all.sessions.length, 9);
-  assert.deepEqual(h.overview().days.map((x) => x.date), ['2025-03-10', '2025-03-11', '2025-03-13', '2025-03-14', '2025-03-15']);
+  assert.equal(all.sessions.length, 20);
+  assert.deepEqual(h.overview().days.map((x) => x.date), ['2025-03-10', '2025-03-11', '2025-03-12', '2025-03-13', '2025-03-14', '2025-03-15']);
   for (const key of Object.values(k)) assert.ok(all.sessions.some((s) => s.key === key), `session ${key} is read`);
 });
 
-test('sessions are hours apart, with one gap of more than a day, and quiet stretches inside sessions', () => {
+test('one person working: no two sessions overlap, Sunday is quiet, and there are quiet stretches inside sessions', () => {
   const spans = all.sessions.map((s) => [Date.parse(s.firstAt), Date.parse(s.lastAt)]).sort((a, b) => a[0] - b[0]);
   const gaps = [];
   let end = spans[0][1];
@@ -74,18 +87,19 @@ test('sessions are hours apart, with one gap of more than a day, and quiet stret
     gaps.push(start - end);
     end = Math.max(end, last);
   }
-  assert.ok(gaps.every((g) => g >= 60 * 60 * 1000), 'no two sessions overlap or run back to back');
-  assert.ok(gaps.some((g) => g > 24 * 60 * 60 * 1000), 'Tuesday to Thursday is quiet');
-  assert.equal(h.overview().totals.quietIntervals.value, 5);
+  assert.ok(gaps.every((g) => g >= 5 * 60 * 1000), 'no two sessions overlap or run back to back');
+  assert.ok(spans.every(([start, last]) => new Date(start).getUTCHours() >= 9 && new Date(last).getUTCHours() < 19), 'every session falls in working hours');
+  assert.equal(h.overview().totals.quietIntervals.value, 10);
 });
 
 test('worktree sessions count for the project, and the resumed session joins the one it continues', () => {
-  for (const key of [k.group, k.resumed, k.json, k.node18]) assert.equal(sessionOf(key).repo, 'lantern');
+  for (const key of [k.group, k.resumed, k.markdown, k.release, k.upload, k.json, k.node18]) assert.equal(sessionOf(key).repo, 'lantern');
   assert.match(d.repo.worktrees.groupByScope.replace(/\\/g, '/'), /\/lantern\/\.claude\/worktrees\/group-by-scope$/);
-  assert.equal(h.threads.length, 7);
+  assert.equal(h.threads.length, 17);
   assert.ok(h.threads.some((t) => t.sessions.includes(k.group) && t.sessions.includes(k.resumed)));
-  const cont = h.links.find((l) => l.type === 'continuation');
-  assert.deepEqual([cont.from, cont.to], [k.resumed, k.group]);
+  const cont = h.links.filter((l) => l.type === 'continuation').map((l) => [l.from, l.to]);
+  assert.deepEqual(cont.sort(), [[k.resumed, k.group], [k.widthCommit, k.width]].sort());
+  assert.ok(h.threads.some((t) => t.sessions.includes(k.width) && t.sessions.includes(k.widthCommit)));
   const resume = of(h, k.resumed, 'prompt')[0];
   assert.equal(resume.facts.text, 'continue from where we stopped on Tuesday');
   assert.ok(resume.inferred.some((x) => x.value === 'resume-request'));
@@ -97,58 +111,71 @@ test('worktree sessions count for the project, and the resumed session joins the
   assert.equal(call.facts.result, 'interrupted');
 });
 
-test('prompts: 2 to 5 typed per session, one queued until the next turn, one absorbed mid-turn', () => {
+test('prompts: 1 to 7 typed per session, one queued until the next turn, one absorbed mid-turn', () => {
   const totals = h.overview().totals;
-  assert.equal(totals.prompts.value, 24);
-  assert.equal(totals.prompts.evidence, 'recorded');
-  assert.equal(all.overview().totals.prompts.value, 26);
+  assert.equal(totals.prompts.value, 50);
+  assert.equal(totals.prompts.evidence, 'inferred', 'three prompts come from a Claude Code that records no origin');
+  assert.equal(all.overview().totals.prompts.value, 52);
   const perSession = Object.fromEntries(all.sessions.map((s) => [s.key, of(all, s.key, 'prompt').length]));
-  assert.deepEqual(perSession, { [k.since]: 4, [k.wide]: 2, [k.group]: 5, [k.resumed]: 4, [k.json]: 3, [k.node18]: 2, [k.site]: 2, [k.lookup]: 2, [k.scratch]: 2 });
-  assert.deepEqual([Math.min(...Object.values(perSession)), Math.max(...Object.values(perSession))], [2, 5]);
+  assert.deepEqual(perSession, {
+    [k.since]: 4, [k.wide]: 2, [k.breaking]: 2, [k.group]: 5, [k.bare]: 3, [k.markdown]: 7, [k.contributing]: 2, [k.resumed]: 4, [k.windows]: 1, [k.release]: 2,
+    [k.json]: 3, [k.node18]: 2, [k.unreleased]: 3, [k.upload]: 2, [k.summary]: 1, [k.site]: 2, [k.lookup]: 2, [k.width]: 2, [k.widthCommit]: 1, [k.scratch]: 2,
+  });
+  assert.deepEqual([Math.min(...Object.values(perSession)), Math.max(...Object.values(perSession))], [1, 7]);
   const queued = of(h, k.since, 'prompt').find((e) => e.facts.queuedAt);
   assert.match(queued.facts.text, /tag name/);
   assert.ok(queued.derived.queuedMs > 0);
   const absorbed = of(h, k.group, 'prompt').find((e) => e.facts.delivery === 'mid-turn');
   assert.match(absorbed.facts.text, /order they first appear/);
-  assert.equal(totals.corrections.value, 1);
-  assert.equal(totals.approvals.value, 1);
+  assert.equal(totals.corrections.value, 3);
+  assert.equal(totals.approvals.value, 2);
+  // Who typed a prompt: recorded, inferred from a missing origin, or a non-interactive run.
+  const authorship = (e) => (e.inferred ?? []).find((x) => x && x.key === 'authorship')?.value ?? null;
+  assert.deepEqual([k.width, k.widthCommit].map((key) => of(h, key, 'prompt').map(authorship)), [['person', 'person'], ['person']]);
+  assert.deepEqual(of(h, k.summary, 'prompt').map((e) => [e.actor, authorship(e)]), [['person-or-script', 'person-or-script']]);
+  assert.ok(h.events.filter((e) => e.kind === 'prompt' && ![k.width, k.widthCommit, k.summary].includes(e.session)).every((e) => authorship(e) === null));
 });
 
-test('five sub-agents: three Explore, one general-purpose reviewer, one Codex child thread, each tied to its starting call', () => {
+test('seven sub-agents: four Explore, two general-purpose, one Codex child thread, each tied to its starting call', () => {
   const subs = h.agents.filter((a) => a.kind !== 'main');
-  assert.equal(subs.length, 5);
-  assert.deepEqual(subs.map((a) => a.type ?? a.kind).sort(), ['Explore', 'Explore', 'Explore', 'child-thread', 'general-purpose']);
+  assert.equal(subs.length, 7);
+  assert.deepEqual(subs.map((a) => a.type ?? a.kind).sort(), ['Explore', 'Explore', 'Explore', 'Explore', 'child-thread', 'general-purpose', 'general-purpose']);
   for (const a of subs) {
     assert.ok(a.spawnedBy, `${a.key} has a recorded starting call`);
-    assert.deepEqual(a.missing, []);
+    assert.deepEqual(a.missing, a.session === k.release ? ['completion-notice'] : [], a.key);
     assert.equal(h.events.filter((e) => e.agent === a.key && e.kind === 'delegation-received').length, 1, 'started with instructions');
   }
   for (const a of subs.filter((x) => x.kind === 'subagent')) assert.ok(a.description);
   // The two Explore agents on Monday ran at the same time.
   const [p, q] = subs.filter((a) => a.session === k.since);
   assert.ok(Date.parse(p.spawnAt) < Date.parse(q.completion.at) && Date.parse(q.spawnAt) < Date.parse(p.completion.at));
-  const reviewer = subs.find((a) => a.type === 'general-purpose');
+  const reviewer = subs.find((a) => a.type === 'general-purpose' && a.session === k.group);
   assert.equal(reviewer.completion.via, 'notification');
   assert.equal(h.overview().totals.reviews.value, 1);
+  // Friday's Explore agent stamped its first line before the call that started it, and the
+  // engine moved that line to the call's time.
+  const moved = h.events.filter((e) => e.clock);
+  assert.deepEqual(moved.map((e) => [e.session, e.kind, e.clock.rule]), [[k.unreleased, 'delegation-received', 'agent-after-spawn']]);
+  assert.equal(moved[0].clock.raisedTo - moved[0].clock.recordedT, 45);
 });
 
 test('tool calls: reads, searches, edits with patches, shell, delegation, and the git and gh commands', () => {
   const acts = h.events.filter((e) => e.kind === 'action');
-  assert.equal(acts.length, 112);
-  assert.equal(all.overview().totals.actions.value, 115);
+  assert.equal(acts.length, 258);
+  assert.equal(all.overview().totals.actions.value, 261);
   for (const cat of ['read', 'search', 'edit', 'shell', 'delegate', 'handoff', 'wait']) assert.ok(acts.some((e) => e.facts.category === cat), `a ${cat} call`);
   const cmds = acts.map((e) => e.facts.command ?? '');
-  for (const re of [/^git add -A && git commit -m /, /^gh pr create /, /^gh pr view /, /^gh pr merge \d+ --squash$/, /^git push/]) assert.ok(cmds.some((c) => re.test(c)), String(re));
+  for (const re of [/^git add -A && git commit -m /, /^gh pr create /, /^gh pr view /, /^gh pr merge \d+ --squash$/, /^git push/, /^git reset --hard /, /^rm -rf /]) assert.ok(cmds.some((c) => re.test(c)), String(re));
   const patched = acts.filter((e) => e.derived.patch && e.derived.patch.added > 0);
   assert.ok(patched.some((e) => e.source.startsWith('cc-')) && patched.some((e) => e.source.startsWith('cx-')), 'Claude Code edits and Codex patches both carry line counts');
-  assert.equal(h.overview().totals.edits.value, 29);
+  assert.equal(h.overview().totals.edits.value, 58);
 });
 
 test('test runs: some pass, some fail, and the run cut off by the session ending is not counted', () => {
   const t = h.overview().totals;
-  assert.deepEqual([t.testRuns.value, t.testRunsAllPassed.value, t.testRunsWithFailures.value, t.testRunsUnclear.value, t.testRunsWithoutSummary.value], [13, 10, 3, 0, 0]);
+  assert.deepEqual([t.testRuns.value, t.testRunsAllPassed.value, t.testRunsWithFailures.value, t.testRunsUnclear.value, t.testRunsWithoutSummary.value], [28, 21, 7, 0, 0]);
   const failed = h.events.filter((e) => e.kind === 'action' && e.derived.tests?.fail > 0);
-  assert.deepEqual(failed.map((e) => e.session).sort(), [k.since, k.wide, k.node18].sort());
+  assert.deepEqual([...new Set(failed.map((e) => e.session))].sort(), [k.since, k.wide, k.bare, k.markdown, k.node18].sort());
 });
 
 test('an interruption by the person, a hook refusal, and a call that never got a result', () => {
@@ -174,23 +201,26 @@ test('a task suggestion started a new session (an inferred hand-off)', () => {
   assert.equal(sessionOf(k.json).startedFrom, handoff.from);
 });
 
-test('pull requests: four opened, three squash-merged into main by you, each Claude Code one linked by the harness', () => {
+test('pull requests: five opened, three squash-merged into main by you, each Claude Code one linked by the harness', () => {
   const landed = h.events.filter((e) => e.kind === 'outcome' && e.facts.outcome === 'pr-landed');
   assert.deepEqual(landed.map((e) => e.facts.pr), [12, 13, 14]);
   assert.ok(landed.every((e) => /\(#\d+\)$/.test(e.facts.subject) && e.facts.numberFrom === 'commit-subject'));
   assert.equal(landed.find((e) => e.facts.pr === 13).session, k.wide, 'the Codex pull request is read from what gh printed');
   assert.ok(landed.find((e) => e.facts.pr === 13).inferred.some((x) => x.rule === 'shell.gh-pr-output'));
-  assert.ok(h.gitNotes.some((n) => n.kind === 'pr-not-landed-by-configured-identity' && n.pr === 15));
-  assert.deepEqual(h.events.filter((e) => e.kind === 'link').map((e) => e.facts.pr), [12, 14, 15]);
+  assert.deepEqual(h.gitNotes.filter((n) => n.kind === 'pr-not-landed-by-configured-identity').map((n) => n.pr).sort(), [15, 16]);
+  assert.deepEqual(h.events.filter((e) => e.kind === 'link').map((e) => e.facts.pr), [12, 14, 15, 16]);
   const t = h.overview().totals;
   assert.equal(t.prsLanded.value, 3);
-  assert.equal(t.commitsByConfiguredIdentity.value, 8);
+  assert.equal(t.commitsByConfiguredIdentity.value, 17);
   const commits = h.events.filter((e) => e.kind === 'outcome' && e.facts.outcome === 'commit-exists');
-  assert.ok(commits.every((e) => e.facts.authoredByConfiguredIdentity === true && e.facts.onDefaultBranch === false));
+  assert.ok(commits.every((e) => e.facts.authoredByConfiguredIdentity === true));
+  // Every commit is on a branch but one: Thursday's skipped test, pushed straight to main.
+  assert.deepEqual(commits.filter((e) => e.facts.onDefaultBranch !== false).map((e) => e.session), [k.windows]);
   // A commit id the redactor mistook for an account number would read as redacted.
   assert.ok([...commits, ...landed].every((e) => /^[0-9a-f]{12}$/.test(e.facts.sha)));
-  const log = execFileSync('git', ['-C', d.repo.dir, 'log', '-3', '--format=%ae %s', 'main'], { encoding: 'utf8' }).trim().split('\n');
-  assert.deepEqual(log.map((l) => l.match(/^(\S+) .*\(#(\d+)\)$/)?.slice(1)), [[ME, '14'], [ME, '13'], [ME, '12']]);
+  const log = execFileSync('git', ['-C', d.repo.dir, 'log', '-4', '--format=%ae %s', 'main'], { encoding: 'utf8' }).trim().split('\n');
+  assert.equal(log[0], `${ME} Skip the wide-character width test for now`);
+  assert.deepEqual(log.slice(1).map((l) => l.match(/^(\S+) .*\(#(\d+)\)$/)?.slice(1)), [[ME, '14'], [ME, '13'], [ME, '12']]);
 });
 
 test('the display-only and outside sessions are private skeletons that git never reads', () => {
@@ -219,8 +249,8 @@ test('every event passes the event contract', () => {
 
 test('the goal record: each event id is carried by one goals.mjs apply call, in the right session, inside its span', () => {
   const g = d.goalRecord;
-  assert.ok(g.goals.length >= 2 && g.goals.length <= 3);
-  const where = { 'gev-3k9a': k.since, 'gev-7m2q': k.wide, 'gev-d4h5': k.group, 'gev-9p4x': k.resumed, 'gev-b6t1': k.resumed, 'gev-c2w8': k.json };
+  assert.deepEqual(g.goals.map((x) => [x.id, x.state]), [['release-1-4', 'active'], ['wrap-every-script', 'done'], ['json-output', 'active'], ['publish-notes', 'active']]);
+  const where = { 'gev-3k9a': k.since, 'gev-7m2q': k.wide, 'gev-d4h5': k.group, 'gev-9p4x': k.resumed, 'gev-b6t1': k.resumed, 'gev-r5k2': k.release, 'gev-c2w8': k.json, 'gev-h8n3': k.unreleased, 'gev-w3j7': k.upload };
   assert.deepEqual(g.events.map((e) => e.eventId), Object.keys(where));
   const acts = h.events.filter((e) => e.kind === 'action');
   for (const ev of g.events) {
@@ -240,12 +270,12 @@ test('the goal record: each event id is carried by one goals.mjs apply call, in 
   assert.ok(!lookups.some((e) => /goals\.mjs apply/.test(e.facts.command ?? '')));
   // Every citation names a pull request of the week or a session the engine read.
   const refs = g.goals.flatMap((x) => [x.source.ref, ...x.observations.map((o) => o.source.ref)]);
-  const keyOf = { [SESSION_IDS.sinceFlag]: k.since, [SESSION_IDS.groupByScope]: k.group, [SESSION_IDS.groupByScopeResumed]: k.resumed, [SESSION_IDS.jsonOutput]: k.json };
+  const keyOf = { [SESSION_IDS.sinceFlag]: k.since, [SESSION_IDS.groupByScope]: k.group, [SESSION_IDS.groupByScopeResumed]: k.resumed, [SESSION_IDS.jsonOutput]: k.json, [SESSION_IDS.releaseScript]: k.release };
   for (const ref of refs) {
     const pr = ref.match(/^lantern#(\d+)$/) ?? ref.match(/^https:\/\/github\.com\/example\/lantern\/pull\/(\d+)$/);
     const session = ref.match(/^session:(.+)$/);
     assert.ok(pr || session, ref);
-    if (pr) assert.ok([12, 13, 14, 15].includes(Number(pr[1])), ref);
+    if (pr) assert.ok([12, 13, 14, 15, 16].includes(Number(pr[1])), ref);
     if (session) assert.ok(sessionOf(keyOf[session[1]]), `${ref} names a session the engine read`);
   }
   assert.ok(refs.some((r) => r.startsWith('lantern#')) && refs.some((r) => r.startsWith('https://')) && refs.some((r) => r.startsWith('session:')));
@@ -258,6 +288,99 @@ test('the replay views work end to end on the demo week', async () => {
   const report = JSON.parse(out);
   assert.equal(code, 0, report.checks.filter((c) => !c.ok).map((c) => c.name).join('; '));
   assert.ok(report.checks.length >= 15);
+});
+
+// Wednesday's logs print what the Markdown renderer makes from lib/demo/content.mjs, and the
+// branch commits a renderer written out as text in lib/demo/week.mjs, with golden files made
+// from the first. Running the branch's own tests keeps the two copies in step.
+test("the Markdown branch's own tests pass, so the renderer it commits matches what its logs print", () => {
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  const r = spawnSync(process.execPath, ['--test-reporter=tap', '--test', 'test/markdown.test.mjs'], { cwd: d.repo.worktrees.markdown, env, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /^# pass 12$/m);
+  assert.match(r.stdout, /^# fail 0$/m);
+  for (const name of ['driftwood', 'emberline', 'harbor-config', 'mossbank', 'quillpen']) assert.match(r.stdout, new RegExp(`^ok \\d+ - renders ${name}\\.md the way its \\.expected\\.md says$`, 'm'), name);
+});
+
+// The demo is where someone first sees the Problems page and the "Worth a look" strip, so
+// this pins what it shows: which patterns are found, at which tier, and in which session.
+test('the problem checks find a spread of patterns across the three tiers, each in the session that shows it', async () => {
+  const ph = await buildWorkHistory({ config: d.config, from: WEEK.from, to: WEEK.to, roots: d.roots, usage: true, keepRaw: true, hiddenSessions: 'redacted' });
+  const r = runProblems(ph, { builtT: Date.parse('2026-01-01T00:00:00Z') });
+  const found = Object.fromEntries(r.patterns.filter((p) => p.status === 'found').map((p) => [p.id, [p.priority.tier, p.look, p.notesFound]]));
+  // [tier, findings worth a look, routine notes]
+  assert.deepEqual(found, {
+    'claim-contradicts-evidence': ['high', 4, 0],
+    'context-bloat': ['high', 1, 0],
+    'secret-exposure': ['high', 4, 1],
+    'unverified-done-claim': ['medium', 1, 0],
+    'test-tampering': ['medium', 1, 0],
+    'destructive-command': ['medium', 1, 1],
+    'repeated-file-reads': ['low', 0, 1],
+    'action-loop': ['low', 1, 0],
+    'repeated-tool-error': ['low', 2, 0],
+    'oversized-tool-output': ['low', 1, 0],
+    'subagent-overuse': ['low', 0, 6],
+    'subagent-handoff-loss': ['low', 1, 0],
+    'scope-creep': ['low', 1, 0],
+    'premature-stop': ['low', 1, 1],
+    'needless-check-in': ['low', 0, 1],
+  });
+  const looks = r.patterns.flatMap((p) => p.findings.filter((f) => f.severity === 'look').map((f) => ({ ...f, tier: p.priority?.tier })));
+  const where = (id) => [...new Set(looks.filter((f) => f.pattern === id).map((f) => f.session))].sort();
+  assert.deepEqual(where('claim-contradicts-evidence'), [k.bare, k.markdown].sort());
+  assert.deepEqual(where('context-bloat'), [k.markdown]);
+  assert.deepEqual(where('secret-exposure'), [k.release, k.upload].sort());
+  assert.deepEqual(where('unverified-done-claim'), [k.width]);
+  assert.deepEqual(where('test-tampering'), [k.windows]);
+  assert.deepEqual(where('destructive-command'), [k.unreleased]);
+  // Saturday's three reads of one short file are a routine note: each repeat added about 250
+  // tokens, under the 500 the check asks for before a repeat is worth a look. The call's own
+  // thinking no longer counts as what the read added.
+  assert.deepEqual(where('repeated-file-reads'), []);
+  const reread = r.patterns.find((p) => p.id === 'repeated-file-reads').findings;
+  assert.deepEqual(reread.map((f) => [f.severity, f.session, f.steps]), [['note', k.width, 3]]);
+  assert.match(reread[0].note, /read 3 times .* 2 of the 2 repeats added under 500 tokens/);
+  assert.deepEqual(where('action-loop'), [k.upload]);
+  assert.deepEqual(where('repeated-tool-error'), [k.width, k.upload].sort());
+  assert.deepEqual(where('oversized-tool-output'), [k.windows]);
+  assert.deepEqual(where('subagent-handoff-loss'), [k.release]);
+  assert.deepEqual(where('scope-creep'), [k.width]);
+  assert.deepEqual(where('premature-stop'), [k.json]);
+  // Most of the week is ordinary work: 8 of the 18 sessions the checks read (the display-only
+  // one isn't checked) have anything worth a look.
+  const flagged = new Set(looks.map((f) => f.session));
+  assert.deepEqual([flagged.size, r.coverage.sessions.value], [8, 18]);
+  // The token figures docs/demo-week.md states.
+  assert.deepEqual([r.coverage.modelCalls.value, Math.round(r.coverage.tokens.value / 1e5)], [303, 125]);
+  const bloat = r.patterns.find((p) => p.id === 'context-bloat');
+  assert.match(bloat.findings[0].note, /at model call 44 of 77 .*largest context was 163k.*about 3\.8M tokens/);
+  assert.equal(Math.round(bloat.priority.share * 100), 31);
+  assert.match(r.patterns.find((p) => p.id === 'oversized-tool-output').findings[0].note, /by about 23k tokens/);
+  // The routine look-alike: Wednesday's recursive delete of its own scratch folder is a note.
+  assert.deepEqual(r.patterns.find((p) => p.id === 'destructive-command').findings.map((f) => [f.severity, f.kind, f.session]), [['look', 'hard-reset', k.unreleased], ['note', 'recursive-delete', k.markdown]]);
+  // The strip's click-through follows the first high finding; in its session two findings
+  // worth a look sit close enough to merge into a count, beside the context band.
+  const rank = { high: 0, medium: 1, low: 2 };
+  const first = looks.filter((f) => f.event).sort((a, b) => rank[a.tier] - rank[b.tier])[0];
+  assert.equal(first.session, k.markdown);
+  const near = looks.filter((f) => f.session === first.session && f.tier !== 'low' && !f.lastAt && Math.abs(Date.parse(f.at) - Date.parse(first.at)) <= 60e3);
+  assert.ok(near.length >= 2, 'two findings close enough to merge on the strip');
+  assert.ok(looks.some((f) => f.session === first.session && f.pattern === 'context-bloat' && f.lastAt), 'a stretch on the strip too');
+});
+
+test("the pasted keys never reach the history the pages show, and the click-through's cases sit in the sessions it opens", () => {
+  for (const history of [h, all]) {
+    const text = JSON.stringify(history.events);
+    for (const secret of ['7Qx2Lk9pR3vT6nW8zB4f', 'sandbox-EXAMPLE']) assert.ok(!text.includes(secret), `${secret} is redacted`);
+  }
+  // The replay steps of the click-through open the threads of the twelve most recent
+  // sessions with a prompt: the inferred author, the non-interactive run and the moved
+  // sub-agent line must be among them, and so must both sessions of one resumed thread.
+  const recent = all.sessions.filter((s) => of(all, s.key, 'prompt').length).sort((a, b) => (a.lastAt < b.lastAt ? 1 : -1)).slice(0, 12).map((s) => s.key);
+  for (const key of [k.width, k.widthCommit, k.summary, k.unreleased]) assert.ok(recent.includes(key), `${key} is among the twelve most recent sessions`);
+  assert.ok(h.events.some((e) => recent.includes(e.session) && e.timeFrom === 'next-record'), 'a step that borrows its time from the next line');
 });
 
 test('the script writes the same bytes on every run, apart from the folder path', () => {
@@ -315,6 +438,21 @@ test('the script writes the same bytes on every run, apart from the folder path'
   for (const address of agentAddresses) for (const form of [`"${address}"`, `\\"${address}\\"`]) pathless = pathless.split(form).join('"<agent>"');
   const home = homedir();
   for (const form of [home, JSON.stringify(home).slice(1, -1)]) assert.ok(!pathless.includes(form), 'no home-directory path');
+});
+
+// On Windows a folder can be written with either slash. The token counts read the folder's
+// path as one stand-in, so a build from the other spelling writes the same logs.
+test('a folder written with forward slashes on Windows gives the same logs and token counts', { skip: process.platform !== 'win32' }, () => {
+  const e = buildDemoWeek({ root: join(tmp('hw-demo-test-'), 'slashed').replace(/\\/g, '/') });
+  assert.ok(!e.root.includes('/'), e.root);
+  const file = (w) => join(w.roots.claude[0], w.ids.projectDirs.markdownWorktree, `${SESSION_IDS.markdownOutput}.jsonl`);
+  const normalized = (w) => {
+    const once = JSON.stringify(w.root).slice(1, -1);
+    let text = readFileSync(file(w), 'utf8');
+    for (const form of [JSON.stringify(once).slice(1, -1), once, w.root]) text = text.split(form).join('<root>');
+    return text;
+  };
+  assert.equal(normalized(e), normalized(d));
 });
 
 test('a build that fails partway leaves nothing behind and says so', () => {
