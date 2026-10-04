@@ -92,6 +92,31 @@ test('one session, the strip for a thread and for a goal, each clean of leaks', 
   for (const b of [one, strip, goal]) assert.equal(leaks.redacted(b).total, 0);
 });
 
+test('the summary every header reads: each pattern\'s tier and counts, no findings, clean of leaks', async () => {
+  const sum = await body({ summary: '1' });
+  assert.equal(sum.summary, true);
+  assert.equal(sum.patterns.length, 40);
+  assert.equal(sum.catalogIds.length, 40, 'every catalog id, so "My priority" for any pattern stays');
+  for (const p of sum.patterns) {
+    assert.deepEqual(Object.keys(p).sort(), ['count', 'countEvidence', 'fix', 'group', 'id', 'look', 'lookSessions', 'name', 'notesFound', 'priority', 'status', 'strength', 'tokens']);
+    const full = whole.patterns.find((x) => x.id === p.id);
+    for (const k of ['name', 'status', 'priority', 'count', 'look', 'notesFound', 'countEvidence']) assert.deepEqual(p[k], full[k], `${p.id}.${k} matches the whole page`);
+    // The sessions with a finding worth a look, worked out from the same findings.
+    const sessions = new Set((full.findings ?? []).filter((f) => f.severity === 'look').map((f) => f.session));
+    if (full.findingsListed === (full.findings ?? []).length) assert.equal(p.lookSessions, sessions.size, `${p.id}.lookSessions`);
+    assert.ok(p.lookSessions <= p.look, `${p.id}: no more sessions than findings worth a look`);
+  }
+  assert.ok(!('findings' in sum) && sum.patterns.every((p) => !('findings' in p)), 'no finding in the summary');
+  assert.equal(leaks.redacted(sum).total, 0);
+  const t = JSON.stringify(sum);
+  for (const word of PRIVATE_WORDS) assert.ok(!t.includes(word), `no "${word}"`);
+  // The pages read the names the summary carries.
+  const common = page('common.js');
+  for (const name of ["load('problems', { summary: 1 })", "p.status === 'found'", 'p?.priority?.tier']) assert.ok(common.includes(name), `common.js reads ${name}`);
+  const search = page('search.js');
+  for (const name of ['p.lookSessions', 'p.countEvidence', 'p.tokens?.tokens', 'a.coverage?.tokens']) assert.ok(search.includes(name), `search.js reads ${name}`);
+});
+
 test('with the switch on: the same findings, private words in their text, secrets still hidden', async () => {
   await data.start('private');
   const priv = await body({ private: '1' });
