@@ -119,6 +119,9 @@
 .rp-mode-note { font-size: 13px; color: var(--muted); }
 #storyBody { display: flex; flex-direction: column; gap: 14px; }
 .sgap { text-align: center; font-size: 13px; color: var(--muted); padding: 2px 0; }
+/* The rest of a long story, drawn on request: cards on either side, and a long card's other rows. */
+.smorecards { display: block; width: 100%; margin: 8px 0; }
+.srow.smore { display: block; padding: 6px 0 6px 12px; }
 .rcard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .shead { width: 100%; display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 14px 16px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--accent-wash); color: var(--ink); min-height: 0; font-size: 15px; }
 .shead:hover { background: var(--accent-wash); color: var(--ink); }

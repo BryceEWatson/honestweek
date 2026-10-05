@@ -549,3 +549,22 @@ test("Settings reads the long-session limit as typed: empty is off, 150k and 150
   assert.equal(tokensOf((150000).toLocaleString('en-US')), 150000);
   for (const t of ['lots', '1.5e5', '-5']) assert.equal(tokensOf(t), t, t);
 });
+
+test("Replay's story draws a few prompt cards around the selected step, never a long session whole", () => {
+  const js = readFileSync(join(ASSETS, 'replay.js'), 'utf8');
+  const consts = js.match(/ {2}const CARDS_ALL = [^]*?let storyWin = null;[^\n]*\n/)[0];
+  const fn = js.match(/ {2}function windowFor\(c\) \{[^]*?\n {2}\}/)[0];
+  const box = {};
+  runInNewContext(`let story;\n${consts}${fn}\nthis.win = (n, c, prev = null) => { story = { cards: new Array(n).fill(0) }; storyWin = prev; return windowFor(c); };`, box);
+  const w = (n, c, prev) => ({ ...box.win(n, c, prev) });
+  assert.deepEqual(w(5, 2), { from: 0, to: 4 }, 'a few prompts: all of them');
+  assert.deepEqual(w(72, 0), { from: 0, to: 1 });
+  assert.deepEqual(w(72, 71), { from: 70, to: 71 });
+  assert.deepEqual(w(72, 30), { from: 29, to: 31 }, 'one card on each side');
+  assert.deepEqual(w(72, undefined), { from: 70, to: 71 }, 'no selection: the latest');
+  assert.deepEqual(w(72, 33, { from: 29, to: 37 }), { from: 29, to: 37 }, 'cards the reader asked for stay while the selection is among them');
+  assert.deepEqual(w(72, 50, { from: 29, to: 37 }), { from: 49, to: 51 }, 'a selection elsewhere moves the window');
+  // A long card draws its first rows and asks before the rest; the selected row is always drawn.
+  assert.match(js, /const cut = c\.rows\.length > ROWS_ALL && !openCards\.has\(i\);/);
+  assert.match(js, /if \(!row && at && storyWin && !focusList\(\)\) \{/);
+});
