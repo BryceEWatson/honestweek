@@ -1595,7 +1595,7 @@
         ],
         "falsePositives": [
           "A miss right after a compaction is expected, so it isn't counted.",
-          "A model, effort, tool or plugin change you made on purpose also rebuilds the cache; the log doesn't say which, so the cause reads as not recorded.",
+          "A model switch, an effort change on most models, or a tool or MCP server change you made on purpose can also rebuild the cache; the log doesn't say which, so the cause reads as not recorded.",
           "One miss after a long break can cost less than keeping a one-hour cache warm through many short bursts."
         ]
       },
@@ -1618,11 +1618,11 @@
         },
         {
           "kind": "workflow",
-          "action": "Pick the model and effort at the start of a session; a mid-session switch re-sends the conversation in Claude Code."
+          "action": "Pick the model and effort at the start of a session; in Claude Code a mid-session model switch re-sends the conversation, and so does an effort change on most models."
         },
         {
           "kind": "setting",
-          "action": "Watch /usage in Claude Code: its Prompt cache line counts misses and can name the likely cause of the last one."
+          "action": "Watch /usage in Claude Code (2.1.251 or later): its Prompt cache (main) line counts the main conversation's misses and, from 2.1.260, can name the likely cause of the last one."
         }
       ],
       "testPrompt": "Run ls in this folder and tell me in one line what it holds. I will send a second prompt in about seven minutes.",
@@ -1643,7 +1643,7 @@
           "url": "https://code.claude.com/docs/en/prompt-caching",
           "date": "undated page, fetched 2026-10-05",
           "kind": "docs",
-          "says": "Cached prefixes expire after inactivity, and the next request processes the full input again. On a Claude subscription the main conversation caches for an hour and sub-agents for five minutes; usage credits, API keys and cloud providers get five minutes. promptCacheTtl and subagentPromptCacheTtl choose one hour (Claude Code 2.1.242 or later), and one-hour writes are billed at a higher rate. Switching models, compaction and the other listed actions also invalidate the cache."
+          "says": "Cached prefixes expire after inactivity, and the next request processes the full input again. On a Claude subscription the main conversation caches for an hour and sub-agents for five minutes; usage credits, API keys and cloud providers get five minutes. promptCacheTtl and subagentPromptCacheTtl choose one hour (Claude Code 2.1.242 or later), and one-hour writes are billed at a higher rate. Switching models, compaction and the other listed actions also invalidate the cache; changing effort does on most models. In /usage, the Prompt cache (main) line shows the session's hit ratio and miss count (2.1.251 or later) and names the likely cause of the last miss when it can (2.1.260 or later)."
         },
         {
           "title": "Manage costs effectively",
