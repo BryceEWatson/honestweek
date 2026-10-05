@@ -515,8 +515,9 @@ test("Replay's story never hides a failed test run in a group, and every grouped
   const replay = readFileSync(join(ASSETS, 'replay.js'), 'utf8');
   // A failed run stands alone, the way a step with a finding does.
   assert.match(replay, /const standsAlone = \(e\) => F\.flags\.has\(e\.id\) \|\| RM\.isLongWait\(e\) \|\| !!resultOf\(e\)\?\.fail;/);
-  // An opened group's rows show each step's result and how it's known.
-  assert.match(replay, /<\/code>\$\{kidRes\(e\)\} \$\{sym\(e\.ev\)\}<\/button><\/li>/);
+  // An opened group's rows show each step's result and how it's known (in the problem focus's
+  // list, "See in the whole session" follows the row's button).
+  assert.match(replay, /<\/code>\$\{kidRes\(e\)\} \$\{sym\(e\.ev\)\}<\/button>\$\{wholeLink\(e\)\}<\/li>/);
   // The count worth a look carries its weakest mark and says how many of them are only possible.
   assert.match(replay, /worth a look \$\{sym\(window\.HWE\.weakest\(c\.levels\)\)\}/);
   assert.match(replay, /\$\{c\.possible\} of them possible/);

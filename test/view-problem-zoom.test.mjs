@@ -188,9 +188,13 @@ test('the pages read the names the answer carries, and leaving the zoom clears i
   const r = page('replay.js');
   for (const name of ["load('problems', { finding: key })", 'z.near', 'z.total', 'z.unread', 'z.lanes', 'f.verdictEvidence', 'zoomhalo', 'z.scope', 'RM.readScope', 'RM.scopeFrame', 'RM.scopeMarks', 'RM.repeatNumbers', 'zstretch', 'zstart', 'zgap', 'zctx', 'znum']) assert.ok(r.includes(name), `replay.js reads ${name}`);
   for (const cls of ['.zstretch', '.zstart', '.zgap', '.zctx', '.znum']) assert.ok(page('replay.css').includes(cls), `replay.css styles ${cls}`);
-  // The bar shows the scope's caption with its level, else the count it showed before.
-  assert.match(r, /const count = Z\.S\?\.caption \?\? \(z\.near \? '1 step, nearest'/);
-  assert.match(r, /chip\(Z\.S\?\.level \?\? f\.verdictEvidence\)/);
+  // The problem focus's "What happened" card shows the scope's caption with its level's mark,
+  // else the check's title at the finding's level; the bar over the lanes keeps the count it
+  // showed before for a finding with no focus plan.
+  assert.match(r, /const level = S\?\.level \?\? f\.verdictEvidence;/);
+  assert.match(r, /const caption = S\?\.caption \?\? f\.checkTitle/);
+  assert.match(r, /\$\{esc\(caption\)\} \$\{sym\(level\)\}<\/h1>/);
+  assert.match(r, /const count = z\.near \? '1 step, nearest'/);
   // The fit control, Esc, double-click and the whole-session choice all leave through fitAll.
   assert.match(r, /\$\('fit'\)\.addEventListener\('click', fitAll\)/);
   assert.match(r, /ev\.key === 'Escape' && !document\.querySelector\('\.drawer\.open'\)\) fitAll\(\)/);
