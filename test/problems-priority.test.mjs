@@ -47,7 +47,7 @@ test('the rule is stated in the words the page shows, with three tiers and a lin
 test('the catalog, the map and the drafts agree: every mapped pattern and check exists, every pattern has a draft', () => {
   const catalog = loadCatalog();
   const ids = new Set(catalog.patterns.map((p) => p.id));
-  assert.equal(catalog.patterns.length, 41);
+  assert.equal(catalog.patterns.length, 42);
   const checkIds = new Set(CHECKS.map((c) => c.id));
   for (const [pattern, measures] of Object.entries(PATTERN_CHECKS)) {
     assert.ok(ids.has(pattern), pattern);
@@ -205,8 +205,12 @@ test('the stated rule and the checks state the numbers the code applies', () => 
   const how = (id) => { const c = CHECKS.find((x) => x.id === id); return `${c.title} ${c.how}`; };
   const relation = (id) => PATTERN_CHECKS[id].map((m) => m.relation).join(' ');
   const minutes = (ms) => `${ms / 60_000} minutes`;
-  assert.ok(how('long-sessions').includes(fmt(THRESHOLDS.longCtx)));
-  assert.ok(relation('context-bloat').includes(fmt(THRESHOLDS.longCtx)) && relation('context-bloat').includes(`${THRESHOLDS.longAfterCalls} or more calls`));
+  // The long-session limit is the person's own, set in Settings: no number is stated for it.
+  assert.ok(how('long-sessions').includes('the long-session limit you set in Settings') && !how('long-sessions').includes(fmt(THRESHOLDS.longCtx)));
+  assert.ok(relation('context-bloat').includes('your long-session limit') && relation('context-bloat').includes(`${THRESHOLDS.longAfterCalls} or more calls`));
+  assert.equal(THRESHOLDS.cacheMissShare, 0.5);
+  assert.ok(how('cache-misses').includes(`${fmt(THRESHOLDS.cacheMissMin)} tokens or more`) && how('cache-misses').includes('less than half'));
+  assert.ok(relation('cache-miss').includes(`${fmt(THRESHOLDS.cacheMissMin)} tokens or more`));
   assert.ok(relation('repeated-file-reads').includes(`${THRESHOLDS.rereadMin} or more times`));
   assert.ok(relation('action-loop').includes(`${THRESHOLDS.loopMin} or more identical calls`));
   assert.ok(relation('busy-polling').includes(`${THRESHOLDS.pollMin} or more times, each within ${minutes(THRESHOLDS.pollGapMs)}`));

@@ -61,9 +61,9 @@ before(() => {
   const u = claude(U, fx.repo.dir);
   u.prompt(at(300), 'Tidy the widget parser.');
   u.say(at(301), 'msg-u1', [{ type: 'text', text: `Looking now. ${'x'.repeat(900)} ${LONG_SENTINEL}` }], { input_tokens: 10, cache_creation_input_tokens: 2000, cache_read_input_tokens: 0, output_tokens: 5 });
-  u.say(at(301, 50), 'msg-u1', [{ type: 'tool_use', id: 'tu-u1', name: 'Bash', input: { command: 'npm run lint', description: 'Lint' } }], { input_tokens: 10, cache_creation_input_tokens: 2000, cache_read_input_tokens: 0, output_tokens: 40 });
+  u.say(at(301, 50), 'msg-u1', [{ type: 'tool_use', id: 'tu-u1', name: 'Bash', input: { command: 'npm run lint', description: 'Lint' } }], { input_tokens: 10, cache_creation_input_tokens: 2000, cache_read_input_tokens: 0, cache_creation: { ephemeral_5m_input_tokens: 2000, ephemeral_1h_input_tokens: 0 }, output_tokens: 40 });
   u.result(at(302), 'tu-u1', `lint failed: ${ERROR_SENTINEL} ${'y'.repeat(RAW_ERROR_MAX)} ${CAP_SENTINEL}`, true);
-  u.say(at(303), 'msg-u2', [{ type: 'text', text: 'Fixed it.' }], { input_tokens: 3, cache_creation_input_tokens: 100, cache_read_input_tokens: 2000, output_tokens: 9 });
+  u.say(at(303), 'msg-u2', [{ type: 'text', text: 'Fixed it.' }], { input_tokens: 3, cache_creation_input_tokens: 100, cache_read_input_tokens: 2000, cache_creation: { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: 100 }, output_tokens: 9 });
   u.lines.push(JSON.stringify({ type: 'assistant', sessionId: U, cwd: fx.repo.dir, version: '2.1.0', uuid: `${U}-synthetic`, timestamp: at(303, 500), message: { id: 'msg-synthetic', model: '<synthetic>', role: 'assistant', content: [{ type: 'text', text: 'No response requested.' }], usage: { input_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 0 } } }));
   // Then a call the person rejects (an error result that isn't a failure), a typed message
   // the agent absorbs mid-turn with an attachment record, and one with only the queue record.
@@ -208,8 +208,13 @@ test('usage: one call per message, counted once across a resumed copy, numbers a
   const vCalls = h.usage.calls.filter((c) => c.session !== uKey && c.tool === 'claude-code' && c.cacheRead === 2100);
   assert.equal(vCalls.length, 1, "V's own call is counted");
   assert.equal(h.usage.calls.filter((c) => c.cacheWrite === 2000).length, 1, 'the copied message is counted once');
+  // How long a call's cache writes last, where Claude Code splits them: a call gets `ttl` only then.
+  assert.deepEqual([first.ttl, second.ttl], ['5m', '1h']);
+  assert.equal('ttl' in vCalls[0], false, 'a call with no split has no ttl');
   for (const c of h.usage.calls) {
-    assert.deepEqual(Object.keys(c).sort(), ['agent', 'cacheRead', 'cacheWrite', 'input', 'lines', 'output', 'session', 'source', 't', 'tool']);
+    const keys = ['agent', 'cacheRead', 'cacheWrite', 'input', 'lines', 'output', 'session', 'source', 't', 'tool'];
+    assert.deepEqual(Object.keys(c).sort(), 'ttl' in c ? [...keys, 'ttl'].sort() : keys);
+    if ('ttl' in c) assert.ok(c.ttl === '5m' || c.ttl === '1h');
     for (const k of ['input', 'cacheWrite', 'cacheRead', 'output', 't']) assert.ok(Number.isFinite(c[k]), k);
     assert.ok(c.lines.every(Number.isInteger));
   }

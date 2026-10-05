@@ -227,6 +227,8 @@ test('every failure path is refused and writes nothing', async () => {
     ['a new folder that is not there', { ...base, repos: [...base.repos, { path: join(scratch, 'nowhere'), role: 'featured' }] }, 400, /There's no folder/],
     ['a bad email', { ...base, authorEmails: ['nope'] }, 400, /doesn't look like an email/],
     ['a missing goal list', { ...base, goalsFile: 'nope.json' }, 400, /no goal list at/],
+    ['a long-session limit too small', { ...base, longSessionTokens: 5 }, 400, /long-session limit must be a whole number of tokens from 10,000/],
+    ['a long-session limit as words', { ...base, longSessionTokens: 'lots' }, 400, /long-session limit must be a whole number/],
   ]) {
     const r = await post(s, 'save', body);
     assert.equal(r.status, status, `${what}: ${r.text}`);
@@ -250,6 +252,34 @@ test('every failure path is refused and writes nothing', async () => {
   assert.equal(ni.editable, false);
   assert.match(ni.note, /--config/);
   assert.equal((await post(named, 'save', good)).status, 409);
+});
+
+test('the long-session limit is off until set in Settings, then the Problems page checks against it; clearing it gives back the same bytes', async () => {
+  const cfg = baseConfig();
+  const dir = project('limit', cfg);
+  const s = await view(dir);
+  const longCheck = async () => {
+    await ready(s);
+    const r = await call(s.port, { path: '/api/problems', key: s.key });
+    assert.equal(r.status, 200, r.text);
+    return r.json.checks.find((c) => c.id === 'long-sessions');
+  };
+  assert.equal((await call(s.port, { path: '/api/settings', key: s.key })).json.longSessionTokens, null);
+  assert.match((await longCheck()).notRun, /Off until you set a long-session limit in Settings/);
+  const base = await untouched(s);
+  const on = { ...base, longSessionTokens: 150_000 };
+  assert.deepEqual((await post(s, 'preview', on)).json.changes, ['Long-session limit: 150,000 tokens.']);
+  assert.equal((await post(s, 'save', on)).json.saved, true);
+  assert.equal(readFileSync(join(dir, 'honestweek.config.json'), 'utf8'), text({ ...cfg, longSessionTokens: 150_000 }));
+  // The same server reloads, and the check now runs against the limit.
+  const ran = await longCheck();
+  assert.doesNotMatch(String(ran.notRun ?? ''), /Off until/);
+  const again = await untouched(s);
+  assert.equal((await call(s.port, { path: '/api/settings', key: s.key })).json.longSessionTokens, 150_000);
+  const off = await post(s, 'save', { ...again, longSessionTokens: null });
+  assert.equal(off.json.saved, true);
+  assert.deepEqual(off.json.changes, ['Long-session limit: off.']);
+  assert.equal(readFileSync(join(dir, 'honestweek.config.json'), 'utf8'), text(cfg));
 });
 
 test('new private words hide text on the next page load with the switch off, cached answers included', async () => {

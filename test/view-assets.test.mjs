@@ -531,3 +531,8 @@ test('a page with no working key offers no link back into the pages, since each 
   assert.ok(calls.length >= 4 && calls.every((rest) => /\{ keyless: true \}/.test(rest)), 'every key notice is keyless');
   assert.match(common, /keyless \? '' : ' <p><a href="problems\.html">Back to Problems<\/a><\/p>'/);
 });
+
+test('the goals page says goal discovery is coming, beside its title, on the page and not in a script', () => {
+  const html = readFileSync(join(ASSETS, 'goal.html'), 'utf8');
+  assert.match(html, /<div class="pagehead">\s*<h1 class="ph-title">[^]*?<\/h1>\s*<span class="tag" id="soon">Coming soon: Goal discovery<\/span>/);
+});

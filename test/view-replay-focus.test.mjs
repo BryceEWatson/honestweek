@@ -233,7 +233,9 @@ test('the context per call is additive: without token counts the replay answer i
   const h = { window: { startT: 0, endT: 100 }, rules: {}, coverage: {}, events: [], agents: [], sessions: [{ key: 'cc-aaaa', private: false, thread: 'th-aaaa' }], thread: () => ({ id: 'th-aaaa', sessions: [{ key: 'cc-aaaa' }] }), threadTimeline: () => null, session: () => ({ turns: [] }) };
   const plain = exportThread(h, 'th-aaaa', {});
   assert.equal('contextCalls' in plain, false);
-  const withCalls = exportThread(h, 'th-aaaa', { usage: [] });
+  // The chart's line is the long-session limit set in Settings; with none set there's no line.
+  assert.deepEqual(exportThread(h, 'th-aaaa', { usage: [] }).contextCalls, { threshold: null, agents: [] });
+  const withCalls = exportThread(h, 'th-aaaa', { usage: [], longSession: THRESHOLDS.longCtx });
   assert.deepEqual(withCalls.contextCalls, { threshold: THRESHOLDS.longCtx, agents: [] });
   const { contextCalls: _c, ...rest } = withCalls;
   assert.deepEqual(rest, plain, 'every other field unchanged');
@@ -245,7 +247,7 @@ test('the context per call is additive: without token counts the replay answer i
     { agent: 'a', source: 'f1', lines: [1], t: 500, input: 9, cacheRead: 0, cacheWrite: 0 },
     { agent: 'b', source: 'f1', lines: [2], t: 20, input: 7, cacheRead: 0, cacheWrite: 0 },
   ];
-  assert.deepEqual(contextCalls(calls, { agents: ['a'], window: { startT: 0, endT: 100 } }), { threshold: THRESHOLDS.longCtx, agents: [{ agent: 'a', calls: [{ t: 30, context: 3 }, { t: 40, context: 13 }, { t: 50, context: 1 }] }] });
+  assert.deepEqual(contextCalls(calls, { agents: ['a'], window: { startT: 0, endT: 100 }, threshold: THRESHOLDS.longCtx }), { threshold: THRESHOLDS.longCtx, agents: [{ agent: 'a', calls: [{ t: 30, context: 3 }, { t: 40, context: 13 }, { t: 50, context: 1 }] }] });
 });
 
 test('on the demo week the long session involves you and its main agent; its helper and the harness fold into Other activity', async () => {

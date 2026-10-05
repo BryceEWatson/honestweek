@@ -1483,11 +1483,12 @@
         "works": "The agent stops to write a hand-off brief and suggests a fresh session.",
         "fails": "It only says what the folder holds.",
         "look": "The hook's text goes to the agent, not your screen. In Claude Code, /debug turns on the debug log, which shows the hook's output; in Codex, the reply is the sign.",
-        "replay": "honestweek's check needs 150k tokens and 30 more calls, so a session this short won't show there either way."
+        "replay": "honestweek's check runs only with a long-session limit set in Settings, and needs 30 more calls past it, so a session this short won't show there either way."
       },
       "related": [
         "post-compaction-amnesia",
-        "oversized-tool-output"
+        "oversized-tool-output",
+        "cache-miss"
       ],
       "sources": [
         {
@@ -1500,7 +1501,7 @@
         {
           "title": "Manage costs effectively",
           "url": "https://code.claude.com/docs/en/costs",
-          "date": "undated page, fetched 2026-10-03",
+          "date": "undated page, fetched 2026-10-05",
           "kind": "docs",
           "says": "Claude Code sends the full conversation with every request, so a one-line question in a session open all day still draws usage for the whole conversation; unexpectedly high spend usually traces back to long sessions that were never cleared."
         },
@@ -1559,6 +1560,104 @@
           "date": "undated page, fetched 2026-10-05",
           "kind": "docs",
           "says": "/side, also called /btw, starts an ephemeral side chat, and /compact summarizes the chat to free tokens."
+        }
+      ]
+    },
+    {
+      "id": "cache-miss",
+      "name": "Cache missed",
+      "headline": "Re-sent a cached conversation at the full rate",
+      "group": "efficiency-cost",
+      "looksLike": "You step away from a big session and come back, or something before your new message changes, and the next request re-sends the whole conversation at the full input rate because the cache that held it expired or no longer matches.",
+      "whyItMatters": "A cached conversation is re-read at a fraction of the input rate; a miss sends all of it again at the full rate, so one prompt after a break in a big session can cost as much as many ordinary steps.",
+      "strength": "well-established",
+      "strengthReason": "Both vendors document that a cached prefix expires after a pause and that a miss processes the whole context again, and the log's own token counts show each miss.",
+      "detection": {
+        "level": "derived",
+        "summary": "A model call sends 20k tokens or more at the full rate while the call before it held 20k or more, and reads back less than half of that from the cache, with no compaction between.",
+        "signals": [
+          {
+            "signal": "cache_creation_input_tokens and cache_read_input_tokens per assistant message (Claude Code), cached_input_tokens per token_count event (Codex)",
+            "level": "recorded"
+          },
+          {
+            "signal": "A call that re-sends what the call before it had cached, with no compaction between",
+            "level": "derived"
+          },
+          {
+            "signal": "The pause before it, and how long Claude Code cached its writes (ephemeral_5m_input_tokens or ephemeral_1h_input_tokens)",
+            "level": "recorded"
+          },
+          {
+            "signal": "An expired cache as the cause, when the pause was longer than the cache lasts",
+            "level": "inferred"
+          }
+        ],
+        "falsePositives": [
+          "A miss right after a compaction is expected, so it isn't counted.",
+          "A model, effort, tool or plugin change you made on purpose also rebuilds the cache; the log doesn't say which, so the cause reads as not recorded.",
+          "One miss after a long break can cost less than keeping a one-hour cache warm through many short bursts."
+        ]
+      },
+      "coverage": {
+        "claudeCode": {
+          "status": "runs"
+        },
+        "codex": {
+          "status": "runs"
+        }
+      },
+      "mitigation": [
+        {
+          "kind": "workflow",
+          "action": "Before you step away from a big session, run /compact at a natural break or hand off to a fresh session, so the first prompt back re-sends a summary instead of the whole conversation."
+        },
+        {
+          "kind": "workflow",
+          "action": "When you come back to a large Claude Code session after a long break on a Pro or Max plan, take Claude Code's offer to resume from a summary."
+        },
+        {
+          "kind": "workflow",
+          "action": "Pick the model and effort at the start of a session; a mid-session switch re-sends the conversation in Claude Code."
+        },
+        {
+          "kind": "setting",
+          "action": "Watch /usage in Claude Code: its Prompt cache line counts misses and can name the likely cause of the last one."
+        }
+      ],
+      "testPrompt": "Run ls in this folder and tell me in one line what it holds. I will send a second prompt in about seven minutes.",
+      "testCost": "low",
+      "testCostWhy": "Two short prompts; the second costs more only when the cache has expired.",
+      "testExpect": {
+        "works": "With the one-hour cache, /usage after the second prompt shows no new cache miss.",
+        "fails": "/usage shows a miss after the pause: the five-minute cache expired.",
+        "look": "Wait seven minutes, send any short prompt, then run /usage in Claude Code. A Claude subscription within its usage already caches the main conversation for an hour, so the difference shows on an API key or usage credits. Codex shows no cache misses on screen.",
+        "replay": "A new session can stay under the check's 20,000-token minimum, so Replay may not show this either way."
+      },
+      "related": [
+        "context-bloat"
+      ],
+      "sources": [
+        {
+          "title": "How Claude Code uses prompt caching",
+          "url": "https://code.claude.com/docs/en/prompt-caching",
+          "date": "undated page, fetched 2026-10-05",
+          "kind": "docs",
+          "says": "Cached prefixes expire after inactivity, and the next request processes the full input again. On a Claude subscription the main conversation caches for an hour and sub-agents for five minutes; usage credits, API keys and cloud providers get five minutes. promptCacheTtl and subagentPromptCacheTtl choose one hour (Claude Code 2.1.242 or later), and one-hour writes are billed at a higher rate. Switching models, compaction and the other listed actions also invalidate the cache."
+        },
+        {
+          "title": "Manage costs effectively",
+          "url": "https://code.claude.com/docs/en/costs",
+          "date": "undated page, fetched 2026-10-05",
+          "kind": "docs",
+          "says": "Your first message after a break longer than the cache lifetime misses the cache and reprocesses your full context; on Pro and Max plans Claude Code offers to resume a large session from a summary instead."
+        },
+        {
+          "title": "Prompt caching (OpenAI API)",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+          "date": "undated page, fetched 2026-10-05",
+          "kind": "docs",
+          "says": "Cached prefixes typically stay active for about 5 to 10 minutes of inactivity, up to one hour, and cached reads cost 0.1 times the input rate on most models."
         }
       ]
     },
@@ -1788,7 +1887,7 @@
         {
           "title": "Manage costs effectively",
           "url": "https://code.claude.com/docs/en/costs",
-          "date": "undated page, fetched 2026-10-03",
+          "date": "undated page, fetched 2026-10-05",
           "kind": "docs",
           "says": "Code-intelligence plugins reduce unnecessary file reads by replacing grep-then-read loops with go-to-definition."
         },
@@ -1906,7 +2005,7 @@
         {
           "title": "Manage costs effectively",
           "url": "https://code.claude.com/docs/en/costs",
-          "date": "undated page, fetched 2026-10-03",
+          "date": "undated page, fetched 2026-10-05",
           "kind": "docs",
           "says": "Vague requests like \"improve this codebase\" trigger broad scanning; specific requests need fewer file reads."
         },
@@ -2323,7 +2422,7 @@
         {
           "title": "Manage costs effectively",
           "url": "https://code.claude.com/docs/en/costs",
-          "date": "undated page, fetched 2026-10-03",
+          "date": "undated page, fetched 2026-10-05",
           "kind": "docs",
           "says": "Scheduled tasks and idle check-ins each send the full context on every run, which is why usage climbs in long sessions."
         },
@@ -2447,7 +2546,7 @@
         {
           "title": "Manage costs effectively",
           "url": "https://code.claude.com/docs/en/costs",
-          "date": "undated page, fetched 2026-10-03",
+          "date": "undated page, fetched 2026-10-05",
           "kind": "docs",
           "says": "Gives a hook that filters test output to failures only, and a log example reducing tens of thousands of tokens to hundreds."
         },
@@ -2596,7 +2695,7 @@
         {
           "title": "Manage costs effectively",
           "url": "https://code.claude.com/docs/en/costs",
-          "date": "undated page, fetched 2026-10-03",
+          "date": "undated page, fetched 2026-10-05",
           "kind": "docs",
           "says": "Agent teams use approximately 7 times the tokens of a standard session when teammates run in plan mode."
         },
@@ -2907,7 +3006,7 @@
         {
           "title": "Manage costs effectively",
           "url": "https://code.claude.com/docs/en/costs",
-          "date": "undated page, fetched 2026-10-03",
+          "date": "undated page, fetched 2026-10-05",
           "kind": "docs",
           "says": "Thinking tokens are billed as output tokens and the default budget can be tens of thousands per request."
         },
@@ -4296,7 +4395,7 @@
         {
           "title": "Manage costs effectively",
           "url": "https://code.claude.com/docs/en/costs",
-          "date": "undated page, fetched 2026-10-03",
+          "date": "undated page, fetched 2026-10-05",
           "kind": "docs",
           "says": "Plan mode prevents expensive rework when the initial direction is wrong."
         }

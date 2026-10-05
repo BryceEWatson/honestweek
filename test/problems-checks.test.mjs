@@ -73,8 +73,11 @@ function history() {
     todo(session, t, tool, input, { agent, result = 'ok' } = {}) {
       return api.ev('action', session, t, { agent, facts: { tool, category: 'plan', result }, end: { t: t + 100 }, raw: { input, tool } });
     },
-    call(agent, session, line, t, ctx, output = 100) {
-      calls.push({ session, agent, source: agent.endsWith(':main') ? session : agent, tool: 'claude-code', lines: [line], t, input: 10, cacheWrite: 0, cacheRead: ctx - 10, output });
+    /** One model call reading `ctx` tokens, all but 10 from the cache unless `parts` says how
+     *  it splits ({ input, cacheWrite, cacheRead }), with `ttl` and `tool` as the engine records them. */
+    call(agent, session, line, t, ctx, output = 100, { ttl = null, tool = 'claude-code', ...parts } = {}) {
+      const split = parts.cacheRead != null ? { input: parts.input ?? 0, cacheWrite: parts.cacheWrite ?? 0, cacheRead: parts.cacheRead } : { input: 10, cacheWrite: 0, cacheRead: ctx - 10 };
+      calls.push({ session, agent, source: agent.endsWith(':main') ? session : agent, tool, lines: [line], t, ...split, output, ...(ttl ? { ttl } : {}) });
       return api;
     },
     lookup(list) {
@@ -92,7 +95,7 @@ function history() {
   return api;
 }
 
-const run = (h) => runProblems(h, { builtT: BUILT });
+const run = (h, opts = {}) => runProblems(h, { builtT: BUILT, ...opts });
 const check = (r, id) => r.checks.find((c) => c.id === id);
 const findingsOf = (r, patternId) => r.patterns.find((p) => p.id === patternId).findings;
 const looks = (r, patternId) => findingsOf(r, patternId).filter((f) => f.severity === 'look');
@@ -311,27 +314,78 @@ test('a background sub-agent with no completion notice; one with a notice is qui
   assert.deepEqual(findingsOf(rr, 'subagent-handoff-loss').map((f) => [f.severity, f.stillRunning]), [['note', true]]);
 });
 
-test('context past 150k: thirty more calls after crossing is worth a look; twenty-nine is not; no token counts means no check', () => {
-  const make = (after) => {
+test('context past your limit: thirty more calls after crossing is worth a look; twenty-nine is not; no limit or no token counts means no check', () => {
+  const make = (after, longSessionTokens = 150_000) => {
     const h = history().session('s1');
     h.prompt('s1', min(0), 'Long work.');
     let line = 100;
     for (let i = 0; i < 5; i++) h.call('s1:main', 's1', line++, min(1, i), 20_000);
     for (let i = 0; i <= after; i++) h.call('s1:main', 's1', line++, min(2, i), 160_000);
-    return run(h.build({ usage: true }));
+    return run(h.build({ usage: true }), { longSessionTokens });
   };
   const found = findingsOf(make(30), 'context-bloat');
   assert.equal(found.length, 1);
   assert.ok(found[0].estimate > 0);
+  // The finding keeps the limit it was found with, and its note states it.
+  assert.equal(found[0].limit, 150_000);
+  assert.match(found[0].note, /passed 150k tokens of context/);
+  // A higher limit isn't crossed; a lower one is, and says its own number.
+  assert.equal(findingsOf(make(30, 200_000), 'context-bloat').length, 0);
+  assert.match(findingsOf(make(30, 100_000), 'context-bloat')[0].note, /passed 100k tokens of context/);
+  // With no limit set the check is off, says how to turn it on, and the pattern reads as not checked.
+  const off = make(30, null);
+  assert.equal(off.patterns.find((p) => p.id === 'context-bloat').status, 'unchecked');
+  assert.match(check(off, 'long-sessions').notRun, /Off until you set a long-session limit in Settings/);
   // It matched model calls, not steps: its one step is only the nearest, and says so.
   assert.equal(found[0].stepsNear, true);
   assert.ok(!found[0].events);
   assert.equal(findingsOf(make(29), 'context-bloat').length, 0);
   const none = history().session('s1');
   none.prompt('s1', min(0), 'x');
-  const r = run(none.build());
+  const r = run(none.build(), { longSessionTokens: 150_000 });
   assert.equal(r.patterns.find((p) => p.id === 'context-bloat').status, 'unchecked');
   assert.match(check(r, 'long-sessions').notRun, /No token counts/);
+});
+
+test('a cache miss: a call that re-sends what the call before had cached, with the pause and how long the cache lasted', () => {
+  // Three warm calls of about 60k, a pause, then a call that sends it all again at the full rate.
+  const make = ({ pauseMin = 10, ttl = '5m', tool = 'claude-code', compactedBetween = false, resent = 62_000, readBack = 0 } = {}) => {
+    const h = history().session('s1', { tool });
+    h.prompt('s1', min(0), 'Some work.');
+    let line = 100;
+    for (let i = 0; i < 3; i++) h.call('s1:main', 's1', line++, min(1, i * 10), 60_000 + i * 1000, 100, { input: 10, cacheWrite: 1000, cacheRead: 59_000 + i * 1000, ttl: tool === 'codex' ? null : ttl, tool });
+    if (compactedBetween) h.ev('compaction', 's1', min(1 + pauseMin / 2), { actor: 'harness' });
+    h.prompt('s1', min(1 + pauseMin), 'Back again.');
+    h.call('s1:main', 's1', line++, min(1 + pauseMin, 5), resent + readBack, 100, { input: 10, cacheWrite: resent - 10, cacheRead: readBack, tool });
+    return run(h.build({ usage: true }));
+  };
+  const [f] = findingsOf(make(), 'cache-miss');
+  assert.equal(f.severity, 'look');
+  assert.equal(f.verdictEvidence, 'derived');
+  assert.equal(f.steps, 1);
+  assert.equal(f.estimate, 62_000);
+  assert.match(f.note, /re-sent a conversation it had cached 1 time: 62k tokens/);
+  assert.match(f.note, /after a 10 min pause, longer than its 5-minute cache\./);
+  // Its step is the prompt that came back after the pause.
+  assert.equal(f.event, f.events[0]);
+  // A one-hour cache outlasts a 10-minute pause, so the cause isn't recorded.
+  assert.match(findingsOf(make({ ttl: '1h' }), 'cache-miss')[0].note, /shorter than its 1-hour cache, so the cause isn't recorded/);
+  // Codex doesn't record how long it caches.
+  assert.match(findingsOf(make({ tool: 'codex' }), 'cache-miss')[0].note, /Codex doesn't record how long it caches/);
+  // A compaction rebuilds the cache on purpose: the call after one isn't a miss.
+  assert.equal(findingsOf(make({ compactedBetween: true }), 'cache-miss').length, 0);
+  // Under 20k re-sent, or reading back half or more of the call before (62,010 tokens), isn't a miss.
+  assert.equal(findingsOf(make({ resent: 19_000 }), 'cache-miss').length, 0);
+  assert.equal(findingsOf(make({ resent: 25_000, readBack: 32_000 }), 'cache-miss').length, 0);
+  assert.equal(findingsOf(make({ resent: 25_000, readBack: 29_000 }), 'cache-miss').length, 1);
+  // The check states its count and the tokens, both worked out from the log's counts.
+  const r = make();
+  assert.deepEqual(check(r, 'cache-misses').stats.map((x) => [x.value, x.evidence]), [[1, 'derived'], [62_000, 'derived']]);
+  assert.equal(check(r, 'cache-misses').cost.waste, true);
+  // No token counts: the check doesn't run.
+  const none = history().session('s1');
+  none.prompt('s1', min(0), 'x');
+  assert.match(check(run(none.build()), 'cache-misses').notRun, /No token counts/);
 });
 
 test('a single step that grew the context by 20k tokens or more, with its carried cost', () => {

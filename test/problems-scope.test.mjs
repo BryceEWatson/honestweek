@@ -203,7 +203,7 @@ test('a caption carries only numbers the finding or the log records', () => {
 
 const demo = buildDemoWeek({ root: join(makeTempDir('hw-scope-'), 'week') });
 const h = await buildWorkHistory({ config: demo.config, from: demo.week.from, to: demo.week.to, timezone: demo.week.timezone, roots: demo.roots, usage: true, keepRaw: true, hiddenSessions: 'redacted' });
-const result = runProblems(h, { builtT: Date.parse('2026-01-01T00:00:00Z') });
+const result = runProblems(h, { builtT: Date.parse('2026-01-01T00:00:00Z'), longSessionTokens: demo.config.longSessionTokens });
 const didx = historyIndex(h);
 const all = result.patterns.flatMap((p) => p.findings);
 const byId = new Map(h.events.map((e) => [e.id, e]));

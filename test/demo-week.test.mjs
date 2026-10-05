@@ -320,12 +320,13 @@ test("the Markdown branch's own tests pass, so the renderer it commits matches w
 // this pins what it shows: which patterns are found, at which tier, and in which session.
 test('the problem checks find a spread of patterns across the three tiers, each in the session that shows it', async () => {
   const ph = await buildWorkHistory({ config: d.config, from: WEEK.from, to: WEEK.to, roots: d.roots, usage: true, keepRaw: true, hiddenSessions: 'redacted' });
-  const r = runProblems(ph, { builtT: Date.parse('2026-01-01T00:00:00Z') });
+  const r = runProblems(ph, { builtT: Date.parse('2026-01-01T00:00:00Z'), longSessionTokens: d.config.longSessionTokens });
   const found = Object.fromEntries(r.patterns.filter((p) => p.status === 'found').map((p) => [p.id, [p.priority.tier, p.look, p.notesFound]]));
   // [tier, findings worth a look, routine notes]
   assert.deepEqual(found, {
     'claim-contradicts-evidence': ['high', 5, 0],
     'context-bloat': ['high', 2, 0],
+    'cache-miss': ['high', 3, 0],
     'secret-exposure': ['high', 4, 1],
     'unverified-done-claim': ['medium', 2, 0],
     'test-tampering': ['medium', 2, 0],
@@ -346,6 +347,9 @@ test('the problem checks find a spread of patterns across the three tiers, each 
   // Saturday's Codex session sets up on Codex the patterns the Claude Code sessions show.
   assert.deepEqual(where('claim-contradicts-evidence'), [k.bare, k.markdown, k.why].sort());
   assert.deepEqual(where('context-bloat'), [k.markdown, k.why].sort());
+  // The demo caches for five minutes, so a pause longer than that re-sends the conversation: the
+  // resumed session coming back after a break, and pauses in Wednesday's and Saturday's long ones.
+  assert.deepEqual(where('cache-miss'), [k.markdown, k.resumed, k.why].sort());
   assert.deepEqual(where('secret-exposure'), [k.release, k.upload].sort());
   assert.deepEqual(where('unverified-done-claim'), [k.width, k.label].sort());
   assert.deepEqual(where('test-tampering'), [k.windows, k.why].sort());
@@ -375,10 +379,17 @@ test('the problem checks find a spread of patterns across the three tiers, each 
   // An edit into the display-only site from each agent, both asked for: shown, and git never reads the site.
   assert.deepEqual(where('edits-outside-folder'), [k.widthCommit, k.why].sort());
   for (const f of r.patterns.find((p) => p.id === 'edits-outside-folder').findings) assert.match(f.note, /^1 edit outside the folder this session started in: 1 in a display-only repository\. Files: \*\.md\.$/);
-  // Most of the week is ordinary work: 11 of the 20 sessions the checks read (the display-only
+  // Most of the week is ordinary work: 12 of the 20 sessions the checks read (the display-only
   // one isn't checked) have anything worth a look.
   const flagged = new Set(looks.map((f) => f.session));
-  assert.deepEqual([flagged.size, r.coverage.sessions.value], [11, 20]);
+  assert.deepEqual([flagged.size, r.coverage.sessions.value], [12, 20]);
+  // The cache figures docs/demo-week.md states: each miss came after a pause longer than the
+  // demo's five-minute cache, which Claude Code records and Codex doesn't.
+  const miss = r.patterns.find((p) => p.id === 'cache-miss');
+  const missIn = (key) => miss.findings.find((f) => f.session === key);
+  assert.deepEqual([k.markdown, k.why, k.resumed].map((key) => [missIn(key).steps, Math.round(missIn(key).estimate / 1e3)]), [[6, 865], [2, 336], [2, 42]]);
+  for (const key of [k.markdown, k.resumed]) assert.match(missIn(key).note, /pause, longer than its 5-minute cache\.$/);
+  assert.match(missIn(k.why).note, /pause; Codex doesn't record how long it caches\.$/);
   // The token figures docs/demo-week.md states.
   assert.deepEqual([r.coverage.modelCalls.value, Math.round(r.coverage.tokens.value / 1e5)], [359, 192]);
   const bloat = r.patterns.find((p) => p.id === 'context-bloat');

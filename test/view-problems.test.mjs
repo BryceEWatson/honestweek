@@ -41,9 +41,9 @@ const body = async (q) => {
 const whole = await body();
 const allFindings = (b) => b.patterns.flatMap((p) => p.findings ?? []);
 
-test('the whole page: forty-one patterns with the fields the page reads, and the checks, coverage and rule', () => {
+test('the whole page: forty-two patterns with the fields the page reads, and the checks, coverage and rule', () => {
   for (const k of ['window', 'catalog', 'groups', 'priorityRule', 'statusCounts', 'coverage', 'rules', 'checks', 'patterns', 'sessions', 'focus', 'view']) assert.ok(k in whole, k);
-  assert.equal(whole.patterns.length, 41);
+  assert.equal(whole.patterns.length, 42);
   assert.equal(whole.focus, null);
   for (const p of whole.patterns) {
     for (const k of ['id', 'name', 'group', 'looksLike', 'whyItMatters', 'strength', 'strengthReason', 'sourceKinds', 'sources', 'detection', 'mitigation', 'related', 'status', 'measures', 'count', 'look', 'notesFound', 'tokens', 'priority', 'draft', 'findings', 'findingsListed']) assert.ok(k in p, `${p.id}.${k}`);
@@ -89,7 +89,7 @@ test('one session, the strip for a thread and for a goal, each clean of leaks', 
   assert.ok(allFindings(one).every((x) => x.session === f.session), 'only that session');
   const strip = await body({ thread: f.thread });
   assert.ok(strip.findings.some((x) => x.event === f.event));
-  assert.deepEqual(strip.catalogIds.length, 41, 'every catalog id, so overrides for other patterns stay');
+  assert.deepEqual(strip.catalogIds.length, 42, 'every catalog id, so overrides for other patterns stay');
   assert.ok(strip.patterns.every((p) => strip.findings.some((x) => x.pattern === p.id)));
   for (const p of strip.patterns) for (const k of ['id', 'name', 'group', 'status', 'priority', 'fix']) assert.ok(k in p, `strip pattern.${k}`);
   const goal = await body({ goal: goalKey(w.goalRecord.goals[0].id) });
@@ -100,8 +100,8 @@ test('one session, the strip for a thread and for a goal, each clean of leaks', 
 test('the summary every header reads: each pattern\'s tier and counts, no findings, clean of leaks', async () => {
   const sum = await body({ summary: '1' });
   assert.equal(sum.summary, true);
-  assert.equal(sum.patterns.length, 41);
-  assert.equal(sum.catalogIds.length, 41, 'every catalog id, so "My priority" for any pattern stays');
+  assert.equal(sum.patterns.length, 42);
+  assert.equal(sum.catalogIds.length, 42, 'every catalog id, so "My priority" for any pattern stays');
   for (const p of sum.patterns) {
     assert.deepEqual(Object.keys(p).sort(), ['count', 'countEvidence', 'fix', 'group', 'id', 'look', 'lookSessions', 'name', 'notesFound', 'priority', 'status', 'strength', 'tokens']);
     const full = whole.patterns.find((x) => x.id === p.id);
