@@ -43,6 +43,11 @@ test('Find new repositories lists only the ones the config lacks, newest first, 
   assert.deepEqual(r.repos.map((x) => x.lastAt), [5000, 1000]);
   assert.ok(r.repos.every((x) => x.role === 'featured'), 'a repository with my commits is suggested as featured');
   assert.ok(!asked.includes('disp'), 'git was asked about a display-only repository');
+  // The other git question, whose commits these are, is never asked about it either.
+  const authored = [];
+  const quiet = createSettings({ cwd: folder, lastCommitAt: () => null, hasCommits: (p) => (authored.push(basename(p)), false) }).found();
+  assert.ok(quiet.repos.every((x) => x.role === 'reference'), 'a repository without my commits is suggested as reference');
+  assert.ok(authored.length > 0 && !authored.includes('disp'), 'git was asked about a display-only repository');
 });
 
 test("Settings' list carries each read repository's last commit, and none for a display-only one", () => {
@@ -55,4 +60,26 @@ test("Settings' list carries each read repository's last commit, and none for a 
   const none = createSettings({ cwd: parent }).found();
   assert.equal(none.editable, false);
   assert.match(none.note, /no honestweek\.config\.json/);
+});
+
+test('Find new repositories never asks git about a repository holding a display-only folder, nor offers it', () => {
+  const top = join(parent, 'nested');
+  mkdirSync(top);
+  const mono = join(top, 'mono');
+  mkdirSync(mono);
+  git(mono, ['init', '-q']);
+  mkdirSync(join(mono, 'private'));
+  const other = join(top, 'other');
+  mkdirSync(other);
+  git(other, ['init', '-q']);
+  const here = join(top, 'myweek');
+  mkdirSync(here);
+  writeFileSync(join(here, 'honestweek.config.json'), `${JSON.stringify({ identity: { authorEmails: [ME] }, repos: [{ path: '../other', label: 'other', role: 'featured' }, { path: '../mono/private', label: 'private', role: 'display' }] }, null, 2)}
+`);
+  const asked = [];
+  const spy = (p) => (asked.push(basename(p)), null);
+  const r = createSettings({ cwd: here, lastCommitAt: spy, hasCommits: (p) => spy(p) ?? false }).found();
+  assert.equal(r.editable, true);
+  assert.deepEqual(r.repos, [], 'mono holds a display-only folder, so it is not offered');
+  assert.ok(!asked.includes('mono'), 'git was asked about a repository holding a display-only folder');
 });
