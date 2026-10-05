@@ -39,7 +39,9 @@ const gitconfig = join(scratch, 'gitconfig');
 writeFileSync(gitconfig, '[user]\n\temail = you@example.com\n\tname = You\n[commit]\n\tgpgsign = false\n');
 const emptyLogs = join(scratch, 'no-logs');
 mkdirSync(emptyLogs);
-const ENV = { ...process.env, GIT_CONFIG_GLOBAL: gitconfig, GIT_CONFIG_NOSYSTEM: '1', CLAUDE_CONFIG_DIR: emptyLogs, CODEX_HOME: emptyLogs };
+// One fixed commit time for every repository these tests make, so the newest-first list is a tie
+// and stays in folder order however fast the machine is.
+const ENV = { ...process.env, GIT_CONFIG_GLOBAL: gitconfig, GIT_CONFIG_NOSYSTEM: '1', CLAUDE_CONFIG_DIR: emptyLogs, CODEX_HOME: emptyLogs, GIT_AUTHOR_DATE: '2025-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2025-01-01T00:00:00Z' };
 for (const k of Object.keys(ENV)) if (/^npm_/i.test(k)) delete ENV[k];
 
 const git = (dir, args) => execFileSync('git', ['-C', dir, ...args], { env: ENV, stdio: ['ignore', 'pipe', 'pipe'] });

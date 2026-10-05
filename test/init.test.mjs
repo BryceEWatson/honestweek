@@ -38,7 +38,9 @@ function initRepoWithCommit(dir, email) {
   git(dir, ['config', 'commit.gpgsign', 'false']);
   counter += 1;
   writeFileSync(join(dir, `f${counter}.txt`), `x${counter}`);
-  const env = { ...process.env, GIT_AUTHOR_EMAIL: email, GIT_COMMITTER_EMAIL: email, GIT_AUTHOR_NAME: 'Dev', GIT_COMMITTER_NAME: 'Dev' };
+  // One fixed commit time for every test repository, so the list's newest-first order is a tie and
+  // stays in folder order however fast the machine makes them (a slower one put the last one first).
+  const env = { ...process.env, GIT_AUTHOR_EMAIL: email, GIT_COMMITTER_EMAIL: email, GIT_AUTHOR_NAME: 'Dev', GIT_COMMITTER_NAME: 'Dev', GIT_AUTHOR_DATE: '2025-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2025-01-01T00:00:00Z' };
   git(dir, ['add', '-A'], env);
   git(dir, ['commit', '-q', '-m', 'init'], env);
 }
