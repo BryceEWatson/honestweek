@@ -9,20 +9,20 @@ honestweek runs on your own machine and reads private data: your AI coding sessi
 - **It never runs `git`** against a repository you mark display-only, and it summarizes display-only work generically.
 - **Weekly reports use sessions from your listed repositories.** A session anywhere else is private to the report: its text never becomes a report item. `mine` works differently: it looks for solved problems across every session in the logs it reads, because a problem worth writing up can come from any project. It reports what it found and writes a draft only when you run it with `--draft`.
 - **It writes local files only**, and every string passes through its redactor (a pattern-based scrubber for secrets, personal paths and terms you list) before it's written. One of those files is meant to be committed: `mine` keeps its findings ledger in `honestweek.findings.json` on every run, de-identified and redacted, as the record of what you've already accepted or declined.
-- **It makes no network calls.** No telemetry, no fetch. Two commands start a local server, and both bind to `127.0.0.1`, so only your own machine can reach them: `preview`, which shows your built output, and `view`, a page for finding and replaying your sessions. `view` also refuses requests that name another host or come from another website, and answers data requests only from the page it opened: each run makes a fresh key, and the address it opens or prints carries a one-time code the page trades for that key.
-- **`view` keeps what it reads in memory.** It reads your logs to answer the page and writes none of it to disk. Its Show private text switch shows names and folders on your own screen, never secrets, and that version is built in memory only when you turn the switch on. `view --demo` writes a made-up week to a temporary folder and deletes it when you stop.
+- **It makes no network calls.** No telemetry, no fetch. The one exception is a choice you make on `view`'s Problems page: with Include /insights turned on, Run /insights starts your own `claude -p /insights` and Run with Codex starts your own `codex`, each only after you confirm. Those programs send your sessions to Claude or OpenAI on your own plan, and Codex runs in its read-only sandbox, which still lets it read files you can read. honestweek itself still sends nothing. Two commands start a local server, and both bind to `127.0.0.1`, so only your own machine can reach them: `preview`, which shows your built output, and `view`, a page for finding and replaying your sessions. `view` also refuses requests that name another host or come from another website, and answers data requests only from the page it opened: each run makes a fresh key, and the address it opens or prints carries a one-time code the page trades for that key.
+- **`view` keeps what it reads in memory.** It reads your logs to answer the page and writes none of it to disk. What it does write: Setup and Settings write `honestweek.config.json` when you press Save, and Run with Codex keeps Codex's answers, redacted again, in `honestweek.codex-judgments/` beside your config, which is git-ignored. Its Show private text switch shows names and folders on your own screen, never secrets, and that version is built in memory only when you turn the switch on. `view --demo` writes a made-up week to a temporary folder and deletes it when you stop.
 - **It never publishes anything.** You decide what leaves your machine.
 
 ## What counts as a security problem
 
 Please report privately if you find any way honestweek could:
 
-- send any data off your machine;
+- send any data off your machine, other than through Run /insights or Run with Codex after you confirm;
 - write an unredacted secret, or text it was told to redact, into an output file;
 - run `git` against a display-only repository, or against a repository outside your list other than the two setup checks above;
 - let the `preview` server answer anyone other than your own machine, or serve a file outside its output folder;
-- let the `view` server answer another website, another host name, or a request without the run's key, show a secret with Show private text on, show a private word with it off, or write anything it read to disk;
-- run a command built from text inside a session log.
+- let the `view` server answer another website, another host name, or a request without the run's key, show a secret with Show private text on, show a private word with it off, or write anything it read to disk other than the config and Run with Codex's redacted answers;
+- run a command built from text inside a session log, or run `claude` or `codex` without your confirm.
 
 The redactor's known gaps (short low-entropy passwords, unlisted spellings of a listed term, phone numbers and similar) are documented in the README under "What the scrubber catches, and what it doesn't". Improvements there are welcome as ordinary issues or pull requests.
 

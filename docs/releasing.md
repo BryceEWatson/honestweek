@@ -22,12 +22,12 @@ The workflow is safe to leave on with the terminal path. When a release is publi
 
 ## 1. The release pull request
 
-On a branch `feature/release-0.2.0` from `main`:
+On a branch from `main` (for 0.2.0, `feature/release-0.2.0-final`):
 
 1. Confirm every pull request the changelog marks "not merged yet" has merged (for 0.2.0 those were #84 and #87, and both have).
 2. Set the version to `0.2.0` in `package.json` and in `.claude-plugin/plugin.json`. A test checks the two match. `.claude-plugin/marketplace.json` has no version of its own, so it doesn't change.
 3. In `CHANGELOG.md`, rename `## Unreleased (0.2.0)` to `## 0.2.0 (<date>)`, drop the "not merged yet" notes, and add anything else merged since.
-4. In `README.md`, make `npx honestweek` the main way to run it (keep `npx github:BryceEWatson/honestweek` as the way to run unreleased code), and add an npm version badge if you want one. The Releasing section already points here. `test/install.test.mjs` has a test that stops the README from advertising `npx honestweek` as working before it does. Update that test in the same pull request.
+4. In `README.md`, make `npx honestweek` the main way to run it (keep `npx github:BryceEWatson/honestweek` as the way to run unreleased code), and add an npm version badge if you want one. The Releasing section already points here. Until 0.2.0, `test/install.test.mjs` stopped the README from advertising `npx honestweek` before it worked; the 0.2.0 release pull request turned it into a test that the README leads with `npx honestweek`. From the merge until the publish in step 2, the README on `main` says honestweek is on npm when it isn't yet, so publish soon after merging.
 5. Run `node --test`, open the pull request, and merge it once CI is green on Linux, Windows and macOS.
 
 ## 2. Publish from a clean copy of main
@@ -45,7 +45,7 @@ npm publish --dry-run
 The dry run runs the whole test suite first (about a minute), because `package.json` has a `prepublishOnly` script, and then prints what it would upload. Check:
 
 - `name: honestweek` and `version: 0.2.0`;
-- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (130 files and about 0.7 MB packed for 0.2.0, with the `view` pages under `lib/view/assets/`; later changes move the count, so check the list rather than the number);
+- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (145 files and about 0.8 MB packed for 0.2.0, with the `view` pages under `lib/view/assets/`; later changes move the count, so check the list rather than the number);
 - nothing from `test/`, `docs/`, `tools/` or `.claude/`.
 
 Then publish for real:
@@ -117,13 +117,15 @@ Publishing the release starts the release workflow. It finds 0.2.0 already on np
 
 > **honestweek 0.2.0**
 >
-> honestweek is on npm. `npx honestweek --help` works from any folder, and `npm install -g honestweek` gives you a plain `honestweek` command. It still has no dependencies, runs only on your own machine, and never publishes anything for you. You need Node 18 or later and `git`.
+> honestweek is on npm. `npx honestweek --help` works from any folder, and `npm install -g honestweek` gives you a plain `honestweek` command. It still has no dependencies, runs only on your own machine, and never publishes anything for you. The one way your sessions leave your machine is a button you press: Run /insights or Run with Codex, which hand them to your own `claude` or `codex`. You need Node 18 or later and `git`.
 >
 > **What's new**
 >
-> - **`honestweek view`**, a page in your browser served only from your own machine. Find the sessions and goals behind a pull request, a commit, a file, a branch or a few words, see each goal's sessions on a timeline, and replay any session step by step. Every link, count and time says how it's known. Text is redacted by default; a "Show private text" switch shows names and client words on your own screen while keys, tokens and passwords stay hidden. Try it on a made-up week with `npx honestweek view --demo`.
-> - **A Problems page** in `view`. It checks your sessions against a catalog of 40 known ways AI coding agents go wrong, such as saying "done" after a failing test, and links each one it finds to the exact moment in the replay, with fix ideas from published sources. Every finding says how it's known.
-> - **An easier first run.** Run `honestweek` with no arguments for three first steps. `init` explains repository roles, asks which names and client words to keep private, and points you to `view`.
+> - **`honestweek view` opens on where your sessions went wrong.** Its Problems page checks your Claude Code and Codex sessions against a catalog of 41 known ways AI coding agents go wrong. Claims the agent couldn't back come first, each finding zooms the replay to its exact steps and says how it's known, and each pattern offers a fix to copy, a prompt to test it with, and its count against the week before.
+> - **Setup and Settings in the browser.** The first `honestweek view` in a new folder opens Setup, which writes your config and goes straight on to your week. Settings changes it later, including how far back to look.
+> - **Codex, as well as Claude Code.** honestweek reads Codex's current log format, and 16 of the 19 checked problems run on Codex. A Facts fold gives both agents the plain facts `/insights` keeps about a session, worked out from the logs with no model involved.
+> - **Find and replay.** Find the sessions and goals behind a pull request, a commit, a file, a branch or a few words, see each goal's sessions on a timeline, and replay any session step by step. Every link, count and time says how it's known. Text is redacted by default; a "Show private text" switch shows names and client words on your own screen while keys, tokens and passwords stay hidden. Try it on a made-up week with `npx honestweek view --demo`.
+> - **Optional AI-written notes, off by default.** Include /insights adds what Claude Code's `/insights` wrote about your sessions as its own labelled group, never counted with honestweek's findings, and Run with Codex has your own `codex` write the same for Codex sessions. Both ask before they send anything.
 > - **A client report** (`client` mode): a printable page of the work done for one client over any period, with numbers and pull requests taken from git, and reader profiles that order and trim the same checked facts for the person reading them.
 > - **Codex logs in the current format** are read again, so `mine`, `digest` and `prompts` see your Codex sessions.
 > - **Stronger privacy.** `git` never runs against a display-only repository, even in `mine`, `init` and `discover`. The redactor now catches a private term inside longer names and web addresses, a Windows home folder inside JSON text, and many more forms of password and token fields, in everything honestweek writes.
