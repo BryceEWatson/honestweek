@@ -531,3 +531,12 @@ test("the header's Problems count is the headline's problems to fix, by the same
   assert.equal(box.toFix({ status: 'clear', sure: { look: 0 }, possible: { look: 0 } }, 'high'), false);
   assert.match(common, /el\.title = n \? `\$\{plural\(n, 'problem'\)\} to fix in this window` : '';/);
 });
+
+test('a fix\'s test line says "not seen" only for the tests that could tell', async () => {
+  const D = answer();
+  const p = D.patterns.find((x) => x.id === 'claim-contradicts-evidence');
+  const t = (session, thread, n, problem) => ({ version: 'ab12', session, thread, event: `${session}.${n}.0`, at: `2025-03-1${n}T10:00:00.000Z`, tool: 'claude-code', fired: { state: 'fired', level: 'recorded' }, problem });
+  Object.assign(p, { fixVersion: 'ab12', testTag: '[honestweek check: claim-contradicts-evidence ab12]', fixTests: [t(S.cc, TH.cc, 1, { state: 'not-seen', level: 'inferred' }), t(S.cx, TH.cx, 2, { state: 'unknown', level: 'missing', why: 'running' })] });
+  const line = blocks(blocks((await drawProblems(D, { hash: '#claim-contradicts-evidence' })).el('detail').innerHTML, 'section', 'pd-try')[0], 'div', 'trytrack')[0];
+  assert.match(words(line), /^Tested 2 times: fired both times, problem not seen in 1 of 2\./);
+});
