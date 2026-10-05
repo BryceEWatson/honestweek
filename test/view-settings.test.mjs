@@ -447,3 +447,27 @@ test('the line Setup and Settings show for a choice states exactly the days the 
   assert.ok(seen.some(([, , capped]) => capped), JSON.stringify(seen));
   assert.deepEqual(seen[0], ['{"days":7}', 50, false, true]);
 });
+
+test('the trend reads the whole week before a week, past the log limit; a longer window keeps the limit for its window before', async () => {
+  // 60 MB in the week before this one (days -13 to -7), past a 50 MB limit.
+  bigLog('before-week', 60, 9);
+  const trendOf = async (s) => {
+    for (let i = 0; i < 600; i++) {
+      const t = (await call(s.port, { path: '/api/problems?trend=1', key: s.key })).json;
+      if (t?.earlier && !t.earlier.partial) return t;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return null;
+  };
+  const week = await view(project('trend-week', baseConfig({ historyLimitMB: 50 })));
+  await ready(week);
+  const t = await trendOf(week);
+  assert.equal(t.earlier.skipped, undefined, 'a week compares with all of the week before');
+  assert.deepEqual([t.earlier.from, t.earlier.to], [day(-13), day(-7)]);
+  // Failing-path partner: a 30-day window's 30 days before are held to the limit.
+  const month = await view(project('trend-month', baseConfig({ history: { days: 30 }, historyLimitMB: 50 })));
+  await ready(month);
+  const m = await trendOf(month);
+  assert.equal(m.earlier.skipped, 'limit');
+  assert.match(m.earlier.note, /past the 50 MB limit, so they aren't compared\.$/);
+});

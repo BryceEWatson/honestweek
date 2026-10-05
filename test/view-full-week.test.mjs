@@ -284,13 +284,75 @@ test('tools/synthetic-week.mjs writes copies of the demo week into the 7 days it
   const out = join(scratch, '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d', 'synthetic');
   const r = JSON.parse(execFileSync(process.execPath, [TOOL, out, '2', '--to', '2026-01-11'], { encoding: 'utf8' }));
   assert.deepEqual([r.from, r.to, r.copies], ['2026-01-05', '2026-01-11', 2]);
-  const { config } = await import('../lib/config.mjs').then((m) => ({ config: m.loadConfig(r.config) }));
+  const { loadConfig } = await import('../lib/config.mjs');
+  const config = loadConfig(r.config);
   const h = await buildWorkHistory({ config, roots: r.roots, from: r.from, to: r.to, timezone: 'UTC', scope: 'all', git: false });
   const demo = await buildWorkHistory({ config, roots: r.roots, from: WEEK.from, to: WEEK.to, timezone: 'UTC', scope: 'all', git: false });
   assert.equal(h.sessions.length, 2 * demo.sessions.length, 'two copies, each its own sessions');
   const configured = (x) => x.sessions.filter((s) => !s.private).length;
   assert.ok(configured(demo) > 0);
   assert.equal(configured(h), 2 * configured(demo), 'each copy reads as being in the configured repositories');
+  // --weeks 2: a second week before the first, its copies with their own ids too.
+  const two = JSON.parse(execFileSync(process.execPath, [TOOL, join(scratch, 'synthetic-two'), '1', '--to', '2026-01-11', '--weeks', '2'], { encoding: 'utf8' }));
+  assert.deepEqual([two.from, two.to, two.weeks], ['2025-12-29', '2026-01-11', 2]);
+  const before = await buildWorkHistory({ config: loadConfig(two.config), roots: two.roots, from: '2025-12-29', to: '2026-01-04', timezone: 'UTC', scope: 'all', git: false });
+  assert.ok(configured(before) > 0, 'the week before has sessions of its own');
   // Failing path: no copies asked for is refused.
   assert.throws(() => execFileSync(process.execPath, [TOOL, join(scratch, 'none'), '0'], { stdio: 'pipe' }));
+});
+
+test('the week before loads the way this week did: newest day first, "before so far" until all of it is in, one build at a time', async () => {
+  // The demo week's own days stand in for "the week before": a window of the 7 days after it.
+  const after = { from: '2025-03-17', to: '2025-03-23' };
+  let release;
+  const gate = new Promise((r) => (release = r));
+  const calls = [];
+  let live = 0;
+  let most = 0;
+  const build = async (o) => {
+    calls.push([o.from, o.to]);
+    live += 1;
+    most = Math.max(most, live);
+    try {
+      if (o.from === WEEK.from && o.to === WEEK.to) await gate;
+      return await buildWorkHistory(o);
+    } finally {
+      live -= 1;
+    }
+  };
+  const data = createViewData({ config: w.config, roots: w.roots, ...after, timezone: 'UTC', buildHistory: build, earlierProgressive: true });
+  await data.start();
+  const first = (await data.route('/api/problems', params({ trend: '1' }))).body;
+  assert.deepEqual(first.earlier.partial, { from: WEEK.to, to: WEEK.to }, 'the newest day of the week before is in first');
+  assert.equal(first.earlier.note, `The 7 days before: only ${WEEK.to} so far, so "before" covers just that day. The rest is loading.`);
+  const firstDay = await buildWorkHistory({ config: w.config, roots: w.roots, from: WEEK.to, to: WEEK.to, timezone: 'UTC', scope: 'all' });
+  assert.equal(first.earlier.sessions, firstDay.sessions.filter((x) => !x.private).length, 'its counts are the first day\'s alone');
+  // Still partial while the rest loads; the whole week before starts only after the first day's build.
+  await waitFor(() => calls.some(([a, b]) => a === WEEK.from && b === WEEK.to), 'the whole week before to start');
+  assert.ok((await data.route('/api/problems', params({ trend: '1' }))).body.earlier.partial);
+  release();
+  await waitFor(async () => !(await data.route('/api/problems', params({ trend: '1' }))).body.earlier.partial, 'the whole week before');
+  const done = (await data.route('/api/problems', params({ trend: '1' }))).body;
+  const whole = await buildWorkHistory({ config: w.config, roots: w.roots, from: WEEK.from, to: WEEK.to, timezone: 'UTC', scope: 'all' });
+  assert.equal(done.earlier.sessions, whole.sessions.filter((x) => !x.private).length, 'then the whole week before');
+  assert.equal(done.earlier.note, undefined);
+  assert.ok(done.trend.some((t) => t.sure.before !== null), 'rows have a before count');
+  const earlierCalls = calls.filter(([a]) => a < after.from);
+  assert.deepEqual(earlierCalls, [[WEEK.to, WEEK.to], [WEEK.from, WEEK.to]]);
+  assert.equal(most, 1, 'never two builds of the week before at once, nor beside this window\'s own build');
+});
+
+test('the week before, cut to what memory holds: only its newest days, and the note says so', async () => {
+  const after = { from: '2025-03-17', to: '2025-03-23' };
+  const seen = [];
+  const build = (o) => (seen.push([o.from, o.to]), buildWorkHistory(o));
+  const data = createViewData({ config: w.config, roots: w.roots, ...after, timezone: 'UTC', buildHistory: build, earlierProgressive: true, earlierCheck: () => ({ from: '2025-03-14', note: 'Compared with 2025-03-14 to 2025-03-16 only: all 7 days before need more memory than this process has left.' }) });
+  await data.start();
+  await data.route('/api/problems', params({ trend: '1' }));
+  await waitFor(async () => !(await data.route('/api/problems', params({ trend: '1' }))).body.earlier.partial, 'the cut week before');
+  const t = (await data.route('/api/problems', params({ trend: '1' }))).body;
+  assert.deepEqual(t.earlier.loaded, { from: '2025-03-14', to: WEEK.to });
+  assert.match(t.earlier.note, /^Compared with 2025-03-14 to 2025-03-16 only/);
+  assert.ok(seen.some(([a, b]) => a === '2025-03-14' && b === WEEK.to));
+  assert.ok(!seen.some(([a]) => a === WEEK.from), 'the days that did not fit were never read');
 });

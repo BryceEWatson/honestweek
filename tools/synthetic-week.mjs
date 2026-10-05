@@ -2,12 +2,13 @@
 // tools/synthetic-week.mjs: a large made-up week of logs, for measuring how long `honestweek view`
 // takes to load a week and how much memory it needs.
 //
-//   node tools/synthetic-week.mjs <out-dir> <copies> [--to YYYY-MM-DD] [--pad <n>]
+//   node tools/synthetic-week.mjs <out-dir> <copies> [--to YYYY-MM-DD] [--pad <n>] [--weeks <n>]
 //
 // It writes the demo week (lib/demo/week.mjs) into <out-dir>, then copies its Claude Code and
 // Codex logs <copies> times into the 7 days ending on --to (default today, in UTC), each copy
 // with its own session ids, so every copy is a separate set of sessions. --pad n repeats each
-// tool result's text n more times, for logs whose size is mostly tool output. Every file's last
+// tool result's text n more times, for logs whose size is mostly tool output. --weeks n writes n
+// such weeks back to back, the newest ending on --to, each copy with its own ids. Every file's last
 // write is set to its last record's time, as the logs' own files would be. It prints the roots,
 // the config, the window and the total size as JSON. Developer use only: nothing reads it.
 
@@ -23,14 +24,17 @@ const copies = Number(args[1]);
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const to = opt('--to', new Date().toISOString().slice(0, 10));
 const pad = Number(opt('--pad', '0'));
-if (!out || !Number.isInteger(copies) || copies < 1) {
-  process.stderr.write('Usage: node tools/synthetic-week.mjs <out-dir> <copies> [--to YYYY-MM-DD] [--pad <n>]\n');
+const weeks = Number(opt('--weeks', '1'));
+if (!out || !Number.isInteger(copies) || copies < 1 || !Number.isInteger(weeks) || weeks < 1) {
+  process.stderr.write('Usage: node tools/synthetic-week.mjs <out-dir> <copies> [--to YYYY-MM-DD] [--pad <n>] [--weeks <n>]\n');
   process.exit(1);
 }
 
 const DAY = 86400000;
 const shiftDays = Math.round((Date.parse(`${to}T00:00:00Z`) - 6 * DAY - Date.parse(`${WEEK.from}T00:00:00Z`)) / DAY);
-const dayShift = (d) => new Date(Date.parse(`${d}T00:00:00Z`) + shiftDays * DAY).toISOString().slice(0, 10);
+// --weeks n writes n weeks back to back, each ending 7 days before the next; `back` is which.
+let back = 0;
+const dayShift = (d) => new Date(Date.parse(`${d}T00:00:00Z`) + (shiftDays - 7 * back) * DAY).toISOString().slice(0, 10);
 const hex = (s, n) => createHash('sha256').update(s).digest('hex').slice(0, n);
 const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/g;
 const AGENT = /\ba[0-9a-f]{15}\b/g;
@@ -79,7 +83,13 @@ const walk = (dir) => {
 for (const r of [...demo.roots.claude, ...demo.roots.codex]) walk(r);
 const originals = files.map((f) => ({ f, text: readFileSync(f, 'utf8') }));
 let total = 0;
-for (let k = 0; k < copies; k++) {
+const runs = [];
+for (let b = weeks - 1; b >= 0; b--) for (let c = 0; c < copies; c++) runs.push([b, c]);
+for (const [i, [b, c]] of runs.entries()) {
+  back = b;
+  const k = b * copies + c;
+  const firstRun = i === 0;
+  const lastRun = i === runs.length - 1;
   for (const { f, text } of originals) {
     const root = [...demo.roots.claude, ...demo.roots.codex].find((r) => f.startsWith(r));
     const rel = relative(root, f).replace(DATE_PATH, (_, a, b, m, c, d, e) => { const day = dayShift(`2025-${m}-${d}`); return `${a}${day.slice(0, 4)}${b}${day.slice(5, 7)}${c}${day.slice(8, 10)}${e}`; });
@@ -88,9 +98,9 @@ for (let k = 0; k < copies; k++) {
     // A session index is appended to, never replaced, so every copy's thread names stay.
     const index = f.endsWith('session_index.jsonl');
     mkdirSync(dirname(target), { recursive: true });
-    if (index) writeFileSync(target, body, { flag: k === 0 ? 'w' : 'a' });
+    if (index) writeFileSync(target, body, { flag: firstRun ? 'w' : 'a' });
     else writeFileSync(target, body);
-    if (!index || k === copies - 1) {
+    if (!index || lastRun) {
       const times = [...body.matchAll(/"(?:timestamp)":"(\d{4}-\d\d-\d\dT[^"]+)"/g)].map((m) => Date.parse(m[1])).filter(Number.isFinite);
       const last = times.length ? Math.max(...times) : Date.parse(`${to}T12:00:00Z`);
       utimesSync(target, new Date(last), new Date(last));
@@ -103,4 +113,6 @@ for (const r of [...demo.roots.claude, ...demo.roots.codex]) {
   w(r);
   total += all.reduce((n, p) => n + statSync(p).size, 0);
 }
-process.stdout.write(`${JSON.stringify({ root: out, roots: demo.roots, config: join(out, 'honestweek.config.json'), from: dayShift(WEEK.from), to, copies, pad, bytes: total, mb: Math.round(total / 1048576) }, null, 2)}\n`);
+back = weeks - 1;
+const firstDay = dayShift(WEEK.from);
+process.stdout.write(`${JSON.stringify({ root: out, roots: demo.roots, config: join(out, 'honestweek.config.json'), from: firstDay, to, weeks, copies, pad, bytes: total, mb: Math.round(total / 1048576) }, null, 2)}\n`);
