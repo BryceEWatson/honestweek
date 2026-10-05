@@ -349,14 +349,14 @@ test('context past your limit: thirty more calls after crossing is worth a look;
 
 test('a cache miss: a call that re-sends what the call before had cached, with the pause and how long the cache lasted', () => {
   // Three warm calls of about 60k, a pause, then a call that sends it all again at the full rate.
-  const make = ({ pauseMin = 10, ttl = '5m', tool = 'claude-code', compactedBetween = false, resent = 62_000, readBack = 0 } = {}) => {
+  const make = ({ pauseMin = 10, ttl = '5m', tool = 'claude-code', compactedBetween = false, resent = 62_000, readBack = 0, agent = 's1:main' } = {}) => {
     const h = history().session('s1', { tool });
     h.prompt('s1', min(0), 'Some work.');
     let line = 100;
-    for (let i = 0; i < 3; i++) h.call('s1:main', 's1', line++, min(1, i * 10), 60_000 + i * 1000, 100, { input: 10, cacheWrite: 1000, cacheRead: 59_000 + i * 1000, ttl: tool === 'codex' ? null : ttl, tool });
+    for (let i = 0; i < 3; i++) h.call(agent, 's1', line++, min(1, i * 10), 60_000 + i * 1000, 100, { input: 10, cacheWrite: 1000, cacheRead: 59_000 + i * 1000, ttl: tool === 'codex' ? null : ttl, tool });
     if (compactedBetween) h.ev('compaction', 's1', min(1 + pauseMin / 2), { actor: 'harness' });
     h.prompt('s1', min(1 + pauseMin), 'Back again.');
-    h.call('s1:main', 's1', line++, min(1 + pauseMin, 5), resent + readBack, 100, { input: 10, cacheWrite: resent - 10, cacheRead: readBack, tool });
+    h.call(agent, 's1', line++, min(1 + pauseMin, 5), resent + readBack, 100, { input: 10, cacheWrite: resent - 10, cacheRead: readBack, tool });
     return run(h.build({ usage: true }));
   };
   const [f] = findingsOf(make(), 'cache-miss');
@@ -374,6 +374,8 @@ test('a cache miss: a call that re-sends what the call before had cached, with t
   assert.match(findingsOf(make({ tool: 'codex' }), 'cache-miss')[0].note, /Codex doesn't record how long it caches/);
   // A compaction rebuilds the cache on purpose: the call after one isn't a miss.
   assert.equal(findingsOf(make({ compactedBetween: true }), 'cache-miss').length, 0);
+  // An older log's inline sub-agents share one list, so the call before may be another one's: not checked.
+  assert.equal(findingsOf(make({ agent: 's1:sidechain' }), 'cache-miss').length, 0);
   // Under 20k re-sent, or reading back half or more of the call before (62,010 tokens), isn't a miss.
   assert.equal(findingsOf(make({ resent: 19_000 }), 'cache-miss').length, 0);
   assert.equal(findingsOf(make({ resent: 25_000, readBack: 32_000 }), 'cache-miss').length, 0);
