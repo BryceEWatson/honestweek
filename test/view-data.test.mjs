@@ -965,6 +965,27 @@ test('the sessions list: display-only and outside sessions are labelled, redacte
   assert.ok(counted > 0, 'some session has a finding worth a look');
 });
 
+test('a session with no recorded time is listed after every dated day, under its own group, never left out', async () => {
+  // The middle one would be the newest; with its times gone, it goes last.
+  const times = ['2025-03-05T10:00:00.000Z', '2025-03-06T10:00:00.000Z', '2025-03-04T10:00:00.000Z'];
+  const h = manySessions(3, (i) => times[i]);
+  h.sessions[1] = { ...h.sessions[1], firstAt: null, lastAt: null };
+  const d = createViewData({ config: w.config, roots: w.roots, ...WINDOW, buildHistory: async () => h });
+  await d.start();
+  const list = (await d.route('/api/sessions', params())).body;
+  assert.deepEqual(list.days.map((x) => [x.day, x.rows.map((r) => r.session)]), [
+    ['2025-03-05', [h.sessions[0].key]],
+    ['2025-03-04', [h.sessions[2].key]],
+    ['none', [h.sessions[1].key]],
+  ]);
+  assert.equal(list.days[2].rows[0].length, null, 'no length is made up for it');
+  const page = (await d.route('/api/sessions', params({ day: 'none', offset: '0' }))).body;
+  assert.deepEqual(page.rows.map((r) => r.session), [h.sessions[1].key]);
+  // Paging days past every dated one still reaches it.
+  const older = (await d.route('/api/sessions', params({ before: '2025-03-04' }))).body;
+  assert.deepEqual(older.days.map((x) => x.day), ['none']);
+});
+
 test('the sessions list refuses a malformed day, offset or before, and an empty day says so', async () => {
   for (const q of [{ day: '2025-3-1' }, { day: '../x' }, { day: '2025-03-12', offset: '-1' }, { day: '2025-03-12', offset: '1e3' }, { offset: '5' }, { before: 'yesterday' }]) {
     assert.equal((await ask('/api/sessions', q)).status, 400, JSON.stringify(q));

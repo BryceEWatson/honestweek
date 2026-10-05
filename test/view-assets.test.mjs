@@ -692,4 +692,5 @@ test('the sessions list draws each day with a few rows, says when a session is d
   await none.calls.run();
   assert.match(none.els.get('content').innerHTML, /data-fatal="1">Nothing [^]*<a href="search\.html">Search<\/a> for a session to replay/);
   assert.equal(none.els.get('fatal').dataset.fatal, 'no-thread');
+  assert.ok(none.els.get('allSessions').removed, 'an empty list has no link to itself either');
 });
