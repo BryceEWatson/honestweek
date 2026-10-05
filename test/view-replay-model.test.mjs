@@ -55,11 +55,11 @@ test('a break is labelled by what filled it: a step in flight, an open helper, a
   assert.notEqual(M.breakLabel(gap, { steps: [cmd(12 * MIN), prompt] }).kind, 'wait');
   // A helper open across it: started before, no completion until after.
   const helper = { key: 'h1', kind: 'subagent', spawnAt: new Date(5 * MIN).toISOString(), completion: { at: new Date(29 * MIN).toISOString() } };
-  assert.equal(M.breakLabel(gap, { steps: [prompt], agents: [helper] }).text, 'helper working, 20 min');
+  assert.equal(M.breakLabel(gap, { steps: [prompt], agents: [helper] }).text, 'helper still open, 20 min');
   // With no completion recorded, its last record decides; one that stopped before the break isn't open.
   assert.equal(M.breakLabel(gap, { steps: [prompt], agents: [{ ...helper, completion: null, lastAt: new Date(28 * MIN).toISOString() }] }).kind, 'helper');
   assert.notEqual(M.breakLabel(gap, { steps: [prompt], agents: [{ ...helper, completion: null, lastAt: new Date(9 * MIN).toISOString() }] }).kind, 'helper');
-  // A main agent is never "a helper working".
+  // A main agent is never "a helper still open".
   assert.notEqual(M.breakLabel(gap, { steps: [prompt], agents: [{ ...helper, kind: 'main' }] }).kind, 'helper');
   // Inside a turn with nothing in flight: no records, said honestly.
   const turn = { startAt: new Date(5 * MIN).toISOString(), lastRecordAt: new Date(40 * MIN).toISOString() };
