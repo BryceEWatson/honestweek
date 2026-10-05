@@ -151,7 +151,7 @@ CI could also run Node 18 and 20 on Windows and macOS, which it doesn't today. S
 - Branch and commits checked: `origin/main` at `1084129` and `origin/feature/release-0.2.0-final` at `c385754`, with Node 22.14 and npm 10.9 on Windows. Pull request 111 is the release pull request.
 - The scan used `secretShapes` from `lib/problems/classify.mjs` per line, regexes for private-key blocks and GitHub, Anthropic, OpenAI, AWS, Slack, Google and npm key formats, and `findForbidden` with `privateForbidden` from `test/helpers/clean-room.mjs`, over `git rev-list --objects` of both refs and every commit message.
 - Privacy evidence: `lib/view/server.mjs` (the `listen` on `127.0.0.1`, the host check, the `Sec-Fetch-Site` check, `randomBytes(32)` for the key, `timingSafeEqual`, the `CSP` constant), `lib/loopback-host.mjs` (the host check `preview` and `view` now share, which also lets a bare host name through on port 80, where browsers leave the port out), `lib/view/insights.mjs` and `lib/view/codex-judge.mjs` (fixed arguments, absolute `PATH` folders only).
-- Tests added: `test/public-docs.test.mjs` (links and anchors, dashes in prose and `--help`, catalog counts, the Sidecars table against `.gitignore`) a host-name case in `test/preview.test.mjs`, and `test/loopback-host.test.mjs`.
+- Tests added: `test/public-docs.test.mjs` (links and anchors, dashes in prose and `--help`, catalog counts, the Sidecars table against `.gitignore`), a host-name case in `test/preview.test.mjs`, and `test/loopback-host.test.mjs`.
 - The cache-miss coverage is `coverage.codex.status` of the `cache-miss` pattern in `lib/problems/catalog.json`, added in `4c9451b`.
 
 ## 0.2.0 release notes
