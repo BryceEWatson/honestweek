@@ -521,3 +521,12 @@ test("Replay's story never hides a failed test run in a group, and every grouped
   assert.match(replay, /worth a look \$\{sym\(window\.HWE\.weakest\(c\.levels\)\)\}/);
   assert.match(replay, /\$\{c\.possible\} of them possible/);
 });
+
+test('a page with no working key offers no link back into the pages, since each would only lead to the same notice', () => {
+  const common = readFileSync(join(ASSETS, 'common.js'), 'utf8');
+  assert.doesNotMatch(common, /Back to search/);
+  // Every key notice (no key, a refused key, a stopped server) is drawn keyless; other errors keep a link home.
+  const calls = [...common.matchAll(/fatal\(noticeHtml\([^)]*\)([^;]*);/g)].map((m) => m[1]);
+  assert.ok(calls.length >= 4 && calls.every((rest) => /\{ keyless: true \}/.test(rest)), 'every key notice is keyless');
+  assert.match(common, /keyless \? '' : ' <p><a href="problems\.html">Back to Problems<\/a><\/p>'/);
+});
