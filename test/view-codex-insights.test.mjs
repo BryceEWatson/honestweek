@@ -279,6 +279,8 @@ process.stdin.on('end', () => {
   return dir;
 }
 const baseEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k]) => /^(SystemRoot|SYSTEMROOT|ComSpec|COMSPEC|PATHEXT|TEMP|TMP|TMPDIR|HOME|USERPROFILE)$/i.test(k)));
+/** Include /insights, on: a run starts only while it is. */
+const ON = () => true;
 const logOf = (file) => (existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter((l) => l.startsWith('{')).map((l) => JSON.parse(l)) : []);
 async function settle(judge) {
   for (let i = 0; i < 400 && judge.info().run.state === 'running'; i++) await sleep(50);
@@ -306,7 +308,7 @@ test('a run judges each waiting Codex session once, sends redacted text on stdin
   const sent = w2.sessions.find((s) => s.id === ID.codex).text;
   assert.ok(!sent.includes(PRIVATE) && !sent.includes(SECRETS.github), 'what codex reads is redacted');
   assert.match(sent, /^Person: Fix the \[redacted:/);
-  const judge = createCodexJudge({ configDir: cfgDir, env });
+  const judge = createCodexJudge({ configDir: cfgDir, isOn: ON, env });
   const started = await judge.run(w2);
   assert.deepEqual([started.status, started.body.run.state, started.body.run.queued], [200, 'running', 2]);
   const r = await settle(judge);
@@ -342,13 +344,13 @@ test('a run judges at most its cap and says how many wait; a slow codex is stopp
   const cfgDir = join(scratch, 'cfg-cap');
   const env = { ...baseEnv(), PATH: bin };
   const sessions = [ID.codex, ID.bare].map((id, i) => ({ key: `k${i}`, id, text: 'Person: hello' }));
-  const judge = createCodexJudge({ configDir: cfgDir, env, cap: 1 });
+  const judge = createCodexJudge({ configDir: cfgDir, isOn: ON, env, cap: 1 });
   assert.equal((await judge.run(work(sessions))).body.run.left, 1);
   const r = await settle(judge);
   assert.deepEqual([r.judged, r.left, r.cap], [1, 1, 1]);
   // Slow: the run's own limit stops it, and the codex it started never finishes.
   const slowLog = join(scratch, 'slow.log');
-  const slow = createCodexJudge({ configDir: join(scratch, 'cfg-slow'), env: { ...env, PATH: fakeCodex('bin-slow', { FAKE_LOG: slowLog, FAKE_COUNT: join(scratch, 'slow.count'), FAKE_MODES: 'slow' }) }, timeoutMs: 700 });
+  const slow = createCodexJudge({ configDir: join(scratch, 'cfg-slow'), isOn: ON, env: { ...env, PATH: fakeCodex('bin-slow', { FAKE_LOG: slowLog, FAKE_COUNT: join(scratch, 'slow.count'), FAKE_MODES: 'slow' }) }, timeoutMs: 700 });
   assert.equal((await slow.run(work(sessions))).status, 200);
   assert.equal((await settle(slow)).state, 'timeout');
   assert.ok(existsSync(slowLog), 'the fake codex started');
@@ -365,7 +367,7 @@ test('a run judges at most its cap and says how many wait; a slow codex is stopp
   assert.equal(alive(pid), false, 'the fake codex was stopped');
   assert.ok(!readFileSync(slowLog, 'utf8').includes('finished'), 'it was stopped before it answered');
   // One session over its own limit fails, and the run goes on.
-  const one = createCodexJudge({ configDir: join(scratch, 'cfg-one'), env: { ...env, PATH: fakeCodex('bin-one', { FAKE_LOG: join(scratch, 'one.log'), FAKE_COUNT: join(scratch, 'one.count'), FAKE_MODES: 'slow,good' }) }, sessionTimeoutMs: 700 });
+  const one = createCodexJudge({ configDir: join(scratch, 'cfg-one'), isOn: ON, env: { ...env, PATH: fakeCodex('bin-one', { FAKE_LOG: join(scratch, 'one.log'), FAKE_COUNT: join(scratch, 'one.count'), FAKE_MODES: 'slow,good' }) }, sessionTimeoutMs: 700 });
   await one.run(work(sessions));
   const o = await settle(one);
   assert.deepEqual([o.state, o.failed, o.judged], ['done', 1, 1]);
@@ -373,20 +375,28 @@ test('a run judges at most its cap and says how many wait; a slow codex is stopp
 
 test('the run refuses the demo, a missing codex, a missing config and a week still loading; a failing codex counts as failed', async () => {
   const sessions = [{ key: 'k', id: ID.codex, text: 'Person: hello' }];
-  const demo = createCodexJudge({ configDir: join(scratch, 'cfg-demo'), demo: true, env: baseEnv() });
+  const demo = createCodexJudge({ configDir: join(scratch, 'cfg-demo'), isOn: ON, demo: true, env: baseEnv() });
   assert.deepEqual([(await demo.run(work(sessions))).body.error, demo.info().codex], ['demo', null]);
-  const none = createCodexJudge({ configDir: join(scratch, 'cfg-none'), env: { ...baseEnv(), PATH: join(scratch, 'empty-bin') } });
+  const none = createCodexJudge({ configDir: join(scratch, 'cfg-none'), isOn: ON, env: { ...baseEnv(), PATH: join(scratch, 'empty-bin') } });
   assert.deepEqual([(await none.run(work(sessions))).body.error, none.info().codex], ['no-codex', false]);
   const bin = fakeCodex('bin-refuse', { FAKE_LOG: join(scratch, 'refuse.log'), FAKE_COUNT: join(scratch, 'refuse.count'), FAKE_MODES: 'fail' });
   const env = { ...baseEnv(), PATH: bin };
-  const noCfg = createCodexJudge({ configDir: () => null, env });
+  const noCfg = createCodexJudge({ configDir: () => null, isOn: ON, env });
   assert.equal((await noCfg.run(work(sessions))).body.error, 'no-config');
-  const loading = createCodexJudge({ configDir: join(scratch, 'cfg-load'), env });
+  const loading = createCodexJudge({ configDir: join(scratch, 'cfg-load'), isOn: ON, env });
   assert.equal((await loading.run(null)).status, 503);
+  // Include /insights off, or no switch given at all: refused before anything else is looked at.
+  for (const isOn of [() => false, undefined]) {
+    const off = createCodexJudge({ configDir: join(scratch, 'cfg-off'), isOn, env });
+    const r = await off.run(work(sessions));
+    assert.deepEqual([r.status, r.body.error, r.body.run.state], [409, 'off', 'idle']);
+    assert.match(r.body.message, /Include \/insights is off/);
+  }
+  assert.equal(existsSync(join(scratch, 'cfg-off')), false, 'an off run made no results folder');
   assert.equal(existsSync(join(scratch, 'refuse.log')), false, 'nothing refused started codex');
   // A relative PATH folder is passed over, so a codex in the current folder is never run.
   assert.equal(findOnPath('codex', { ...env, PATH: 'relative-bin' }), null);
-  const failing = createCodexJudge({ configDir: join(scratch, 'cfg-fail'), env });
+  const failing = createCodexJudge({ configDir: join(scratch, 'cfg-fail'), isOn: ON, env });
   await failing.run(work(sessions));
   const r = await settle(failing);
   assert.deepEqual([r.state, r.failed, r.judged], ['done', 1, 0]);
@@ -509,6 +519,13 @@ test('Run with Codex needs the key, takes POST only, refuses other hosts and sit
   assert.equal((await post({ headers: { 'sec-fetch-site': 'cross-site' } })).status, 403, 'another site');
   assert.equal((await post({ body: 'x'.repeat(8192) })).status, 413, 'too large');
   assert.equal(existsSync(log), false, 'no refused request started codex');
+  // With Include /insights off, a request with the key is refused too, then works once it's back on.
+  const toggle = (on) => call(port, { method: 'POST', path: '/api/insights/toggle', key, body: JSON.stringify({ on }) });
+  assert.equal((await toggle(false)).status, 200);
+  const offRun = await post();
+  assert.deepEqual([offRun.status, offRun.json.error], [409, 'off']);
+  assert.equal(existsSync(log), false, 'codex did not start while the toggle was off');
+  assert.equal((await toggle(true)).status, 200);
 
   const info = (await call(port, { path: '/api/insights', key })).json;
   assert.deepEqual([info.on, info.codex.codex, info.codex.run.state], [true, true, 'idle']);

@@ -44,11 +44,11 @@ function capture() {
   return { io: { out: (s) => out.push(s), err: (s) => err.push(s) }, out: () => out.join(''), err: () => err.join('') };
 }
 
-async function view(argv, { cwd = project, env = ENV, input = null, opener, openerTtlMs } = {}) {
+async function view(argv, { cwd = project, env = ENV, input = null, opener, openerTtlMs, printedTtlMs } = {}) {
   const c = capture();
   const opened = [];
   let handle = null;
-  const code = await runView({ argv, cwd, env, io: c.io, input, opener: opener ?? ((file, o) => opened.push({ file, o })), block: false, onServe: (h) => (handle = h), ...(openerTtlMs ? { openerTtlMs } : {}) });
+  const code = await runView({ argv, cwd, env, io: c.io, input, opener: opener ?? ((file, o) => opened.push({ file, o })), block: false, onServe: (h) => (handle = h), ...(openerTtlMs ? { openerTtlMs } : {}), ...(printedTtlMs ? { printedTtlMs } : {}) });
   if (handle) running.push(handle);
   return { code, handle, out: c.out, err: c.err, opened };
 }
@@ -280,6 +280,25 @@ test('with --no-open nothing is opened, and the printed address works; Enter pri
   assert.equal(await claim(all[1].port, all[1].code), key, 'the fresh address works');
   assert.ok(!r.out().includes(key));
   await r.handle.stop();
+});
+
+test('a printed address stops working when its lifetime ends, and Enter still prints a fresh one that works', async () => {
+  const input = new PassThrough();
+  const r = await view(['--no-open', ...RANGE], { input, printedTtlMs: 150 });
+  assert.match(r.out(), /Each address works once, within 1 seconds?\. Press Enter here to print a fresh one\./);
+  const [old] = codesIn(r.out());
+  await new Promise((done) => setTimeout(done, 300));
+  assert.equal(await claim(old.port, old.code), null, 'a printed address left in scrollback no longer works');
+  input.write('\n');
+  await new Promise((done) => setTimeout(done, 50));
+  const fresh = codesIn(r.out())[1];
+  assert.ok(fresh, 'Enter printed a fresh address');
+  assert.match(await claim(fresh.port, fresh.code), /^[0-9a-f]{64}$/, 'the fresh address works');
+  await r.handle.stop();
+  // By default the terminal names the lifetime the server gives printed codes.
+  const d = await view(['--no-open', ...RANGE]);
+  assert.match(d.out(), /Each address works once, within 15 minutes\./);
+  await d.handle.stop();
 });
 
 test('with --self-test it also prints the click-through page\'s address, with its own code, and a fresh one on Enter', async () => {
