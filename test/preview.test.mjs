@@ -240,6 +240,35 @@ test('startServer 404s any path other than /', async () => {
   }
 });
 
+test('startServer refuses a request that names another host, as a DNS-rebinding page would', async () => {
+  const handle = await startServer({ port: 0, html: '<p>private week</p>' });
+  const ask = (hostHeader) =>
+    new Promise((resolve, reject) => {
+      http
+        .get({ host: '127.0.0.1', port: handle.port, path: '/', headers: { Host: hostHeader } }, (res) => {
+          let body = '';
+          res.setEncoding('utf8');
+          res.on('data', (c) => (body += c));
+          res.on('end', () => resolve({ status: res.statusCode, body }));
+        })
+        .on('error', reject);
+    });
+  try {
+    for (const name of [`attacker.example:${handle.port}`, `127.0.0.1:${handle.port + 1}`, '127.0.0.1', `127.0.0.1.example:${handle.port}`]) {
+      const res = await ask(name);
+      assert.equal(res.status, 403, `Host ${name} is refused`);
+      assert.doesNotMatch(res.body, /private week/, 'a refused request gets none of the page');
+    }
+    for (const name of [`127.0.0.1:${handle.port}`, `localhost:${handle.port}`, `LOCALHOST:${handle.port}`]) {
+      const res = await ask(name);
+      assert.equal(res.status, 200, `Host ${name} is answered`);
+      assert.match(res.body, /private week/);
+    }
+  } finally {
+    await handle.close();
+  }
+});
+
 // --- runPreview orchestration -----------------------------------------------
 
 test('runPreview --help prints usage and exits 0 without starting a server', async () => {
