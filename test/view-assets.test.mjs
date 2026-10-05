@@ -20,13 +20,13 @@ const SELFTEST = join(HERE, '..', 'lib', 'view', 'selftest');
 const PAGES = ['search.html', 'goal.html', 'replay.html', 'problems.html'];
 // The scripts each page loads after the shared ones, in order. prefs.js comes first of all, in
 // the head, so a stored light/dark choice is on the page before anything is drawn.
-const PAGE_SCRIPTS = { 'search.html': ['search.js'], 'goal.html': ['strip.js', 'goal.js'], 'replay.html': ['facts.js', 'replay-model.js', 'replay.js'], 'problems.html': ['insights.js', 'facts.js', 'problems.js'] };
+const PAGE_SCRIPTS = { 'search.html': ['search.js'], 'goal.html': ['strip.js', 'goal.js'], 'replay.html': ['facts.js', 'replay-model.js', 'sessions.js', 'replay.js'], 'problems.html': ['insights.js', 'facts.js', 'problems.js'] };
 const IN_HEAD = /<head>[^]*<script src="prefs\.js"><\/script>\s*<link rel="stylesheet" href="common\.css">[^]*<\/head>/;
 // The package author's name, read from package.json so this test doesn't spell out a real name.
 const OWNER_WORDS = String(JSON.parse(readFileSync(join(HERE, '..', 'package.json'), 'utf8')).author ?? '')
   .split(/\s+/)
   .filter((w) => /^[A-Za-z]{3,}$/.test(w));
-const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js', 'replay-model.js', 'problems.js', 'insights.js', 'facts.js', 'prefs.js', 'strip.js'];
+const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js', 'replay-model.js', 'problems.js', 'insights.js', 'facts.js', 'prefs.js', 'strip.js', 'sessions.js'];
 const files = () => [...readdirSync(ASSETS).map((f) => ({ name: f, path: join(ASSETS, f) })), ...readdirSync(SELFTEST).map((f) => ({ name: `selftest/${f}`, path: join(SELFTEST, f) }))].map((f) => ({ ...f, text: readFileSync(f.path, 'utf8') }));
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
 
@@ -588,4 +588,108 @@ test('Replay names what came just before the selected step: its lane\'s step bef
   assert.match(js, /if \(s\.t < view\[0\] \|\| s\.t > view\[1\]\) \{/);
   assert.match(js, /const e = dir < 0 && Z && list === navSteps \? HW\.data\.byId\.get\(selId\) : null;/);
   assert.match(readFileSync(join(ASSETS, 'replay.html'), 'utf8'), /<span class="rp-now-before" id="nowBefore"><\/span>/);
+});
+
+// ---- Replay's starting list ------------------------------------------------------------------
+
+/** A stand-in for anything the pages touch that these tests don't read: every property and call
+ *  gives it back, so a script runs to the part under test. */
+const ANY = new Proxy(function () {}, { get: (t, k) => (k === Symbol.toPrimitive ? () => '' : k === Symbol.iterator ? [][Symbol.iterator] : k === 'then' ? undefined : ANY), apply: () => ANY, construct: () => ANY, set: () => true });
+
+/** The replay page's scripts run at `href` with a stand-in document: evidence.js, common.js,
+ *  sessions.js and replay.js as replay.html loads them. `answers(route, q)` answers HW.load; the
+ *  page's elements by id are plain objects, kept in `els`. */
+function replayPage(href, answers = () => ({})) {
+  const url = new URL(href, 'http://127.0.0.1:1/');
+  const els = new Map();
+  const el = (id) => {
+    if (!els.has(id)) els.set(id, { id, innerHTML: '', textContent: '', hidden: false, dataset: {}, removed: false, listeners: [], remove() { this.removed = true; }, addEventListener(type, fn) { this.listeners.push([type, fn]); }, querySelector: () => null, querySelectorAll: () => [], classList: ANY, setAttribute() {}, closest: () => null, insertAdjacentHTML() {} });
+    return els.get(id);
+  };
+  const document = new Proxy({ getElementById: el, querySelector: (sel) => (sel === '[data-fatal]' ? el('fatal') : ANY), querySelectorAll: () => [], body: { dataset: {} }, readyState: 'complete', addEventListener() {}, createElement: () => ANY, documentElement: ANY }, { get: (t, k) => (k in t ? t[k] : ANY) });
+  const box = { document, location: { href: url.href, pathname: url.pathname, search: url.search, hash: url.hash }, history: ANY, URLSearchParams, CSS: { escape: (s) => s }, setTimeout, clearTimeout, setInterval, clearInterval, requestAnimationFrame: () => 0, matchMedia: () => ANY, getComputedStyle: () => ANY, ResizeObserver: function () { return ANY; }, navigator: ANY, console };
+  box.window = box;
+  box.HWP = ANY;
+  box.addEventListener = () => {};
+  for (const f of ['evidence.js', 'common.js', 'sessions.js']) runInNewContext(readFileSync(join(ASSETS, f), 'utf8'), box);
+  const calls = { load: [], shown: 0, run: null };
+  box.HW.load = async (route, q = {}) => {
+    calls.load.push([route, { ...q }]);
+    return answers(route, q);
+  };
+  box.HW.start = (fn) => {
+    calls.run = fn;
+  };
+  const show = box.HWSessions.show;
+  box.HWSessions = { show: () => ((calls.shown += 1), show()) };
+  runInNewContext(readFileSync(join(ASSETS, 'replay.js'), 'utf8'), box);
+  return { box, els, calls };
+}
+
+test("Replay with nothing chosen opens the list of the window's sessions; a chosen thread or session, or an old #thread address, opens its replay", async () => {
+  const stop = () => {
+    throw Object.assign(new Error('the test stops here'), { code: 'stop' });
+  };
+  for (const href of ['replay.html', 'replay.html#', 'replay.html#not-an-id', 'replay.html?session=../x']) {
+    const p = replayPage(href, (route) => (route === 'sessions' ? { days: [], empty: 'Nothing here.' } : stop()));
+    await p.calls.run();
+    assert.equal(p.calls.shown, 1, `${href}: the list`);
+    assert.deepEqual(p.calls.load, [['sessions', {}]], `${href}: asks only for the list, never the most recent thread`);
+  }
+  const opened = {
+    'replay.html#th-abcd': { thread: 'th-abcd' },
+    'replay.html#th-abcd~zoom~pf-abcdabcdabcd': { thread: 'th-abcd' },
+    'replay.html#th-abcd~cc-abcd.1.0': { thread: 'th-abcd' },
+    'replay.html?session=cc-abcdabcd': { session: 'cc-abcdabcd' },
+    'replay.html?session=cc-abcdabcd#th-abcd': { thread: 'th-abcd' },
+  };
+  for (const [href, q] of Object.entries(opened)) {
+    const p = replayPage(href, stop);
+    await assert.rejects(p.calls.run(), /the test stops here/);
+    assert.equal(p.calls.shown, 0, `${href}: no list`);
+    assert.deepEqual(p.calls.load, [['replay', q]], `${href}: loads its replay directly`);
+  }
+  // Every replay has the way back, in the page head and in a problem's focus.
+  const html = readFileSync(join(ASSETS, 'replay.html'), 'utf8');
+  assert.match(html, /<p class="rp-meta"><a class="rp-back" id="allSessions" href="replay\.html">← All sessions<\/a>/);
+  assert.match(readFileSync(join(ASSETS, 'replay.js'), 'utf8'), /<a class="fall" href="replay\.html">All sessions<\/a><button type="button" class="fleave"/);
+  // Find's Recent card links to the whole list, and stays five rows long.
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  assert.match(search, /<a href="replay\.html" id="allSessions">All sessions<\/a>/);
+  assert.match(search, /const SHOW_RECENT = 5;/);
+});
+
+test('the sessions list draws each day with a few rows, says when a session is display-only or outside, and offers a page more at a time', async () => {
+  const row = (session, extra = {}) => ({ session, thread: 'th-abcd', tool: 'claude-code', repo: 'your-project', group: 'configured', title: `Title ${session}`, firstAt: '2025-03-15T14:20:05.000Z', lastAt: '2025-03-15T14:47:48.000Z', startedBy: null, evidence: 'recorded', length: { value: 1663000, evidence: 'derived' }, prompts: { value: 3, evidence: 'derived' }, problems: { value: 2, evidence: 'inferred' }, ...extra });
+  const list = {
+    timezone: 'UTC',
+    total: { value: 30, evidence: 'derived' },
+    page: 20,
+    days: [
+      { day: '2025-03-15', evidence: 'derived', count: { value: 27, evidence: 'derived' }, more: { value: 25, evidence: 'derived' }, rows: [row('cc-aaaa'), row('cc-bbbb', { group: 'display', repo: 'your-site', problems: null, title: 'Draft a post about [redacted:term]' })] },
+      { day: '2025-03-14', evidence: 'derived', count: { value: 3, evidence: 'derived' }, more: { value: 0, evidence: 'derived' }, rows: [row('cx-cccc', { tool: 'codex', group: 'outside', repo: null, problems: null, prompts: { value: 0, evidence: 'derived' }, startedBy: { text: 'started by codex exec, no prompt', evidence: 'recorded' } })] },
+    ],
+    older: { before: '2025-03-14', days: { value: 2, evidence: 'derived' } },
+  };
+  const p = replayPage('replay.html', (route) => (route === 'sessions' ? list : {}));
+  await p.calls.run();
+  const content = p.els.get('content').innerHTML;
+  assert.equal(p.els.get('title').textContent, 'Sessions');
+  assert.ok(p.els.get('allSessions').removed, 'the list has no link to itself');
+  assert.match(content, /<h2 id="day-2025-03-15">Sat, Mar 15<\/h2>/);
+  assert.match(content, /<a class="t" href="replay\.html\?session=cc-aaaa#th-abcd">Title cc-aaaa<\/a>/);
+  assert.match(content, /2:20 PM[^]*28 min[^]*Claude Code · your-project · 3 prompts[^]*<a href="problems\.html\?session=cc-aaaa">2 problems worth a look<\/a>/);
+  assert.match(content, /Draft a post about \[redacted:term\][^]*your-site · display-only repo/, 'a display-only session says so, as Find does');
+  assert.match(content, /Codex · outside your config · started by codex exec, no prompt/, 'an outside session says so; no prompt says what opened it');
+  assert.equal((content.match(/worth a look/g) ?? []).length, 1, 'no count for a session the checks never read');
+  assert.match(content, /<button type="button" class="linklike" data-more="2025-03-15" data-shown="2">Show 20 more<\/button>/, 'a page more, never the whole rest');
+  assert.doesNotMatch(content, /data-more="2025-03-14"/, 'a day all shown offers nothing more');
+  assert.match(content, /data-older="2025-03-14">Show earlier days \(2 more days\)<\/button>/);
+  // Ids only, never a title, in every address the list builds.
+  for (const m of content.matchAll(/href="([^"]+)"/g)) assert.match(m[1], /^(replay|problems)\.html(\?session=[a-z]{2,4}-[a-p]+)?(#th-[a-p]+)?$/, m[1]);
+  // An empty window: the page says so and points to search, as Replay always has.
+  const none = replayPage('replay.html', () => ({ days: [], empty: 'Nothing.' }));
+  await none.calls.run();
+  assert.match(none.els.get('content').innerHTML, /data-fatal="1">Nothing [^]*<a href="search\.html">Search<\/a> for a session to replay/);
+  assert.equal(none.els.get('fatal').dataset.fatal, 'no-thread');
 });

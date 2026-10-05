@@ -405,7 +405,7 @@ test('no answer in a seeded run leaks a private word with the switch off', async
   const key = await claim(r.handle.port, codesIn(r.out())[0].code);
   await ready(r.handle.port, key);
   const counter = createLeakCounter(w.config);
-  for (const path of ['/api/status', '/api/home', '/api/replay', `/api/replay?session=${w.keys.display}`, `/api/replay?session=${w.keys.outside}`, '/api/lookup?q=%2312', `/api/words?q=${TERM}`]) {
+  for (const path of ['/api/status', '/api/home', '/api/sessions', '/api/replay', `/api/replay?session=${w.keys.display}`, `/api/replay?session=${w.keys.outside}`, '/api/lookup?q=%2312', `/api/words?q=${TERM}`]) {
     const a = (await get(r.handle.port, path, { [KEY_HEADER]: key })).json;
     assert.equal(counter.redacted(a).total, 0, path);
     for (const word of PRIVATE_WORDS) assert.ok(!JSON.stringify(a).includes(word), `${path} holds ${word}`);

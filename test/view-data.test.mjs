@@ -12,7 +12,9 @@ import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 import { createRedactor, createSecretsOnlyRedactor } from '../lib/redact.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { createLeakCounter, EXEMPT_FIELDS, setAsideAllowed, stringsIn, unglue, unglueIds } from '../lib/view/leaks.mjs';
-import { createLru, createViewData, goalKey, memberCount } from '../lib/view/data.mjs';
+import { createLru, createViewData, goalKey, memberCount, SESSION_DAYS, SESSIONS_PAGE, SESSIONS_PER_DAY } from '../lib/view/data.mjs';
+import { createProblemsRoute } from '../lib/view/problems-route.mjs';
+import { localDay } from '../lib/replay/views.mjs';
 import { REPLAY_EVENT_FIELDS } from '../lib/view/replay-export.mjs';
 import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { buildCorpus } from './fixtures/replay/corpus.mjs';
@@ -74,6 +76,10 @@ async function everyAnswer(priv) {
   for (const k of w.goalRecord.goals.map((g) => goalKey(g.id))) await add('/api/goal', { key: k });
   for (const q of [TERM, STRADDLE_WORD, 'suite', 'Password', 'release', SECRETS.nextLine]) await add('/api/search', { q });
   await add('/api/replay');
+  // The sessions list: every day's first page, then each day's rest, a page at a time.
+  const list = await add('/api/sessions');
+  for (const d of list.days) for (let at = d.rows.length; at < d.count.value; at += 20) await add('/api/sessions', { day: d.day, offset: String(at) });
+  if (list.days.length) await add('/api/sessions', { before: list.days[0].day });
   const events = new Set();
   for (const t of reference.threads) for (const e of (await add('/api/replay', { thread: t.id })).events) events.add(e.id);
   for (const key of Object.values(w.keys)) await add('/api/replay', { session: key });
@@ -410,6 +416,7 @@ const shape = {
   goal: (b) => ({ members: b.members.map((m) => [m.session, m.evidence, m.ambiguous, m.assigned, m.joins.map((j) => j.type)]), unmatched: b.unmatched.map((u) => u.kind), events: b.events.map((e) => e.id) }),
   replay: (b) => ({ thread: b.thread?.id, events: b.events.map((e) => [e.id, e.kind, e.ev, e.session]), sessions: b.sessions.map((s) => s.key), links: b.thread.links.length }),
   words: (b) => ({ goals: b.goals.map((g) => g.key), sessions: b.sessions.map((s) => s.session), prompts: b.prompts.map((p) => p.event), similar: b.similar.map((p) => p.event) }),
+  sessions: (b) => ({ total: b.total.value, days: b.days.map((d) => [d.day, d.count.value, d.more.value, d.rows.map((r) => [r.session, r.group, r.prompts.value, r.problems?.value ?? null])]) }),
 };
 
 test('the switch changes no session, link or goal', async () => {
@@ -418,6 +425,7 @@ test('the switch changes no session, link or goal', async () => {
   for (const q of ['#12', '#13', '#15', 'feature/group-by-scope']) assert.deepEqual(shape.lookup(await body('/api/lookup', { q }, true)), shape.lookup(await body('/api/lookup', { q })), q);
   for (const g of w.goalRecord.goals) assert.deepEqual(shape.goal(await body('/api/goal', { key: goalKey(g.id) }, true)), shape.goal(await body('/api/goal', { key: goalKey(g.id) })), g.id);
   for (const t of reference.threads) assert.deepEqual(shape.replay(await body('/api/replay', { thread: t.id }, true)), shape.replay(await body('/api/replay', { thread: t.id })), t.id);
+  assert.deepEqual(shape.sessions(await body('/api/sessions', {}, true)), shape.sessions(await body('/api/sessions')));
   // A private word finds its match only where the text shows it, so these words are plain ones.
   for (const q of ['report', 'release']) assert.deepEqual(shape.words(await body('/api/words', { q }, true)), shape.words(await body('/api/words', { q })), q);
 });
@@ -824,4 +832,176 @@ test('the command a page names goes through the redactor, so a private word in i
   await plain.start();
   assert.equal((await plain.status()).command, 'npx github:your-org/honestweek');
   assert.ok((await plain.status()).demo.commands.some((c) => c.command === 'npx github:your-org/honestweek init'));
+});
+
+// ---- the sessions list: Replay's starting page ----------------------------------------------
+
+/** Every row a sessions list holds: each page of days, then each day's rest a page at a time. */
+async function walkSessions(d, priv = false) {
+  const get = async (q = {}) => {
+    const r = await d.route('/api/sessions', params({ ...q, ...(priv ? { private: '1' } : {}) }));
+    assert.equal(r.status, 200, `/api/sessions ${JSON.stringify(q)} answered ${r.status}: ${JSON.stringify(r.body).slice(0, 200)}`);
+    return r.body;
+  };
+  const pages = [await get()];
+  while (pages[pages.length - 1].older) pages.push(await get({ before: pages[pages.length - 1].older.before }));
+  const days = [];
+  const dayPages = [];
+  for (const p of pages) {
+    for (const day of p.days) {
+      const rows = [...day.rows];
+      while (rows.length < day.count.value) {
+        const more = await get({ day: day.day, offset: String(rows.length) });
+        dayPages.push(more);
+        assert.ok(more.rows.length > 0, `${day.day} at ${rows.length} gave no rows`);
+        rows.push(...more.rows);
+      }
+      days.push({ day: day.day, rows });
+    }
+  }
+  return { pages, days, dayPages, rows: days.flatMap((x) => x.rows) };
+}
+
+/** A made-up history of `n` sessions starting at the times `at(i)` gives, built on the fixture's
+ *  own history so every other part of it still reads. */
+function manySessions(n, at) {
+  const base = reference.sessions.find((s) => s.private === false);
+  const sessions = Array.from({ length: n }, (_, i) => ({ ...base, key: `cc-zzmany${String(i).padStart(4, '0')}`, thread: null, title: `Session ${i}`, firstAt: at(i), lastAt: new Date(Date.parse(at(i)) + 60e3 * (i % 50)).toISOString() }));
+  return { ...reference, sessions, events: [], threads: [] };
+}
+
+test('the sessions list holds every session once, by the day it started, newest first, and no answer is long', async () => {
+  // A busy window: 300 sessions over 12 days, 60 of them on one day.
+  const at = (i) => (i < 60 ? new Date(Date.UTC(2025, 2, 12, 0, i)).toISOString() : new Date(Date.UTC(2025, 2, 1 + ((i - 60) % 12), 8, Math.floor(i / 12))).toISOString());
+  const h = manySessions(300, at);
+  const d = createViewData({ config: w.config, roots: w.roots, ...WINDOW, buildHistory: async () => h });
+  await d.start();
+  const all = await walkSessions(d);
+  // Bounded: a few days per answer, a few sessions per day, and a page at a time after that.
+  for (const p of all.pages) {
+    assert.ok(p.days.length <= SESSION_DAYS, `${p.days.length} days in one answer`);
+    for (const day of p.days) {
+      assert.ok(day.rows.length <= SESSIONS_PER_DAY, `${day.day} shows ${day.rows.length}`);
+      assert.equal(day.more.value, day.count.value - day.rows.length, `${day.day}: more is the rest`);
+    }
+    assert.ok(JSON.stringify(p).length < 60_000, 'an overview stays small');
+  }
+  for (const p of all.dayPages) assert.ok(p.rows.length <= SESSIONS_PAGE, `a day page of ${p.rows.length}`);
+  assert.equal(all.pages[0].days.length, SESSION_DAYS, 'the first answer is a full set of days');
+  assert.equal(all.pages[0].older.days.value, 12 - SESSION_DAYS, 'and says how many days are older');
+  assert.equal(all.pages[1].older, null, 'the last set says there are no more');
+  // Every session once, and only those.
+  assert.equal(all.pages[0].total.value, 300);
+  assert.equal(all.rows.length, 300);
+  assert.equal(new Set(all.rows.map((r) => r.session)).size, 300);
+  // Newest day first; newest session first within a day; each under the day it started.
+  const dayList = all.days.map((x) => x.day);
+  assert.deepEqual(dayList, [...dayList].sort().reverse());
+  assert.equal(all.days.find((x) => x.day === '2025-03-12').rows.length, 60 + 20, 'the busy day holds its own 60 and the spread ones');
+  for (const { day, rows } of all.days) {
+    for (const r of rows) assert.equal(localDay(Date.parse(r.firstAt), 'UTC'), day, `${r.session} is under the day it started`);
+    const starts = rows.map((r) => r.firstAt);
+    assert.deepEqual(starts, [...starts].sort().reverse(), `${day}: newest first`);
+  }
+});
+
+test('the sessions list groups by the day in the configured timezone, not by UTC', async () => {
+  // 23:30 UTC on 5 March is already 6 March in Kiritimati (UTC+14), and 03:00 UTC on 5 March is
+  // still 4 March in Los Angeles.
+  const times = ['2025-03-05T23:30:00.000Z', '2025-03-05T03:00:00.000Z'];
+  const h = manySessions(2, (i) => times[i]);
+  const dayOf = async (tz) => {
+    const d = createViewData({ config: w.config, roots: w.roots, from: WINDOW.from, to: WINDOW.to, timezone: tz, buildHistory: async () => h });
+    await d.start();
+    const list = await walkSessions(d);
+    assert.equal(list.pages[0].timezone, tz);
+    return Object.fromEntries(list.days.flatMap(({ day, rows }) => rows.map((r) => [r.firstAt, day])));
+  };
+  assert.deepEqual(await dayOf('UTC'), { [times[0]]: '2025-03-05', [times[1]]: '2025-03-05' });
+  assert.deepEqual(await dayOf('Pacific/Kiritimati'), { [times[0]]: '2025-03-06', [times[1]]: '2025-03-05' });
+  assert.deepEqual(await dayOf('America/Los_Angeles'), { [times[0]]: '2025-03-05', [times[1]]: '2025-03-04' });
+});
+
+test('the sessions list: display-only and outside sessions are labelled, redacted with the switch off, and join no goal or problem count', async () => {
+  const off = await walkSessions(data);
+  const on = await walkSessions(data, true);
+  const byKey = (list) => new Map(list.rows.map((r) => [r.session, r]));
+  const offRows = byKey(off);
+  const onRows = byKey(on);
+  assert.equal(off.rows.length, reference.sessions.length, 'every session the window read is listed');
+  for (const [key, group] of [[w.keys.display, 'display'], [w.keys.outside, 'outside']]) {
+    for (const rows of [offRows, onRows]) {
+      const r = rows.get(key);
+      assert.equal(r.group, group);
+      assert.equal(r.problems, null, `a ${group} session has no problem count, never a zero`);
+      assert.ok(!('goals' in r), `a ${group} session carries no goal`);
+    }
+  }
+  // Switch off: no private word, no secret, no leak. Switch on: the private words, still no secret.
+  const offAnswers = [...off.pages, ...off.dayPages];
+  const onAnswers = [...on.pages, ...on.dayPages];
+  assert.deepEqual(literalHits(offAnswers, [...PRIVATE_WORDS, ...Object.values(SECRETS)]), []);
+  assert.equal(leaks.redacted(offAnswers).total, 0);
+  assert.ok(JSON.stringify(offAnswers).includes('[redacted:'), 'something is redacted with the switch off');
+  assert.equal(leaks.secrets(onAnswers).total, 0);
+  assert.deepEqual(literalHits(onAnswers, Object.values(SECRETS)), []);
+  assert.ok(JSON.stringify(onAnswers).includes(TERM), 'the switch shows the private words');
+  // The same title, label, prompt count and group as Find's Recent card, in both modes.
+  for (const priv of [false, true]) {
+    const rows = priv ? onRows : offRows;
+    for (const r of (await body('/api/home', {}, priv)).recent) {
+      const s = rows.get(r.session);
+      assert.deepEqual([s.title, s.label ?? null, s.prompts, s.group], [r.title, r.label ?? null, r.prompts, r.group], r.session);
+    }
+  }
+  // A configured session's count is the Problems page's own count of its findings worth a look.
+  let counted = 0;
+  for (const r of off.rows.filter((x) => x.group === 'configured')) {
+    const focus = (await body('/api/problems', { session: r.session })).focus;
+    assert.equal(r.problems.value, focus.look, r.session);
+    assert.ok(['derived', 'inferred'].includes(r.problems.evidence));
+    counted += r.problems.value;
+  }
+  assert.ok(counted > 0, 'some session has a finding worth a look');
+});
+
+test('the sessions list refuses a malformed day, offset or before, and an empty day says so', async () => {
+  for (const q of [{ day: '2025-3-1' }, { day: '../x' }, { day: '2025-03-12', offset: '-1' }, { day: '2025-03-12', offset: '1e3' }, { offset: '5' }, { before: 'yesterday' }]) {
+    assert.equal((await ask('/api/sessions', q)).status, 400, JSON.stringify(q));
+  }
+  const none = await body('/api/sessions', { day: '2001-01-01' });
+  assert.deepEqual([none.count.value, none.rows, none.more.value], [0, [], 0]);
+  assert.match(none.empty, /No session started on 2001-01-01/);
+  const list = await body('/api/sessions');
+  const day = list.days[0];
+  const past = await body('/api/sessions', { day: day.day, offset: String(day.count.value + 5) });
+  assert.deepEqual([past.rows, past.more.value], [[], 0]);
+  // Before the oldest day there's nothing older.
+  const older = await body('/api/sessions', { before: list.days[list.days.length - 1].day });
+  assert.deepEqual([older.days, older.older], [[], null]);
+  // An empty window says which window.
+  const empty = createViewData({ config: w.config, roots: w.roots, from: '2020-01-01', to: '2020-01-02', timezone: 'UTC' });
+  await empty.start();
+  const e = (await empty.route('/api/sessions', params())).body;
+  assert.deepEqual(e.days, []);
+  assert.match(e.empty, /2020-01-01 and 2020-01-02/);
+});
+
+test('with the problem checks failing, the sessions list still answers, with no counts and a note saying why', async () => {
+  // The checks read every agent; a history whose agents can't be read stops them, and the list
+  // never reads them.
+  const h = { ...reference };
+  Object.defineProperty(h, 'agents', { get() { throw new Error('no agents here'); }, enumerable: false });
+  const d = createViewData({ config: w.config, roots: w.roots, ...WINDOW, buildHistory: async () => h });
+  await d.start();
+  const list = (await d.route('/api/sessions', params())).body;
+  assert.ok(list.days.length > 0, 'the list still answers');
+  assert.ok(list.days.flatMap((x) => x.rows).every((r) => r.problems === null), 'no count stands in for checks that never ran');
+  assert.match(list.problemsNote, /couldn't run/);
+  // Failing-path partner: checks that run give counts and no note.
+  assert.equal((await body('/api/sessions')).problemsNote, null);
+  assert.equal(createProblemsRoute({ run: () => { throw new Error('boom'); } }).lookBySession(reference, 0), null);
+  const looks = createProblemsRoute().lookBySession(reference, Date.now());
+  assert.ok(looks instanceof Map && looks.size > 0);
+  for (const n of looks.values()) assert.ok(n.value > 0 && ['derived', 'inferred'].includes(n.evidence));
 });
