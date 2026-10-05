@@ -136,6 +136,27 @@ test('when the rest of the week fails to load, the page keeps the first day and 
   data.stop();
 });
 
+test('a search typed while the first day shows is still found by its id once the whole week takes over', async () => {
+  const g = gated();
+  const data = progressive(g);
+  data.start();
+  await waitFor(() => data.status().state === 'ready', 'the first day');
+  const typed = (await data.route('/api/words', params({ q: 'parser' }))).body;
+  const onlyPrivate = (await data.route('/api/words', params({ q: 'lantern notes', private: '1' }))).body;
+  g.release();
+  await data.whenWhole();
+  assert.equal(data.loaded(), 'whole');
+  // The page's address names the search by id and the page reloads: the words come back.
+  const again = (await data.route('/api/words', params({ id: typed.queryId }))).body;
+  assert.equal(again.query, 'parser');
+  assert.doesNotMatch(String(again.empty ?? ''), /isn't kept/);
+  // One typed only with Show private text on still isn't echoed with it off.
+  const off = (await data.route('/api/words', params({ id: onlyPrivate.queryId }))).body;
+  assert.equal(off.query, null);
+  assert.match(off.empty, /Show private text on/);
+  data.stop();
+});
+
 test('a stop while the rest loads swaps nothing in; a one-day window loads once, never partial', async () => {
   const g = gated();
   const data = progressive(g);
