@@ -536,3 +536,16 @@ test('the goals page says goal discovery is coming, beside its title, on the pag
   const html = readFileSync(join(ASSETS, 'goal.html'), 'utf8');
   assert.match(html, /<div class="pagehead">\s*<h1 class="ph-title">[^]*?<\/h1>\s*<span class="tag" id="soon">Coming soon: Goal discovery<\/span>/);
 });
+
+test("Settings reads the long-session limit as typed: empty is off, 150k and 150,000 are numbers, the rest goes to the server", () => {
+  const js = readFileSync(join(ASSETS, 'settings.js'), 'utf8');
+  const src = /function tokensOf\(text\) \{[^]*?\n {2}\}/.exec(js)?.[0];
+  assert.ok(src, 'settings.js: tokensOf');
+  const tokensOf = runInNewContext(`(${src})`);
+  assert.equal(tokensOf(''), null);
+  assert.equal(tokensOf('   '), null);
+  for (const t of ['150000', '150,000', '150k', '150K', ' 150_000 ']) assert.equal(tokensOf(t), 150000, t);
+  // The page shows a saved limit as 150,000, so saving another field sends the same number back.
+  assert.equal(tokensOf((150000).toLocaleString('en-US')), 150000);
+  for (const t of ['lots', '1.5e5', '-5']) assert.equal(tokensOf(t), t, t);
+});
