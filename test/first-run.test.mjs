@@ -109,7 +109,7 @@ test('init with answers piped in: each question, the repositories with the workt
   const order = [
     'Nothing is written until you say yes.',
     'Found 2 git repositories. 1 more folder was an extra working copy (a git worktree) of one of them, so it\'s folded into its main repository',
-    'Repositories honestweek may read (featured: read from git and shown first; reference: read from git; display: named only, never read from git):',
+    "Repositories honestweek may read (featured: your own work, read from git and shown first; reference: read from git and shown after featured; display: named only, git never reads it and its sessions aren't searched):",
     "Press Enter to keep this list, or change it: 'keep 1-5 9' keeps only those, 'drop 3 7-9' removes those, 'role 2 display' changes a role: ",
     'Use these 2 repositories? [Y/n] ',
     'Private words: honestweek hides these in everything it shows and writes',
