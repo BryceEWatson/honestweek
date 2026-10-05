@@ -148,6 +148,8 @@ details.restlist > summary { padding: 8px 0; font-size: 15px; font-weight: 600; 
 .otherways > summary { color: var(--accent); font-weight: 600; cursor: pointer; }
 .pd-try > p { font-size: 14px; color: var(--ink-2); }
 .tryrow { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
+.pd-try .trystep, .pd-try .trycost, .pd-try .tryexpect { font-size: 14px; color: var(--ink); }
+.tag.costly { color: var(--critical); background: var(--high-wash); }
 .trytext { flex: 1 1 420px; padding: 12px 14px; font-family: var(--mono); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); background: var(--subtle); border: 1px solid var(--line); border-radius: 10px; }
 .pd-pri { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
 .pd-pri .pwhy { flex: 1 1 320px; font-size: 14px; }
