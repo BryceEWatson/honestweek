@@ -513,3 +513,21 @@ test('Check the fix works: the prompt carries its tag, and the tests found for t
   const js = readFileSync(join(ASSETS_DIR, 'problems.js'), 'utf8');
   assert.match(js, /p\.testPrompt && p\.testTag \? `\$\{p\.testPrompt\} \$\{p\.testTag\}` : p\.testPrompt/);
 });
+
+test("the header's Problems count is the headline's problems to fix, by the same rule", async () => {
+  const common = readFileSync(join(ASSETS_DIR, 'common.js'), 'utf8');
+  const box = {};
+  runInNewContext(`${common.match(/ {2}function toFix\(p, tier\) \{[^]*?\n {2}\}/)[0]}\nthis.toFix = toFix;`, box);
+  const D = answer();
+  const { el } = await drawProblems(D);
+  const head = el('headline').textContent;
+  const n = Number(/^(\d+) problems? to fix/.exec(head)?.[1] ?? 0);
+  assert.ok(n > 0, head);
+  assert.equal(D.patterns.filter((p) => box.toFix(p, p.priority?.tier ?? null)).length, n, head);
+  // Low, dismissed, possible-only and not-found patterns aren't counted.
+  assert.equal(box.toFix({ status: 'found', sure: { look: 1 }, possible: { look: 0 } }, 'low'), false);
+  assert.equal(box.toFix({ status: 'found', sure: { look: 1 }, possible: { look: 0 } }, 'dismissed'), false);
+  assert.equal(box.toFix({ status: 'found', sure: { look: 0 }, possible: { look: 2 } }, 'high'), false);
+  assert.equal(box.toFix({ status: 'clear', sure: { look: 0 }, possible: { look: 0 } }, 'high'), false);
+  assert.match(common, /el\.title = n \? `\$\{plural\(n, 'problem'\)\} to fix in this window` : '';/);
+});

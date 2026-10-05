@@ -103,9 +103,9 @@ test('the summary every header reads: each pattern\'s tier and counts, no findin
   assert.equal(sum.patterns.length, 42);
   assert.equal(sum.catalogIds.length, 42, 'every catalog id, so "My priority" for any pattern stays');
   for (const p of sum.patterns) {
-    assert.deepEqual(Object.keys(p).sort(), ['count', 'countEvidence', 'fix', 'group', 'id', 'look', 'lookSessions', 'name', 'notesFound', 'priority', 'status', 'strength', 'tokens']);
+    assert.deepEqual(Object.keys(p).sort(), ['count', 'countEvidence', 'fix', 'group', 'id', 'look', 'lookSessions', 'name', 'notesFound', 'possible', 'priority', 'status', 'strength', 'sure', 'tokens']);
     const full = whole.patterns.find((x) => x.id === p.id);
-    for (const k of ['name', 'status', 'priority', 'count', 'look', 'notesFound', 'countEvidence']) assert.deepEqual(p[k], full[k], `${p.id}.${k} matches the whole page`);
+    for (const k of ['name', 'status', 'priority', 'count', 'look', 'notesFound', 'countEvidence', 'sure', 'possible']) assert.deepEqual(p[k], full[k], `${p.id}.${k} matches the whole page`);
     // The sessions with a finding worth a look, worked out from the same findings.
     const sessions = new Set((full.findings ?? []).filter((f) => f.severity === 'look').map((f) => f.session));
     if (full.findingsListed === (full.findings ?? []).length) assert.equal(p.lookSessions, sessions.size, `${p.id}.lookSessions`);
@@ -117,7 +117,7 @@ test('the summary every header reads: each pattern\'s tier and counts, no findin
   for (const word of PRIVATE_WORDS) assert.ok(!t.includes(word), `no "${word}"`);
   // The pages read the names the summary carries.
   const common = page('common.js');
-  for (const name of ["load('problems', { summary: 1 })", "p.status === 'found'", 'p?.priority?.tier']) assert.ok(common.includes(name), `common.js reads ${name}`);
+  for (const name of ["load('problems', { summary: 1 })", "p.status !== 'found'", 'p?.priority?.tier', 'p.sure?.look', 'p.possible?.look']) assert.ok(common.includes(name), `common.js reads ${name}`);
   const search = page('search.js');
   for (const name of ['p.lookSessions', 'p.countEvidence', 'p.tokens?.tokens', 'a.coverage?.tokens']) assert.ok(search.includes(name), `search.js reads ${name}`);
 });
