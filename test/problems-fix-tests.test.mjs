@@ -104,6 +104,10 @@ test('Codex: added context is a developer message, a Stop block a <hook_prompt>,
   // A user message that only mentions the words isn't a hook's.
   const typed = rec('response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: SAY }] });
   assert.equal(scan([prompt, typed], DESTRUCT, 1).hook, false);
+  // A command whose own output quotes the phrase further in (printing a file that names it) isn't
+  // a refusal, even with the fix's words in it too.
+  const printed = rec('response_item', { type: 'function_call_output', call_id: 'c2', output: `Exit code: 0\nOutput:\n${'// a file\n'.repeat(40)}// a refused step reads "blocked by PreToolUse hook: ${SAY}"` });
+  assert.equal(scan([prompt, printed], DESTRUCT, 1).hook, false);
 });
 
 test('what "fired" means by kind of fix, and what a log can\'t say', () => {
