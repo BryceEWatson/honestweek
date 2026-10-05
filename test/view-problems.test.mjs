@@ -419,6 +419,7 @@ test("the page draws this week's answer: every found pattern on the landing by i
   for (const r of rows) {
     const s = r.match(/data-session="([^"]*)"/)[1];
     assert.ok(r.includes(`<span class="repotag" title="Repository">${whole.sessions[s].repo}</span>`), `${s}: its repository`);
+  }
   // Each pattern lists its most recent findings first: within the sure ones and within the
   // possible ones, worth a look before routine, each newest first.
   const SURE = ['recorded', 'derived'];
