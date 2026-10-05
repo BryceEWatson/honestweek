@@ -399,7 +399,9 @@ test('the Find cards claim no more than their lists hold', () => {
   // The window isn't always a week.
   const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
   assert.doesNotMatch(problems, /this week/);
-  assert.match(problems, /'Not found in this window'/);
+  assert.match(problems, /\['clear', `Not found in \$\{inWin\(\)\}`\]/);
+  // While the rest of the window loads, the page speaks of the days in so far.
+  assert.match(problems, /const inWin = \(\) => \(partial\(\) \? 'the days loaded so far' : 'this window'\);/);
 });
 
 test("a share rounds down on every page, and an estimate past the window's total never prints as a share", () => {
@@ -470,7 +472,7 @@ test('the Find cards: a capped list never says "all", and "Worth a look" lists o
 test('with no session to check, the Problems page and the Find card say nothing was checked', () => {
   const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
   assert.match(problems, /const nothing = Number\(num\(cov\.sessions\)\) === 0 && n === 0;/);
-  assert.match(problems, /No session with a record in this window \$\{lvl\}, so nothing was checked\./);
+  assert.match(problems, /No session with a record in \$\{inWin\(\)\} \$\{lvl\}, so nothing was checked/);
   assert.match(problems, /unchecked: \{ icon: '○', word: 'Not checked' \}/);
   assert.match(problems, /\(p\.measures \?\? \[\]\)\.length \? 'not checked' : 'no check here yet'/, 'a pattern whose check did not run is not "no check here yet"');
   const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
