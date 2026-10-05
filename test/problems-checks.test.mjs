@@ -659,6 +659,32 @@ test('a secret-shaped key in a prompt is counted, never kept; a placeholder is n
   assert.equal(findingsOf(make('Use $API_KEY from the environment.'), 'secret-exposure').length, 0);
 });
 
+test("a secret-shaped key in the agent's progress update is a note that says the update is inferred from position", () => {
+  const KEY = `sk-${'a1B2c3D4e5F6g7H8i9J0'}`;
+  const make = (text) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Call the staging API.');
+    h.ev('update', 's1', min(1), { facts: { text: '[redacted]' }, raw: { text }, inferred: [{ key: 'reads-as', value: 'progress-update', rule: 'updates.position' }] });
+    h.shell('s1', min(1, 1), 'node call.mjs');
+    return run(h.build());
+  };
+  const r = make(`Trying ${KEY} against staging next.`);
+  const [f] = findingsOf(r, 'secret-exposure');
+  assert.equal(f.kind, 'agent progress update (inferred from position)');
+  assert.equal(f.rule, 'problems.secret-shape, updates.position');
+  assert.equal(f.verdictEvidence, 'inferred');
+  assert.equal(f.severity, 'note');
+  assert.match(f.note, /^In the agent's progress updates \(thinking blocks read as updates by where they sit, right before a tool call, so each could be a reasoning summary\), on 1 step/);
+  assert.ok(!JSON.stringify(r).includes(KEY), 'the key itself is in no field of the result');
+  assert.match(check(r, 'secret-in-log').checked, /^2 prompts, tool-call inputs and agent messages and 1 agent progress update \(inferred from position\) in the window/);
+  // Failing partner: the same update with no secret shape, and a history with no updates says nothing of them.
+  const clean = make('Trying the staging API next.');
+  assert.equal(findingsOf(clean, 'secret-exposure').length, 0);
+  const none = history().session('s1');
+  none.prompt('s1', min(0), 'Call the staging API.');
+  assert.doesNotMatch(check(run(none.build()), 'secret-in-log').checked, /progress update/);
+});
+
 // ---- what every check shares -----------------------------------------------------------------
 
 test('display-only and outside sessions are never checked', () => {
