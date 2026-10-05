@@ -2918,7 +2918,7 @@
         "works": "The naming step takes a short think, and no step stands out for output.",
         "fails": "One step spends thousands of tokens before a one-word answer.",
         "look": "In Claude Code, /usage shows what the session cost: ten echoes and a one-word choice should be cheap.",
-        "replay": "Open the test session in Replay: honestweek flags a step that wrote 5,000 or more output tokens and 5 times the session's median for the same model, so with the fix this problem shouldn't be found on it. It may not be found without the fix either."
+        "replay": "Open the test session in Replay: honestweek flags a model call that wrote 5,000 or more output tokens per tool call and 5 times the session's median for the same model, once that model has 10 or more calls in the session to compare, so with the fix this problem shouldn't be found on it. It may not be found without the fix either."
       },
       "related": [
         "unscoped-exploration",

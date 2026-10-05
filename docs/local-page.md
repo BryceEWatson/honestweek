@@ -149,7 +149,7 @@ The line on "What happened" is built from fixed words and only the numbers the f
 | `outside-edits` | moment | A few edits; the prompt before them shows whether the place was asked for. |
 | `plan-mode-edit` | moment | A few edits made in plan mode; the prompt before them shows what was asked for. |
 | `session-ended-mid-step` | turn-end | How the session's last turn ended: its last message (or the prompt that opened it, when the agent wrote none) to its last record, with nothing after. |
-| `needless-check-in` | turn-end | A turn that ended on a question, and the next prompt answering it, with the wait between. |
+| `needless-check-in` | turn-end | A turn that ended on a question, an offer to carry on or a list of options, and the next prompt answering it, with the wait between. |
 | `risky-command` | moment | One command; the prompt before it shows whether it was asked for. |
 | `secret-in-log` | repeat | Secret-shaped text on several steps of one kind: each step is numbered. |
 | `open-todos-stop` | moment | The agent's last to-do update and the message that ended the turn with items still open, read with the prompt that opened the turn. |

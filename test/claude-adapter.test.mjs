@@ -254,13 +254,17 @@ test('draft notes keep a thinking note only where a progress update sits, and ev
       asst('m4', 'claude-fable-5-1', { type: 'thinking', thinking: 'First of two notes.' }),
       asst('m4', 'claude-fable-5-1', { type: 'thinking', thinking: 'Opening the tests now.' }),
       asst('m4', 'claude-fable-5-1', { type: 'tool_use', id: 't3', name: 'Bash', input: { command: 'ls' } }),
+      // Records with no id are each their own response, as in Replay: a note doesn't carry over.
+      asst(undefined, 'claude-opus-5-5', { type: 'thinking', thinking: 'An id-less note on its own.' }),
+      asst(undefined, 'claude-opus-5-5', { type: 'tool_use', id: 't4', name: 'Bash', input: { command: 'ls' } }),
+      JSON.stringify({ ...base, type: 'assistant', message: { model: 'claude-opus-5-5', role: 'assistant', content: [{ type: 'thinking', thinking: 'Reading the log next.' }, { type: 'tool_use', id: 't5', name: 'Bash', input: { command: 'ls' } }] } }),
       asst('m5', 'claude-opus-5-5', { type: 'thinking', thinking: 'The last note of the file.' }),
     ];
     writeFileSync(join(dir, sid + '.jsonl'), lines.join('\n') + '\n');
     const cfg = config();
     const [entry] = await adaptSessions({ config: cfg, weekStart: WEEK_START, weekEnd: WEEK_END, redactor: createRedactor(cfg), projectsRoot: root });
     // A tool result between two blocks of one response doesn't break it; the last of two notes is the one kept.
-    assert.deepEqual(entry.assistantNotes, ['Checking the config next.', 'Done.', 'Opening the tests now.']);
+    assert.deepEqual(entry.assistantNotes, ['Checking the config next.', 'Done.', 'Opening the tests now.', 'Reading the log next.']);
   } finally {
     removeTempDir(root);
   }

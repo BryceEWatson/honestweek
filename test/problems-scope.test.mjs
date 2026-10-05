@@ -10,7 +10,7 @@ import { join } from 'node:path';
 
 import '../lib/view/assets/replay-model.js';
 import { buildDemoWeek } from '../lib/demo/week.mjs';
-import { CHECKS, fmtDur } from '../lib/problems/checks.mjs';
+import { CHECKS, fmtDur, UPDATE_PLACE } from '../lib/problems/checks.mjs';
 import { runProblems } from '../lib/problems/index.mjs';
 import { historyIndex, SCOPE_KINDS, scopeHeld, scopeOf } from '../lib/problems/scope.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
@@ -127,7 +127,18 @@ test('a repeat: first to last repetition, the steps in order; the caption counts
   assert.equal(s.caption, 'The same call ran 3 times, with nothing changed between');
   assert.equal(s.level, 'derived');
   // A check that matched more than it recorded: the caption says what it matched.
-  assert.equal(scope({ check: 're-reads', event: 'a1', events: ['a1', 'a2'], steps: 60 }).caption, 'The same file and range read 60 times, with no change between');
+  assert.equal(scope({ check: 're-reads', event: 'a1', events: ['a1', 'a2'], steps: 60 }).caption, 'The same file and range read 60 times, with no recorded edit between');
+});
+
+test('output per call: the caption counts model calls, not the tool calls they issued', () => {
+  // One model call that issued three tool calls is one model call.
+  assert.equal(scope({ check: 'output-per-call', event: 'a1', events: ['a1', 'a2', 'a3'], steps: 3, calls: 1 }).caption, 'A model call that wrote far more per tool call than this session usually does');
+  assert.equal(scope({ check: 'output-per-call', event: 'a1', events: ['a1', 'a2', 'a3'], steps: 3, calls: 2 }).caption, '2 model calls that wrote far more per tool call than this session usually does');
+  assert.equal(scope({ check: 'output-per-call', event: 'a1', events: ['a1', 'a2'], steps: 2 }).caption, 'Model calls that wrote far more per tool call than this session usually does', 'no count recorded, none stated');
+});
+
+test('secret-shaped text in a progress update: the caption names the place and that it is inferred', () => {
+  assert.equal(scope({ check: 'secret-in-log', event: 'a1', events: ['a1'], steps: 1, kind: UPDATE_PLACE }).caption, 'Secret-shaped text in an agent progress update (inferred from position)');
 });
 
 test('a hand-off: from the helper starting to the parent carrying on, with the gap marked', () => {
@@ -148,6 +159,9 @@ test("a turn ending: the turn's last message and your next prompt, with the wait
   assert.deepEqual([s.anchor, s.next], ['m1', 'p2']);
   assert.deepEqual(s.gap, { from: at(60), to: at(360) });
   assert.equal(s.caption, 'The turn ended on a question, and your go-ahead came 5 min later');
+  // The other two forms say what the turn ended on, not a question.
+  assert.equal(scope({ check: 'needless-check-in', event: 'm1', related: 'p2', kind: 'ended on an offer to carry on' }).caption, 'The turn ended on an offer to carry on, and your go-ahead came 5 min later');
+  assert.equal(scope({ check: 'needless-check-in', event: 'm1', related: 'p2', kind: 'ended on a list of options' }).caption, 'The turn ended on a list of options, and your go-ahead came 5 min later');
   // A session's last record: from the turn's last message to the session's last record.
   const e = scope({ check: 'session-ended-mid-step', event: 'a5', kind: 'last-record-is-action' });
   assert.equal(e.kind, 'turn-end');
