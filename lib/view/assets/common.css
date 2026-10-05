@@ -27,6 +27,7 @@
   --accent-ink: #073f3e;
   --accent-wash: #e8f0ef;
   --accent-line: #c9dcda;
+  --on-fill: #ffffff; /* text or a glyph on a filled accent or priority colour */
   --fix-wash: #f2f6f5;
   --high: #a8381a;
   --high-wash: #fbeae5;
@@ -72,6 +73,7 @@
     --accent-ink: #8fd0cc;
     --accent-wash: #183331;
     --accent-line: #2c5452;
+    --on-fill: #111312;
     --fix-wash: #182523;
     --high: #f08a6c;
     --high-wash: #3a2019;
@@ -113,6 +115,7 @@
   --accent-ink: #8fd0cc;
   --accent-wash: #183331;
   --accent-line: #2c5452;
+  --on-fill: #111312;
   --fix-wash: #182523;
   --high: #f08a6c;
   --high-wash: #3a2019;
@@ -155,13 +158,13 @@ summary { cursor: pointer; }
 .linklike:hover { background: none; color: var(--accent-ink); }
 .btn { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; color: var(--accent); background: var(--raised); border: 1px solid var(--accent-line); border-radius: 8px; padding: 7px 14px; min-height: 36px; text-decoration: none; }
 .btn:hover { background: var(--accent-wash); color: var(--accent-ink); }
-.btn.primary { color: #ffffff; background: var(--accent); border-color: var(--accent); }
-.btn.primary:hover { background: var(--accent-ink); color: #ffffff; }
+.btn.primary { color: var(--on-fill); background: var(--accent); border-color: var(--accent); }
+.btn.primary:hover { background: var(--accent-ink); color: var(--on-fill); }
 .muted { color: var(--muted); }
 .nowrap { white-space: nowrap; }
 .num { font-variant-numeric: tabular-nums; }
 
-/* ---- the header: the name, the pages, the window, the switch and the key ------------------- */
+/* ---- the header: the name, the pages, the window, the switch, the theme and the key ---------- */
 .topbar { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 20px; min-height: 60px; padding: 8px max(24px, calc((100% - 1240px) / 2 + 24px)); background: var(--surface); border-bottom: 1px solid var(--line); }
 .topbar .brand { font-weight: 600; font-size: 17px; color: var(--ink); text-decoration: none; letter-spacing: -0.01em; }
 .topbar nav { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -176,6 +179,10 @@ summary { cursor: pointer; }
 .switch input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 .keybtn { width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 999px; background: transparent; font-weight: 500; }
 .keybtn[aria-expanded="true"] { background: var(--accent-wash); color: var(--accent); border-color: var(--accent-line); }
+/* The light/dark button (prefs.js draws it): a moon or a sun in the text colour. */
+.themebtn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; min-height: 40px; padding: 0; border: 1px solid var(--field); border-radius: 8px; background: var(--surface); color: var(--ink); }
+.themebtn:hover { background: var(--accent-wash); color: var(--ink); }
+.themebtn svg { display: block; }
 .evkey-pop { position: absolute; z-index: 40; top: calc(100% - 4px); right: max(24px, calc((100% - 1240px) / 2 + 24px)); width: min(440px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12); padding: 14px 18px; }
 
 /* The evidence key, in the "?" panel: each word with its symbol and a short gloss. */
@@ -522,8 +529,8 @@ details.dismissed > summary h2 { display: inline; font-size: 14px; font-weight: 
 .player { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
 .controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .controls button { font-size: 13px; min-height: 34px; padding: 4px 10px; }
-.controls .playbtn { color: #ffffff; background: var(--accent); border-color: var(--accent); font-weight: 500; padding: 4px 14px; }
-.controls .playbtn:hover { background: var(--accent-ink); color: #ffffff; }
+.controls .playbtn { color: var(--on-fill); background: var(--accent); border-color: var(--accent); font-weight: 500; padding: 4px 14px; }
+.controls .playbtn:hover { background: var(--accent-ink); color: var(--on-fill); }
 .scrub { flex: 1 1 220px; display: flex; align-items: center; min-width: 0; }
 .scrub input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
 .readout { font-family: var(--mono); font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }

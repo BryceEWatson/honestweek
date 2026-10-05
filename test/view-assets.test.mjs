@@ -18,8 +18,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS = join(HERE, '..', 'lib', 'view', 'assets');
 const SELFTEST = join(HERE, '..', 'lib', 'view', 'selftest');
 const PAGES = ['search.html', 'goal.html', 'replay.html', 'problems.html'];
-// The scripts each page loads after the shared ones, in order.
-const PAGE_SCRIPTS = { 'search.html': ['prefs.js', 'search.js'], 'goal.html': ['prefs.js', 'strip.js', 'goal.js'], 'replay.html': ['prefs.js', 'strip.js', 'facts.js', 'replay.js'], 'problems.html': ['prefs.js', 'insights.js', 'facts.js', 'problems.js'] };
+// The scripts each page loads after the shared ones, in order. prefs.js comes first of all, in
+// the head, so a stored light/dark choice is on the page before anything is drawn.
+const PAGE_SCRIPTS = { 'search.html': ['search.js'], 'goal.html': ['strip.js', 'goal.js'], 'replay.html': ['strip.js', 'facts.js', 'replay.js'], 'problems.html': ['insights.js', 'facts.js', 'problems.js'] };
+const IN_HEAD = /<head>[^]*<script src="prefs\.js"><\/script>\s*<link rel="stylesheet" href="common\.css">[^]*<\/head>/;
 // The package author's name, read from package.json so this test doesn't spell out a real name.
 const OWNER_WORDS = String(JSON.parse(readFileSync(join(HERE, '..', 'package.json'), 'utf8')).author ?? '')
   .split(/\s+/)
@@ -71,7 +73,8 @@ test('assets: every page loads the same files in the same order, and has the sha
   for (const p of PAGES) {
     const t = readFileSync(join(ASSETS, p), 'utf8');
     const srcs = [...t.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
-    assert.deepEqual(srcs, ['evidence.js', 'key.js', 'private-text.js', 'common.js', ...PAGE_SCRIPTS[p]], p);
+    assert.deepEqual(srcs, ['prefs.js', 'evidence.js', 'key.js', 'private-text.js', 'common.js', ...PAGE_SCRIPTS[p]], p);
+    assert.match(t, IN_HEAD, `${p}: prefs.js in the head, before the stylesheet`);
     // The Problems page adds its own stylesheet after the shared one, which stays as it is.
     assert.deepEqual([...t.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]), p === 'problems.html' ? ['common.css', 'problems.css'] : ['common.css'], p);
     for (const id of ['window', 'privacy', 'demo', 'status', 'content', 'quiet', 'privnote', 'navHigh']) assert.match(t, new RegExp(`id="${id}"`), `${p}: #${id}`);
@@ -84,9 +87,11 @@ test('assets: every page loads the same files in the same order, and has the sha
     for (const link of PAGES) assert.match(t, new RegExp(`<nav[^]*href="${link}"[^]*</nav>`), `${p}: a link to ${link}`);
     assert.match(t, new RegExp(`href="${p}" aria-current="page"`), `${p}: marks itself current`);
   }
-  // The Setup page has the same header and quiet footer, and only the key client before its own script.
+  // The Setup page has the same header and quiet footer, and only the preferences (for the
+  // light/dark choice, in its head) and the key client before its own script.
   const st = readFileSync(join(ASSETS, 'setup.html'), 'utf8');
-  assert.deepEqual([...st.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]), ['key.js', 'private-text.js', 'form.js', 'setup.js']);
+  assert.deepEqual([...st.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]), ['prefs.js', 'key.js', 'private-text.js', 'form.js', 'setup.js']);
+  assert.match(st, IN_HEAD, 'setup.html: prefs.js in the head');
   assert.deepEqual([...st.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]), ['common.css']);
   for (const id of ['status', 'content', 'repos', 'addPath', 'emails', 'timezone', 'names', 'terms', 'goals', 'previewBtn', 'saveBtn']) assert.match(st, new RegExp(`id="${id}"`), `setup.html: #${id}`);
   assert.match(st, /<header class="topbar">[^]*href="setup\.html" aria-current="page"/);
@@ -95,7 +100,8 @@ test('assets: every page loads the same files in the same order, and has the sha
   for (const m of st.matchAll(/<input\b[^>]*>/g)) assert.match(m[0], /autocomplete="off"/, m[0]);
   // Settings: the same rules, and every page's header links to it.
   const sg = readFileSync(join(ASSETS, 'settings.html'), 'utf8');
-  assert.deepEqual([...sg.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]), ['key.js', 'private-text.js', 'form.js', 'settings.js']);
+  assert.deepEqual([...sg.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]), ['prefs.js', 'key.js', 'private-text.js', 'form.js', 'settings.js']);
+  assert.match(sg, IN_HEAD, 'settings.html: prefs.js in the head');
   assert.match(sg, /href="settings\.html" aria-current="page"/);
   assert.doesNotMatch(sg, /<form\b|<(input|select|textarea)\b[^>]*\sname="/);
   for (const m of sg.matchAll(/<input\b[^>]*>/g)) assert.match(m[0], /autocomplete="off"/, m[0]);
@@ -151,7 +157,7 @@ test('assets: no network: data comes only from this server, through the key clie
   for (const m of key.matchAll(/fetchFn\(\s*([^,]+),/g)) assert.match(m[1], /^['`]\/api\//, `key.js asks only /api routes: ${m[1]}`);
 });
 
-test('assets: session storage holds only the run key and the switch; local storage only the catalog preferences, in prefs.js', () => {
+test('assets: session storage holds only the run key and the switch; local storage only the catalog preferences and the theme, in prefs.js', () => {
   for (const f of files()) {
     const isKey = f.name === 'key.js';
     if (f.name === 'selftest/clickthrough.js') {
