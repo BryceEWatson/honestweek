@@ -150,7 +150,7 @@ test('every test prompt says what it costs and what to look for, and a change ma
 // ---- Copy ------------------------------------------------------------------------------------
 test('Copy copies the fix and the prompt exactly as the server sent them, and never a redacted one', () => {
   const js = readFileSync(join(ASSETS_DIR, 'problems.js'), 'utf8');
-  assert.match(js, /const copySource = \(p, what\) => \(what === 'fix' \? p\.draft\?\.text : what === 'codex' \? codexText\(p\) : p\.testPrompt\) \?\? null;/);
+  assert.match(js, /const copySource = \(p, what\) => \(what === 'fix' \? p\.draft\?\.text : what === 'codex' \? codexText\(p\) : p\.testPrompt && p\.testTag \? `\$\{p\.testPrompt\} \$\{p\.testTag\}` : p\.testPrompt\) \?\? null;/);
   // The click copies copySource's text, never the page's markup.
   assert.match(js, /const text = p \? copySource\(p, cb\.dataset\.copy\) : null;\s+if \(text\) copyText\(text, cb,/);
   // Clipboard first (no permission prompt for a click on this page), then the copy command, then selecting the text.
@@ -471,4 +471,45 @@ test("every card links to where the problem comes from: its published sources by
   // On the problem's page the same sources sit in the closed fold, under a heading the link opens.
   const { el: d } = await drawProblems(D, { hash: '#context-bloat' });
   assert.match(d('detail').innerHTML, /<h3 id="src-context-bloat" tabindex="-1">Sources<\/h3>/);
+});
+
+test('Check the fix works: the prompt carries its tag, and the tests found for this version read as one line, each a link to its session', async () => {
+  const D = answer();
+  const p = D.patterns.find((x) => x.id === 'claim-contradicts-evidence');
+  const t = (session, thread, n, fired, problem, version = 'ab12') => ({ version, session, thread, event: `${session}.${n}.0`, at: `2025-03-1${n}T10:00:00.000Z`, tool: session.startsWith('cx') ? 'codex' : 'claude-code', fired, problem });
+  Object.assign(p, {
+    fixVersion: 'ab12',
+    testTag: '[honestweek check: claim-contradicts-evidence ab12]',
+    fixTests: [
+      t(S.cc, TH.cc, 1, { state: 'fired', level: 'recorded' }, { state: 'not-seen', level: 'inferred' }, '9f9f'),
+      t(S.cc, TH.cc, 2, { state: 'fired', level: 'recorded' }, { state: 'not-seen', level: 'inferred' }),
+      t(S.cx, TH.cx, 3, { state: 'fired', level: 'recorded' }, { state: 'not-seen', level: 'inferred' }),
+    ],
+  });
+  const { el } = await drawProblems(D, { hash: '#claim-contradicts-evidence' });
+  const box = blocks(el('detail').innerHTML, 'section', 'pd-try')[0];
+  // The tag shows in grey after the prompt, so what you see is what you copy.
+  assert.match(box, /data-copytext="try">In a new empty folder, try the thing\. <span class="trytag">\[honestweek check: claim-contradicts-evidence ab12\]<\/span><\/code>/);
+  assert.match(box, /<summary title="About the tag" aria-label="About the tag">\?<\/summary>/);
+  // Two tests of this version, one of an earlier one: the line counts only this version's.
+  const line = blocks(box, 'div', 'trytrack')[0];
+  assert.match(words(line), /^Tested 2 times: fired both times, problem not seen\. Test 1 Test 2 \?/);
+  assert.ok(line.includes(`<a href="replay.html?session=${S.cc}#${TH.cc}~${S.cc}.2.0">Test 1</a>`), line);
+  assert.ok(line.includes(`<a href="replay.html?session=${S.cx}#${TH.cx}~${S.cx}.3.0">Test 2</a>`), line);
+  assert.match(words(line), /Earlier versions of this fix: tested once\./);
+  assert.match(words(line), /Not seeing the problem on a test is a hint, not proof\./);
+  assert.doesNotMatch(line, /\bfixed\b/i, 'never says fixed');
+  // Mixed answers and a log that can't tell.
+  p.fixTests = [t(S.cc, TH.cc, 2, { state: 'none', level: 'inferred' }, { state: 'seen', level: 'derived', count: 1 }), t(S.cx, TH.cx, 3, { state: 'fired', level: 'recorded' }, { state: 'unknown', level: 'missing', why: 'running' })];
+  const again = blocks(blocks((await drawProblems(D, { hash: '#claim-contradicts-evidence' })).el('detail').innerHTML, 'section', 'pd-try')[0], 'div', 'trytrack')[0];
+  assert.match(words(again), /^Tested 2 times: fired 1 of 2 times, problem seen once\./);
+  p.fixTests = [t(S.cc, TH.cc, 2, { state: 'loaded', level: 'recorded' }, { state: 'unknown', level: 'missing', why: 'too-short' })];
+  const one = blocks(blocks((await drawProblems(D, { hash: '#claim-contradicts-evidence' })).el('detail').innerHTML, 'section', 'pd-try')[0], 'div', 'trytrack')[0];
+  assert.match(words(one), /^Tested once: in its instructions, a test this short can't show it\. Open the test/);
+  // No test yet: no line.
+  p.fixTests = [];
+  assert.equal(blocks(blocks((await drawProblems(D, { hash: '#claim-contradicts-evidence' })).el('detail').innerHTML, 'section', 'pd-try')[0], 'div', 'trytrack').length, 0);
+  // Copy prompt copies the prompt with its tag.
+  const js = readFileSync(join(ASSETS_DIR, 'problems.js'), 'utf8');
+  assert.match(js, /p\.testPrompt && p\.testTag \? `\$\{p\.testPrompt\} \$\{p\.testTag\}` : p\.testPrompt/);
 });

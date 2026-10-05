@@ -388,7 +388,7 @@ test('a private word that is a coverage status leaves the status whole, and the 
 
 test('the Problems answer is otherwise unchanged: coverage, the Codex form, the headline and the test prompt\'s cost, setup and what to look for are the only new fields', () => {
   const BEFORE = ['claim', 'count', 'countEvidence', 'derivedFound', 'detection', 'draft', 'findings', 'findingsListed', 'group', 'id', 'look', 'looksLike', 'measures', 'mitigation', 'name', 'notRun', 'notesFound', 'possible', 'priority', 'related', 'sourceKinds', 'sources', 'status', 'strength', 'strengthReason', 'sure', 'testPrompt', 'tokens', 'whyItMatters'];
-  const NEW = new Set(['coverage', 'headline', 'testSetup', 'testCost', 'testCostWhy', 'testExpect']);
+  const NEW = new Set(['coverage', 'headline', 'testSetup', 'testCost', 'testCostWhy', 'testExpect', 'fixVersion', 'testTag', 'fixTests']);
   for (const p of whole.patterns) {
     assert.deepEqual(Object.keys(p).filter((k) => !NEW.has(k)).sort(), BEFORE, p.id);
     if (p.draft) assert.deepEqual(Object.keys(p.draft).filter((k) => k !== 'codex').sort(), ['kind', 'text', 'title', 'where'], p.id);

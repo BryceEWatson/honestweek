@@ -287,6 +287,10 @@ test('keepRaw: display-only and outside sessions never get raw text or a folder,
     assert.ok(h.sources.some((s) => s.private), label);
     for (const s of h.sources) if (s.private) assert.equal(h._raw.cwdOfSource.has(s.key), false, `${label}: no private folder is kept`);
     assert.ok(h.sources.some((s) => !s.private && h._raw.cwdOfSource.has(s.key)), `${label}: readable folders are kept`);
+    // The file a readable session came from, so a tagged test session can be read again; none for a private one.
+    for (const s of h.sources) if (s.private) assert.equal(h._raw.fileOfSource.has(s.key), false, `${label}: no private file is kept`);
+    assert.ok(h.sources.filter((s) => !s.private).every((s) => typeof h._raw.fileOfSource.get(s.key) === 'string'), `${label}: every readable file is kept`);
+    assert.equal(Object.keys(h).includes('_raw'), false, `${label}: never enumerable, so never in JSON`);
   }
 });
 
