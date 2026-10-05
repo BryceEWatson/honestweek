@@ -24,7 +24,7 @@ fence abort). Covered by `test/site-adapter`, `site-emit`, `site-fact-fence`,
 parity-gate harness (Stage-1 pixel + Stage-2 content). One grammar increment is
 deliberately deferred to Phase B, where it can be designed against the real
 artifact: emitting a TRUSTED, value-free STRING structure (e.g. an author-email or
-repo-label array) — `derivedTree` is numeric-only by design (a string leaf is
+repo-label array): `derivedTree` is numeric-only by design (a string leaf is
 rejected, so prose can't bypass the fence), and the scalar grammar has no
 primitive-array node yet. If the target's byte-parity needs one, it gets a
 purpose-built, value-free mechanism then.
@@ -76,7 +76,7 @@ Adapter shape:
 
 `Node` is recursive:
 - object: `{ "type": "object", "props": { "<key>": Node, ... } }`
-- array (templated over a derived collection): `{ "type": "array", "over": "<collectionKey>", "item": Node }` — `item` leaves resolve `derived`/`model` keys against the CURRENT element.
+- array (templated over a derived collection): `{ "type": "array", "over": "<collectionKey>", "item": Node }`: `item` leaves resolve `derived`/`model` keys against the CURRENT element.
 - leaf: a directive `{ "source": <kind>, ... }` (`value` for const/freetext; `key` for derived/model).
 
 `validateAdapter(spec)` is pure (returns `{ ok, problems }`, never throws): it
@@ -91,22 +91,22 @@ verified, redacted model (augmented with the derived sections below). Keys are
 GENERIC (the adapter maps a site's field names onto these), e.g.:
 
 - `week.start`, `week.end`
-- `provenance.itemsTotal`, `provenance.itemsVerified`, `provenance.commitsVerified` — **week-scoped** (see `deriveProvenance` below); `provenance.redactions` — **NOT week-scoped**, it counts the whole write's scrubs
+- `provenance.itemsTotal`, `provenance.itemsVerified`, `provenance.commitsVerified`: **week-scoped** (see `deriveProvenance` below); `provenance.redactions`: **NOT week-scoped**, it counts the whole write's scrubs
 - `groups`, `group[<label>].metrics.commits|activeDays|entries`
 - `chart.days` (collection), `chart.max`
-- `sessions.total`, `sessions.days` (collection), `sessions.<field>` — **session-derived, labeled NOT git-verified**
+- `sessions.total`, `sessions.days` (collection), `sessions.<field>`: **session-derived, labeled NOT git-verified**
 - `items` / `item.text` (model strings)
 
 It also computes `verifiedNumbers`: the SET of finite numbers seeded from the
 EXPLICITLY TRUSTED derived roots (`chart`, `sessions`, `provenance`, and each
-group's git-derived `metrics`) — never the whole model. Derived date STRINGS
+group's git-derived `metrics`), never the whole model. Derived date STRINGS
 (e.g. `week.start`) are not numeric leaves and are not prose-scanned, so their
 digits are not required to be verified. **Verified-number provenance (resolved):**
-seeding from named trusted roots makes the guarantee STRUCTURAL — a future
+seeding from named trusted roots makes the guarantee STRUCTURAL: a future
 model-authored numeric field elsewhere in the model could not silently become a
 "verified" number. See `seedVerifiedNumbers` / `TRUSTED_ROOTS` in `values.mjs`.
 
-`derived(key)` / `model(key)` / `collection(key)` THROW on an unknown key — the
+`derived(key)` / `model(key)` / `collection(key)` THROW on an unknown key, the
 same loud-fail posture as `_shared.mjs` `badge()/receiptPointer()/itemText()`.
 
 ## Emit + fact-fence (`lib/site/emit-site.mjs`, `lib/site/fact-fence.mjs`)
@@ -114,24 +114,24 @@ same loud-fail posture as `_shared.mjs` `badge()/receiptPointer()/itemText()`.
 `renderSite(siteModel, adapter)`:
 1. `buildValueContext(siteModel)`.
 2. Walk `adapter.tree`; resolve each leaf (resolve-or-throw); iterate arrays over
-   `collection(over)`; record EVERY string-valued leaf as prose — `freetext`,
+   `collection(over)`; record EVERY string-valued leaf as prose: `freetext`,
    `model`, AND any `const`/`derived` that resolved to a string. (A `derived` key
    can path into model substructure, and a `const` is author-supplied text, so
    both could carry a quantity; scanning them too means no source kind is a fence
-   bypass. `derivedTree` carries no string leaves — they are rejected at resolve.)
+   bypass. `derivedTree` carries no string leaves: they are rejected at resolve.)
 3. `factFence(artifact, verifiedNumbers, proseLeaves)` before returning.
 
 `factFence(artifact, verifiedNumbers, proseLeaves)`:
 - Every NUMERIC leaf must be finite AND byte-equal to a value in `verifiedNumbers`,
-  else THROW (a non-finite leaf is always a violation — it would serialize to
+  else THROW (a non-finite leaf is always a violation: it would serialize to
   `null` silently otherwise).
-- Every PROSE leaf: extract stated quantities — comma-grouped digit runs
+- Every PROSE leaf: extract stated quantities: comma-grouped digit runs
   (`1,200` → 1200) and composed spelled-out numbers (`two hundred` → 200,
   `twenty three` → 23); each must be a verified number, else THROW. ISO
   date/datetime and hex-sha tokens are exempted first (a date or a receipt is not a
   work-claim), so a trusted derived date string is not a false abort while a real
   quantity beside it still is. This closes the numbers-in-prose gap (`validate`
-  does not check prose numerals; `redact` passes numbers through unchanged —
+  does not check prose numerals; `redact` passes numbers through unchanged:
   `redact.mjs:221`).
 - A throw is a verify-or-abort: `build` maps it to exit 2, writes nothing.
 
@@ -141,11 +141,11 @@ Deterministic derivers over the verified model + the user's real git/sessions.
 `augmentSiteModel(model, ctx)` returns `{ ...model, chart, sessions, provenance }`;
 all three are seeded into `verifiedNumbers`. The seven Monday→Sunday day stubs come
 from the shared `week-grid.mjs`, so a chart day and a session day never disagree.
-- `deriveChart` — per-day commit `total` + `byRepo` (a dynamic-keyed count map) +
+- `deriveChart`: per-day commit `total` + `byRepo` (a dynamic-keyed count map) +
   `repoTotals`, from `commitsInWindow` per readable repo over the window. A
   display-role repo is NEVER git-read; an unreadable repo contributes nothing
   (never a fake zero-for-real). `chart.max` is the peak day total.
-- `deriveProvenance` — `{ itemsTotal, itemsVerified, commitsVerified, redactions }`.
+- `deriveProvenance`: `{ itemsTotal, itemsVerified, commitsVerified, redactions }`.
   The three **counts of content** (`itemsTotal`, `itemsVerified`, `commitsVerified`)
   are **scoped to the week being reported**, because this block ships inside a
   per-week artifact next to `weekOf`/`weekStart`/`weekEnd`. It takes `richItems`
@@ -165,62 +165,62 @@ from the shared `week-grid.mjs`, so a chart day and a session day never disagree
   property of the write and never as a fact about the week.
   Note `itemsVerified == itemsTotal` BY CONSTRUCTION: `build` aborts before this
   runs unless every cited commit resolved, so the equality honestly asserts "0
-  items failed verification" — it is NOT an independently-measured ratio, and an
+  items failed verification"; it is NOT an independently-measured ratio, and an
   adapter must not render it as "N of M verified" implying it could be less.
-  `commitsVerified` (re-derived commits whose own author-date falls in the week —
+  `commitsVerified` (re-derived commits whose own author-date falls in the week:
   the same date basis `deriveChart` buckets by) is the real verification signal.
   Page mode (`buildPageModel`) keeps a corpus-wide `itemsTotal` on purpose: it
   renders every item in the items file rather than a week's slice, so there its
   count and its groups already agree.
-- `deriveSessions` — interactive-session counts per day, with the SAME
+- `deriveSessions`: interactive-session counts per day, with the SAME
   interactive-vs-automated classification + resume-dedup as the target
   (`isInteractiveFirstPrompt` mirrors the target's first-prompt classifier; dedup
   is by first-prompt timestamp; windowing is by the first-prompt's local date).
   **Labeled `session-derived`**: a deterministic count of local session-log files
-  classified interactive (deduped) — a PROXY for "human work sessions", NOT
+  classified interactive (deduped), a PROXY for "human work sessions", NOT
   git-commit-verified and NOT an exact session count. The classification +
   exact-timestamp dedup have known two-sided error (a classifier false-positive or
   a fresh-timestamp resume overcounts; a timestamp collision or a dropped
   unreadable head undercounts); the gap is surfaced, not hidden, via the emitted
   `filesFound`/`filesScanned`/`automatedExcluded`/`undetermined`/`duplicatesSkipped`
   diagnostics (`filesFound` is the raw pre-filter count of logs under the resolved
-  root — 0 means none were found, e.g. building off the local machine, which the
+  root: 0 means none were found, e.g. building off the local machine, which the
   build surfaces as a loud warning; distinct from the post-filter `filesScanned`).
   It is `verifiedNumbers`-eligible because it is reproducible from the inputs, not
   because it is an exact measure. Clean-room: project labels come from
   `config.repos` (cwd-match), never a hardcoded allowlist.
-- `deriveProjectStats` — per-project `{ entries, statusCounts, daysActive }` over the
+- `deriveProjectStats`: per-project `{ entries, statusCounts, daysActive }` over the
   in-week items. `daysActive` is `max(commit-active days, session-active days,
   ENTRY-active days)`. The entry-active floor is the **cross-cwd reconciliation**: the
   session bundle attributes each session by the cwd it ran in, but a session run from
   ANOTHER project's cwd yet curated here BY CONTENT never lands in this project's cwd
-  bucket — so the cwd-only count can be smaller than the distinct days this group's own
+  bucket, so the cwd-only count can be smaller than the distinct days this group's own
   curated entries span (the live symptom: a header reading "active 1 day" above 2 rows
   dated on 2 days). Flooring `daysActive` at the distinct in-week entry-day count closes
   that gap. It applies ONLY to a project ALREADY shown as a commit/session source (its
   commit- or session-day count is > 0); a pure dated/private thread with no activity
   signal of its own keeps `daysActive` 0 (surfaced by its dated item alone, never a
   fabricated tally). The floor is a deterministic distinct-day count, so it stays fence-safe.
-- `reconcileGeneralizedSessionTotals` — the session-count twin of that floor, applied to
+- `reconcileGeneralizedSessionTotals`: the session-count twin of that floor, applied to
   `sessions.projectTotals` (the per-project cwd count a consumer joins its "N sessions this
   week" teaser from). For a GENERALIZED group (no config repo, or a `display`-role repo)
   that is already a counted session-source, it lifts the total to at least the group's
   distinct entry-day count, so the teaser can never undercount the rows beneath it. Entry
   **days** (not entry count) is the floor. What the lifted value MEANS: a generalized group
-  has no config repo, so no commits — every curated entry is session-derived, so each
+  has no config repo, so no commits: every curated entry is session-derived, so each
   entry-day is a day the project had a session (possibly one bucketed under another project's
   cwd); and a session runs on one calendar day, so N distinct session-days imply >= N
   sessions. The lifted figure is therefore a LOWER BOUND on the group's distinct session-days,
-  NOT a raw session-log tally — render UI copy accordingly. FEATURED / reference (git-backed,
+  NOT a raw session-log tally. Render UI copy accordingly. FEATURED / reference (git-backed,
   first-class) projects are left as their pure cwd partition (so a consumer's mis-wiring gate
   keeps its teeth), and the catch-all `'other'` pool is never reconciled onto a named project.
   Runs inside `augmentSiteModel`, mutating `sessions.projectTotals` before the bundle is
   emitted. **Partition caveat:** before reconciliation `projectTotals` is a strict partition
   of `interactiveTotal`; the lift does NOT touch `interactiveTotal` (a cross-cwd session is one
-  real session — inflating the deduplicated total would be dishonest), so afterward
+  real session: inflating the deduplicated total would be dishonest), so afterward
   `sum(projectTotals)` can EXCEED `total`, and a consumer must not render the two as if they
   summed. Seeding into `verifiedNumbers` makes the lifted value fact-fence-ELIGIBLE (a
-  no-fabricated-number provenance check) — it does NOT assert the partition still holds; that
+  no-fabricated-number provenance check). It does NOT assert the partition still holds; that
   relaxation is a documented, test-pinned choice, not something the fence verifies.
 
 `augmentSiteModel` also reconnects the feed: each chart/session day carries that
@@ -229,11 +229,11 @@ commit date (an item that cites no resolved commit has no day).
 
 ## Detection + schema inference (`lib/site/detect.mjs`, `lib/site/inspect.mjs`)
 
-- `detectSite(rootDir)` — deterministic, framework-agnostic: reads `package.json`
+- `detectSite(rootDir)`: deterministic, framework-agnostic: reads `package.json`
   deps + conventional config files (astro/next/gatsby/eleventy/vite/…) + data
   directories, and reports `{ isSite, frameworks, signals, dataArtifacts, packageName }`. It
   hardcodes only public framework conventions, never one site.
-- `inferSchema(sampleBytes)` — infers an artifact's STRUCTURE (types, keys, array
+- `inferSchema(sampleBytes)`: infers an artifact's STRUCTURE (types, keys, array
   element shapes, coarse string-format hints, a `dynamicKeyed` flag for count
   maps) from the REAL sample bytes, NOT a hand-written TS type (which drifts and
   omits keys the live JSON has). Value-free: it never echoes a scalar value, so
@@ -250,7 +250,7 @@ commit date (an item that cites no resolved commit has no day).
   verified bundle and `renderSiteViaTransform` re-walks every NUMBER of the output
   against the verified set (and fails CLOSED on a Date/BigInt/boxed leaf that would
   serialize to digits). The guarantee is NARROWER than the static grammar's: STRINGS
-  are NOT prose-scanned — in transform mode they are trusted, redacted, curated
+  are NOT prose-scanned: in transform mode they are trusted, redacted, curated
   content the target owns and reviews (honestweek verifies the numbers, not the
   words). A transform that derives a number not in the bundle (e.g. its own redaction
   count under `output.redact:false`) declares it via
@@ -260,7 +260,7 @@ commit date (an item that cites no resolved commit has no day).
 - The numeric fence is set-MEMBERSHIP: every output number must be SOME verified
   derived value. Calendar years (in `repos[].archive`) and window constants
   (`windowDays`/`monthsBack`) are legitimately in the output and thus in the set, so
-  a fabricated count equal to one of them would pass — implausible for a weekly
+  a fabricated count equal to one of them would pass, implausible for a weekly
   metric, but the fence is a coarse "no number that isn't a derived fact" net, not a
   per-field type-checker.
 - `deriveChart`/`deriveArchive` mirror the integrated tool's git query EXACTLY
@@ -275,7 +275,7 @@ commit date (an item that cites no resolved commit has no day).
 ## Wiring
 
 - New output mode `site` in `config.mjs` (`OUTPUT_MODES`), requiring
-  `output.adapter` (path to the committed adapter — `.json` static or `.mjs`
+  `output.adapter` (path to the committed adapter: `.json` static or `.mjs`
   transform, resolved like a repo path). `site` has NO entry in
   `DEFAULT_OUTPUT_FILES`: its write path is the adapter's own `artifact` (relative to
   the target root = build `cwd`). `build` assembles → `augmentSiteModel` → redacts
@@ -285,7 +285,7 @@ commit date (an item that cites no resolved commit has no day).
   `emitSite`).
 - `output.redact` (default true): honestweek scrubs every byte. A `site` target with
   its OWN redactor (applied inside the transform, for placeholder parity) sets it
-  false to receive the raw bundle — **only permitted with a transform adapter** (a
+  false to receive the raw bundle: **only permitted with a transform adapter** (a
   static `.json` adapter does not scrub strings, so `redact:false` there is rejected
   at config load). verify-or-abort + the numeric fence run regardless of `redact`.
 - A fact-fence/resolve throw carries `.factFence === true`; `build` maps it to
@@ -307,24 +307,24 @@ commit date (an item that cites no resolved commit has no day).
 
 ## Clean-room + tests (synthetic fixtures only)
 
-All Phase-A tests use a SYNTHETIC toy site/model/adapter — never a real site's
-field names — which doubles as the clean-room guarantee. The full Phase-A suite:
-- `test/site-adapter.test.mjs` — grammar validator (accept valid; reject numeric
+All Phase-A tests use a SYNTHETIC toy site/model/adapter (never a real site's
+field names), which doubles as the clean-room guarantee. The full Phase-A suite:
+- `test/site-adapter.test.mjs`: grammar validator (accept valid; reject numeric
   const, unknown source kind, literal in a derived slot, malformed array node, and
   the `derivedTree` key/value rules).
-- `test/site-emit.test.mjs` — `renderSite` over a toy model+adapter -> golden toy
+- `test/site-emit.test.mjs`: `renderSite` over a toy model+adapter -> golden toy
   artifact; `derivedTree` numeric maps; and that NO source kind (const/derived/
   derivedTree) bypasses the fence.
-- `test/site-fact-fence.test.mjs` — passes a clean artifact; THROWS on an injected
+- `test/site-fact-fence.test.mjs`: passes a clean artifact; THROWS on an injected
   unverified numeric leaf and a numbers-in-prose violation; date/sha exemption.
-- `test/site-sessions.test.mjs` — classifier + resume-dedup + windowing + per-day
+- `test/site-sessions.test.mjs`: classifier + resume-dedup + windowing + per-day
   counts on synthetic session logs.
-- `test/site-derive.test.mjs` — chart bucketing (display repos never read) +
+- `test/site-derive.test.mjs`: chart bucketing (display repos never read) +
   provenance counts + `augmentSiteModel` day-item placement, on synthetic git repos.
-- `test/site-detect.test.mjs` — detects a synthetic framework signal; non-site ->
+- `test/site-detect.test.mjs`: detects a synthetic framework signal; non-site ->
   false; `inferSchema` structure-only (value-free).
-- `test/site-build.test.mjs` — end-to-end `site` build: deterministic artifact;
+- `test/site-build.test.mjs`: end-to-end `site` build: deterministic artifact;
   fact-fence abort -> exit 2; `output.adapter` required.
-- `test/site-cleanroom.test.mjs` — fails if any target-specific token appears in
+- `test/site-cleanroom.test.mjs`: fails if any target-specific token appears in
   `lib/site/`.
 ```

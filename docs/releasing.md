@@ -45,7 +45,7 @@ npm publish --dry-run
 The dry run runs the whole test suite first (about a minute), because `package.json` has a `prepublishOnly` script, and then prints what it would upload. Check:
 
 - `name: honestweek` and `version: 0.2.0`;
-- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (146 files and about 0.8 MB packed for 0.2.0, with the `view` pages under `lib/view/assets/`; later changes move the count, so check the list rather than the number);
+- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (150 files and about 0.9 MB packed for 0.2.0 on 5 October, with the `view` pages under `lib/view/assets/`; later changes move the count, so check the list rather than the number);
 - nothing from `test/`, `docs/`, `tools/` or `.claude/`.
 
 Then publish for real:
@@ -113,6 +113,47 @@ Publishing the release starts the release workflow. It finds 0.2.0 already on np
 - **The published version is broken.** Mark it with `npm deprecate honestweek@0.2.0 "Broken; use 0.2.1"`, fix it, and release 0.2.1 the same way. npm limits `npm unpublish` (it's only freely allowed in the first 72 hours), and an unpublished version number can never be used again, so a new version is almost always the better fix.
 - **A GitHub release went out before the npm publish.** With `NPM_TOKEN` deleted, the workflow stops with a notice and nothing breaks: publish from your terminal, then the release is correct. If a token is still set and the run failed, publish from your terminal anyway; there's no need to re-run the workflow.
 
+## Readiness check, 5 October 2026
+
+### In plain terms
+
+Before publishing 0.2.0 and sharing the repository, I checked the release branch (the branch that holds everything going into 0.2.0) the way a stranger would meet it: the package npm would ship, every file and commit for secrets and personal details, the privacy promises in the docs against the code, the docs themselves, the third-party text in the problem catalog, and the repository's setup. The package installs and runs from the packed file, and no secret or private name is in any file. The docs had gaps, mostly privacy statements broader than the code and counts that had gone stale, and those are fixed in the pull request that added this section, along with one small code fix: `preview` now refuses other host names the way `view` does. What's left needs me: a call on one catalog label, and the publish, tag and GitHub steps above.
+
+### Results
+
+| Check | Result | What was found |
+| --- | --- | --- |
+| 1. The package | Pass | `npm pack` ships 150 files, 0.9 MB packed: `package.json`, the README, the license, `SKILL.md`, the example config, the two plugin manifests, `bin/` and `lib/`. Nothing from `test/`, `docs/`, `tools/` or `.claude/`. Installed from the packed file into an empty folder, `honestweek --help` works, `view --demo` serves its page on `127.0.0.1` and stops cleanly, `view` with no config opens Setup, and `init --yes` with no repositories nearby writes nothing. `npx honestweek` itself can only be tried after the publish; `npx` from the packed file works, and the name `honestweek` was still free on npm. |
+| 2. Secrets and personal data | Pass | Every version of every file reachable from `main` and the release branch (1,260 file versions, 150 commits) went through honestweek's own secret-shape check (the classifier the Problems page uses on session logs), a search for key and token formats, email addresses and home-folder paths, and the clean-room fence (the test that keeps private project names out of the repository). Every key-shaped value is a made-up one in a test or the demo week. Email addresses and home-folder names are made-up ones in tests. No private project name appears in any version. My name appears only as the author, in `Co-authored-by` lines, and in a few old test lines since removed. |
+| 3. Privacy promises | Fixed | Backed by the code: no network client anywhere in `bin/` or `lib/` (the only `http` use is the two local servers), both servers bind to `127.0.0.1` only, `view` refuses another host name, refuses data requests the browser marks as cross-site, and needs a fresh random key on every data request, and its pages load nothing from outside. Fixed in the docs: the README said nothing outside your repository list is ever touched, but `mine` reads every session and setup looks in neighbouring folders; the lists of what `view` writes left out the example config, `.gitignore` lines, the Include /insights switch and the browser-opener file; the local-page doc said only reads were allowed, but Setup, Settings and the /insights buttons are POST actions; Settings and Setup also scan neighbouring folders. Fixed in the code: `preview` had no host-name check, so a website using DNS rebinding (pointing a name it controls at your own machine) could read the built summary through your browser while `preview` ran. |
+| 4. Docs accuracy | Fixed, with one item for me | Every relative link and heading link in the README and `docs/` resolves. The pattern count (42) and check count (23 checks covering 21 patterns) are right. Stale: "16 of the 19" (and "16 of the 20") checked problems running on Codex is now 17 of 21; "22 patterns have no check yet" is 21; "the demo week shows only two patterns" is 17; a line said re-reads ignore shell commands, which they now count. Em dashes came out of `SKILL.md`, `docs/mining.md` and `docs/site-integration.md`. Two kinds stay on purpose: README code blocks that copy what the program prints, and third-party titles quoted in `docs/sources.md`. A new test holds all of this. The item for me: the catalog marks the cache-miss check as running on Codex, but the rule the docs state is that a check is marked that way only once it's been seen working on real Codex logs, and I found no record that this one was. |
+| 5. Third-party content | Pass | The catalog's 430 source entries (210 distinct addresses) each keep a title, an `https` address, a date, a kind and a paraphrase, with no author field. The longest quoted run inside a paraphrase is 7 words. The longest paraphrase (111 words, Claude Code's prompt-caching page) read against the live page is a condensed summary with no long copied passages. `docs/sources.md` matches what the sources tool writes, and its test passes. |
+| 6. Repository hygiene | Fixed | `.gitignore` covered the config and the working files; it now also covers `harvest`'s word list, Run with Codex's answers and `npm pack` tarballs, and a test checks it against the README's list of ignored files. The largest tracked file is 303 KB (the catalog). Nothing under `.claude/` is tracked. CI runs Linux on Node 18, 20 and 22, and Windows and macOS on Node 22. The release workflow runs only when a GitHub release is published and publishes only a full release whose tag matches `package.json`, with an `NPM_TOKEN` secret set and the version not yet on npm. No repository secrets are set, so it can't publish at all right now, which is the state step 2 of "Once, before the first release" asks for. |
+| 7. GitHub-side | For me | Listed below. Nothing on GitHub was changed. |
+
+### What's left for me
+
+Before the release notes go out:
+
+- **The cache-miss label.** Mark the cache-miss check "partial" on Codex until it's seen working on a real Codex week, which is what the docs promise and what honestweek does for the four other checks in that position, or keep it as "runs" if I already saw it work.
+
+With the release, in the order above:
+
+- Merge the release pull request, publish from a clean clone, check the published package, then tag `v0.2.0` and create the GitHub release (steps 1 to 4).
+- Close issue #63 once 0.2.0 is on npm. Its decision was made on 3 October (publish), so nothing is pending there.
+- Turn on branch protection for `main` (Settings, Branches): `main` has no protection rule and no ruleset today, so a force-push or a direct push would go through. Require a pull request and the CI checks, and block force-pushes.
+- Optional: the repository's About text and topics already match `package.json` (the topics include every keyword), and its website field is empty; the npm page would fit there after the publish.
+
+CI could also run Node 18 and 20 on Windows and macOS, which it doesn't today. Smaller hardening follow-ups the check found are tracked privately, the way SECURITY.md asks for security reports.
+
+### Implementation detail
+
+- Branch and commits checked: `origin/main` at `1084129` and `origin/feature/release-0.2.0-final` at `c385754`, with Node 22.14 and npm 10.9 on Windows. Pull request 111 is the release pull request.
+- The scan used `secretShapes` from `lib/problems/classify.mjs` per line, regexes for private-key blocks and GitHub, Anthropic, OpenAI, AWS, Slack, Google and npm key formats, and `findForbidden` with `privateForbidden` from `test/helpers/clean-room.mjs`, over `git rev-list --objects` of both refs and every commit message.
+- Privacy evidence: `lib/view/server.mjs` (the `listen` on `127.0.0.1`, the host check, the `Sec-Fetch-Site` check, `randomBytes(32)` for the key, `timingSafeEqual`, the `CSP` constant), `lib/loopback-host.mjs` (the host check `preview` and `view` now share, which also lets a bare host name through on port 80, where browsers leave the port out), `lib/view/insights.mjs` and `lib/view/codex-judge.mjs` (fixed arguments, absolute `PATH` folders only).
+- Tests added: `test/public-docs.test.mjs` (links and anchors, dashes in prose and `--help`, catalog counts, the Sidecars table against `.gitignore`), a host-name case in `test/preview.test.mjs`, and `test/loopback-host.test.mjs`.
+- The cache-miss coverage is `coverage.codex.status` of the `cache-miss` pattern in `lib/problems/catalog.json`, added in `4c9451b`.
+
 ## 0.2.0 release notes
 
 > **honestweek 0.2.0**
@@ -123,7 +164,7 @@ Publishing the release starts the release workflow. It finds 0.2.0 already on np
 >
 > - **`honestweek view` opens on where your sessions went wrong.** Its Problems page checks your Claude Code and Codex sessions against a catalog of 42 known ways AI coding agents go wrong. Claims the agent couldn't back come first, each finding zooms the replay to its exact steps and says how it's known, and each pattern offers a fix to copy, a prompt to test it with, and its count against the week before.
 > - **Setup and Settings in the browser.** The first `honestweek view` in a new folder opens Setup, which writes your config and goes straight on to your week. Settings changes it later, including how far back to look.
-> - **Codex, as well as Claude Code.** honestweek reads Codex's current log format, and 16 of the 19 checked problems run on Codex. A Facts fold gives both agents the plain facts `/insights` keeps about a session, worked out from the logs with no model involved.
+> - **Codex, as well as Claude Code.** honestweek reads Codex's current log format, and 17 of the 21 checked problems run on Codex. A Facts fold gives both agents the plain facts `/insights` keeps about a session, worked out from the logs with no model involved.
 > - **Find and replay.** Find the sessions and goals behind a pull request, a commit, a file, a branch or a few words, see each goal's sessions on a timeline, and replay any session step by step. Every link, count and time says how it's known. Text is redacted by default; a "Show private text" switch shows names and client words on your own screen while keys, tokens and passwords stay hidden. Try it on a made-up week with `npx honestweek view --demo`.
 > - **Optional AI-written notes, off by default.** Include /insights adds what Claude Code's `/insights` wrote about your sessions as its own labelled group, never counted with honestweek's findings, and Run with Codex has your own `codex` write the same for Codex sessions. Both ask before they send anything.
 > - **A client report** (`client` mode): a printable page of the work done for one client over any period, with numbers and pull requests taken from git, and reader profiles that order and trim the same checked facts for the person reading them.
