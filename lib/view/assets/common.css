@@ -760,3 +760,18 @@ details.fold > summary::before { content: "+ "; color: var(--muted); }
 details.fold[open] > summary::before { content: "- "; }
 .changes { margin: 0 0 12px; padding-left: 20px; }
 .fine.partial { color: var(--medium); }
+
+/* The Facts fold (facts.js): plain per-session facts, closed until opened. */
+details.facts { margin: 12px 0; }
+details.facts > summary { color: var(--ink-2); cursor: pointer; display: inline; }
+details.facts > .fwhy { display: inline-block; margin-left: 6px; vertical-align: baseline; }
+details.facts > .fwhy > summary { list-style: none; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--line); font-size: 12px; color: var(--ink-2); cursor: pointer; }
+details.facts > .fwhy > summary::-webkit-details-marker { display: none; }
+details.facts > .fwhy[open] { display: block; font-size: 13px; color: var(--ink-2); }
+.facts-grid { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.facts-s { flex: 1 1 280px; min-width: 0; }
+.facts-s h3 { font-size: 14px; margin: 8px 0 4px; }
+.facts-t { border-collapse: collapse; font-size: 13px; width: 100%; }
+.facts-t th { text-align: left; font-weight: normal; color: var(--ink-2); padding: 2px 8px 2px 0; white-space: nowrap; vertical-align: top; }
+.facts-t td { padding: 2px 4px; overflow-wrap: anywhere; vertical-align: top; }
+.facts-t .factstep { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
