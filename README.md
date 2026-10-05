@@ -160,7 +160,7 @@ Name it with `--goals <file>`, or once with `goalsFile` in the config. It's a di
 - *It answers only your own page.* The server binds to `127.0.0.1`, refuses a request that names another host or comes from another website, and answers a data request only with this run's key. The key is made fresh each run and never sits in an address or a command line: the address it opens or prints carries a one-time code that the page trades for the key. Each code works once, and pressing Enter in the terminal prints a fresh address.
 - *Redacted unless you ask.* The page shows redacted text. Its **Show private text** switch shows names, client words and folders on your own screen; keys, tokens and passwords stay hidden either way. The switch starts off every run and changes only text, never which sessions link to which or which goals they join. That version is built in memory the first time you turn it on, and it's never written to disk.
 - *Display-only and outside sessions.* With the switch off, a session from a display-only repository or a folder outside your config never shows a private word, and it never joins a lookup or a goal. Git is never run against a display-only repository.
-- *Nothing on disk.* The page's address holds only made-up ids, never what you typed or a goal's name, because the browser keeps addresses in its history. What it reads stays in memory. `--demo` builds its made-up week in a temporary folder and deletes it when you stop.
+- *Nothing on disk.* The page's address holds only made-up ids, never what you typed or a goal's name, because the browser keeps addresses in its history. What it reads stays in memory. What it writes is the config (when you save Setup or Settings, or flip Include /insights), `.gitignore` lines for honestweek's private files, and Run with Codex's redacted answers in `honestweek.codex-judgments/`. `--demo` builds its made-up week in a temporary folder and deletes it when you stop.
 
 ## Replaying how the work happened (the engine underneath)
 
@@ -333,7 +333,7 @@ A short, fabricated (clean-room) example. The distilled `honestweek.items.json`:
       "receipt": { "sessionId": "a1b2c3d4", "primaryCommit": "9f8e7d6" }
     },
     {
-      "text": "Retry queue for failed webhook deliveries — designed, not yet wired in.",
+      "text": "Retry queue for failed webhook deliveries, designed but not yet wired in.",
       "repo": "your-project",
       "status": "designed, not proven",
       "receipt": { "sessionId": "a1b2c3d4" }
@@ -351,7 +351,7 @@ Rendered to the default `digest` output. Every line carries a status badge and a
 - **shipped** — Auth redirect now keeps the session cookie across the login bounce. _(your-project)_  (`9f8e7d6`)
 
 ## Designed, not proven
-- **designed, not proven** — Retry queue for failed webhook deliveries — designed, not yet wired in. _(your-project)_  (`a1b2c3d4`)
+- **designed, not proven** — Retry queue for failed webhook deliveries, designed but not yet wired in. _(your-project)_  (`a1b2c3d4`)
 ```
 
 ## Standalone site (`page` mode)
@@ -533,6 +533,7 @@ Your `honestweek.config.json` mirrors `honestweek.config.example.json`. Whether 
 | `<report>.note.md` (opt-in) | The short note a reader profile asks for with `format.note`, written beside the client report. Yours to share. |
 | `honestweek.history.json` | What landed on the default branch in a period, from `history`: the raw material for a client report. **Gitignored.** Redacted before it's written; only counts are printed. |
 | `honestweek.harvest.json` | Proposed redaction-denylist candidates from `harvest`. **Gitignored.** Only the count is printed; the raw nouns stay local for you to review. |
+| `honestweek.codex-judgments/` (opt-in) | What your own `codex` wrote about each Codex session when you press Run with Codex in `view`, one file per session. **Gitignored**: the folder ignores itself and gets a line in the config folder's `.gitignore`. Redacted before it's written. |
 | `output.file` (e.g. `honestweek.digest.md`) | The final rendered output. **Yours to keep or ignore.** |
 | `honestweek.config.json` | Your config. `init` adds it to `.gitignore` when you give it private words, since it then lists them; it can also hold private repo paths. Un-ignore it if you want it tracked. |
 | `honestweek.archive/` (opt-in) | The local weekly snapshots + `index.json` (the "/log" series). Only written when `output.archive` is true. **Yours to keep, ignore, or commit.** |
@@ -542,7 +543,7 @@ Your `honestweek.config.json` mirrors `honestweek.config.example.json`. Whether 
 
 ## What it does NOT do / privacy model
 
-- **Only your own allowlisted repos are read.** Nothing outside your `repos` list is ever touched.
+- **Only your own allowlisted repos are read.** `git` runs only against the repositories in your `repos` list, apart from the setup scans that suggest what to list (`init`, and Setup and Settings in `view`), which look in the folder you run them in and the folders next to it. Weekly reports use only sessions from those repos; `mine` reads every session in your logs, as [SECURITY.md](SECURITY.md) explains.
 - **`display`-role repos are summarized generically and NEVER git-read.** There is no code path that runs `git` against a `display` repo.
 - **Output stays local until you publish it.** honestweek writes local files only.
 - **No telemetry, no network egress.** honestweek makes no network call. The one exception is yours to start: with Include /insights on, Run /insights and Run with Codex run your own `claude` or `codex`, which send your sessions to Claude or OpenAI after asking. The optional `preview` server is loopback-only (`127.0.0.1`): it serves your already-built output to your own browser, and nothing leaves your machine. The `view` page is loopback-only too, answers only the page it opened, and keeps what it reads in memory; see [What `view` keeps private](#what-view-keeps-private).

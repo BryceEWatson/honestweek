@@ -36,7 +36,7 @@ Drive the pipeline in this exact order. Each stage names its input and its outpu
    **This is the single model-judgment step, performed by you (the model) under the contract below; it is NOT a Node subcommand.** Read `honestweek.draft.json` and write `honestweek.items.json`: a human-reviewable set of narrative items, each carrying a `status` badge and a `receipt`. The user reviews and edits this file.
 
 4. **`build`** *(input: `honestweek.items.json`; output: `output.file`)*
-   **First gate the distilled items**: run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" validate` (it exits 2 if any item lacks a valid badge or a receipt, names a `display`-role repo or cites a commit against one, or leaks a configured redaction term into the prose; add `--no-dashes` for the voice rule). Fix every flagged item in `honestweek.items.json` before building. Then run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" build`. It re-derives and **verifies every git-checkable claim** from the cited commits and renders the configured output (`output.mode` = `post` / `changelog` / `digest` / `report`). **`build` aborts with exit code `2` on any unresolved or non-authored cited commit** (and, when the opt-in `voice.denyMeta` is enabled, on authored prose that narrates its own withholding or announces the page's own honesty — the prose analogue of the numeric fact-fence); it writes nothing rather than emit a half-true summary. `build` also enforces the **landed gate**: a `shipped` item whose cited commits have not landed on the repo's default branch (checked offline from local refs, never a fetch) is downgraded to `in progress` with a stderr note, and a `shipped` claim in a repo with no determinable default branch aborts as unverifiable.
+   **First gate the distilled items**: run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" validate` (it exits 2 if any item lacks a valid badge or a receipt, names a `display`-role repo or cites a commit against one, or leaks a configured redaction term into the prose; add `--no-dashes` for the voice rule). Fix every flagged item in `honestweek.items.json` before building. Then run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" build`. It re-derives and **verifies every git-checkable claim** from the cited commits and renders the configured output (`output.mode` = `post` / `changelog` / `digest` / `report`). **`build` aborts with exit code `2` on any unresolved or non-authored cited commit** (and, when the opt-in `voice.denyMeta` is enabled, on authored prose that narrates its own withholding or announces the page's own honesty, the prose analogue of the numeric fact-fence); it writes nothing rather than emit a half-true summary. `build` also enforces the **landed gate**: a `shipped` item whose cited commits have not landed on the repo's default branch (checked offline from local refs, never a fetch) is downgraded to `in progress` with a stderr note, and a `shipped` claim in a repo with no determinable default branch aborts as unverifiable.
 
 5. **`review`** *(input: the build output; output: the user's decision)*
    Present the build output and a short summary of what was emitted to the user for review. Optionally run `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" preview` to open the built output as HTML on a local-only `127.0.0.1` server in the user's browser (a viewer over the file `build` wrote; add `--no-open` to just print the URL, `--port <n>` to choose a port). **The user reviews and publishes it themselves. This step performs no publish action and sends nothing off the machine.**
@@ -95,16 +95,16 @@ The user reads the report and sends it themselves.
 
 ## Mining solved problems (`mine`)
 
-A separate, optional flow from the weekly digest. It searches the user's agent session logs for moments where software they did **not** write failed and they worked out the fix — the kind of thing a stranger will hit and search for.
+A separate, optional flow from the weekly digest. It searches the user's agent session logs for moments where software they did **not** write failed and they worked out the fix: the kind of thing a stranger will hit and search for.
 
 ```bash
 node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" mine            # report the undecided backlog
 node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" mine --draft    # write the top one up
 ```
 
-- Findings live in `honestweek.findings.json`. The number to report is the **backlog** — findings not yet accepted or declined — not how many this run found. Only the user deciding can lower it: `mine --decide "<key>=published"` or `=declined`.
+- Findings live in `honestweek.findings.json`. The number to report is the **backlog** (findings not yet accepted or declined), not how many this run found. Only the user deciding can lower it: `mine --decide "<key>=published"` or `=declined`.
 - **Exit `2` means the sensor was blind:** a configured log corpus resolved to a real directory holding zero logs. Never report that as "nothing found this week"; say the corpus was empty and check the root.
-- Every run prints a retention floor — the oldest session still on disk. Nothing before it can ever be mined, because the agent deleted it.
+- Every run prints a retention floor: the oldest session still on disk. Nothing before it can ever be mined, because the agent deleted it.
 
 Full detector, ranker, and calibration notes: `docs/mining.md`.
 

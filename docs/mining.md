@@ -36,7 +36,7 @@ Stating it in control terms, because the failure this is designed around is a sp
 one and the framing is what makes it visible.
 
 **Setpoint.** At least one publishable finding reaching a human decision each week that
-the logs contain one. Deliberately not "N posts published" — publishing is a human act
+the logs contain one. Deliberately not "N posts published": publishing is a human act
 and cannot be a machine's target.
 
 **Sensor.** The `mine` command, reading three log corpora.
@@ -45,14 +45,14 @@ and cannot be a machine's target.
 
 - Anything older than the **retention floor**. Agents delete their own old logs, so
   there is a date before which nothing survives. Every run prints that date.
-- Problems solved outside a logged session — in a browser, in a chat window, by hand.
+- Problems solved outside a logged session: in a browser, in a chat window, by hand.
 - Whether anyone actually searches for the error. That is a fact about the world, not
   about your logs.
 - Whether the fix still works today. The log records one machine, one day, one build.
 
 **Error signal.** The **backlog**: findings discovered and not yet accepted or declined.
 This is the part worth being pedantic about. "This run found 3 things" is an activity
-count — it goes up when you run the tool more often and tells you nothing about whether
+count: it goes up when you run the tool more often and tells you nothing about whether
 any problem ever reached a reader. The backlog only falls when a person decides
 something, so a rising backlog says exactly one thing: the finding half works and the
 deciding half does not.
@@ -87,8 +87,8 @@ and it is not "was it hard":
 
 > **Whose bug was it?**
 >
-> Ordinary work — your code broke — so you **edit files in your repository**.
-> Publishable — a tool broke — so you **investigate the machine around it**.
+> Ordinary work: your code broke, so you **edit files in your repository**.
+> Publishable: a tool broke, so you **investigate the machine around it**.
 
 Every signal below is a measurable expression of that one distinction.
 
@@ -105,10 +105,10 @@ a broken build in your repository is a fact about your repository.
 
 **2. Diagnosis outside your working tree.** Any one of three kinds:
 
-- *state* — inspecting the machine: services, event logs, the registry, running
+- *state*: inspecting the machine: services, event logs, the registry, running
   processes, ports, installed packages, scheduled tasks.
-- *artifact* — touching another program's installation or state directory.
-- *research* — reading up on a third party's known behaviour: repeated web searching, or
+- *artifact*: touching another program's installation or state directory.
+- *research*: reading up on a third party's known behaviour: repeated web searching, or
   issues on a repository that is not yours.
 
 Requiring only the first kind was wrong, and the corpus proved it. A session already
@@ -119,7 +119,7 @@ that was diagnosis of software the author did not write.
 **3. Evidence it was resolved.** One of: a person saying so in their own words; a bug
 filed upstream *in that session*; or a run of failures followed by a success.
 
-Filing a bug counts. Merely *reading* ten of somebody else's bug reports does not — that
+Filing a bug counts. Merely *reading* ten of somebody else's bug reports does not: that
 is research, not an outcome. Conflating the two made this test fire on nearly every
 session in the corpus.
 
@@ -129,8 +129,8 @@ If the number of edits to files inside your own working tree dwarfs everything e
 session did, it was ordinary work that happened to print something alarming. Rejected
 regardless of its other signals.
 
-An edit *outside* the tree — changing a config file in another program's install
-directory — is not ordinary work. It is often the fix.
+An edit *outside* the tree, changing a config file in another program's install
+directory, is not ordinary work. It is often the fix.
 
 ## The ranker
 
@@ -146,9 +146,9 @@ which part is evidence.
 | external-issue | measured | Bug reports on repositories that are not yours |
 | resolution-strength | measured | Which kind of resolution evidence exists |
 | human-publish-intent | measured | Whether a person said in the session that this was worth writing up |
-| research-depth | **proxy** | Web searches during the session — standing in for *the fix was not already written down somewhere findable* |
-| diagnosis-breadth | **proxy** | How many kinds of investigation were used — standing in for *the root cause was non-obvious* |
-| effort | **proxy** | Human turns — standing in for *the problem resisted a first attempt* |
+| research-depth | **proxy** | Web searches during the session, standing in for *the fix was not already written down somewhere findable* |
+| diagnosis-breadth | **proxy** | How many kinds of investigation were used, standing in for *the root cause was non-obvious* |
+| effort | **proxy** | Human turns, standing in for *the problem resisted a first attempt* |
 | search-demand | **unknown** | Scored zero. Whether anyone searches for this cannot come from a log. |
 | still-true | **unknown** | Scored zero. Whether the fix still works cannot come from a log. |
 
@@ -176,7 +176,7 @@ and reading the output, not chosen in advance. On 1,893 deduplicated human-start
 sessions the detector produced 40 candidates (2.1%), of which 7 cleared the bar. A
 separate floor requires the leading error string to be quotable enough to lead a post
 with, which is what excludes findings whose only error is something like
-`{"error":"not found"}` — technically an error, useless to a stranger.
+`{"error":"not found"}`, technically an error, useless to a stranger.
 
 Both numbers are policy, not physics. Lower the bar with `--threshold` and you get more
 to read.
@@ -203,16 +203,16 @@ So every draft carries, structurally:
 ## Running it unattended
 
 A mechanism whose trigger is "you remember to run it" has no trigger. Put `mine` on a
-schedule — weekly is well inside any agent's log-retention window, so nothing is lost
-between runs — and have the scheduled job do three things:
+schedule (weekly is well inside any agent's log-retention window, so nothing is lost
+between runs) and have the scheduled job do three things:
 
 1. Run `mine --draft` in a fresh worktree of the destination repository, off its default
    branch. Never in a checkout someone might be using. Run it from the worktree's root:
    a relative ledger path resolves against the working directory, and the committed
-   ledger — the only record of past decisions — lives at the repo root.
+   ledger (the only record of past decisions) lives at the repo root.
 2. **Read the exit code before the output.** Exit `2` means a corpus was empty, which is
    a broken sensor, not a quiet week. Raise it as a fault; do not report zero findings.
-   Exit `1` means the run never scanned at all — a mistyped `--corpus` name, or a config
+   Exit `1` means the run never scanned at all: a mistyped `--corpus` name, or a config
    file that exists (or was named with `--config`) but cannot be loaded. Both fail loudly
    by design: continuing without the config would silently turn off the redaction
    denylist and the own-repo list, and a mistyped corpus would scan nothing and report a
@@ -220,7 +220,7 @@ between runs — and have the scheduled job do three things:
    stderr note), because that is the documented run-without-config mode.
 3. If a draft was written, work as much of its verification checklist as can be done
    safely, mark only what was actually confirmed, and open **one** pull request. If
-   nothing new was found, stay silent — an unattended job that reports every week
+   nothing new was found, stay silent: an unattended job that reports every week
    teaches its reader to ignore it.
 
 Two things are worth alarming on, and neither is "how many findings were produced":
@@ -241,7 +241,7 @@ was measured on the machine this was built against rather than assumed.
 
 **Log retention.** Agents delete their own old transcripts. On the reference machine the
 oldest surviving Claude Code session was about three months old, and everything before
-that was gone permanently — raising the retention setting does not bring back what has
+that was gone permanently; raising the retention setting does not bring back what has
 already been deleted. Reported every run as the retention floor.
 
 **Two shapes for a human turn.** A user message is sometimes a plain string and sometimes
@@ -255,7 +255,7 @@ in the same position as a typed prompt. All are filtered.
 
 **The same session written more than once.** Deduplicated on when the first human turn
 happened and what it said. Measured on the reference machine at 7.8% of keyed Claude Code
-files and 0.3% of Cowork files — notably *lower* than the roughly one-third that had been
+files and 0.3% of Cowork files, notably *lower* than the roughly one-third that had been
 assumed going in, so the assumption is recorded here as not reproduced rather than
 repeated. The deduplication runs regardless; it is cheap and it is correct.
 
@@ -264,7 +264,7 @@ Their first line is an instruction *to* an agent, not a person speaking. Exclude
 three corpora.
 
 **Attribution is by launch directory.** A session is filed under the directory it was
-started from, not what it touched — so work on one project done from another project's
+started from, not what it touched. So work on one project done from another project's
 worktree is filed under the wrong one. Findings are therefore deliberately **not**
 attributed to a project. A finding is a finding regardless of where the terminal was
 open.
@@ -296,7 +296,7 @@ Everything below this line is code-level and can be skipped.
 
 Log locations: `$CLAUDE_CONFIG_DIR/projects` (else `~/.claude/projects`);
 `$CODEX_HOME/sessions` **and** `$CODEX_HOME/archived_sessions` (else the same under
-`~/.codex` — an archived thread is still a session, and skipping the directory would
+`~/.codex`: an archived thread is still a session, and skipping the directory would
 silently shrink the corpus);
 `%APPDATA%/Claude/local-agent-mode-sessions` and `%APPDATA%/Claude/claude-code-sessions`.
 A tool mid-rename has both directories present and one of them empty, which is why the
@@ -318,13 +318,13 @@ Reading is streamed line by line and capped per session (`MAX_SESSION_BYTES`, 8 
 very large transcript cannot stall a scan; truncated sessions are counted and disclosed
 in any draft they produce. The cap's cost is mostly
 misses: a session is cut at its END, where resolution evidence lives. It is not
-perfectly one-sided — disqualifying tail evidence can be cut too — which is one reason
+perfectly one-sided (disqualifying tail evidence can be cut too), which is one reason
 a truncated session is disclosed in any draft it produces. A full scan of ~4,700 files
 takes about 25 seconds.
 
 De-identification (`deidentify` in `detect.mjs`) runs before the configured redactor,
 never instead of it. It removes home directories in every path spelling, UNC shares,
-encoded working-directory names, and — as a last-resort backstop — the local account name
+encoded working-directory names, and, as a last-resort backstop, the local account name
 as a literal, which is the only rule here that is machine-specific rather than a pattern.
 
 Result bodies are attributed to the tool call that produced them, and only results from

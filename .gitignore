@@ -16,6 +16,11 @@ honestweek.carry.pending.json.tmp-*
 honestweek.items.json
 honestweek.history.json
 honestweek.history.json.tmp-*
+# `harvest` keeps raw candidate nouns here, and Run with Codex keeps what codex wrote about
+# each session here. Both add themselves to the .gitignore of the folder they're written in;
+# these lines cover running them in this repo too.
+honestweek.harvest.json
+honestweek.codex-judgments/
 
 # `mine` writes unpublished post drafts here by default. They are working artifacts
 # with unverified claims in them; a destination that wants them tracked sets
@@ -40,6 +45,9 @@ honestweek.config.json
 
 # Dependencies (there should be none at runtime, but never commit these)
 node_modules/
+
+# The tarball `npm pack` writes when checking what a release would ship
+*.tgz
 
 # The demo week (tools/demo-week.mjs) when written into the repo: logs and a nested repo
 .demo-out/
