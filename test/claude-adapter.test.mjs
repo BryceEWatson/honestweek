@@ -117,7 +117,9 @@ test('every string field is redacted; configured term + generic secrets scrubbed
   assert.ok(!blob.includes('/home/alice'), 'home path scrubbed');
   // spared
   assert.ok(blob.includes('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'), 'git SHA spared');
-  assert.ok(blob.includes('22 tests'), 'plain count spared');
+  // The fixture's thinking note sits before a text block on a model with no recorded id, so it
+  // isn't read as a progress update (updates.position) and stays out of the draft.
+  assert.ok(!blob.includes('22 tests'), 'a thinking note that is not a progress update stays out');
 });
 
 test('candidateCommits: { sha, date, empty subject }; sha preserved; NO body-derived subject', async () => {
@@ -230,4 +232,44 @@ test('fixtures are clean-room: no real personal email/home leaks in committed fi
   }
   const all = walk(FIXTURES);
   assert.doesNotMatch(all, /@(?:gmail|outlook|yahoo|proton|icloud)\.com/i, 'only synthetic example.com emails');
+});
+
+test('draft notes keep a thinking note only where a progress update sits, and every text message', async () => {
+  const root = makeTempDir('hw-updates-notes-');
+  try {
+    const dir = join(root, 'p');
+    mkdirSync(dir);
+    const sid = 'aaaaaaaa-1111-2222-3333-555555555555';
+    const base = { timestamp: '2024-06-12T09:00:00Z', cwd: '/work/featured-repo', sessionId: sid };
+    const asst = (id, model, block) => JSON.stringify({ ...base, type: 'assistant', message: { id, model, role: 'assistant', content: [block] } });
+    const lines = [
+      JSON.stringify({ ...base, type: 'user', message: { content: 'Do some featured work.' } }),
+      asst('m1', 'claude-opus-5-5', { type: 'thinking', thinking: 'Checking the config next.' }),
+      JSON.stringify({ ...base, type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'x0', content: 'ok' }] } }),
+      asst('m1', 'claude-opus-5-5', { type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'ls' } }),
+      asst('m2', 'claude-opus-5-5', { type: 'thinking', thinking: 'A summary that sits before text.' }),
+      asst('m2', 'claude-opus-5-5', { type: 'text', text: 'Done.' }),
+      asst('m3', 'claude-opus-5', { type: 'thinking', thinking: 'An older model note.' }),
+      asst('m3', 'claude-opus-5', { type: 'tool_use', id: 't2', name: 'Bash', input: { command: 'ls' } }),
+      asst('m4', 'claude-fable-5-1', { type: 'thinking', thinking: 'First of two notes.' }),
+      asst('m4', 'claude-fable-5-1', { type: 'thinking', thinking: 'Opening the tests now.' }),
+      asst('m4', 'claude-fable-5-1', { type: 'tool_use', id: 't3', name: 'Bash', input: { command: 'ls' } }),
+      asst('m5', 'claude-opus-5-5', { type: 'thinking', thinking: 'The last note of the file.' }),
+    ];
+    writeFileSync(join(dir, sid + '.jsonl'), lines.join('\n') + '\n');
+    const cfg = config();
+    const [entry] = await adaptSessions({ config: cfg, weekStart: WEEK_START, weekEnd: WEEK_END, redactor: createRedactor(cfg), projectsRoot: root });
+    // A tool result between two blocks of one response doesn't break it; the last of two notes is the one kept.
+    assert.deepEqual(entry.assistantNotes, ['Checking the config next.', 'Done.', 'Opening the tests now.']);
+  } finally {
+    removeTempDir(root);
+  }
+});
+
+test('the draft notes and Replay share one model test for progress updates', async () => {
+  const { updatesByPosition: replays } = await import('../lib/replay/classify.mjs');
+  const { updatesByPosition: drafts } = await import('../lib/claude-adapter.mjs');
+  for (const id of ['claude-opus-5-5', 'claude-opus-5-5-20260922', 'claude-opus-5-5[1m]', 'claude-fable-5-1', 'claude-opus-5', 'claude-opus-5-50', 'claude-sonnet-5-5', '', null]) {
+    assert.equal(drafts(id), replays(id), String(id));
+  }
 });

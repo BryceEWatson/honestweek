@@ -308,7 +308,7 @@ test('written outputs: the text sent to Codex for a judgment is the same with or
   assert.ok(!on.includes('Checking'));
 });
 
-test('written outputs: the discover draft is byte-identical whether or not a block reads as an update', async () => {
+test('written outputs: the discover draft keeps exactly the thinking notes Replay shows as updates', async () => {
   // One week, written on Opus 5.5 (the engine shows two updates), then rewritten on Opus 5 (it
   // shows none); the draft is written into the same folder both times.
   const ws = await week();
@@ -327,7 +327,13 @@ test('written outputs: the discover draft is byte-identical whether or not a blo
   const opus5 = await draft();
   assert.deepEqual([opus55.shown, opus5.shown], [2, 0]);
   assert.ok(JSON.parse(opus55.bytes).sessions.length === 1, 'the draft holds the session');
-  assert.equal(opus55.bytes, opus5.bytes);
+  // The draft follows the same rule (updates.position): the two notes that read as updates are in
+  // the Opus 5.5 draft and in neither form in the Opus 5 one; every other note is the same.
+  const notes = (bytes) => JSON.parse(bytes).sessions[0].assistantNotes ?? [];
+  const [kept, dropped] = [notes(opus55.bytes), notes(opus5.bytes)];
+  assert.equal(kept.length - dropped.length, 2);
+  assert.deepEqual(kept.filter((n) => !dropped.includes(n)).length, 2);
+  assert.ok(dropped.every((n) => kept.includes(n)), 'nothing else differs');
 });
 
 test('written outputs: no command but view can reach the code that reads updates', () => {
