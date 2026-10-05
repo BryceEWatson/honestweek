@@ -18,6 +18,8 @@ import { runProblems } from '../lib/problems/index.mjs';
 import { buildDemoWeek, CODEX_IDS, main as demoMain, ME, SESSION_IDS, WEEK } from '../tools/demo-week.mjs';
 import { main as inspect } from '../tools/replay-inspect.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
+import { createViewData } from '../lib/view/data.mjs';
+import { DEMO_TERM } from '../lib/view.mjs';
 
 let d;
 let h;
@@ -301,6 +303,48 @@ test('the replay views work end to end on the demo week', async () => {
   const report = JSON.parse(out);
   assert.equal(code, 0, report.checks.filter((c) => !c.ok).map((c) => c.name).join('; '));
   assert.ok(report.checks.length >= 15);
+});
+
+test("Replay's sessions list on the demo week: six days, newest first, a few each, and the private ones labelled", async () => {
+  // The data `view --demo` serves: the demo's config with its made-up project name as a private word.
+  const redaction = d.config.redaction ?? {};
+  const data = createViewData({ config: { ...d.config, redaction: { ...redaction, terms: [...(redaction.terms ?? []), DEMO_TERM] } }, roots: d.roots, from: d.week.from, to: d.week.to, timezone: d.week.timezone, goalRecord: d.goalRecord, demo: true });
+  await data.start();
+  const ask = async (q = {}) => (await data.route('/api/sessions', new URLSearchParams(q))).body;
+  const list = await ask();
+  // Every session of the week, on the six days it has work; Sunday is quiet, so it has no group.
+  assert.equal(list.total.value, all.sessions.length);
+  assert.equal(list.timezone, 'UTC');
+  assert.deepEqual(list.days.map((x) => [x.day, x.count.value, x.rows.length, x.more.value]), [
+    ['2025-03-15', 5, 5, 0],
+    ['2025-03-14', 6, 5, 1],
+    ['2025-03-13', 4, 4, 0],
+    ['2025-03-12', 2, 2, 0],
+    ['2025-03-11', 2, 2, 0],
+    ['2025-03-10', 3, 3, 0],
+  ]);
+  assert.equal(list.older, null);
+  assert.deepEqual(list.days.map((x) => x.rows[0].firstAt), [...list.days.map((x) => x.rows[0].firstAt)].sort().reverse(), 'newest day first');
+  // Friday's sixth session is one "Show 1 more" away.
+  const friday = await ask({ day: '2025-03-14', offset: '5' });
+  assert.equal(friday.rows.length, 1);
+  const rows = new Map([...list.days.flatMap((x) => x.rows), ...friday.rows].map((r) => [r.session, r]));
+  assert.equal(rows.size, all.sessions.length);
+  // The display-only and outside sessions: listed, labelled, redacted, and never counted for problems.
+  const site = rows.get(k.site);
+  assert.deepEqual([site.group, site.repo, site.title, site.problems], ['display', 'personal-site', 'Draft a post about [redacted:term] 1.4', null]);
+  const outside = rows.get(k.scratch);
+  assert.deepEqual([outside.group, outside.repo, outside.title, outside.problems], ['outside', null, 'Rename screenshots by date', null]);
+  assert.ok([...rows.values()].filter((r) => r.group === 'configured').every((r) => r.problems && Number.isInteger(r.problems.value)));
+  assert.ok([...rows.values()].some((r) => r.problems?.value > 0), 'the demo week has sessions worth a look');
+  // A codex exec run has no prompt: its row says what started it.
+  assert.ok([...rows.values()].some((r) => r.tool === 'codex' && r.prompts.value === 0 && r.startedBy?.text === 'started by codex exec, no prompt'));
+  // The made-up project's name shows only with the switch on.
+  assert.ok(!JSON.stringify([list, friday]).includes(DEMO_TERM));
+  await data.start('private');
+  const on = (await data.route('/api/sessions', new URLSearchParams({ private: '1' }))).body;
+  assert.equal(on.view.shown, 'private');
+  assert.equal(on.days.flatMap((x) => x.rows).find((r) => r.session === k.site).title, `Draft a post about ${DEMO_TERM} 1.4`);
 });
 
 // Wednesday's logs print what the Markdown renderer makes from lib/demo/content.mjs, and the

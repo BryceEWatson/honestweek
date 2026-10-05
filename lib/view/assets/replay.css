@@ -6,6 +6,16 @@
 .rp-head h1 { font-size: 26px; line-height: 1.2; }
 .rp-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; font-size: 14px; color: var(--muted); }
 .rp-tool { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: var(--fix-wash); color: var(--accent-ink); }
+.rp-back { color: var(--accent); text-decoration: none; }
+.rp-back:hover { text-decoration: underline; }
+
+/* ---- the sessions list (replay.html with nothing chosen; sessions.js) ---------------------- */
+.sl { max-width: 880px; width: 100%; display: flex; flex-direction: column; gap: 14px; overflow-wrap: anywhere; }
+.sl-day .hcard-head h2 { font-size: 15px; }
+.sl-day .hcard-list > li.row:first-child { border-top: 0; }
+.sl-err { font-size: 13px; font-weight: 400; color: var(--high); }
+.sl-older { font-size: 14px; font-weight: 500; }
+.sl-older .linklike { text-decoration: none; }
 
 /* ---- the layout --------------------------------------------------------------------------- */
 .rp { max-width: 1320px; margin: 0 auto; padding: 0 24px 48px; display: flex; flex-direction: column; gap: 18px; }
@@ -194,6 +204,8 @@ body[data-focus="1"]:not([data-wide="1"]) .rp-mode { display: none; }
 .fhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .fhead .fback { font-weight: 600; text-decoration: none; color: var(--accent); }
 .fhead .fname { font-weight: 600; }
+.fhead .fall { font-size: 14px; color: var(--accent); text-decoration: none; }
+.fhead .fall:hover { text-decoration: underline; }
 .fhead .fwhere { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
 .fhead .fleave { font-weight: 600; color: var(--accent); background: var(--surface); border-color: var(--field); min-height: 40px; padding: 8px 12px; }
 .fcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 22px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
