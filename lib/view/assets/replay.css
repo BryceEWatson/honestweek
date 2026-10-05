@@ -28,6 +28,10 @@
 .rp-now { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 8px 12px; border-radius: 8px; background: var(--accent-wash); font-size: 14px; min-height: 22px; min-width: 0; }
 .rp-now .readout { font-family: var(--font); font-size: 14px; font-weight: 700; color: var(--accent-ink); white-space: nowrap; }
 .rp-now-lane { color: var(--muted); white-space: nowrap; }
+/* What led to the selected step, on its own line of the bar: one short, clickable line. */
+.rp-now-before { flex: 1 1 100%; order: 5; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.rp-now-before:empty { display: none; }
+.rp-now-before .linklike { font-size: 13px; }
 .rp-now-text { min-width: 0; flex: 1 1 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
 .rp-now-span { color: var(--muted); white-space: nowrap; font-size: 13px; }
 .rp-jump { font-weight: 600; text-decoration: none; white-space: nowrap; }

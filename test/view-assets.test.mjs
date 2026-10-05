@@ -568,3 +568,24 @@ test("Replay's story draws a few prompt cards around the selected step, never a 
   assert.match(js, /const cut = c\.rows\.length > ROWS_ALL && !openCards\.has\(i\);/);
   assert.match(js, /if \(!row && at && storyWin && !focusList\(\)\) \{/);
 });
+
+test('Replay names what came just before the selected step: its lane\'s step before, or the call that started a helper', () => {
+  const js = readFileSync(join(ASSETS, 'replay.js'), 'utf8');
+  const prior = js.match(/ {2}function priorOf\(e\) \{[^]*?\n {2}\}/)[0];
+  const starter = js.match(/ {2}const starterOf = \(agent\) => \{[^]*?\n {2}\};/)[0];
+  const ev = (id, agent, t) => ({ id, agent, t });
+  const call = ev('call', 'main', 5);
+  const steps = [ev('p', 'main', 1), call, ev('i', 'helper', 6), ev('a', 'helper', 8), ev('m', 'main', 9), ev('b', 'helper', 10)];
+  const HW = { data: { byId: new Map([...steps, call].map((s) => [s.id, s])), agentByKey: new Map([['helper', { spawnedBy: 'call' }], ['lonely', { spawnedBy: null }]]) } };
+  const box = { steps, HW };
+  runInNewContext(`${starter}\n${prior}\nthis.prior = (id) => { const e = HW.data.byId.get(id) ?? { id, agent: id.split(':')[0], t: 99 }; const p = priorOf(e); return p ? [p.step.id, p.how].join(' ') : null; };`, box);
+  assert.equal(box.prior('b'), 'a before', "the step before in the helper's own lane, past the parent's step between");
+  assert.equal(box.prior('a'), 'i before', "the helper's opening record");
+  assert.equal(box.prior('i'), 'call started', 'its first record: the call that started it');
+  assert.equal(box.prior('p'), null, 'the first step of the main lane has nothing before it');
+  assert.equal(box.prior('lonely:x'), null, 'a helper the logs never say started has none');
+  // Clicking one widens the zoom just enough to hold it, and ◀ Step goes on past a focus's first step.
+  assert.match(js, /if \(s\.t < view\[0\] \|\| s\.t > view\[1\]\) \{/);
+  assert.match(js, /const e = dir < 0 && Z && list === navSteps \? HW\.data\.byId\.get\(selId\) : null;/);
+  assert.match(readFileSync(join(ASSETS, 'replay.html'), 'utf8'), /<span class="rp-now-before" id="nowBefore"><\/span>/);
+});
