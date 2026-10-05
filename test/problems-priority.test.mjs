@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { classifyAgentText, classifyPrompt, checkClass, endsWithQuestion, errorClass, errorLine, riskyKinds, secretShapes, statusOfShell, testEditCounts } from '../lib/problems/classify.mjs';
+import { bareGoAhead, classifyAgentText, classifyPrompt, checkClass, endsOnOptions, endsWithQuestion, errorClass, errorLine, namesBlocker, offersToCarryOn, riskyKinds, secretShapes, statusOfShell, testEditCounts } from '../lib/problems/classify.mjs';
 import { loadCatalog, PATTERN_CHECKS, priorityOf, PRIORITY, PRIORITY_RULE } from '../lib/problems/index.mjs';
 import { CHECKS, fmt } from '../lib/problems/checks.mjs';
 import { THRESHOLDS } from '../lib/problems/context.mjs';
@@ -101,6 +101,37 @@ test('classifiers: a completion claim and its negated partner', () => {
   assert.equal(endsWithQuestion('Done.\nNothing else to do.'), false);
 });
 
+test('classifiers: how a turn ends, an offer, a list of options, a blocker and a bare go-ahead, each with a partner', () => {
+  assert.equal(offersToCarryOn("I'll move the other two call sites next unless you'd rather I didn't."), true);
+  assert.equal(offersToCarryOn("Updated the parser.\nLet me know if you'd prefer I stop here; otherwise I'll start on the writer."), true);
+  assert.equal(offersToCarryOn('Unless I hear otherwise, I will merge it after lunch.'), true);
+  assert.equal(offersToCarryOn("The writer is next. If you'd like me to take it on, say the word."), true);
+  assert.equal(offersToCarryOn('Updated the parser and its tests.'), false);
+  // Only the closing lines count: an offer early in a long message isn't how the turn ends.
+  assert.equal(offersToCarryOn("Unless you'd rather I didn't, I'll merge it.\nThe parser is updated.\nAll 12 tests pass."), false);
+
+  assert.equal(endsOnOptions('Two options for the old name:\n- keep it as an alias\n- drop it'), true);
+  assert.equal(endsOnOptions('Done with the parser.\n1. Option A: ship it now\n2. Option B: wait for the review'), true);
+  assert.equal(endsOnOptions('Which would you prefer?\n- a flag\n- a config key\nI lean towards the flag.'), true);
+  assert.equal(endsOnOptions('Changed:\n- src/a.js\n- src/b.js'), false, 'a summary list');
+  assert.equal(endsOnOptions('Two options:\n- only one item'), false);
+  assert.equal(endsOnOptions('Two options:\n- keep it\n- drop it\nI went with dropping it, since nothing reads the old name and the tests show it.\nAll 12 tests pass.'), false, 'the list is no longer how it ends');
+
+  assert.equal(namesBlocker('The deploy failed with a permission error.'), true);
+  assert.equal(namesBlocker('I need your API key to go on.'), true);
+  assert.equal(namesBlocker('This is waiting on CI.'), true);
+  assert.equal(namesBlocker("Only you can approve the release, so I've stopped there."), true);
+  assert.equal(namesBlocker('All 12 tests pass, 0 failed, and nothing is blocking the merge.'), false);
+  assert.equal(namesBlocker("I'll update the docs next unless you'd rather I didn't."), false);
+
+  assert.equal(bareGoAhead('yes'), true);
+  assert.equal(bareGoAhead('Go ahead.'), true);
+  assert.equal(bareGoAhead('ok, sounds good!'), true);
+  assert.equal(bareGoAhead('go with option B'), false);
+  assert.equal(bareGoAhead('yes, and add tests for it'), false);
+  assert.equal(bareGoAhead(''), false);
+});
+
 test('classifiers: a question-only prompt and a request worded as a question', () => {
   assert.equal(classifyPrompt('Why does the parser drop tabs?').pureQuestion, true);
   assert.equal(classifyPrompt('Can you fix the parser so it keeps tabs?').pureQuestion, false);
@@ -182,6 +213,10 @@ test('the stated rule and the checks state the numbers the code applies', () => 
   assert.ok(relation('repeated-tool-error').includes(`${THRESHOLDS.errorRunMin} or more times`));
   assert.ok(relation('oversized-tool-output').includes(`${fmt(THRESHOLDS.bigAdd)} tokens or more`));
   assert.ok(relation('subagent-overuse').includes(`${THRESHOLDS.smallSubagentCalls} or fewer tool calls`));
+  const n = (x) => x.toLocaleString('en-US');
+  for (const words of [`${THRESHOLDS.outputRatio} times or more`, `${n(THRESHOLDS.outputMin)} output tokens or more per tool call`, `${THRESHOLDS.outputBaseline} or more such calls`, `${n(THRESHOLDS.outputWrittenMax)} characters`]) assert.ok(how('output-per-call').includes(words), words);
+  assert.ok(relation('overthinking').includes(`${THRESHOLDS.outputRatio} times or more`) && relation('overthinking').includes(`${n(THRESHOLDS.outputMin)} tokens or more`));
+  assert.ok(how('needless-check-in').includes(`${THRESHOLDS.waitLookMs / 60_000} minutes or more`));
 });
 
 test('risky commands: only a git command that runs with the flag counts, never a mention in quoted text', () => {

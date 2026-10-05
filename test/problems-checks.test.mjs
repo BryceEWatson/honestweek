@@ -32,9 +32,9 @@ function history() {
     return n;
   };
   const api = {
-    session(key, { tool = 'claude-code', priv = false, endState = 'last-turn-ended', lastAt = '2025-03-10T12:00:00.000Z' } = {}) {
+    session(key, { tool = 'claude-code', priv = false, endState = 'last-turn-ended', lastAt = '2025-03-10T12:00:00.000Z', models } = {}) {
       sessions.push({ key, tool, private: priv, repo: priv ? null : 'your-project', repoRole: priv ? 'display' : 'featured', endState, firstAt: '2025-03-10T09:00:00.000Z', lastAt, thread: `th-${key}` });
-      agents.push({ key: `${key}:main`, session: key, kind: 'main' });
+      agents.push({ key: `${key}:main`, session: key, kind: 'main', ...(models ? { models } : {}) });
       cwd.set(key, CWD);
       return api;
     },
@@ -68,6 +68,10 @@ function history() {
     },
     read(session, t, file, { offset, limit, agent } = {}) {
       return api.ev('action', session, t, { agent, facts: { tool: 'Read', category: 'read', result: 'ok', fileKey: `fk-${file}` }, end: { t: t + 300 }, raw: { input: { file_path: file, ...(offset != null ? { offset } : {}), ...(limit != null ? { limit } : {}) }, tool: 'Read' } });
+    },
+    /** A to-do call: TodoWrite or update_plan state the whole list; TaskCreate and TaskUpdate one task. */
+    todo(session, t, tool, input, { agent, result = 'ok' } = {}) {
+      return api.ev('action', session, t, { agent, facts: { tool, category: 'plan', result }, end: { t: t + 100 }, raw: { input, tool } });
     },
     call(agent, session, line, t, ctx, output = 100) {
       calls.push({ session, agent, source: agent.endsWith(':main') ? session : agent, tool: 'claude-code', lines: [line], t, input: 10, cacheWrite: 0, cacheRead: ctx - 10, output });
@@ -459,6 +463,169 @@ test('a turn ending on a question, answered by a bare go-ahead after half an hou
   };
   assert.equal(looks(make('yes, go', [{ key: 'intent', value: 'approval', rule: 'prompt.approval' }]), 'needless-check-in').length, 1);
   assert.equal(findingsOf(make('No, use the other reader instead.', [{ key: 'intent', value: 'correction', rule: 'prompt.correction' }]), 'needless-check-in').length, 0);
+});
+
+const APPROVAL = [{ key: 'intent', value: 'approval', rule: 'prompt.approval' }];
+const RESUME = [{ key: 'intent', value: 'resume-request', rule: 'prompt.resume' }];
+const todoList = (statuses) => ({ todos: statuses.map((status, i) => ({ content: `item ${i}`, status, activeForm: `doing item ${i}` })) });
+const PROGRESS = "The export writes JSON now. Next I'll add the CSV writer and the docs.";
+
+test('a turn ending with open to-dos and no blocker named: a plain continue after it is worth a look; a named blocker is not counted', () => {
+  const make = (message, { statuses = ['completed', 'in_progress', 'pending'], reply = 'continue', inferred = RESUME } = {}) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Build the export command.');
+    h.todo('s1', min(1), 'TodoWrite', todoList(statuses));
+    h.edit('s1', min(2), `${CWD}/src/export.js`, 'a', 'b');
+    h.say('s1', min(3), message);
+    if (reply) h.prompt('s1', min(9), reply, { inferred });
+    return findingsOf(run(h.build()), 'premature-stop');
+  };
+  const found = make(PROGRESS);
+  assert.deepEqual(found.map((f) => [f.check, f.severity, f.verdictEvidence]), [['open-todos-stop', 'look', 'inferred']]);
+  assert.match(found[0].note, /2 items on the agent's to-do list still open \(1 in progress, 1 not started\)/);
+  assert.equal(found[0].events.length, 2, 'the to-do update and the message');
+  // Failing partner: the message names a blocker.
+  assert.equal(make('The export writes JSON now. The CSV part is blocked: I need your API key for the storage service.').length, 0);
+  assert.equal(make('The export writes JSON now. The CSV writer fails on the fixture with a parse error.').length, 0);
+  // Every item done: nothing open.
+  assert.equal(make(PROGRESS, { statuses: ['completed', 'completed'] }).length, 0);
+  // With no push to carry on after it, or a correction, an open list is only a note: it reads the
+  // same as a list left untidied after finished work.
+  assert.deepEqual(make(PROGRESS, { reply: null }).map((f) => f.severity), ['note']);
+  assert.deepEqual(make(PROGRESS, { reply: 'No, continue with the other writer.', inferred: [{ key: 'intent', value: 'correction', rule: 'prompt.correction' }, ...RESUME] }).map((f) => f.severity), ['note']);
+  assert.deepEqual(make(PROGRESS, { reply: 'yes', inferred: APPROVAL }).map((f) => f.severity), ['look']);
+});
+
+test("open to-dos: only a list the agent worked in that turn, and not when the turn was cut off or work it started is still running", () => {
+  // A list from an earlier turn, not worked in this one, may be stale.
+  const stale = history().session('s1');
+  stale.prompt('s1', min(0), 'Build the export command.');
+  stale.todo('s1', min(1), 'TodoWrite', todoList(['in_progress', 'pending']));
+  const first = stale.say('s1', min(2), 'The CSV writer is blocked until the schema lands.');
+  stale.prompt('s1', min(3), 'What does the export write today?');
+  stale.say('s1', min(4), 'It writes JSON, one object per line.');
+  stale.prompt('s1', min(9), 'continue', { inferred: RESUME });
+  assert.equal(findingsOf(run(stale.build()), 'premature-stop').length, 0, `neither ${first.id} (a blocker) nor the next turn (no list worked)`);
+
+  const make = (after) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Build the export command.');
+    h.todo('s1', min(1), 'TodoWrite', todoList(['in_progress', 'pending']));
+    after(h);
+    h.prompt('s1', min(30), 'continue', { inferred: RESUME });
+    return findingsOf(run(h.build()), 'premature-stop');
+  };
+  // You interrupted it after the message: the turn didn't end on the agent's word.
+  assert.equal(make((h) => { h.say('s1', min(2), PROGRESS); h.ev('interrupt', 's1', min(3), { actor: 'person', facts: { by: 'person' } }); }).length, 0);
+  assert.equal(make((h) => h.say('s1', min(2), PROGRESS)).length, 1);
+  // A background sub-agent it started was still writing records after the message: waiting on it is a wanted stop.
+  const withAgent = (lastAt) => make((h) => {
+    h.ev('action', 's1', min(1, 30), { facts: { tool: 'Agent', category: 'delegate', result: 'ok', background: true, spawnedAgent: 's1:bg' }, end: { t: min(1, 31) } });
+    h.agent('s1:bg', 's1', { lastAt });
+    h.say('s1', min(2), PROGRESS);
+  });
+  assert.equal(withAgent(new Date(min(10)).toISOString()).length, 0);
+  assert.equal(withAgent(new Date(min(1, 50)).toISOString()).length, 1);
+  // A call turned down in the turn is a recorded blocker.
+  assert.equal(make((h) => { h.shell('s1', min(1, 30), 'git push origin main', { result: 'rejected' }); h.say('s1', min(2), PROGRESS); }).length, 0);
+});
+
+test("open to-dos on Codex's update_plan and Claude Code's task tools", () => {
+  const cx = history().session('cx1', { tool: 'codex' });
+  cx.prompt('cx1', min(0), 'Port the reader.');
+  cx.todo('cx1', min(1), 'update_plan', { explanation: 'Two steps.', plan: [{ step: 'Read the old reader', status: 'completed' }, { step: 'Port it', status: 'in_progress' }] });
+  cx.say('cx1', min(2), 'Ported the parsing half. Next I will port the writer.');
+  cx.prompt('cx1', min(5), 'go on', { inferred: APPROVAL });
+  const found = findingsOf(run(cx.build()), 'premature-stop');
+  assert.deepEqual(found.map((f) => [f.check, f.severity]), [['open-todos-stop', 'look']]);
+  assert.match(found[0].note, /1 item on the agent's to-do list still open \(1 in progress\)/);
+
+  const make = (closed) => {
+    const h = history().session('s2');
+    h.prompt('s2', min(0), 'Ship both fixes.');
+    h.todo('s2', min(1), 'TaskCreate', { subject: 'first fix', description: 'x' });
+    h.todo('s2', min(1, 10), 'TaskCreate', { subject: 'second fix', description: 'y' });
+    for (const id of closed) h.todo('s2', min(2), 'TaskUpdate', { taskId: id, status: 'completed' });
+    h.say('s2', min(3), 'The first fix is in. I will start the second one next.');
+    return findingsOf(run(h.build()), 'premature-stop');
+  };
+  assert.match(make(['1'])[0].note, /1 item .* \(1 task not closed\)/);
+  assert.equal(make(['1', '2']).length, 0);
+  // The same task closed twice still closes one.
+  assert.equal(make(['1', '1']).length, 1);
+});
+
+test('a check-in without a question: an offer to carry on or a closing list of options, answered by a bare go-ahead', () => {
+  const make = (message, reply, { rejected = false } = {}) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Rename the config option everywhere.');
+    if (rejected) h.shell('s1', min(1), 'git push origin main', { result: 'rejected' });
+    else h.edit('s1', min(1), `${CWD}/src/config.js`, 'a', 'b');
+    h.say('s1', min(2), message);
+    h.prompt('s1', min(40), reply, { inferred: /^(?:yes|go)\b/i.test(reply) ? APPROVAL : [] });
+    return findingsOf(run(h.build()), 'needless-check-in');
+  };
+  const OFFER = "Renamed it in src/config.js. I'll do the same in the two docs pages unless you'd rather I didn't.";
+  assert.deepEqual(make(OFFER, 'yes').map((f) => [f.severity, f.verdictEvidence, f.kind]), [['look', 'inferred', 'ended on an offer to carry on']]);
+  assert.equal(make("Renamed it in src/config.js.\nLet me know if you'd prefer I leave the docs pages; otherwise I'll update them next.", 'Go ahead.').length, 1);
+  const OPTIONS = 'Renamed it in src/config.js. Two options for the old name:\n- keep it as an alias for one release\n- drop it now';
+  assert.deepEqual(make(OPTIONS, 'go ahead').map((f) => f.kind), ['ended on a list of options']);
+  // Picking an option, or adding a request, is an answer rather than a bare go-ahead.
+  assert.equal(make(OPTIONS, 'go with the alias').length, 0);
+  assert.equal(make(OFFER, 'yes, and rename the env variable too').length, 0);
+  // A summary list isn't a list of options.
+  assert.equal(make('Renamed it in:\n- src/config.js\n- docs/setup.md', 'ok').length, 0);
+  // A message that names a real blocker, an error, a denial or missing input isn't a check-in, in any form.
+  assert.equal(make("The push to the docs branch was denied, so I'll carry on with the code unless you'd rather I waited.", 'yes').length, 0);
+  assert.equal(make('Renamed it. Two options, since the docs build fails on a missing dependency:\n- pin it\n- drop the page', 'go ahead').length, 0);
+  assert.equal(make('Renamed it in src/config.js, but the docs build fails with an error. Want me to keep going?', 'yes').length, 0);
+  // And so is a call turned down in the turn.
+  assert.equal(make(OFFER, 'yes', { rejected: true }).length, 0);
+});
+
+test('output per tool call: far above the session median for one model is worth a look, and calls are never compared across models', () => {
+  const make = ({ big = 9_000, models = ['model-a'], longWrite = false, sub = null } = {}) => {
+    const h = history().session('s1', { models });
+    h.prompt('s1', min(0), 'Refactor the reader.');
+    for (let i = 0; i < 12; i++) {
+      const st = h.shell('s1', min(1, i * 2), `rg reader-${i} src`);
+      h.call('s1:main', 's1', st.refs[0].line, min(1, i * 2), 30_000, 300);
+    }
+    if (big) {
+      const st = longWrite ? h.edit('s1', min(5), `${CWD}/src/reader.js`, null, 'x'.repeat(3_000), { tool: 'Write' }) : h.shell('s1', min(5), 'rg reader src');
+      h.call('s1:main', 's1', st.refs[0].line, min(5), 30_000, big);
+    }
+    if (sub) {
+      h.agent('s1:sub', 's1', { models: sub.models });
+      for (let i = 0; i < sub.calls; i++) {
+        const st = h.shell('s1', min(6, i * 2), `rg writer-${i} src`, { agent: 's1:sub' });
+        h.call('s1:sub', 's1', st.refs[0].line, min(6, i * 2), 30_000, sub.output);
+      }
+    }
+    return run(h.build({ usage: true }));
+  };
+  const r = make();
+  const found = findingsOf(r, 'overthinking');
+  assert.deepEqual(found.map((f) => [f.check, f.severity, f.verdictEvidence, f.stepsNear]), [['output-per-call', 'look', 'derived', true]]);
+  assert.equal(found[0].estimate, 9_000 - 300, 'the output above the median');
+  assert.match(found[0].note, /median output per tool call for the same model \(300 tokens, over 13 calls\)\. The largest wrote 9\.0k output tokens for 1 tool call, about 30 times the median/);
+  // Failing partners: under the 5,000-token floor, though 13 times the median; a call that wrote a
+  // long file, whose output is the file; and an agent whose log records two models.
+  assert.equal(findingsOf(make({ big: 4_000 }), 'overthinking').length, 0);
+  assert.equal(findingsOf(make({ longWrite: true }), 'overthinking').length, 0);
+  const mixed = make({ models: ['model-a', 'model-b'] });
+  assert.equal(findingsOf(mixed, 'overthinking').length, 0);
+  assert.match(check(mixed, 'output-per-call').checked, /1 agent whose log records no model or more than one wasn't measured/);
+  // Within one model, a sub-agent's calls are measured against the session's median.
+  assert.deepEqual(findingsOf(make({ big: 0, sub: { models: ['model-a'], calls: 3, output: 6_000 } }), 'overthinking').map((f) => f.note.split(' by ')[1].split(' wrote')[0]), ['this sub-agent']);
+  // Never across models: the same sub-agent on another model has its own median, and with too few
+  // calls it has none. Pooled with the main agent's 300-token calls, either would be found.
+  assert.equal(findingsOf(make({ big: 0, sub: { models: ['model-b'], calls: 10, output: 6_000 } }), 'overthinking').length, 0);
+  assert.equal(findingsOf(make({ big: 0, sub: { models: ['model-b'], calls: 3, output: 6_000 } }), 'overthinking').length, 0);
+  // No token counts: not run, never clear.
+  const none = history().session('s1', { models: ['model-a'] });
+  none.prompt('s1', min(0), 'x');
+  assert.equal(run(none.build()).patterns.find((p) => p.id === 'overthinking').status, 'unchecked');
 });
 
 // ---- safety --------------------------------------------------------------------------------

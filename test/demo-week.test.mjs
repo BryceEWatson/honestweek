@@ -338,7 +338,7 @@ test('the problem checks find a spread of patterns across the three tiers, each 
     'subagent-handoff-loss': ['low', 2, 0],
     'scope-creep': ['low', 2, 0],
     'edits-outside-folder': ['low', 2, 0],
-    'premature-stop': ['low', 2, 1],
+    'premature-stop': ['low', 2, 4],
     'needless-check-in': ['low', 0, 1],
   });
   const looks = r.patterns.flatMap((p) => p.findings.filter((f) => f.severity === 'look').map((f) => ({ ...f, tier: p.priority?.tier })));
@@ -365,6 +365,13 @@ test('the problem checks find a spread of patterns across the three tiers, each 
   assert.deepEqual(where('subagent-handoff-loss'), [k.release, k.why].sort());
   assert.deepEqual(where('scope-creep'), [k.width, k.why].sort());
   assert.deepEqual(where('premature-stop'), [k.json, k.why].sort());
+  // Wednesday's to-do list is still open at three turn ends whose messages name no blocker. No
+  // plain continue follows any of them, so each is a note: it reads the same as a list left
+  // untidied after finished work. The fourth turn end names its failing tests, a blocker.
+  const todoStops = r.patterns.find((p) => p.id === 'premature-stop').findings.filter((f) => f.check === 'open-todos-stop');
+  assert.deepEqual(todoStops.map((f) => [f.severity, f.session]), [['note', k.markdown], ['note', k.markdown], ['note', k.markdown]]);
+  // No model call in the week writes 5,000 output tokens for one tool call: checked and clear.
+  assert.equal(r.patterns.find((p) => p.id === 'overthinking').status, 'clear');
   // An edit into the display-only site from each agent, both asked for: shown, and git never reads the site.
   assert.deepEqual(where('edits-outside-folder'), [k.widthCommit, k.why].sort());
   for (const f of r.patterns.find((p) => p.id === 'edits-outside-folder').findings) assert.match(f.note, /^1 edit outside the folder this session started in: 1 in a display-only repository\. Files: \*\.md\.$/);

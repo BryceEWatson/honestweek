@@ -2506,14 +2506,14 @@
       "strengthReason": "Overthinking is measured in a dedicated study and acknowledged in Anthropic guidance for several models. The re-checking half is documented by Anthropic for two current models with a cost effect from its own testing, but has no independent study.",
       "detection": {
         "level": "derived",
-        "summary": "Output or thinking tokens per tool call and long stretches with no tool call, against the session's own baseline; and checks or reviewer sub-agents that run again after a pass with no code change in between.",
+        "summary": "Output tokens per tool call and long stretches with no tool call, against the session's own baseline for the same model; and checks or reviewer sub-agents that run again after a pass with no code change in between.",
         "signals": [
           {
-            "signal": "usage.output_tokens per assistant message; thinking blocks (often redacted) and their count",
+            "signal": "usage.output_tokens per model call, which counts the thinking without reading it",
             "level": "recorded"
           },
           {
-            "signal": "Ratio of output tokens to tool calls; time between tool calls",
+            "signal": "Ratio of output tokens to tool calls, compared only within one model (and one effort level, where the log records it); time between tool calls",
             "level": "derived"
           },
           {
@@ -2530,7 +2530,8 @@
           }
         ],
         "falsePositives": [
-          "Genuinely hard design questions; thinking content is often summarized or redacted in logs, so measure tokens, not text.",
+          "Genuinely hard design questions. Thinking blocks are often empty, summarized or redacted in logs, so measure output tokens, never the blocks, their count or their text.",
+          "A change of model or effort partway through, which moves the baseline; compare within one model.",
           "Review steps you configured on purpose (for example a review hook), which count as your own cost, not the agent's."
         ]
       },
@@ -3347,19 +3348,23 @@
       "strengthReason": "Measured in MAST and METR studies, and documented by both vendors with specific prompts against it.",
       "detection": {
         "level": "inferred",
-        "summary": "The turn ends with no tool call after text that is a plan, a promise, or a list of next steps, or with open items in the agent's own task list.",
+        "summary": "The turn ends on a message with no tool call after it while the agent's own to-do list still has open items and the message names no blocker, or after text that is a plan, a promise, or a list of next steps.",
         "signals": [
           {
             "signal": "Turn-end record and whether the last assistant message had a tool call",
             "level": "recorded"
           },
           {
-            "signal": "Last text classified as intent or next steps (\"I'll\", \"next I will\", \"let me know when\")",
+            "signal": "Open items in the agent's to-do list when the turn ends (TodoWrite, Codex's update_plan, or Claude Code's task tools)",
+            "level": "recorded"
+          },
+          {
+            "signal": "The last message names no blocker: no error, denial, missing input or something only the user can give",
             "level": "inferred"
           },
           {
-            "signal": "Open items in the agent's todo list at session end",
-            "level": "derived"
+            "signal": "Last text classified as intent or next steps (\"I'll\", \"next I will\", \"let me know when\")",
+            "level": "inferred"
           },
           {
             "signal": "Mentions of context budget or a new session as the reason to stop",
@@ -3371,7 +3376,8 @@
           }
         ],
         "falsePositives": [
-          "A genuine block on input only the user can give; a planned checkpoint the user asked for."
+          "A genuine block on input only the user can give; a planned checkpoint the user asked for.",
+          "A to-do list left untidied after the work was finished, or background work the agent is waiting on."
         ]
       },
       "coverage": {
@@ -3492,10 +3498,10 @@
       "strengthReason": "Documented by both vendors for current models, measured in a clarification benchmark, and seen in a real-session study.",
       "detection": {
         "level": "inferred",
-        "summary": "The turn ends with a yes/no question about doing work already requested, no recorded blocker (denial, error, missing input), and the user replies with a bare go-ahead.",
+        "summary": "The turn ends with a question about doing work already requested, an offer to carry on unless the user objects, or a list of decisions that don't block the work; no blocker (denial, error, missing input) is named or recorded; and the user replies with a bare go-ahead.",
         "signals": [
           {
-            "signal": "Turn ends with a question and no tool call",
+            "signal": "Turn ends with no tool call",
             "level": "recorded"
           },
           {
@@ -3503,16 +3509,29 @@
             "level": "inferred"
           },
           {
+            "signal": "An offer to carry on unless the user objects (\"I'll proceed unless you say otherwise\", \"Let me know if you'd rather I didn't\")",
+            "level": "inferred"
+          },
+          {
+            "signal": "A closing list of options or decisions, with nothing in the message saying the agent is blocked",
+            "level": "inferred"
+          },
+          {
             "signal": "No denial, error, or missing credential recorded before it",
             "level": "derived"
           },
           {
-            "signal": "Next user prompt is \"yes\", \"go ahead\", \"continue\"",
+            "signal": "The message names no blocker, error, denial or missing input",
+            "level": "inferred"
+          },
+          {
+            "signal": "Next user prompt is \"yes\", \"go ahead\", \"continue\", and nothing else",
             "level": "inferred"
           }
         ],
         "falsePositives": [
-          "Destructive, irreversible, or outward-facing next steps, where asking is correct; real ambiguity where readings lead to different work."
+          "Destructive, irreversible, or outward-facing next steps, where asking is correct; real ambiguity where readings lead to different work.",
+          "A checkpoint or a list of options the user asked for."
         ]
       },
       "coverage": {
