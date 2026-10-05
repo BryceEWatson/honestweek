@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Problems · honestweek</title>
+<script src="prefs.js"></script>
 <link rel="stylesheet" href="common.css">
 <link rel="stylesheet" href="problems.css">
 </head>
@@ -20,30 +21,44 @@
 <div class="demo" id="demo" hidden></div>
 <p class="statusline" id="status" role="status" hidden></p>
 <main class="pwrap" id="content">
-  <div class="phead">
-    <div>
-      <h1>Where it went wrong</h1>
-      <p class="lead" id="lead"></p>
+  <div class="pview" id="landing" data-view="landing">
+    <div class="phead">
+      <div>
+        <h1 id="headline" tabindex="-1">Where it went wrong</h1>
+        <p class="lead" id="lead"></p>
+      </div>
     </div>
+    <p class="sessfilter" id="sessFilter" hidden></p>
+    <section class="psec" id="sureSec" aria-labelledby="sureH">
+      <div class="psec-head">
+        <h2 id="sureH" class="eyebrow">Found in the log</h2>
+        <details class="pfilter" id="filterBox"><summary>Filter</summary>
+          <div class="chips pgroups" id="groups" role="group" aria-label="Show one group of patterns"></div>
+        </details>
+      </div>
+      <p class="filternote" id="filterNote" hidden></p>
+      <div id="cards"></div>
+    </section>
+    <section class="psec" id="possSec" aria-labelledby="possH">
+      <div class="psec-head">
+        <h2 id="possH" class="eyebrow">Possible: check these yourself</h2>
+        <span class="psec-note">A rule read the words, or a record the check expected is missing, so each could be wrong.</span>
+      </div>
+      <div id="possible"></div>
+    </section>
+    <p class="pfootline" id="checkedLine"></p>
   </div>
-  <p class="sessfilter" id="sessFilter" hidden></p>
-  <section class="ptable" aria-labelledby="browseH">
-    <div class="ptable-head">
-      <h2 id="browseH">Found <span class="hcount" id="foundCount"></span></h2>
-      <details class="pfilter" id="filterBox"><summary>Filter</summary>
-        <div class="chips pgroups" id="groups" role="group" aria-label="Show one group of patterns"></div>
-        <div class="chips sfilter" id="statusFilter" role="group" aria-label="Show patterns by what your sessions show"></div>
-      </details>
-    </div>
-    <p class="filternote" id="trendNote" role="status" hidden></p>
-    <p class="filternote" id="filterNote" hidden></p>
-    <div id="cards"></div>
-  </section>
-  <section class="pins" id="insights" aria-label="/insights" hidden></section>
-  <details class="pfacts facts" id="facts" hidden></details>
-  <details class="prirule" id="priRule"></details>
-  <details class="pchecks" id="checksBox"><summary><h2 id="checksH" class="sh">How the checks work</h2></summary><div id="checks"></div></details>
-  <details class="pfoot" id="foot"></details>
+  <div class="pview" id="detail" data-view="problem" hidden></div>
+  <div class="pview" id="checkedView" data-view="checked" hidden>
+    <a class="backlink" href="problems.html" data-home><span aria-hidden="true">←</span> All problems</a>
+    <div class="phead"><div><h1 id="checkedH" tabindex="-1">What was checked</h1><p class="lead" id="checkedLead"></p></div></div>
+    <div id="restLists"></div>
+    <section class="pins" id="insights" aria-label="/insights" hidden></section>
+    <details class="pfacts facts" id="facts" hidden></details>
+    <details class="prirule" id="priRule"></details>
+    <details class="pchecks" id="checksBox"><summary><h2 id="checksH" class="sh">How the checks work</h2></summary><div id="checks"></div></details>
+    <details class="pfoot" id="foot"></details>
+  </div>
 </main>
 <footer class="quiet" id="quiet">
   <p class="quiet-line"><span id="privnote"></span> <span>Read from logs on this machine. Nothing leaves it.</span></p>
@@ -53,7 +68,6 @@
 <script src="key.js"></script>
 <script src="private-text.js"></script>
 <script src="common.js"></script>
-<script src="prefs.js"></script>
 <script src="insights.js"></script>
 <script src="facts.js"></script>
 <script src="problems.js"></script>

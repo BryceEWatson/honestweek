@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Replay · honestweek</title>
+<script src="prefs.js"></script>
 <link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="replay.css">
 </head>
 <body data-page="replay">
 <header class="topbar">
@@ -18,40 +20,58 @@
 </header>
 <div class="demo" id="demo" hidden></div>
 <p class="statusline" id="status" role="status" hidden></p>
-<div class="pagehead">
-  <h1 class="ph-title"><span class="eyebrow">Replay a session</span> <span id="title"></span></h1>
-  <span id="wlBadge"></span>
+<div class="pagehead rp-head">
+  <p class="rp-meta"><span class="rp-tool" id="tool" hidden></span><span id="meta"></span></p>
+  <h1 class="ph-title" id="title"></h1>
 </div>
-<div class="wrap" id="content">
-  <div class="chartcol">
-    <div class="tlcard">
+<div class="rp" id="content">
+  <section class="tlcard rp-tl" id="timeline" aria-label="Timeline" tabindex="-1">
+    <div class="rp-bar">
+      <span class="rp-sum" id="pSummary">Checking for problems…</span>
+      <span class="rp-gap"></span>
       <div class="toolbar" role="group" aria-label="What the timeline shows">
-        <button type="button" id="expandAll" title="Open the helpers and one row per tool and record kind">Expand all</button>
-        <button type="button" id="collapseAll">Collapse all</button>
         <label class="kbd">Zoom <select id="zoom"><option value="0">Whole session</option><option value="7200000">2 hours</option><option value="1800000">30 minutes</option><option value="300000">5 minutes</option><option value="60000">1 minute</option><option value="custom" disabled>Your selection</option></select></label>
         <button type="button" id="fit" title="Zoom back out to the whole session (Esc, or double-click the chart)">⤢ Whole session</button>
-      </div>
-      <div class="zoombar" id="zoombar" hidden></div>
-      <div class="zoombar zfind" id="zoomFinding" role="region" aria-label="Zoomed to a finding's steps" tabindex="-1" hidden></div>
-      <p class="warn" id="undrawn" hidden></p>
-      <div id="wl"></div>
-      <svg id="chart" class="chart" role="group" aria-label="Every recorded step by agent and tool over time. Each step is a button; the list after the chart reads them in order."></svg>
-      <div class="player">
-        <div class="controls">
-          <button type="button" id="prevPrompt" title="Previous prompt (Shift+←)">⏮ Prompt</button>
-          <button type="button" id="prevStep" title="Previous record (←)">◀ Step</button>
-          <button type="button" id="play" class="playbtn" title="Play through the records (Space)">▶ Play</button>
-          <button type="button" id="nextStep" title="Next record (→)">Step ▶</button>
-          <button type="button" id="nextPrompt" title="Next prompt (Shift+→)">Prompt ⏭</button>
-        </div>
-        <div class="scrub"><input type="range" id="slider" min="0" max="1000" value="0" aria-label="Time in the session"></div>
-        <span class="readout" id="readout"></span>
-        <span class="stepof" id="stepOf"></span>
+        <button type="button" id="expandAll" title="Open the helpers and one row per tool and record kind">Expand all</button>
+        <button type="button" id="collapseAll">Collapse all</button>
       </div>
     </div>
-    <p class="sr" id="announce" aria-live="polite"></p>
-    <h2 class="sr">Every step on the chart, in order (<span id="stepCount">0 steps</span>)</h2>
-    <ol class="sr" id="chartSteps"></ol>
+    <div class="zoombar" id="zoombar" hidden></div>
+    <div class="zoombar zfind" id="zoomFinding" role="region" aria-label="Zoomed to a finding's steps" tabindex="-1" hidden></div>
+    <p class="warn" id="undrawn" hidden></p>
+    <div class="rp-now" id="now"><strong class="readout" id="readout"></strong><span class="rp-now-lane" id="nowLane"></span><span class="rp-now-text" id="nowText"></span><span class="rp-now-span" id="nowSpan"></span><span id="nowFlag"></span><span class="rp-gap"></span><button type="button" class="linklike rp-jump" id="toStory">↓ In the steps</button></div>
+    <svg id="chart" class="chart" role="group" aria-label="Every recorded step by agent and tool over time; a long stretch with no new step is squeezed into a narrow break labelled by what filled it. Each step is a button; the list after the chart reads them in order."></svg>
+    <div class="rp-scrub" id="scrub"><input type="range" id="slider" min="0" max="1000" value="0" aria-label="Time in the session"></div>
+    <div class="player rp-player">
+      <div class="controls">
+        <button type="button" id="prevPrompt" title="Previous prompt (Shift+←)">⏮ Prompt</button>
+        <button type="button" id="prevStep" title="Previous step (←)">◀ Step</button>
+        <button type="button" id="play" class="playbtn" title="Play through the steps (Space)">▶ Play</button>
+        <button type="button" id="nextStep" title="Next step (→)">Step ▶</button>
+        <button type="button" id="nextPrompt" title="Next prompt (Shift+→)">Prompt ⏭</button>
+      </div>
+      <span class="stepof" id="stepOf"></span>
+      <span class="rp-gap"></span>
+      <div class="controls" role="group" aria-label="Problems worth a look">
+        <button type="button" id="prevProblem" title="The problem before this step ([)">← Previous problem</button>
+        <button type="button" id="nextProblem" class="playbtn" title="The next problem after this step (])">Next problem →</button>
+      </div>
+    </div>
+    <p class="rp-legend" aria-label="What the marks mean"><span><span class="lg lg-prompt" aria-hidden="true"></span>your prompt</span><span><span class="lg lg-run" aria-hidden="true"></span>command</span><span><span class="lg lg-fail" aria-hidden="true"></span>failed test run</span><span><span class="lg lg-change" aria-hidden="true"></span>file edit</span><span><span class="lg lg-msg" aria-hidden="true"></span>message</span><span><span class="lg lg-wait" aria-hidden="true"></span>waited 30 s or more</span><span><span class="lg lg-prob" aria-hidden="true"></span>problem, ringed on its row</span><span><span class="lg lg-brk" aria-hidden="true"></span>a long stretch with no new step, squeezed</span></p>
+  </section>
+  <p class="sr" id="announce" aria-live="polite"></p>
+  <h2 class="sr">Every step on the chart, in order (<span id="stepCount">0 steps</span>)</h2>
+  <ol class="sr" id="chartSteps"></ol>
+  <div class="rp-below">
+    <section class="rp-story" id="story" aria-label="What happened, step by step">
+      <div class="rp-mode"><div class="rp-seg" role="group" aria-label="How much to show"><button type="button" id="modeMatters" aria-pressed="true">What matters</button><button type="button" id="modeAll" aria-pressed="false">Every step</button></div><span class="rp-mode-note" id="modeNote">Repeated steps are grouped.</span></div>
+      <div id="storyBody"></div>
+    </section>
+    <div class="sidecol rp-side" id="side">
+      <aside class="panel rp-panel" id="panel" aria-label="Selected step"></aside>
+    </div>
+  </div>
+  <div class="rp-folds">
     <details class="catalog" id="catalog">
       <summary id="catalogSummary"></summary>
       <div class="cat-grid" id="catalogGrid"></div>
@@ -72,13 +92,13 @@
         <span><span class="git">■</span> Pull request landed (git)</span>
         <span><span class="sw timeby"></span>Time borrowed or moved</span>
         <span><span class="sw gap"></span>No records (a gap, not idle)</span>
+        <span><span class="sw rp-brk"></span>A long stretch with no new step, squeezed and labelled by what filled it</span>
+        <span><span class="sw rp-wait"></span>A step the agent waited on (a recorded span of 30 s or more)</span>
+        <span><span class="sw rp-ring"></span>A step with a problem worth a look</span>
         <span id="legendSession" hidden><svg class="legend-svg narrow" width="10" height="12" aria-hidden="true"><line x1="5" x2="5" y1="0" y2="12" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 2"/></svg>A session's first record</span>
       </div>
-      <p class="note">Helpers (sub-agents) share one row until you open it. Click a lane name to open one row per tool or record kind. Drag across the chart to zoom; double-click to zoom back out. Labels appear once there's room to read them. Bars run from a recorded call to its recorded result, a recorded span rather than time spent working. Hover for a summary; click any mark, or Tab to it and press Enter, for every field and the original record.</p>
+      <p class="note">Helpers (sub-agents) share one row until you open it. Click a lane name to open one row per tool or record kind. A stretch in which no new step starts, longer than two minutes or a tenth of the session, is squeezed to a narrow break so each busy stretch gets room. Its label says what filled it, worked out from recorded times: a step in flight ("waiting on node --test"), a helper still open, no records inside a turn, or the wait for your next prompt. Drag across the chart to zoom; double-click to zoom back out. Labels appear where there's room. Bars run from a recorded call to its recorded result, a recorded span rather than time spent working. Click a step, or Tab to it and press Enter, to select it; "Full record" in the side panel shows every field and the original log line.</p>
     </details>
-  </div>
-  <div class="sidecol" id="side">
-    <aside class="panel" id="panel" aria-label="What the logs say was going on at the playhead"></aside>
   </div>
 </div>
 <footer class="quiet" id="quiet">
@@ -88,9 +108,8 @@
 <script src="key.js"></script>
 <script src="private-text.js"></script>
 <script src="common.js"></script>
-<script src="prefs.js"></script>
-<script src="strip.js"></script>
 <script src="facts.js"></script>
+<script src="replay-model.js"></script>
 <script src="replay.js"></script>
 </body>
 </html>

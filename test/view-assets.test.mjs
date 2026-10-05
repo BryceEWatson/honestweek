@@ -18,18 +18,20 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS = join(HERE, '..', 'lib', 'view', 'assets');
 const SELFTEST = join(HERE, '..', 'lib', 'view', 'selftest');
 const PAGES = ['search.html', 'goal.html', 'replay.html', 'problems.html'];
-// The scripts each page loads after the shared ones, in order.
-const PAGE_SCRIPTS = { 'search.html': ['prefs.js', 'search.js'], 'goal.html': ['prefs.js', 'strip.js', 'goal.js'], 'replay.html': ['prefs.js', 'strip.js', 'facts.js', 'replay.js'], 'problems.html': ['prefs.js', 'insights.js', 'facts.js', 'problems.js'] };
+// The scripts each page loads after the shared ones, in order. prefs.js comes first of all, in
+// the head, so a stored light/dark choice is on the page before anything is drawn.
+const PAGE_SCRIPTS = { 'search.html': ['search.js'], 'goal.html': ['strip.js', 'goal.js'], 'replay.html': ['facts.js', 'replay-model.js', 'replay.js'], 'problems.html': ['insights.js', 'facts.js', 'problems.js'] };
+const IN_HEAD = /<head>[^]*<script src="prefs\.js"><\/script>\s*<link rel="stylesheet" href="common\.css">[^]*<\/head>/;
 // The package author's name, read from package.json so this test doesn't spell out a real name.
 const OWNER_WORDS = String(JSON.parse(readFileSync(join(HERE, '..', 'package.json'), 'utf8')).author ?? '')
   .split(/\s+/)
   .filter((w) => /^[A-Za-z]{3,}$/.test(w));
-const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js', 'problems.js', 'insights.js', 'facts.js', 'prefs.js', 'strip.js'];
+const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js', 'replay-model.js', 'problems.js', 'insights.js', 'facts.js', 'prefs.js', 'strip.js'];
 const files = () => [...readdirSync(ASSETS).map((f) => ({ name: f, path: join(ASSETS, f) })), ...readdirSync(SELFTEST).map((f) => ({ name: `selftest/${f}`, path: join(SELFTEST, f) }))].map((f) => ({ ...f, text: readFileSync(f.path, 'utf8') }));
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
 
 test('assets: the shipped page files are all there, and nothing else', () => {
-  assert.deepEqual(readdirSync(ASSETS).sort(), [...PAGES, 'setup.html', 'settings.html', ...SCRIPTS, 'form.js', 'setup.js', 'settings.js', 'common.css', 'problems.css'].sort());
+  assert.deepEqual(readdirSync(ASSETS).sort(), [...PAGES, 'setup.html', 'settings.html', ...SCRIPTS, 'form.js', 'setup.js', 'settings.js', 'common.css', 'problems.css', 'replay.css'].sort());
   assert.deepEqual(readdirSync(SELFTEST).sort(), ['clickthrough.html', 'clickthrough.js']);
 });
 
@@ -64,16 +66,18 @@ test('assets: no script writes an inline style, a handler attribute, an inline s
     }
   }
   // The stylesheets are the only place styles live, and they import nothing.
-  for (const name of ['common.css', 'problems.css']) assert.doesNotMatch(readFileSync(join(ASSETS, name), 'utf8'), /@import|url\((?!#)/i, name);
+  for (const name of ['common.css', 'problems.css', 'replay.css']) assert.doesNotMatch(readFileSync(join(ASSETS, name), 'utf8'), /@import|url\((?!#)/i, name);
 });
 
 test('assets: every page loads the same files in the same order, and has the shared header', () => {
   for (const p of PAGES) {
     const t = readFileSync(join(ASSETS, p), 'utf8');
     const srcs = [...t.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
-    assert.deepEqual(srcs, ['evidence.js', 'key.js', 'private-text.js', 'common.js', ...PAGE_SCRIPTS[p]], p);
-    // The Problems page adds its own stylesheet after the shared one, which stays as it is.
-    assert.deepEqual([...t.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]), p === 'problems.html' ? ['common.css', 'problems.css'] : ['common.css'], p);
+    assert.deepEqual(srcs, ['prefs.js', 'evidence.js', 'key.js', 'private-text.js', 'common.js', ...PAGE_SCRIPTS[p]], p);
+    assert.match(t, IN_HEAD, `${p}: prefs.js in the head, before the stylesheet`);
+    // The Problems and Replay pages add their own stylesheet after the shared one, which stays as it is.
+    const own = { 'problems.html': 'problems.css', 'replay.html': 'replay.css' }[p];
+    assert.deepEqual([...t.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]), own ? ['common.css', own] : ['common.css'], p);
     for (const id of ['window', 'privacy', 'demo', 'status', 'content', 'quiet', 'privnote', 'navHigh']) assert.match(t, new RegExp(`id="${id}"`), `${p}: #${id}`);
     assert.match(t, /data-evkey/, `${p}: the evidence key`);
     // The key is one click away: a "?" button in the header opens it, named for a screen reader.
@@ -84,9 +88,11 @@ test('assets: every page loads the same files in the same order, and has the sha
     for (const link of PAGES) assert.match(t, new RegExp(`<nav[^]*href="${link}"[^]*</nav>`), `${p}: a link to ${link}`);
     assert.match(t, new RegExp(`href="${p}" aria-current="page"`), `${p}: marks itself current`);
   }
-  // The Setup page has the same header and quiet footer, and only the key client before its own script.
+  // The Setup page has the same header and quiet footer, and only the preferences (for the
+  // light/dark choice, in its head) and the key client before its own script.
   const st = readFileSync(join(ASSETS, 'setup.html'), 'utf8');
-  assert.deepEqual([...st.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]), ['key.js', 'private-text.js', 'form.js', 'setup.js']);
+  assert.deepEqual([...st.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]), ['prefs.js', 'key.js', 'private-text.js', 'form.js', 'setup.js']);
+  assert.match(st, IN_HEAD, 'setup.html: prefs.js in the head');
   assert.deepEqual([...st.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]), ['common.css']);
   for (const id of ['status', 'content', 'repos', 'addPath', 'emails', 'timezone', 'names', 'terms', 'goals', 'previewBtn', 'saveBtn']) assert.match(st, new RegExp(`id="${id}"`), `setup.html: #${id}`);
   assert.match(st, /<header class="topbar">[^]*href="setup\.html" aria-current="page"/);
@@ -95,7 +101,8 @@ test('assets: every page loads the same files in the same order, and has the sha
   for (const m of st.matchAll(/<input\b[^>]*>/g)) assert.match(m[0], /autocomplete="off"/, m[0]);
   // Settings: the same rules, and every page's header links to it.
   const sg = readFileSync(join(ASSETS, 'settings.html'), 'utf8');
-  assert.deepEqual([...sg.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]), ['key.js', 'private-text.js', 'form.js', 'settings.js']);
+  assert.deepEqual([...sg.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]), ['prefs.js', 'key.js', 'private-text.js', 'form.js', 'settings.js']);
+  assert.match(sg, IN_HEAD, 'settings.html: prefs.js in the head');
   assert.match(sg, /href="settings\.html" aria-current="page"/);
   assert.doesNotMatch(sg, /<form\b|<(input|select|textarea)\b[^>]*\sname="/);
   for (const m of sg.matchAll(/<input\b[^>]*>/g)) assert.match(m[0], /autocomplete="off"/, m[0]);
@@ -151,7 +158,7 @@ test('assets: no network: data comes only from this server, through the key clie
   for (const m of key.matchAll(/fetchFn\(\s*([^,]+),/g)) assert.match(m[1], /^['`]\/api\//, `key.js asks only /api routes: ${m[1]}`);
 });
 
-test('assets: session storage holds only the run key and the switch; local storage only the catalog preferences, in prefs.js', () => {
+test('assets: session storage holds only the run key and the switch; local storage only the catalog preferences and the theme, in prefs.js', () => {
   for (const f of files()) {
     const isKey = f.name === 'key.js';
     if (f.name === 'selftest/clickthrough.js') {
@@ -418,8 +425,9 @@ test("a share rounds down on every page, and an estimate past the window's total
   assert.match(search, /share > 1 \? "more than all the window's tokens" : `\$\{HW\.pct\(share\)\} of the window's tokens`/, 'the Find card');
   const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
   assert.match(problems, /const OVER = "more than all the window's tokens, since estimates for neighbouring steps overlap";/);
-  const body = problems.match(/function bodyHtml\(p\) \{[^]*?\n  \}/)[0];
-  assert.match(body, /p\.tokens\.tokens > D\.coverage\.tokens\.value \? `, \$\{OVER\}` : `, \$\{pct\(/, "a row's estimated cost");
+  const cost = problems.match(/function costHtml\(p\) \{[^]*?\n  \}/)[0];
+  assert.match(cost, /const all = D\.coverage\?\.tokens\?\.value;/);
+  assert.match(cost, /p\.tokens\.tokens > all \? `, \$\{OVER\}` : `, \$\{pct\(/, "a card's estimated cost");
 });
 
 // ---- before the first release: focus, wording that never over-claims, and the leak counter ----
@@ -449,11 +457,18 @@ test('closing the record panel never drops focus to the page: with no step or op
   assert.match(nearbyStep, /h\.setAttribute\('tabindex', '-1'\)/);
 });
 
-test('"Show routine notes" is one switch under the list, and it redraws the open rows', () => {
+test('"Show routine notes" is one quiet switch under the list, and it shows the routine rows the cards already hold', () => {
   const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
-  assert.doesNotMatch(problems, /data-routine[^-]/, 'no second switch inside each row');
-  assert.match(problems, /routineShown = ev\.target\.checked;\s+cards\.classList\.toggle\('show-routine', routineShown\);\s+redrawBodies\(\);/);
-  // The count beside the switch is of notes found, which can be more than the open rows show.
+  assert.doesNotMatch(problems, /data-routine[^-]/, 'no second switch inside each card');
+  // The switch redraws the cards, so "Show all N" counts only the rows in view.
+  assert.match(problems, /routineShown = ev\.target\.checked;\s+renderLanding\(\);/);
+  assert.match(problems, /cards\.classList\.toggle\('show-routine', routineShown\);/);
+  // A routine note is a row of its own kind, hidden until the switch is on.
+  assert.match(problems, /<li class="frow s-\$\{f\.severity === 'look' \? 'look' : 'note'\}"/);
+  const css = readFileSync(join(ASSETS, 'problems.css'), 'utf8');
+  assert.match(css, /\.frow\.s-note \{ display: none; \}/);
+  assert.match(css, /\.show-routine \.frow\.s-note \{ display: flex; \}/);
+  // The count beside the switch is of the routine notes found for the cards' rows.
   assert.match(problems, /Show routine notes \(\$\{full\(routine\)\} found\)/);
 });
 
@@ -494,4 +509,15 @@ test('the README names the first page Find, as the page does, and counts four pa
   assert.match(readme, /four parts: Find \(/);
   assert.match(readme, /- \*Find\.\* Type a pull request/);
   for (const p of PAGES) assert.match(readFileSync(join(ASSETS, p), 'utf8'), />Find<\/a>/, `${p}: the header calls it Find`);
+});
+
+test("Replay's story never hides a failed test run in a group, and every grouped step keeps its mark", () => {
+  const replay = readFileSync(join(ASSETS, 'replay.js'), 'utf8');
+  // A failed run stands alone, the way a step with a finding does.
+  assert.match(replay, /const standsAlone = \(e\) => F\.flags\.has\(e\.id\) \|\| RM\.isLongWait\(e\) \|\| !!resultOf\(e\)\?\.fail;/);
+  // An opened group's rows show each step's result and how it's known.
+  assert.match(replay, /<\/code>\$\{kidRes\(e\)\} \$\{sym\(e\.ev\)\}<\/button><\/li>/);
+  // The count worth a look carries its weakest mark and says how many of them are only possible.
+  assert.match(replay, /worth a look \$\{sym\(window\.HWE\.weakest\(c\.levels\)\)\}/);
+  assert.match(replay, /\$\{c\.possible\} of them possible/);
 });
