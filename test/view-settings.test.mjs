@@ -177,7 +177,7 @@ test('Settings rewrites only what was changed: everything else stays byte for by
   assert.equal(prev.status, 200, prev.text);
   assert.deepEqual(prev.json.changes.slice(0, 1), ['How far back: the last 7 days to the last 30 days.']);
   assert.match(prev.json.changes[1], /^Loads \d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2} \(\d+ MB\)\.$/, 'a new window says which days it loads');
-  assert.match(prev.json.changes[2], /^Estimate: about .* of memory; about .* with Show private text on\.$/);
+  assert.match(prev.json.changes[2], /^Estimate: at least .* and about .* of memory; at least .* and about .* with Show private text on\.$/);
   assert.equal(prev.json.changes[3], `${cfg.repos[1].label}: ${cfg.repos[1].role} to reference.`);
   const saved = await post(s, 'save', changed);
   assert.equal(saved.status, 200, saved.text);
@@ -387,7 +387,7 @@ test('the log limit can be raised in Settings: the change shows an estimate befo
   const prev = await post(s, 'preview', { ...base, historyLimitMB: 2000 });
   assert.equal(prev.status, 200, prev.text);
   assert.equal(prev.json.changes[0], 'Log limit: 500 MB to 2000 MB.');
-  assert.match(prev.json.changes[2], /^Estimate: about .+ of memory; about .+ with Show private text on\.$/);
+  assert.match(prev.json.changes[2], /^Estimate: at least .+ and about .+ of memory; at least .+ and about .+ with Show private text on\.$/);
   assert.equal(readFileSync(join(dir, 'honestweek.config.json'), 'utf8'), before, 'preview writes nothing');
   assert.equal((await post(s, 'save', { ...base, historyLimitMB: 2000 })).status, 200);
   assert.equal(JSON.parse(readFileSync(join(dir, 'honestweek.config.json'), 'utf8')).historyLimitMB, 2000);
