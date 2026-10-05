@@ -123,7 +123,9 @@ test('key: with no code, no saved key and no other tab, the page says so and ask
   assert.equal(r.ok, false);
   assert.equal(r.reason, 'no-key');
   assert.equal(s.calls.length, 0, 'not one request reached the server');
-  assert.match(NOTICE['no-key'], /Open the address the command printed, or press Enter in the terminal/);
+  // The notice says exactly what to do: press Enter where the command runs and open the new address.
+  assert.match(NOTICE['no-key'], /In the terminal where honestweek view runs, press Enter, then open the new address it prints./);
+  assert.match(NOTICE.stale, /press Enter, then open the new address it prints./);
   lone.client.close();
 });
 
