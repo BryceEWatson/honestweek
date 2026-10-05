@@ -21,7 +21,7 @@ const PAGES = ['search.html', 'goal.html', 'replay.html', 'problems.html'];
 // The scripts each page loads after the shared ones, in order. prefs.js comes first of all, in
 // the head, so a stored light/dark choice is on the page before anything is drawn.
 const PAGE_SCRIPTS = { 'search.html': ['search.js'], 'goal.html': ['strip.js', 'goal.js'], 'replay.html': ['facts.js', 'replay-model.js', 'replay.js'], 'problems.html': ['insights.js', 'facts.js', 'problems.js'] };
-const IN_HEAD = /<head>[^]*<script src="prefs.js"></script>s*<link rel="stylesheet" href="common.css">[^]*</head>/;
+const IN_HEAD = /<head>[^]*<script src="prefs\.js"><\/script>\s*<link rel="stylesheet" href="common\.css">[^]*<\/head>/;
 // The package author's name, read from package.json so this test doesn't spell out a real name.
 const OWNER_WORDS = String(JSON.parse(readFileSync(join(HERE, '..', 'package.json'), 'utf8')).author ?? '')
   .split(/\s+/)

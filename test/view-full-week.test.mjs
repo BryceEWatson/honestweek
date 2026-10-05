@@ -295,7 +295,8 @@ test('the pages: Setup and Settings land on Problems; the private-words line lin
   assert.match(asset('settings.html'), /id="names"/, 'the link lands on the private words');
   const problems = asset('problems.js');
   for (const words of ['Comparing with the week before…', 'Compared with the week before once every day is in.', 'before not loaded']) assert.ok(problems.includes(words), words);
-  assert.match(asset('problems.html'), /id="trendNote"/);
+  // The trend note sits in the landing's lead line, which problems.js draws.
+  assert.match(problems, /id="trendNote"/);
 });
 
 const TOOL = fileURLToPath(new URL('../tools/synthetic-week.mjs', import.meta.url));
