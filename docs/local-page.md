@@ -141,6 +141,8 @@ The bar's line is built from fixed words and only the numbers the finding or the
 | `needless-check-in` | turn-end | A turn that ended on a question, and the next prompt answering it, with the wait between. |
 | `risky-command` | moment | One command; the prompt before it shows whether it was asked for. |
 | `secret-in-log` | repeat | Secret-shaped text on several steps of one kind: each step is numbered. |
+| `open-todos-stop` | moment | The agent's last to-do update and the message that ended the turn with items still open, read with the prompt that opened the turn. |
+| `output-per-call` | moment | Model calls that wrote far more per tool call than this session usually does; the prompt before them shows what was asked. |
 
 All twenty checks have a kind. A check added later keeps the plain zoom until it's given one.
 
