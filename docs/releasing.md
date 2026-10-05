@@ -45,7 +45,7 @@ npm publish --dry-run
 The dry run runs the whole test suite first (about a minute), because `package.json` has a `prepublishOnly` script, and then prints what it would upload. Check:
 
 - `name: honestweek` and `version: 0.2.0`;
-- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (145 files and about 0.8 MB packed for 0.2.0, with the `view` pages under `lib/view/assets/`; later changes move the count, so check the list rather than the number);
+- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (146 files and about 0.8 MB packed for 0.2.0, with the `view` pages under `lib/view/assets/`; later changes move the count, so check the list rather than the number);
 - nothing from `test/`, `docs/`, `tools/` or `.claude/`.
 
 Then publish for real:

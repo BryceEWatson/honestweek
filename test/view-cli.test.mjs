@@ -137,7 +137,8 @@ test('a config with no private words gets a notice in the terminal and on every 
   const s = await ready(at.port, await claim(at.port, at.code));
   assert.equal(s.command, 'honestweek');
   assert.equal(s.privateWords.count, 0);
-  assert.ok(s.privateWords.note.includes('"redaction" in honestweek.config.json'), s.privateWords.note);
+  assert.equal(s.privateWords.note, 'No private words set, so names show as written.', 'one short line');
+  assert.ok(s.privateWords.more.includes('"redaction" in honestweek.config.json'), s.privateWords.more);
   await r.handle.stop();
   // Failing-path partner: the seeded config lists private words, so no notice anywhere.
   const withWords = await view(['--no-open', ...RANGE]);
@@ -146,6 +147,7 @@ test('a config with no private words gets a notice in the terminal and on every 
   const s2 = await ready(at2.port, await claim(at2.port, at2.code));
   assert.ok(s2.privateWords.count > 0);
   assert.equal(s2.privateWords.note, null);
+  assert.equal(s2.privateWords.more, null);
   await withWords.handle.stop();
 });
 

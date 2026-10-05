@@ -17,7 +17,7 @@ import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 import { runView } from '../lib/view.mjs';
 import { CODE_HEADER, KEY_HEADER } from '../lib/view/server.mjs';
 import { SETUP_MAX_BODY } from '../lib/view/setup.mjs';
-import { MAX_LOG_BYTES, planWindow } from '../lib/view/window.mjs';
+import { MAX_LOG_BYTES, paramsOfHistory, planWindow } from '../lib/view/window.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { normalizeConfig } from '../lib/config.mjs';
 import { buildViewWeek, NAME, OTHER_TERM, TERM, WEEK } from './fixtures/view/week.mjs';
@@ -89,7 +89,8 @@ async function ready(s) {
   let st;
   for (let i = 0; i < 600; i++) {
     st = (await call(s.port, { path: '/api/status', key: s.key })).json;
-    if (st.state === 'ready' || st.state === 'failed') return st;
+    // Ready means the whole window: a week loads its newest day first, and that's partial.
+    if ((st.state === 'ready' && !st.window?.partial) || st.state === 'failed') return st;
     await new Promise((r) => setTimeout(r, 50));
   }
   return st;
@@ -136,9 +137,15 @@ test('all history loads the newest days first up to the limit, and says which da
   // Failing-path partner: with room for everything, it reaches the oldest log and says nothing.
   const room = planWindow({ all: true }, { files, timezone: 'UTC', now: NOW, maxBytes: 10000 });
   assert.deepEqual([room.from, room.capped, room.note], [day(-300), false, null]);
-  // A shorter choice is held to the same limit, and today always loads.
-  assert.deepEqual(planWindow({ days: 7 }, { files, timezone: 'UTC', now: NOW, maxBytes: 150 }).from, day(-1), 'the day left out is the 300-byte one; the empty day after it loads');
-  assert.equal(planWindow({ days: 7 }, { files, timezone: 'UTC', now: NOW, maxBytes: 50 }).from, day(-1), 'today always loads, even over the limit');
+  // A choice longer than a week is held to the same limit, and today always loads.
+  assert.deepEqual(planWindow({ days: 8 }, { files, timezone: 'UTC', now: NOW, maxBytes: 150 }).from, day(-1), 'the day left out is the 300-byte one; the empty day after it loads');
+  assert.equal(planWindow({ days: 8 }, { files, timezone: 'UTC', now: NOW, maxBytes: 50 }).from, day(-1), 'today always loads, even over the limit');
+  // The last week, or fewer days, always loads whole, past any limit.
+  for (const days of [7, 3, 1]) {
+    const whole = planWindow({ days }, { files, timezone: 'UTC', now: NOW, maxBytes: 50 });
+    assert.deepEqual([whole.from, whole.capped, whole.whole, whole.note], [day(-(days - 1)), false, true, null], `${days} days`);
+  }
+  assert.equal(planWindow({ days: 7 }, { files, timezone: 'UTC', now: NOW, maxBytes: 50 }).bytes, 400, 'every byte of the week is counted');
   assert.equal(MAX_LOG_BYTES, 500 * 1024 * 1024);
   // Through view: all history starts on the oldest log's day, read from file times only.
   const dir = project('all', baseConfig({ history: { all: true } }));
@@ -170,7 +177,7 @@ test('Settings rewrites only what was changed: everything else stays byte for by
   assert.equal(prev.status, 200, prev.text);
   assert.deepEqual(prev.json.changes.slice(0, 1), ['How far back: the last 7 days to the last 30 days.']);
   assert.match(prev.json.changes[1], /^Loads \d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2} \(\d+ MB\)\.$/, 'a new window says which days it loads');
-  assert.match(prev.json.changes[2], /^Estimate: about .* of memory; about .* with Show private text on\.$/);
+  assert.match(prev.json.changes[2], /^Estimate: at least .* and about .* of memory; at least .* and about .* with Show private text on\.$/);
   assert.equal(prev.json.changes[3], `${cfg.repos[1].label}: ${cfg.repos[1].role} to reference.`);
   const saved = await post(s, 'save', changed);
   assert.equal(saved.status, 200, saved.text);
@@ -322,7 +329,11 @@ test('the page asks which days a choice loads: a cut-short choice says partial, 
   const ask = async (q) => (await call(s.port, { path: `/api/window?${q}`, key: s.key })).json;
   const week = await ask('kind=week');
   assert.equal(week.capped, false);
-  assert.match(week.line, new RegExp(`^Loads ${day(-6)} to ${WEEK.to} \\(\\d+ MB\\)\\.$`));
+  assert.match(week.line, new RegExp(`^Loads ${day(-6)} to ${WEEK.to} \\(\\d+ MB\\), newest day first\\.$`));
+  assert.equal(week.whole, true);
+  // The last week loads whole even when its days hold more than the limit.
+  const big = await ask('kind=days&days=7&limit=50');
+  assert.deepEqual([big.from, big.capped, big.whole], [day(-6), false, true]);
   const cut = await ask('kind=days&days=30&limit=50');
   assert.equal(cut.capped, true);
   assert.equal(cut.from, day(-19), 'from the day after the 60 MB day, which is left out');
@@ -376,7 +387,7 @@ test('the log limit can be raised in Settings: the change shows an estimate befo
   const prev = await post(s, 'preview', { ...base, historyLimitMB: 2000 });
   assert.equal(prev.status, 200, prev.text);
   assert.equal(prev.json.changes[0], 'Log limit: 500 MB to 2000 MB.');
-  assert.match(prev.json.changes[2], /^Estimate: about .+ of memory; about .+ with Show private text on\.$/);
+  assert.match(prev.json.changes[2], /^Estimate: at least .+ and about .+ of memory; at least .+ and about .+ with Show private text on\.$/);
   assert.equal(readFileSync(join(dir, 'honestweek.config.json'), 'utf8'), before, 'preview writes nothing');
   assert.equal((await post(s, 'save', { ...base, historyLimitMB: 2000 })).status, 200);
   assert.equal(JSON.parse(readFileSync(join(dir, 'honestweek.config.json'), 'utf8')).historyLimitMB, 2000);
@@ -400,4 +411,63 @@ test('Settings keeps the file as it was written: a 4-space indent and Windows li
   const t = await view(tab);
   assert.equal((await post(t, 'save', { ...(await untouched(t)), history: { days: 30 } })).status, 200);
   assert.equal(readFileSync(join(tab, 'honestweek.config.json'), 'utf8'), `${JSON.stringify({ ...cfg, history: { days: 30 } }, null, '\t')}\n`);
+});
+
+// ---- the preview line is the load -----------------------------------------------------------
+
+test('the line Setup and Settings show for a choice states exactly the days the server then loads', async () => {
+  // A 40 MB day three days back and a 60 MB day ten back, so a 50 MB limit cuts some choices short.
+  bigLog('forty', 40, 3);
+  bigLog('sixty-later', 60, 10);
+  const choices = [
+    [{ days: 7 }, 50],
+    [{ days: 3 }, 50],
+    [{ days: 30 }, 50],
+    [{ days: 30 }, 500],
+    [{ from: day(-25) }, 50],
+    [{ from: day(-25), to: day(-2) }, 50],
+    [{ all: true }, 50],
+  ];
+  const seen = [];
+  for (const [history, limit] of choices) {
+    const s = await view(project(`same-${JSON.stringify(history).replace(/\W+/g, '-')}-${limit}`, baseConfig({ history, historyLimitMB: limit })));
+    const preview = (await call(s.port, { path: `/api/window?${paramsOfHistory(history, limit)}`, key: s.key })).json;
+    const loaded = (await ready(s)).window;
+    const what = `${JSON.stringify(history)} at ${limit} MB`;
+    assert.deepEqual([loaded.from, loaded.to], [preview.from, preview.to], `${what}: the preview says ${preview.line}`);
+    assert.equal(!!loaded.note, preview.capped, `${what}: a note exactly when the line says partial`);
+    seen.push([JSON.stringify(history), limit, preview.capped, preview.whole]);
+    // Settings' own preview line for the same choice says the same days.
+    const i = await untouched(s);
+    const other = history.days === 3 ? { days: 4 } : { days: 3 };
+    const back = await post(s, 'preview', { ...i, history: other });
+    assert.ok(back.json.changes.some((c) => c.startsWith('Loads ')), `${what}: a changed choice names its days`);
+  }
+  // Both kinds were compared: choices the limit cut short, and the week, whole past the limit.
+  assert.ok(seen.some(([, , capped]) => capped), JSON.stringify(seen));
+  assert.deepEqual(seen[0], ['{"days":7}', 50, false, true]);
+});
+
+test('the trend reads the whole week before a week, past the log limit; a longer window keeps the limit for its window before', async () => {
+  // 60 MB in the week before this one (days -13 to -7), past a 50 MB limit.
+  bigLog('before-week', 60, 9);
+  const trendOf = async (s) => {
+    for (let i = 0; i < 600; i++) {
+      const t = (await call(s.port, { path: '/api/problems?trend=1', key: s.key })).json;
+      if (t?.earlier && !t.earlier.partial) return t;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return null;
+  };
+  const week = await view(project('trend-week', baseConfig({ historyLimitMB: 50 })));
+  await ready(week);
+  const t = await trendOf(week);
+  assert.equal(t.earlier.skipped, undefined, 'a week compares with all of the week before');
+  assert.deepEqual([t.earlier.from, t.earlier.to], [day(-13), day(-7)]);
+  // Failing-path partner: a 30-day window's 30 days before are held to the limit.
+  const month = await view(project('trend-month', baseConfig({ history: { days: 30 }, historyLimitMB: 50 })));
+  await ready(month);
+  const m = await trendOf(month);
+  assert.equal(m.earlier.skipped, 'limit');
+  assert.match(m.earlier.note, /past the 50 MB limit, so they aren't compared\.$/);
 });

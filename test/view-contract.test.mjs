@@ -262,7 +262,9 @@ test('status: the command a page names and the private-word note, and the pages 
   const b = bare.status();
   assert.equal(b.command, 'npx github:your-org/honestweek');
   assert.equal(b.privateWords.count, 0);
-  assert.ok(b.privateWords.note.includes('npx github:your-org/honestweek view again'), b.privateWords.note);
+  assert.equal(b.privateWords.note, 'No private words set, so names show as written.');
+  assert.ok(b.privateWords.more.includes('npx github:your-org/honestweek discover'), b.privateWords.more);
+  assert.ok(!b.privateWords.more.includes('view again'), 'Settings changes them with no restart, so the page never says to start again');
   // The demo always lists its made-up word, so it never shows the note.
   const demo = createViewData({ config: { ...w.config, redaction: { codenames: [], names: [], terms: [] } }, roots: w.roots, ...WINDOW, demo: true });
   assert.equal(demo.status().privateWords.note, null);
