@@ -65,6 +65,31 @@ test('the catalog, the map and the drafts agree: every mapped pattern and check 
   assert.ok(!JSON.stringify(catalog).includes('"publisher"'), 'no publisher (author) field');
 });
 
+test('every catalog pattern has a short plain headline of its own, and keeps its catalog name', () => {
+  const catalog = loadCatalog();
+  const seen = new Set();
+  for (const p of catalog.patterns) {
+    const h = p.headline;
+    assert.equal(typeof h, 'string', `${p.id}: a headline`);
+    assert.ok(h.length >= 10 && h.length <= 70, `${p.id}: short (${h.length} characters)`);
+    assert.match(h, /^[A-Z]/, `${p.id}: a sentence's start`);
+    assert.doesNotMatch(h, /[.!?:;]$/, `${p.id}: a title, not a sentence with a stop`);
+    // The voice bar: no em or en dash, no stand-in dash.
+    assert.doesNotMatch(h, /[–—]| -- | - /, `${p.id}: no dash`);
+    // Plain words about the pattern, not a count or a session from one week.
+    assert.doesNotMatch(h, /\d/, `${p.id}: no number`);
+    // What was done, never why: a log holds the act, not the purpose or what someone read.
+    assert.doesNotMatch(h, /\b(to get|in order to|so that|without reading)\b/i, `${p.id}: no motive`);
+    assert.notEqual(h, p.name, `${p.id}: the headline isn't the catalog name again`);
+    assert.ok(!seen.has(h), `${p.id}: its own headline`);
+    seen.add(h);
+    assert.ok(typeof p.name === 'string' && p.name.length > 0, `${p.id}: the catalog name stays`);
+  }
+  assert.equal(seen.size, catalog.patterns.length, 'none missing');
+  // The key sits beside the name, and nothing else in a pattern changed shape.
+  assert.deepEqual(Object.keys(catalog.patterns[0]).slice(0, 3), ['id', 'name', 'headline']);
+});
+
 test('classifiers: a completion claim and its negated partner', () => {
   assert.equal(classifyAgentText('Done. Fixed the parser.').flat, true);
   assert.equal(classifyAgentText('The parser is not fixed yet.').flat, false);
