@@ -1,13 +1,13 @@
-// The Problems page's preferences (lib/view/assets/prefs.js): "My priority" for a catalog
-// pattern and the "Worth a look" strip's two switches, kept in local storage under one key.
-// The store holds nothing else: no pattern id the server's catalog doesn't list, no tier
-// outside the four words, no other field, and nothing from a log. prefs.js is a plain browser
-// script; here it runs with a made-up storage.
+// The pages' preferences (lib/view/assets/prefs.js): "My priority" for a catalog pattern, the
+// "Worth a look" strip's two switches and the light/dark theme, kept in local storage under one
+// key. The store holds nothing else: no pattern id the server's catalog doesn't list, no tier or
+// theme outside its words, no other field, and nothing from a log. prefs.js is a plain browser
+// script; here it runs with a made-up storage. (The theme button: test/view-theme.test.mjs.)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import '../lib/view/assets/prefs.js';
 
-const { createPrefs, effective, SLOT, TIERS } = globalThis.HWPrefs;
+const { createPrefs, effective, SLOT, TIERS, THEMES } = globalThis.HWPrefs;
 
 function storage(seed = {}) {
   const m = new Map(Object.entries(seed));
@@ -87,6 +87,56 @@ test('no storage at all (a blocked or private window): the page still works, kee
   prefs.setKnown(KNOWN);
   prefs.setTier('action-loop', 'high', 'low');
   prefs.strip = true;
+  prefs.theme = 'dark';
   assert.equal(prefs.tierOf('action-loop'), null);
   assert.equal(prefs.strip, false);
+  assert.equal(prefs.theme, null);
+});
+
+test('the theme: absent by default, kept when "light" or "dark", and nothing else', () => {
+  const { s, prefs } = make();
+  assert.deepEqual(THEMES, ['light', 'dark']);
+  assert.equal(prefs.theme, null, 'no choice: the page follows the system');
+  assert.deepEqual(s.keys(), [], 'nothing is written until a theme is chosen');
+  prefs.theme = 'dark';
+  assert.equal(prefs.theme, 'dark');
+  assert.deepEqual(JSON.parse(s.getItem(SLOT)), { v: 1, priority: {}, strip: false, low: false, theme: 'dark' });
+  prefs.theme = 'light';
+  assert.deepEqual(JSON.parse(s.getItem(SLOT)), { v: 1, priority: {}, strip: false, low: false, theme: 'light' });
+  // Anything but the two words forgets the choice; with nothing else kept, the key goes.
+  for (const other of ['sepia', 'Dark', ' dark', '', 1, true, null, undefined, ['dark'], { dark: true }]) {
+    prefs.theme = 'dark';
+    prefs.theme = other;
+    assert.equal(prefs.theme, null, JSON.stringify(other));
+    assert.deepEqual(s.keys(), [], JSON.stringify(other));
+  }
+});
+
+test('the theme lives beside the catalog choices without changing them, and their listeners are not told', () => {
+  const { s, prefs } = make();
+  let told = 0;
+  prefs.onChange(() => (told += 1));
+  prefs.setTier('action-loop', 'high', 'low');
+  prefs.strip = true;
+  told = 0;
+  prefs.theme = 'dark';
+  assert.equal(told, 0, 'a theme change redraws no catalog list');
+  assert.deepEqual(JSON.parse(s.getItem(SLOT)), { v: 1, priority: { 'action-loop': 'high' }, strip: true, low: false, theme: 'dark' });
+  prefs.setTier('action-loop', 'low', 'low');
+  prefs.strip = false;
+  assert.equal(prefs.theme, 'dark', 'clearing the catalog choices keeps the theme');
+  prefs.theme = null;
+  assert.deepEqual(s.keys(), [], 'and forgetting it then leaves nothing');
+});
+
+test('a stored theme outside the two words is dropped on the first read (failing partner)', () => {
+  const planted = make({ [SLOT]: JSON.stringify({ v: 1, priority: {}, strip: true, low: false, theme: 'midnight' }) });
+  assert.equal(planted.prefs.theme, null);
+  assert.deepEqual(JSON.parse(planted.s.getItem(SLOT)), { v: 1, priority: {}, strip: true, low: false });
+  const alone = make({ [SLOT]: JSON.stringify({ theme: '<b>dark</b>' }) });
+  assert.equal(alone.prefs.theme, null);
+  assert.deepEqual(alone.s.keys(), [], 'an invalid theme alone leaves nothing to keep');
+  const kept = make({ [SLOT]: JSON.stringify({ theme: 'dark', note: 'typed words' }) });
+  assert.equal(kept.prefs.theme, 'dark');
+  assert.deepEqual(JSON.parse(kept.s.getItem(SLOT)), { v: 1, priority: {}, strip: false, low: false, theme: 'dark' });
 });
