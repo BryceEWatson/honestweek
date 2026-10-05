@@ -205,7 +205,7 @@ const answer = () => {
     groups: [{ id: 'process', name: 'Process', description: 'How the work goes.' }], priorityRule: null, statusCounts,
     coverage: { sessions: { value: 3, evidence: 'derived' }, tokens: { value: 1000, evidence: 'recorded' }, usageRecorded: true, toolCalls: { value: 9 }, modelCalls: { value: 9 } },
     rules: [], checks: [], patterns, focus: null,
-    sessions: { [S.cc]: { title: 'Fix the parser', thread: TH.cc, tool: 'claude-code' }, [S.cx]: { title: 'Widen the table', thread: TH.cx, tool: 'codex' }, [S.unknown]: { title: 'Something else', thread: TH.unknown, tool: null } },
+    sessions: { [S.cc]: { title: 'Fix the parser', thread: TH.cc, tool: 'claude-code', repo: 'your-project' }, [S.cx]: { title: 'Widen the table', thread: TH.cx, tool: 'codex', repo: 'a-shared-repo' }, [S.unknown]: { title: 'Something else', thread: TH.unknown, tool: null } },
   };
 };
 const TREND = { earlier: { from: '2025-03-03', to: '2025-03-09', days: 7, sessions: 0 }, trend: [] };
@@ -244,6 +244,9 @@ test('each finding row names its agent from its session, its time, its session, 
     const agents = [...r.matchAll(/<span class="agent">([^<]+)<\/span>/g)].map((m) => m[1]);
     // The agent's name comes only from the session the answer names; an unknown one gets none.
     assert.deepEqual(agents, tool ? [AGENT_NAME[tool]] : [], session);
+    // So does the repository it worked in; a session the answer gives none for shows none.
+    const repos = [...r.matchAll(/<span class="repotag"[^>]*>([^<]+)<\/span>/g)].map((m) => m[1]);
+    assert.deepEqual(repos, D.sessions[session].repo ? [D.sessions[session].repo] : [], session);
     assert.match(r, /<time datetime="[^"]+">/);
     assert.ok(r.includes(D.sessions[session].title), 'the session');
     assert.match(r, /<a class="see" href="replay\.html\?session=[^"]+~zoom~pf-[a-p]{12}" data-zoomlink[^>]*>See the steps/);

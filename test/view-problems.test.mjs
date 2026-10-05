@@ -413,6 +413,13 @@ test("the page draws this week's answer: every found pattern on the landing by i
     if (name) assert.ok(r.includes(`<span class="agent">${name}</span>`), `${s}: ${name}`);
     else assert.doesNotMatch(r, /class="agent"/);
   }
+  // Every session behind a finding names its configured repository, and the row shows it.
+  const keys = [...new Set(found.flatMap((p) => p.findings.map((f) => f.session)).filter(Boolean))];
+  assert.ok(keys.length > 0 && keys.every((k) => typeof whole.sessions[k]?.repo === 'string' && whole.sessions[k].repo.length > 0), 'each session carries its repository');
+  for (const r of rows) {
+    const s = r.match(/data-session="([^"]*)"/)[1];
+    assert.ok(r.includes(`<span class="repotag" title="Repository">${whole.sessions[s].repo}</span>`), `${s}: its repository`);
+  }
   // The drawn landing holds no private word and no secret.
   const shown = words(landing);
   for (const word of PRIVATE_WORDS) assert.ok(!shown.includes(word), `no "${word}"`);

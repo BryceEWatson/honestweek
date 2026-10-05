@@ -31,6 +31,7 @@
 .pc-head .ptrend { font-size: 14px; color: var(--muted); }
 .pc-other { font-size: 13px; }
 .cov { font-size: 12px; line-height: 18px; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+.repotag { font-size: 12px; font-weight: 600; line-height: 18px; color: var(--ink); white-space: nowrap; overflow-wrap: anywhere; }
 .agent { font-size: 12px; font-weight: 600; line-height: 18px; padding: 1px 8px; border-radius: 6px; background: var(--fix-wash); color: var(--accent-ink); white-space: nowrap; }
 
 .frows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line-soft); border-radius: 10px; }
