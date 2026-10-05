@@ -19,17 +19,17 @@ const ASSETS = join(HERE, '..', 'lib', 'view', 'assets');
 const SELFTEST = join(HERE, '..', 'lib', 'view', 'selftest');
 const PAGES = ['search.html', 'goal.html', 'replay.html', 'problems.html'];
 // The scripts each page loads after the shared ones, in order.
-const PAGE_SCRIPTS = { 'search.html': ['prefs.js', 'search.js'], 'goal.html': ['prefs.js', 'strip.js', 'goal.js'], 'replay.html': ['prefs.js', 'strip.js', 'facts.js', 'replay.js'], 'problems.html': ['prefs.js', 'insights.js', 'facts.js', 'problems.js'] };
+const PAGE_SCRIPTS = { 'search.html': ['prefs.js', 'search.js'], 'goal.html': ['prefs.js', 'strip.js', 'goal.js'], 'replay.html': ['prefs.js', 'facts.js', 'replay-model.js', 'replay.js'], 'problems.html': ['prefs.js', 'insights.js', 'facts.js', 'problems.js'] };
 // The package author's name, read from package.json so this test doesn't spell out a real name.
 const OWNER_WORDS = String(JSON.parse(readFileSync(join(HERE, '..', 'package.json'), 'utf8')).author ?? '')
   .split(/\s+/)
   .filter((w) => /^[A-Za-z]{3,}$/.test(w));
-const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js', 'problems.js', 'insights.js', 'facts.js', 'prefs.js', 'strip.js'];
+const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js', 'replay-model.js', 'problems.js', 'insights.js', 'facts.js', 'prefs.js', 'strip.js'];
 const files = () => [...readdirSync(ASSETS).map((f) => ({ name: f, path: join(ASSETS, f) })), ...readdirSync(SELFTEST).map((f) => ({ name: `selftest/${f}`, path: join(SELFTEST, f) }))].map((f) => ({ ...f, text: readFileSync(f.path, 'utf8') }));
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
 
 test('assets: the shipped page files are all there, and nothing else', () => {
-  assert.deepEqual(readdirSync(ASSETS).sort(), [...PAGES, 'setup.html', 'settings.html', ...SCRIPTS, 'form.js', 'setup.js', 'settings.js', 'common.css', 'problems.css'].sort());
+  assert.deepEqual(readdirSync(ASSETS).sort(), [...PAGES, 'setup.html', 'settings.html', ...SCRIPTS, 'form.js', 'setup.js', 'settings.js', 'common.css', 'problems.css', 'replay.css'].sort());
   assert.deepEqual(readdirSync(SELFTEST).sort(), ['clickthrough.html', 'clickthrough.js']);
 });
 
@@ -64,7 +64,7 @@ test('assets: no script writes an inline style, a handler attribute, an inline s
     }
   }
   // The stylesheets are the only place styles live, and they import nothing.
-  for (const name of ['common.css', 'problems.css']) assert.doesNotMatch(readFileSync(join(ASSETS, name), 'utf8'), /@import|url\((?!#)/i, name);
+  for (const name of ['common.css', 'problems.css', 'replay.css']) assert.doesNotMatch(readFileSync(join(ASSETS, name), 'utf8'), /@import|url\((?!#)/i, name);
 });
 
 test('assets: every page loads the same files in the same order, and has the shared header', () => {
@@ -72,8 +72,9 @@ test('assets: every page loads the same files in the same order, and has the sha
     const t = readFileSync(join(ASSETS, p), 'utf8');
     const srcs = [...t.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
     assert.deepEqual(srcs, ['evidence.js', 'key.js', 'private-text.js', 'common.js', ...PAGE_SCRIPTS[p]], p);
-    // The Problems page adds its own stylesheet after the shared one, which stays as it is.
-    assert.deepEqual([...t.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]), p === 'problems.html' ? ['common.css', 'problems.css'] : ['common.css'], p);
+    // The Problems and Replay pages add their own stylesheet after the shared one, which stays as it is.
+    const own = { 'problems.html': 'problems.css', 'replay.html': 'replay.css' }[p];
+    assert.deepEqual([...t.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]), own ? ['common.css', own] : ['common.css'], p);
     for (const id of ['window', 'privacy', 'demo', 'status', 'content', 'quiet', 'privnote', 'navHigh']) assert.match(t, new RegExp(`id="${id}"`), `${p}: #${id}`);
     assert.match(t, /data-evkey/, `${p}: the evidence key`);
     // The key is one click away: a "?" button in the header opens it, named for a screen reader.
