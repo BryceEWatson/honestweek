@@ -3,7 +3,7 @@
 [![CI](https://github.com/BryceEWatson/honestweek/actions/workflows/ci.yml/badge.svg)](https://github.com/BryceEWatson/honestweek/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-See where your Claude Code and Codex sessions went wrong, open the exact steps behind each problem, and check every count yourself. No AI reads your logs; nothing leaves your machine.
+See where your Claude Code and Codex sessions went wrong, open the exact steps behind each problem, and check every count yourself. Local and rule-based; nothing is sent to an AI unless you ask.
 
 honestweek works with the session logs that Claude Code and Codex already keep on your computer. It does three things with them, all on your own machine:
 
