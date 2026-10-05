@@ -2885,12 +2885,11 @@
       },
       "coverage": {
         "claudeCode": {
-          "status": "not yet",
-          "why": "No check looks for this yet"
+          "status": "runs"
         },
         "codex": {
-          "status": "not yet",
-          "why": "No check looks for this yet"
+          "status": "partial",
+          "why": "The check reads output tokens per model call from Codex's logs too, but it hasn't been measured on real Codex logs yet, so it hasn't been seen to work there"
         }
       },
       "mitigation": [
@@ -2911,6 +2910,15 @@
           "action": "Remove legacy \"always add a verification step\" or \"think carefully\" instructions for models that already verify and set their own thinking: OpenAI says GPT-6 Astra tests on its own, so such lines now cause extra testing."
         }
       ],
+      "testPrompt": "In a new empty folder, run echo 1, echo 2 and so on to echo 10, one command each. Then choose the best name for a counter from n, count and total, weighing each one carefully, and run echo with your choice.",
+      "testCost": "high",
+      "testCostWhy": "It shows only when one step writes 5,000 or more tokens, mostly thinking, after ten short ones, so seeing it costs at least that much output (an estimate). At a low effort it may not trigger at all.",
+      "testExpect": {
+        "works": "The naming step takes a short think, and no step stands out for output.",
+        "fails": "One step spends thousands of tokens before a one-word answer.",
+        "look": "In Claude Code, /usage shows what the session cost: ten echoes and a one-word choice should be cheap.",
+        "replay": "Open the test session in Replay: honestweek flags a step that wrote 5,000 or more output tokens and 5 times the session's median for the same model, so with the fix this problem shouldn't be found on it. It may not be found without the fix either."
+      },
       "related": [
         "unscoped-exploration",
         "subagent-overuse"
