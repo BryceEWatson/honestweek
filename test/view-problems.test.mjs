@@ -150,6 +150,15 @@ test('redactAnswer keeps ids, times and dates by key and shape, and redacts ever
   assert.deepEqual(splitUrl('https://example.com/a/b?c=1#d'), ['https://example.com', '/a', '/b', '?c=1', '#d']);
 });
 
+test("a session's repository label with a private word in it goes out hidden, even in an id's shape", () => {
+  // The sessions map as the route sends it: the label is text from the config, never an id, so
+  // the full redactor runs on it even when it looks like one.
+  const full = createRedactor(w.config).redact;
+  const out = redactAnswer({ 'cc-abcd': { title: null, thread: 'cc-abcd', tool: 'codex', repo: `${PRIVATE_WORDS[0]}-site` } }, full);
+  assert.ok(!out['cc-abcd'].repo.includes(PRIVATE_WORDS[0]), out['cc-abcd'].repo);
+  assert.match(out['cc-abcd'].repo, /\[redacted:/);
+});
+
 test("every rule a check or a finding names is defined in the answer, the engine's included", () => {
   const ids = new Set(whole.rules.map((r) => r.id));
   for (const id of ['shell.test', 'prompt.approval', 'problems.risky-command', 'cost.step']) assert.ok(ids.has(id), id);
