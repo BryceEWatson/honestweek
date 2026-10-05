@@ -1,7 +1,7 @@
 // "Zoom to these steps": each finding's key and zoom on /api/problems, ?finding=<key>, the
 // zoom's rules (one step, several, more than it recorded, only the nearest, two agents, two
-// threads), and the link from the Problems page through the replay's address and back to the
-// same finding.
+// threads), the scope each zoom carries (lib/problems/scope.mjs), and the link from the
+// Problems page through the replay's address and back to the same finding.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +12,8 @@ import { runInNewContext } from 'node:vm';
 
 import { createViewData } from '../lib/view/data.mjs';
 import { createLeakCounter } from '../lib/view/leaks.mjs';
-import { createProblemsRoute, FINDING_KEY, zoomOf } from '../lib/view/problems-route.mjs';
+import { createProblemsRoute, FINDING_KEY, withScope, zoomOf } from '../lib/view/problems-route.mjs';
+import { SCOPE_KINDS } from '../lib/problems/scope.mjs';
 import { buildViewWeek, WEEK } from './fixtures/view/week.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 
@@ -78,6 +79,19 @@ test('two agents and two threads: a lane each, counted', () => {
   assert.equal(zoomOf({ event: 'e9' }, events, threadOf), null, 'no step this build holds: nothing to zoom to');
 });
 
+test("the zoom carries the finding's scope, with only the steps the answering build holds", () => {
+  const zoom = zoomOf({ event: 'e2', related: 'e1' }, events, threadOf);
+  const scope = { kind: 'moment', steps: ['e1', 'e2', 'e9'], from: 10, to: 20, anchor: 'e2', prompt: 'e9', next: null, message: null, helper: null, parent: null, stretch: null, gap: null, caption: 'A command that reads as a hard reset ran', level: 'inferred' };
+  const z = withScope(zoom, scope, events);
+  assert.deepEqual(z.scope.steps, ['e1', 'e2']);
+  assert.equal(z.scope.prompt, null, 'a prompt this build lacks is dropped');
+  const { scope: _s, ...rest } = z;
+  assert.deepEqual(rest, zoom, 'the zoom itself is unchanged');
+  assert.equal(withScope(zoom, null, events), zoom, 'no scope: the zoom as it was');
+  assert.equal(withScope(null, scope, events), null);
+  assert.equal('scope' in withScope(zoom, { ...scope, steps: ['e9'] }, events), false, 'no step held: no scope');
+});
+
 test('the route answers a finding that spans two threads, with each lane, through ?finding=', () => {
   const finding = { pattern: 'p1', check: 'c1', checkTitle: 'A check', severity: 'look', verdictEvidence: 'derived', session: 's1', event: 'e2', events: ['e2', 'e5'], steps: 2, at: '2025-03-10T09:00:00.000Z', note: 'Two threads.' };
   const result = { window: {}, catalog: {}, groups: [], priorityRule: null, statusCounts: {}, coverage: {}, rules: {}, checks: [], patterns: [{ id: 'p1', name: 'A pattern', group: 'g', looksLike: '', whyItMatters: '', strength: 'reported', strengthReason: '', sourceKinds: {}, sources: [], detection: { level: 'derived', summary: '', signals: [], falsePositives: [] }, mitigation: [], related: [], status: 'found', findings: [finding] }] };
@@ -114,6 +128,25 @@ test('every finding has a key and its steps, in time order, with how many the ch
   assert.ok(findings.some((f) => f.zoom.total === 1));
   assert.ok(findings.some((f) => f.zoom.events.length > 1));
   assert.ok(findings.some((f) => f.zoom.near), 'the long-session finding marks its one step as only the nearest');
+});
+
+test("each zoom on the made-up week carries its scope: its check's kind, ringing the zoom's own steps", () => {
+  let n = 0;
+  for (const f of findings) {
+    const s = f.zoom.scope;
+    if (!SCOPE_KINDS[f.check]) {
+      assert.equal(s, undefined, `${f.check}: no kind, no scope`);
+      continue;
+    }
+    assert.ok(s, `${f.check}: a scope`);
+    n++;
+    assert.equal(s.kind, SCOPE_KINDS[f.check].kind);
+    assert.deepEqual([...s.steps].sort(), [...f.zoom.events].sort(), `${f.check}: the steps it rings are the zoom's own`);
+    assert.ok(Number.isFinite(s.from) && Number.isFinite(s.to) && s.from <= s.to);
+    assert.ok(typeof s.caption === 'string' && s.caption.length > 10, `${f.check}: a caption`);
+    for (const k of ['anchor', 'prompt', 'next', 'message', 'helper', 'parent']) if (s[k] != null) assert.match(s[k], /^[A-Za-z0-9][A-Za-z0-9._:~-]*$/, `${f.check}: its ${k} id passes whole`);
+  }
+  assert.ok(n > 5, `${n} scopes`);
 });
 
 test('?finding= answers the same finding, refuses a malformed key, and says when the key is unknown', async () => {
@@ -153,7 +186,11 @@ test('the link round-trips: the page builds it, the replay reads the key back, a
 
 test('the pages read the names the answer carries, and leaving the zoom clears it', () => {
   const r = page('replay.js');
-  for (const name of ["load('problems', { finding: key })", 'z.near', 'z.total', 'z.unread', 'z.lanes', 'f.verdictEvidence', 'zoomhalo']) assert.ok(r.includes(name), `replay.js reads ${name}`);
+  for (const name of ["load('problems', { finding: key })", 'z.near', 'z.total', 'z.unread', 'z.lanes', 'f.verdictEvidence', 'zoomhalo', 'z.scope', 'RM.readScope', 'RM.scopeFrame', 'RM.scopeMarks', 'RM.repeatNumbers', 'zstretch', 'zstart', 'zgap', 'zctx', 'znum']) assert.ok(r.includes(name), `replay.js reads ${name}`);
+  for (const cls of ['.zstretch', '.zstart', '.zgap', '.zctx', '.znum']) assert.ok(page('replay.css').includes(cls), `replay.css styles ${cls}`);
+  // The bar shows the scope's caption with its level, else the count it showed before.
+  assert.match(r, /const count = Z\.S\?\.caption \?\? \(z\.near \? '1 step, nearest'/);
+  assert.match(r, /chip\(Z\.S\?\.level \?\? f\.verdictEvidence\)/);
   // The fit control, Esc, double-click and the whole-session choice all leave through fitAll.
   assert.match(r, /\$\('fit'\)\.addEventListener\('click', fitAll\)/);
   assert.match(r, /ev\.key === 'Escape' && !document\.querySelector\('\.drawer\.open'\)\) fitAll\(\)/);

@@ -256,6 +256,44 @@ test('the replay builds the same zoom link as the Problems page', () => {
   assert.equal(M.zoomHref({ ...f, key: 'nope' }), null);
 });
 
+// ---- a finding's scope: how its zoom frames it -------------------------------------------------------
+
+test("a served scope is read only when its shape holds, keeping only this replay's steps in time order", () => {
+  const t = { e1: 10, e2: 20, e3: 30, p0: 0 };
+  const opts = { has: (id) => id in t, tOf: (id) => t[id] };
+  const s = { kind: 'repeat', steps: ['e3', 'e1', 'gone', 'e2'], from: 10, to: 31, anchor: 'e1', prompt: 'p0', next: 'gone', caption: 'The same call ran 3 times', level: 'derived', stretch: null, gap: { from: 5, to: 1 } };
+  const S = M.readScope(s, opts);
+  assert.deepEqual(S.steps, ['e1', 'e2', 'e3'], 'in time order, a step this replay lacks dropped');
+  assert.deepEqual([S.anchor, S.prompt, S.next, S.gap, S.stretch], ['e1', 'p0', null, null, null], 'a backwards gap is dropped');
+  assert.deepEqual([S.caption, S.level], ['The same call ran 3 times', 'derived']);
+  assert.equal(M.readScope({ ...s, level: 'certain' }, opts).level, null, 'only the five evidence words');
+  assert.equal(M.readScope({ ...s, anchor: 'gone' }, opts).anchor, 'e1', 'an anchor it lacks falls back to the first step');
+  // Anything malformed reads as no scope: the zoom then frames the recorded steps as before.
+  for (const bad of [null, 'moment', { ...s, kind: 'blob' }, { ...s, from: 'x' }, { ...s, to: 5 }, { ...s, steps: ['gone'] }, { ...s, steps: 'e1' }]) assert.equal(M.readScope(bad, opts), null, JSON.stringify(bad));
+  const st = M.readScope({ ...s, kind: 'stretch', stretch: { from: 12, to: 30, agent: 'a:main' } }, opts);
+  assert.deepEqual(st.stretch, { from: 12, to: 30, agent: 'a:main' });
+});
+
+test("a scope's frame has a small margin, and its marks: the ringed steps, the steps it names, and in a stretch that agent's steps inside it", () => {
+  assert.deepEqual(M.scopeFrame({ from: 0, to: 1000e3 }), [-40e3, 1040e3], 'four percent of a long frame');
+  assert.deepEqual(M.scopeFrame({ from: 0, to: 5e3 }), [-10e3, 15e3], 'at least ten seconds');
+  assert.deepEqual(M.scopeFrame({ from: 0, to: 1000e3 }, { within: [-5e3, 1010e3] }), [-5e3, 1010e3], "never past the replay's first and last record");
+  const S = { kind: 'stretch', steps: ['e1'], stretch: { from: 100, to: 200, agent: 'a:main' }, prompt: 'p0', next: null, message: null, helper: null, parent: 'e1' };
+  const marks = M.scopeMarks(S);
+  assert.deepEqual([...marks], [['p0', 'prompt']], 'a named step that is also ringed stays only ringed');
+  const role = (e) => M.scopeRole(S, e, { set: new Set(S.steps), marks });
+  assert.equal(role({ id: 'e1', t: 90, agent: 'a:main' }), 'ring');
+  assert.equal(role({ id: 'p0', t: 0, agent: 'a:main' }), 'prompt');
+  assert.equal(role({ id: 'x', t: 150, agent: 'a:main' }), 'stretch');
+  assert.equal(role({ id: 'x', t: 150, agent: 'b:sub' }), null, "another agent's step in the same time steps back");
+  assert.equal(role({ id: 'x', t: 250, agent: 'a:main' }), null, 'after the stretch');
+  assert.equal(M.scopeRole({ kind: 'moment', steps: ['e1'] }, { id: 'e1' }), 'ring');
+  assert.equal(M.scopeRole(null, null), null);
+  // A repeat's numbers: none closer than 14 pixels to the last one drawn.
+  assert.deepEqual(M.repeatNumbers([10, 20, 30, 31, 60]), [0, 2, 4]);
+  assert.deepEqual(M.repeatNumbers([]), []);
+});
+
 // ---- the demo session -----------------------------------------------------------------------------
 
 test('the demo session: 8 dots worth a look, two breaks of 19 and 5 minutes, and its groups', async () => {
