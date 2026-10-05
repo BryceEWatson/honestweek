@@ -459,3 +459,16 @@ test('"Show all" counts only the rows in view: routine notes join the count once
   assert.match(card(), /Show all 5 listed/);
   assert.equal(el('cards').classList.contains('show-routine'), true);
 });
+
+test("every card links to where the problem comes from: its published sources by kind, opening the problem's page", async () => {
+  const D = answer();
+  const { el } = await drawProblems(D);
+  const html = `${el('cards').innerHTML}${el('possible').innerHTML}`;
+  const card = (id) => blocks(html, 'article', 'pc').find((c) => c.includes(`data-pattern="${id}"`));
+  for (const p of D.patterns.filter((x) => x.status === 'found')) {
+    assert.match(card(p.id), new RegExp(`<a class="pc-src" href="#${p.id}" data-sources="${p.id}">Sources: 1 vendor doc</a>`), p.id);
+  }
+  // On the problem's page the same sources sit in the closed fold, under a heading the link opens.
+  const { el: d } = await drawProblems(D, { hash: '#context-bloat' });
+  assert.match(d('detail').innerHTML, /<h3 id="src-context-bloat" tabindex="-1">Sources<\/h3>/);
+});
