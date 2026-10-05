@@ -534,3 +534,30 @@ test('a config with no private words is not added to .gitignore', async () => {
     cleanup(t.parent);
   }
 });
+
+test('the repository list puts the folder you ran from first, then the newest commit, and never asks git about a display-only one', () => {
+  const t = setupTree();
+  try {
+    const sibB = join(t.parent, 'sibB');
+    mkdirSync(sibB);
+    initRepoWithCommit(sibB, OTHER);
+    const when = { sibA: 1000, sibB: 5000 };
+    const { repos } = findRepos(t.cwd, ME, { lastCommitAt: (p) => when[basename(p)] ?? null });
+    assert.deepEqual(repos.map((r) => r.label), ['myproj', 'sibB', 'sibA']);
+    assert.deepEqual(repos.map((r) => r.lastAt), [null, 5000, 1000]);
+    // Failing-path partner: a repository git gives no time for sorts after the dated ones.
+    const some = findRepos(t.cwd, ME, { lastCommitAt: (p) => (basename(p) === 'sibA' ? 1000 : null) });
+    assert.deepEqual(some.repos.map((r) => r.label), ['myproj', 'sibA', 'sibB']);
+    // A display-only repository is never passed to git, so it gets no time.
+    const asked = [];
+    const disp = findRepos(t.cwd, ME, { displayPaths: [t.sibA], lastCommitAt: (p) => (asked.push(basename(p)), 1) });
+    assert.ok(!asked.includes('sibA'), 'git was asked about a display-only repository');
+    assert.equal(disp.repos.find((r) => r.label === 'sibA').lastAt, undefined);
+    // The real read gives each read repository a time, and the config never stores it.
+    const real = findRepos(t.cwd, ME);
+    assert.ok(real.repos.every((r) => Number.isFinite(r.lastAt)), 'every read repository has a last commit time');
+    assert.ok(!('lastAt' in buildConfig({ authorEmail: ME, repos: real.repos, timezone: 'UTC' }).repos[0]));
+  } finally {
+    cleanup(t.parent);
+  }
+});
