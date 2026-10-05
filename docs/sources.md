@@ -4,7 +4,7 @@
 
 This page lists every published source behind honestweek's 41 known problems, each one once: vendor docs, bug reports, research papers and a few others. Each entry gives the source's title, linked to where it's published, its date, and the problems that cite it, so you can check the evidence for any problem in one place. I generate it from the problem catalog, so it changes only when the catalog does.
 
-212 sources. The catalog was checked on 2026-10-03 and 2026-10-05.
+208 sources. The catalog was checked on 2026-10-03 and 2026-10-05.
 
 ## Vendor docs (53)
 
@@ -43,7 +43,7 @@ This page lists every published source behind honestweek's 41 known problems, ea
 - [Don't Build Multi-Agents](https://cognition.com/blog/dont-build-multi-agents) (2025-06-12)
   Cited by: Guessed instead of asking; Lost or ignored what a helper found.
 - [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) (2025-09-29)
-  Cited by: Filled the context with huge command output; Forgot earlier work after the context was summarized; Sessions ran long past where a fresh start would help.
+  Cited by: Filled the context with huge command output; Forgot earlier work after the context was summarized.
 - [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) (2025-11-26)
   Cited by: Removed or skipped tests, or narrowed the test command; Said it was done without running a check; Started editing before reading enough of the code.
 - [Environment variables (Claude Code)](https://code.claude.com/docs/en/env-vars) (undated page, fetched 2026-10-05)
@@ -115,7 +115,7 @@ This page lists every published source behind honestweek's 41 known problems, ea
 - [Writing effective tools for agents, with agents](https://www.anthropic.com/engineering/writing-tools-for-agents) (2025-09-11)
   Cited by: Filled the context with huge command output; Hit the same tool error again and again; Read the same file again when it hadn't changed.
 
-## Bug reports (110)
+## Bug reports (109)
 
 - ["Error: String to replace not found in file."](https://github.com/anthropics/claude-code/issues/968) (2025-05-05)
   Cited by: Hit the same tool error again and again.
@@ -307,8 +307,6 @@ This page lists every published source behind honestweek's 41 known problems, ea
   Cited by: Went around a hook, a check or a refusal.
 - [Self-authored tests do the work of the code under test — hand-seeded fixtures masked a broken paid feature (271-incident retro, 3/5)](https://github.com/anthropics/claude-code/issues/94170) (2026-09-14)
   Cited by: Hard-coded what the tests check for.
-- [Session quality degrades significantly during long conversations](https://github.com/anthropics/claude-code/issues/45564) (2026-04-09)
-  Cited by: Sessions ran long past where a fresh start would help.
 - [Single web search request spawned 280 parallel subagent sessions, consuming entire daily limit + $51 extra usage](https://github.com/anthropics/claude-code/issues/49275) (2026-04-16)
   Cited by: Started helpers the work didn't need.
 - [Sleep polling loop on large inputs instead of using handoff-to-subscription](https://github.com/anthropics/claude-code/issues/34734) (2026-03-15)
@@ -338,7 +336,7 @@ This page lists every published source behind honestweek's 41 known problems, ea
 - [You're right, I wasted a ton of tokens looping on tsc.](https://github.com/anthropics/claude-code/issues/57535) (2026-05-09)
   Cited by: Repeated the same step without getting further.
 
-## Research papers (49)
+## Research papers (46)
 
 - ["Your AI, My Shell": Demystifying Prompt Injection Attacks on Agentic AI Coding Editors](https://arxiv.org/abs/2509.22040) (2025-09)
   Cited by: Followed instructions planted in what it read.
@@ -358,10 +356,6 @@ This page lists every published source behind honestweek's 41 known problems, ea
   Cited by: Ran a command that can't be undone.
 - [Coding Agents Don't Know When to Act](https://arxiv.org/abs/2605.07769) (2026-05)
   Cited by: Did more than you asked for.
-- [Context Length Alone Hurts LLM Performance Despite Perfect Retrieval](https://arxiv.org/abs/2510.05381) (2025-10)
-  Cited by: Sessions ran long past where a fresh start would help.
-- [Context Rot: How Increasing Input Tokens Impacts LLM Performance](https://www.trychroma.com/research/context-rot) (2025-07)
-  Cited by: Sessions ran long past where a fresh start would help.
 - [Failure as a Process: An Anatomy of CLI Coding Agent Trajectories](https://arxiv.org/abs/2607.09510) (2026-07)
   Cited by: Said it was done without running a check.
 - [From Confident Closing to Silent Failure: Characterizing False Success in LLM Agents](https://arxiv.org/abs/2606.09863) (2026-06)
@@ -379,9 +373,7 @@ This page lists every published source behind honestweek's 41 known problems, ea
 - [LLM Hallucinations in Practical Code Generation: Phenomena, Mechanism, and Mitigation](https://arxiv.org/abs/2409.20550) (2024-09)
   Cited by: Used a file, function or flag that doesn't exist.
 - [LLMs Get Lost In Multi-Turn Conversation](https://arxiv.org/abs/2505.06120) (2025-05)
-  Cited by: Guessed instead of asking; Sessions ran long past where a fresh start would help.
-- [Lost in the Middle: How Language Models Use Long Contexts](https://arxiv.org/abs/2307.03172) (2023-07)
-  Cited by: Sessions ran long past where a fresh start would help.
+  Cited by: Guessed instead of asking.
 - [Measuring AI Ability to Complete Long Tasks](https://arxiv.org/abs/2503.14499) (2025-03)
   Cited by: Repeated the same step without getting further; Stopped before the work was finished.
 - [Mitigating LLM Sycophancy in Code Smell Detection Using Evidence-Guided Reasoning Prompts](https://arxiv.org/abs/2607.10411) (2026-07)

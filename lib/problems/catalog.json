@@ -1416,10 +1416,10 @@
       "name": "Long or mixed session without a reset",
       "headline": "Sessions ran long past where a fresh start would help",
       "group": "efficiency-cost",
-      "looksLike": "One session keeps going for hours, or mixes unrelated tasks (the kitchen-sink session); the context fills with old file contents and command output, auto-compaction fires, and quality and instruction-following drop.",
-      "whyItMatters": "Every request re-sends the whole history, so cost climbs with length, and models get measurably worse as input grows, even when the answer is in the context and even from a single irrelevant distractor.",
+      "looksLike": "One session keeps going for hours, or mixes unrelated tasks (the kitchen-sink session), so every request re-sends a long history of old file contents and command output.",
+      "whyItMatters": "Every request re-sends the whole history, so a step late in a long session, even a one-line question, pays for the full conversation again. On a plan, that uses your limits faster than your activity suggests.",
       "strength": "well-established",
-      "strengthReason": "Both vendors make it their central context advice, and several papers measure accuracy falling with input length and with distractors, and cost snowballing in agent runs. Task-mixing on its own is named by both vendors but not measured directly.",
+      "strengthReason": "Both vendors say each request carries the whole conversation and advise a fresh start between tasks, and the re-reading is arithmetic from the log's own token counts. Whether quality also drops with length on current models isn't shown, so honestweek doesn't claim it.",
       "detection": {
         "level": "derived",
         "summary": "Per-request input tokens (including cache reads) climb past a threshold, compaction events appear, many prompts pass without a /clear, or consecutive prompts work on unrelated files or projects in the same context.",
@@ -1495,14 +1495,14 @@
           "url": "https://code.claude.com/docs/en/best-practices",
           "date": "undated page, fetched 2026-10-03",
           "kind": "docs",
-          "says": "Most best practices rest on one constraint: the context window fills fast and performance degrades as it fills. Also names the kitchen sink session (unrelated tasks in one context) as a common failure, fixed with /clear between tasks."
+          "says": "Names the kitchen sink session (unrelated tasks in one context) as a common failure, fixed with /clear between tasks."
         },
         {
           "title": "Manage costs effectively",
           "url": "https://code.claude.com/docs/en/costs",
           "date": "undated page, fetched 2026-10-03",
           "kind": "docs",
-          "says": "Unexpectedly high spend usually traces back to long sessions that were never cleared; each request carries the whole conversation, so a one-line question late in a long session still costs the full history."
+          "says": "Claude Code sends the full conversation with every request, so a one-line question in a session open all day still draws usage for the whole conversation; unexpectedly high spend usually traces back to long sessions that were never cleared."
         },
         {
           "title": "Best practices (Codex)",
@@ -1510,41 +1510,6 @@
           "date": "undated page, fetched 2026-10-05",
           "kind": "docs",
           "says": "Codex docs say to keep one chat per coherent unit of work, and list using a single chat for an entire project, which bloats context, among common mistakes."
-        },
-        {
-          "title": "Effective context engineering for AI agents",
-          "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
-          "date": "2025-09-29",
-          "kind": "docs",
-          "says": "As tokens in the context window increase, the model's ability to recall information from it decreases (context rot)."
-        },
-        {
-          "title": "Context Rot: How Increasing Input Tokens Impacts LLM Performance",
-          "url": "https://www.trychroma.com/research/context-rot",
-          "date": "2025-07",
-          "kind": "paper",
-          "says": "Across 18 models, performance fell as input grew even on simple tasks, and a single distractor hurt; a focused 300-token prompt beat the full 113k-token one."
-        },
-        {
-          "title": "LLMs Get Lost In Multi-Turn Conversation",
-          "url": "https://arxiv.org/abs/2505.06120",
-          "date": "2025-05",
-          "kind": "paper",
-          "says": "Performance dropped 39% on average when a task was spread over several turns, mostly from rising unreliability."
-        },
-        {
-          "title": "Context Length Alone Hurts LLM Performance Despite Perfect Retrieval",
-          "url": "https://arxiv.org/abs/2510.05381",
-          "date": "2025-10",
-          "kind": "paper",
-          "says": "Performance dropped 13.9% to 85% as input grew, well inside the claimed window, even with perfect retrieval."
-        },
-        {
-          "title": "Lost in the Middle: How Language Models Use Long Contexts",
-          "url": "https://arxiv.org/abs/2307.03172",
-          "date": "2023-07",
-          "kind": "paper",
-          "says": "Models use information at the start and end of long contexts best and miss it in the middle."
         },
         {
           "title": "SWE-Effi: Re-Evaluating Software AI Agent System Effectiveness Under Resource Constraints",
@@ -1559,13 +1524,6 @@
           "date": "2026-04",
           "kind": "paper",
           "says": "Agentic coding used about 1000 times more tokens than code chat, with input tokens dominating cost."
-        },
-        {
-          "title": "Session quality degrades significantly during long conversations",
-          "url": "https://github.com/anthropics/claude-code/issues/45564",
-          "date": "2026-04-09",
-          "kind": "user-report",
-          "says": "After about three hours in one session the agent contradicted itself and changed shared code, breaking the app."
         },
         {
           "title": "Hooks reference (Claude Code)",
