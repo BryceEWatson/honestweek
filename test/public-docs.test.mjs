@@ -32,8 +32,8 @@ function proseLines(text) {
   return out;
 }
 
-/** GitHub's anchor for a heading: lowercased, punctuation dropped, spaces to hyphens. */
-const slug = (h) => h.trim().toLowerCase().replace(/<[^>]+>/g, '').replace(/[`*_~]/g, '').replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/\s/g, '-');
+/** GitHub's anchor for a heading: lowercased, punctuation but hyphens and underscores dropped, spaces to hyphens. */
+const slug = (h) => h.trim().toLowerCase().replace(/<[^>]+>/g, '').replace(/[`*~]/g, '').replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
 
 const anchorCache = new Map();
 function anchorsOf(file) {
@@ -104,7 +104,8 @@ test("every file the README's Sidecars table calls gitignored is ignored by the 
   const table = README.slice(README.indexOf('## Sidecars'), README.indexOf('\n## ', README.indexOf('## Sidecars') + 1));
   const named = [...table.matchAll(/^\| `([^`]+)`[^|]*\|(.*)\|\s*$/gm)].filter(([, , status]) => /\*\*Gitignored[.*:]/.test(status)).map(([, file]) => file);
   assert.ok(named.length >= 8, `the table's gitignored rows were found (${named.length})`);
-  const r = spawnSync('git', ['check-ignore', '--no-index', ...named], { cwd: ROOT, encoding: 'utf8' });
+  // Only the repository's own .gitignore counts, not a global excludes file on this machine.
+  const r = spawnSync('git', ['-c', 'core.excludesFile=', 'check-ignore', '--no-index', ...named], { cwd: ROOT, encoding: 'utf8' });
   const ignored = new Set(r.stdout.split(/\r?\n/).filter(Boolean));
   assert.deepEqual(named.filter((f) => !ignored.has(f)), [], 'a sidecar the README calls gitignored is missing from .gitignore');
 });

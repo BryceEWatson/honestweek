@@ -20,7 +20,7 @@ Please report privately if you find any way honestweek could:
 - send any data off your machine, other than through Run /insights or Run with Codex after you confirm;
 - write an unredacted secret, or text it was told to redact, into an output file;
 - run `git` against a display-only repository, or against a repository outside your list other than the setup checks above;
-- let the `preview` server answer anyone other than your own machine, or serve a file outside its output folder;
+- let the `preview` server answer anyone other than your own machine or a request that names another host, or serve a file outside its output folder;
 - let the `view` server answer another website, another host name, or a request without the run's key, show a secret with Show private text on, show a private word with it off, or write anything it read to disk other than the config and Run with Codex's redacted answers;
 - run a command built from text inside a session log, or run `claude` or `codex` without your confirm.
 
