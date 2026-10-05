@@ -424,8 +424,9 @@ test("a share rounds down on every page, and an estimate past the window's total
   assert.match(search, /share > 1 \? "more than all the window's tokens" : `\$\{HW\.pct\(share\)\} of the window's tokens`/, 'the Find card');
   const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
   assert.match(problems, /const OVER = "more than all the window's tokens, since estimates for neighbouring steps overlap";/);
-  const body = problems.match(/function bodyHtml\(p\) \{[^]*?\n  \}/)[0];
-  assert.match(body, /p\.tokens\.tokens > D\.coverage\.tokens\.value \? `, \$\{OVER\}` : `, \$\{pct\(/, "a row's estimated cost");
+  const cost = problems.match(/function costHtml\(p\) \{[^]*?\n  \}/)[0];
+  assert.match(cost, /const all = D\.coverage\?\.tokens\?\.value;/);
+  assert.match(cost, /p\.tokens\.tokens > all \? `, \$\{OVER\}` : `, \$\{pct\(/, "a card's estimated cost");
 });
 
 // ---- before the first release: focus, wording that never over-claims, and the leak counter ----
@@ -455,11 +456,16 @@ test('closing the record panel never drops focus to the page: with no step or op
   assert.match(nearbyStep, /h\.setAttribute\('tabindex', '-1'\)/);
 });
 
-test('"Show routine notes" is one switch under the list, and it redraws the open rows', () => {
+test('"Show routine notes" is one quiet switch under the list, and it shows the routine rows the cards already hold', () => {
   const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
-  assert.doesNotMatch(problems, /data-routine[^-]/, 'no second switch inside each row');
-  assert.match(problems, /routineShown = ev\.target\.checked;\s+cards\.classList\.toggle\('show-routine', routineShown\);\s+redrawBodies\(\);/);
-  // The count beside the switch is of notes found, which can be more than the open rows show.
+  assert.doesNotMatch(problems, /data-routine[^-]/, 'no second switch inside each card');
+  assert.match(problems, /routineShown = ev\.target\.checked;\s+\$\('cards'\)\.classList\.toggle\('show-routine', routineShown\);/);
+  // A routine note is a row of its own kind, hidden until the switch is on.
+  assert.match(problems, /<li class="frow s-\$\{f\.severity === 'look' \? 'look' : 'note'\}"/);
+  const css = readFileSync(join(ASSETS, 'problems.css'), 'utf8');
+  assert.match(css, /\.frow\.s-note \{ display: none; \}/);
+  assert.match(css, /\.show-routine \.frow\.s-note \{ display: flex; \}/);
+  // The count beside the switch is of the routine notes found for the cards' rows.
   assert.match(problems, /Show routine notes \(\$\{full\(routine\)\} found\)/);
 });
 

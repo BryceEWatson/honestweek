@@ -16,6 +16,7 @@ import { createLeakCounter } from '../lib/view/leaks.mjs';
 import { createProblemsRoute, redactAnswer, splitUrl } from '../lib/view/problems-route.mjs';
 import { buildViewWeek, PRIVATE_WORDS, SECRETS, WEEK } from './fixtures/view/week.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
+import { blocks, drawProblems, words } from './helpers/problems-page.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { earlierWindow, loadCatalog, PATTERN_CHECKS } from '../lib/problems/index.mjs';
 import { DRAFTS } from '../lib/problems/drafts.mjs';
@@ -65,7 +66,7 @@ test('the whole page: forty-one patterns with the fields the page reads, and the
 
 test('the page reads the names the answer carries (the page side of the contract)', () => {
   const js = page('problems.js');
-  for (const name of ['D.priorityRule', 'D.statusCounts', 'D.focus', 'D.checks', 'D.coverage', 'D.catalog', 'D.rules', 'p.looksLike', 'p.whyItMatters', 'p.strengthReason', 'p.sourceKinds', 'p.detection', 'p.mitigation', 'p.sure', 'p.possible', 'p.claim', 'p.testPrompt', 'f.basis', 'p.notesFound', 'p.draft', 'f.verdictEvidence', 'f.checkTitle', 'f.relatedLabel', 'f.stillRunning', 's.link', 's.says']) assert.ok(js.includes(name), `problems.js reads ${name}`);
+  for (const name of ['D.priorityRule', 'D.statusCounts', 'D.focus', 'D.checks', 'D.coverage', 'D.catalog', 'D.rules', 'D.sessions', 'p.headline', 'p.name', 'p.looksLike', 'p.whyItMatters', 'p.strengthReason', 'p.sourceKinds', 'p.detection', 'p.mitigation', 'p.sure', 'p.possible', 'p.claim', 'p.testPrompt', 'f.basis', 'f.note', 'f.text', 'f.kind', 'p.notesFound', 'p.draft', 'p.coverage', 'f.verdictEvidence', 'f.checkTitle', 'f.relatedLabel', 'f.stillRunning', 's.link', 's.says', '.tool]']) assert.ok(js.includes(name), `problems.js reads ${name}`);
   const strip = page('strip.js');
   for (const name of ['A?.findings', 'A.catalogIds', 'A?.patterns', 'f.lastAt', 'f.verdictEvidence', 'f.checkTitle', 'p.fix', 'p.priority']) assert.ok(strip.includes(name), `strip.js reads ${name}`);
 });
@@ -373,11 +374,54 @@ test('a private word that is a coverage status leaves the status whole, and the 
   await own.stop?.();
 });
 
-test('the Problems answer is otherwise unchanged: coverage and the Codex form are the only new fields', () => {
+test('the Problems answer is otherwise unchanged: coverage, the Codex form and the headline are the only new fields', () => {
   const BEFORE = ['claim', 'count', 'countEvidence', 'derivedFound', 'detection', 'draft', 'findings', 'findingsListed', 'group', 'id', 'look', 'looksLike', 'measures', 'mitigation', 'name', 'notRun', 'notesFound', 'possible', 'priority', 'related', 'sourceKinds', 'sources', 'status', 'strength', 'strengthReason', 'sure', 'testPrompt', 'tokens', 'whyItMatters'];
   for (const p of whole.patterns) {
-    assert.deepEqual(Object.keys(p).filter((k) => k !== 'coverage').sort(), BEFORE, p.id);
+    assert.deepEqual(Object.keys(p).filter((k) => k !== 'coverage' && k !== 'headline').sort(), BEFORE, p.id);
     if (p.draft) assert.deepEqual(Object.keys(p.draft).filter((k) => k !== 'codex').sort(), ['kind', 'text', 'title', 'where'], p.id);
+  }
+});
+
+test("each pattern carries the catalog's headline beside its unchanged name, and the summary and strip keep the name alone", async () => {
+  const catalog = loadCatalog().patterns;
+  for (const p of whole.patterns) {
+    const cat = catalog.find((x) => x.id === p.id);
+    assert.equal(p.headline, cat.headline, `${p.id}: the headline as the catalog has it`);
+    assert.equal(p.name, cat.name, `${p.id}: the name as before`);
+  }
+  // The answers other pages read stay as they were: no headline in the summary or the strip.
+  const sum = await body({ summary: '1' });
+  assert.ok(sum.patterns.every((p) => !('headline' in p)));
+  const f = allFindings(whole).find((x) => x.thread);
+  const strip = await body({ thread: f.thread });
+  assert.ok(strip.patterns.every((p) => !('headline' in p)));
+});
+
+test("the page draws this week's answer: every found pattern on the landing by its headline, every finding row naming its session's agent", async () => {
+  const trend = (await answer({ trend: '1' })).body;
+  const { el } = await drawProblems(whole, { trend });
+  const landing = `${el('cards').innerHTML}${el('possible').innerHTML}`;
+  const found = whole.patterns.filter((p) => p.status === 'found');
+  for (const p of found) assert.ok(landing.includes(`<a class="ptitle" href="#${p.id}">`), `${p.id} is on the landing`);
+  assert.match(el('headline').textContent, /^(\d+ problems? to fix|No problem to fix)(, \d+ smaller)?(, \d+ to check)?$/);
+  const AGENT = { 'claude-code': 'Claude Code', codex: 'Codex' };
+  const rows = blocks(el('cards').innerHTML, 'li', 'frow');
+  assert.ok(rows.length > 0, 'some finding rows');
+  for (const r of rows) {
+    const s = r.match(/data-session="([^"]*)"/)[1];
+    const name = AGENT[whole.sessions[s]?.tool];
+    if (name) assert.ok(r.includes(`<span class="agent">${name}</span>`), `${s}: ${name}`);
+    else assert.doesNotMatch(r, /class="agent"/);
+  }
+  // The drawn landing holds no private word and no secret.
+  const shown = words(landing);
+  for (const word of PRIVATE_WORDS) assert.ok(!shown.includes(word), `no "${word}"`);
+  for (const s of Object.values(SECRETS)) assert.ok(!shown.includes(s));
+  assert.equal(leaks.redacted(shown).total, 0);
+  // Each found pattern opens on its own, by its id.
+  for (const p of found) {
+    const { el: d } = await drawProblems(whole, { hash: `#${p.id}`, trend });
+    assert.ok(d('detail').innerHTML.includes(`>${p.headline.replace(/'/g, '&#39;')}</h1>`), p.id);
   }
 });
 
