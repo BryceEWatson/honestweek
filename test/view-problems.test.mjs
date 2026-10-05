@@ -413,6 +413,18 @@ test("the page draws this week's answer: every found pattern on the landing by i
     if (name) assert.ok(r.includes(`<span class="agent">${name}</span>`), `${s}: ${name}`);
     else assert.doesNotMatch(r, /class="agent"/);
   }
+  // Each pattern lists its most recent findings first: within the sure ones and within the
+  // possible ones, worth a look before routine, each newest first.
+  const SURE = ['recorded', 'derived'];
+  for (const p of found) {
+    for (const group of [p.findings.filter((f) => SURE.includes(f.verdictEvidence)), p.findings.filter((f) => !SURE.includes(f.verdictEvidence))]) {
+      for (let i = 1; i < group.length; i++) {
+        const [a, b] = [group[i - 1], group[i]];
+        if (a.severity !== b.severity) assert.equal(a.severity, 'look', `${p.id}: worth a look before routine`);
+        else assert.ok(String(a.at ?? '') >= String(b.at ?? ''), `${p.id}: newest first`);
+      }
+    }
+  }
   // The drawn landing holds no private word and no secret.
   const shown = words(landing);
   for (const word of PRIVATE_WORDS) assert.ok(!shown.includes(word), `no "${word}"`);
