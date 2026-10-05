@@ -59,6 +59,13 @@
 .ring.t-medium { stroke: var(--medium); }
 .ring.t-low { stroke: var(--muted); }
 .selhalo { fill: var(--accent-wash); stroke: var(--accent); stroke-width: 1.5; pointer-events: none; }
+/* A zoomed finding's scope: its stretch shaded with a line at its start, its gap hatched, the
+   steps it names beside its own outlined, and a repeat's numbers. */
+.zstretch { fill: var(--accent-wash); opacity: 0.7; }
+.zstart { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 3; }
+.zgap { opacity: 0.35; }
+.zctx { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 3 2; pointer-events: none; }
+.znum { font-size: 10px; font-weight: 700; fill: var(--accent-ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; pointer-events: none; }
 .failtest { fill: var(--high); }
 /* A step the agent waited on: a bar to scale, lightly filled, with a solid start. */
 .wait { fill-opacity: 0.16; stroke-width: 1.5; }
