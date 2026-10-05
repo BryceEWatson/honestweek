@@ -25,6 +25,11 @@
   <h1 class="ph-title" id="title"></h1>
 </div>
 <div class="rp" id="content">
+  <section class="focus" id="focus" aria-label="This problem" hidden>
+    <div class="fhead" id="focusHead"></div>
+    <section class="fcard fwhat" id="focusWhat" aria-labelledby="focusCaption" tabindex="-1"></section>
+    <section class="fcard fdraw" id="focusDraw" aria-labelledby="focusDrawH"></section>
+  </section>
   <section class="tlcard rp-tl" id="timeline" aria-label="Timeline" tabindex="-1">
     <div class="rp-bar">
       <span class="rp-sum" id="pSummary">Checking for problems…</span>
@@ -64,6 +69,7 @@
   <ol class="sr" id="chartSteps"></ol>
   <div class="rp-below">
     <section class="rp-story" id="story" aria-label="What happened, step by step">
+      <div class="fsteps-head" id="focusStepsHead" hidden></div>
       <div class="rp-mode"><div class="rp-seg" role="group" aria-label="How much to show"><button type="button" id="modeMatters" aria-pressed="true">What matters</button><button type="button" id="modeAll" aria-pressed="false">Every step</button></div><span class="rp-mode-note" id="modeNote">Repeated steps are grouped.</span></div>
       <div id="storyBody"></div>
     </section>
