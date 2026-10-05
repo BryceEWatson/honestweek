@@ -48,7 +48,10 @@
         <label class="sr" for="addPath">Add a folder</label>
         <input class="setup-input" id="addPath" type="text" autocomplete="off" spellcheck="false" placeholder="Add a folder: /path/to/your/repo">
         <button type="button" class="btn" id="addBtn">Add</button>
+        <button type="button" class="btn" id="findBtn">Find new repositories</button>
       </div>
+      <p class="fine" id="foundNote" role="status" hidden></p>
+      <ul class="repolist" id="foundList" hidden></ul>
     </section>
     <section class="setup-part" aria-labelledby="youH">
       <h2 id="youH"><label for="emails">Emails</label> <span id="emailHelp"></span></h2>
