@@ -232,7 +232,8 @@ test('the Problems row: one dot per finding worth a look, never a dismissed patt
   assert.equal(items.length, 4, 'only the sessions on screen');
   assert.equal(M.problemDots(items).length, 2);
   assert.equal(M.problemDots(items, { routine: true }).length, 3, 'routine notes only when asked');
-  assert.deepEqual(M.tierCounts(items), { high: 1, medium: 0, low: 1, look: 2, routine: 1, dismissed: 1 });
+  // The inferred one is counted as possible, the way the Problems page keeps it apart.
+  assert.deepEqual(M.tierCounts(items), { high: 1, medium: 0, low: 1, look: 2, possible: 1, levels: ['inferred', 'derived'], routine: 1, dismissed: 1 });
   const flags = M.flagsByEvent(items);
   assert.deepEqual(flags.get('e1').map((i) => i.tier), ['high', 'low']);
   assert.equal(M.ringTier(flags.get('e1')), 'high');
@@ -282,7 +283,10 @@ test('the demo session: 8 dots worth a look, two breaks of 19 and 5 minutes, and
   const items = M.findingItems(p, { sessions: [session], eventT: (id) => byId.get(id)?.t ?? null });
   const dots = M.problemDots(items);
   assert.equal(dots.length, 8);
-  assert.deepEqual(M.tierCounts(items), { high: 2, medium: 2, low: 4, look: 8, routine: 4, dismissed: 0 });
+  // Of the 8 worth a look, 6 rest on a rule's reading or a missing record: the summary says so.
+  const counts = M.tierCounts(items);
+  assert.deepEqual({ ...counts, levels: undefined }, { high: 2, medium: 2, low: 4, look: 8, possible: 6, levels: undefined, routine: 4, dismissed: 0 });
+  assert.equal(counts.levels.length, 8);
   assert.ok(dots.every((i) => i.known), 'every dot sits on a step of this replay');
   // The story: three prompt cards and a lead card, with the two breaks between them, and the
   // runs of shell commands grouped wherever no finding breaks them.

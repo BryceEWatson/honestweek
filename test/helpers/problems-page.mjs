@@ -33,6 +33,7 @@ function memStorage() {
 
 function fakeEl(id) {
   const classes = new Set();
+  const heard = {};
   return {
     id,
     innerHTML: '',
@@ -43,7 +44,9 @@ function fakeEl(id) {
     classList: { toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)), contains: (c) => classes.has(c) },
     querySelector: () => null,
     querySelectorAll: () => [],
-    addEventListener: () => {},
+    addEventListener: (type, fn) => (heard[type] ??= []).push(fn),
+    /** Hand the page's own listeners an event, as a click or a change on this element would. */
+    fire: (type, ev) => (heard[type] ?? []).forEach((fn) => fn(ev)),
     setAttribute: () => {},
     focus: () => {},
     closest: () => null,

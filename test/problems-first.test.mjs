@@ -276,7 +276,9 @@ test('the coverage badge shows only where a check runs in part or not at all on 
   // A pattern with no check gets no badge: "not checked" already says it.
   const { el: c } = await drawProblems(D, { hash: '#checked' });
   const rest = c('restLists').innerHTML;
-  assert.match(rest, /Plain words for hallucinated-reference/);
+  // A pattern not found keeps the catalog's name: the past-tense headline would say it happened.
+  assert.match(rest, /Catalog name of hallucinated-reference/);
+  assert.doesNotMatch(rest, /Plain words for/);
   assert.doesNotMatch(rest, /class="cov"/);
 });
 
@@ -374,4 +376,18 @@ test('every string from a log is escaped, and a cut never splits a redaction pla
   // The short note is cut before the placeholder rather than inside it.
   const shown = row.split('<details')[0];
   assert.doesNotMatch(shown, /\[redacted(?!:term\])/);
+});
+
+test('"Show all" counts only the rows in view: routine notes join the count once the switch is on', async () => {
+  const D = answer();
+  const note = (n) => F('context-bloat', 'cc', { severity: 'note', note: `Routine note ${n}.` });
+  const p = D.patterns.find((x) => x.id === 'context-bloat');
+  p.findings = [p.findings[0], ...[1, 2, 3, 4].map(note)];
+  const { el } = await drawProblems(D);
+  const card = () => blocks(el('cards').innerHTML, 'article', 'pc').find((c) => c.includes('data-pattern="context-bloat"'));
+  assert.doesNotMatch(card(), /Show all/, 'one row worth a look, and no button promising five');
+  assert.doesNotMatch(card(), /s-note/);
+  el('content').fire('change', { target: { checked: true, matches: (s) => s === '[data-routine-all]' } });
+  assert.match(card(), /Show all 5 listed/);
+  assert.equal(el('cards').classList.contains('show-routine'), true);
 });

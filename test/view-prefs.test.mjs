@@ -140,3 +140,24 @@ test('a stored theme outside the two words is dropped on the first read (failing
   assert.equal(kept.prefs.theme, 'dark');
   assert.deepEqual(JSON.parse(kept.s.getItem(SLOT)), { v: 1, priority: {}, strip: false, low: false, theme: 'dark' });
 });
+
+test("another tab's theme change doesn't redraw the catalog lists; a priority change does", () => {
+  const s = storage();
+  const heard = [];
+  const saved = globalThis.addEventListener;
+  globalThis.addEventListener = (type, fn) => type === 'storage' && heard.push(fn);
+  try {
+    const prefs = createPrefs({ localStorage: s });
+    let told = 0;
+    prefs.onChange(() => (told += 1));
+    const fire = (oldValue, newValue) => heard.forEach((fn) => fn({ key: SLOT, oldValue, newValue }));
+    const base = { v: 1, priority: {}, strip: false, low: false };
+    fire(JSON.stringify(base), JSON.stringify({ ...base, theme: 'dark' }));
+    assert.equal(told, 0, 'only the theme changed');
+    fire(JSON.stringify({ ...base, theme: 'dark' }), JSON.stringify({ ...base, strip: true, theme: 'dark' }));
+    assert.equal(told, 1, 'a switch changed');
+  } finally {
+    if (saved === undefined) delete globalThis.addEventListener;
+    else globalThis.addEventListener = saved;
+  }
+});

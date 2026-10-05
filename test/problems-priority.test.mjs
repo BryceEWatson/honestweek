@@ -78,6 +78,8 @@ test('every catalog pattern has a short plain headline of its own, and keeps its
     assert.doesNotMatch(h, /[–—]| -- | - /, `${p.id}: no dash`);
     // Plain words about the pattern, not a count or a session from one week.
     assert.doesNotMatch(h, /\d/, `${p.id}: no number`);
+    // What was done, never why: a log holds the act, not the purpose or what someone read.
+    assert.doesNotMatch(h, /\b(to get|in order to|so that|without reading)\b/i, `${p.id}: no motive`);
     assert.notEqual(h, p.name, `${p.id}: the headline isn't the catalog name again`);
     assert.ok(!seen.has(h), `${p.id}: its own headline`);
     seen.add(h);

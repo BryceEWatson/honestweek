@@ -202,3 +202,21 @@ test('storage blocked (a private window): the click still switches this page, an
   assert.equal(btn.getAttribute('aria-label'), 'Switch to light');
   assert.equal(p.store.size, 0);
 });
+
+test('a theme picked in another tab shows here too, and the button redraws', () => {
+  const p = page();
+  const heard = [];
+  p.sb.addEventListener = (type, fn) => type === 'storage' && heard.push(fn);
+  p.run('prefs.js');
+  const btn = p.sb.HWPrefs.mountTheme(p.sb.document);
+  assert.ok(isMoon(btn));
+  // The other tab writes the store; this one hears the storage event.
+  p.store.set(SLOT, JSON.stringify({ v: 1, priority: {}, strip: false, low: false, theme: 'dark' }));
+  for (const fn of heard) fn({ key: SLOT });
+  assert.equal(p.html.getAttribute('data-theme'), 'dark');
+  assert.ok(isSun(btn), 'the button offers light now');
+  // Another key changing leaves the page alone (failing partner).
+  p.store.set(SLOT, JSON.stringify({ v: 1, priority: {}, strip: false, low: false, theme: 'light' }));
+  for (const fn of heard) fn({ key: 'something-else' });
+  assert.equal(p.html.getAttribute('data-theme'), 'dark');
+});

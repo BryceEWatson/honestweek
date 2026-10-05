@@ -460,7 +460,9 @@ test('closing the record panel never drops focus to the page: with no step or op
 test('"Show routine notes" is one quiet switch under the list, and it shows the routine rows the cards already hold', () => {
   const problems = readFileSync(join(ASSETS, 'problems.js'), 'utf8');
   assert.doesNotMatch(problems, /data-routine[^-]/, 'no second switch inside each card');
-  assert.match(problems, /routineShown = ev\.target\.checked;\s+\$\('cards'\)\.classList\.toggle\('show-routine', routineShown\);/);
+  // The switch redraws the cards, so "Show all N" counts only the rows in view.
+  assert.match(problems, /routineShown = ev\.target\.checked;\s+renderLanding\(\);/);
+  assert.match(problems, /cards\.classList\.toggle\('show-routine', routineShown\);/);
   // A routine note is a row of its own kind, hidden until the switch is on.
   assert.match(problems, /<li class="frow s-\$\{f\.severity === 'look' \? 'look' : 'note'\}"/);
   const css = readFileSync(join(ASSETS, 'problems.css'), 'utf8');
@@ -507,4 +509,15 @@ test('the README names the first page Find, as the page does, and counts four pa
   assert.match(readme, /four parts: Find \(/);
   assert.match(readme, /- \*Find\.\* Type a pull request/);
   for (const p of PAGES) assert.match(readFileSync(join(ASSETS, p), 'utf8'), />Find<\/a>/, `${p}: the header calls it Find`);
+});
+
+test("Replay's story never hides a failed test run in a group, and every grouped step keeps its mark", () => {
+  const replay = readFileSync(join(ASSETS, 'replay.js'), 'utf8');
+  // A failed run stands alone, the way a step with a finding does.
+  assert.match(replay, /const standsAlone = \(e\) => F\.flags\.has\(e\.id\) \|\| RM\.isLongWait\(e\) \|\| !!resultOf\(e\)\?\.fail;/);
+  // An opened group's rows show each step's result and how it's known.
+  assert.match(replay, /<\/code>\$\{kidRes\(e\)\} \$\{sym\(e\.ev\)\}<\/button><\/li>/);
+  // The count worth a look carries its weakest mark and says how many of them are only possible.
+  assert.match(replay, /worth a look \$\{sym\(window\.HWE\.weakest\(c\.levels\)\)\}/);
+  assert.match(replay, /\$\{c\.possible\} of them possible/);
 });

@@ -519,7 +519,7 @@
     {
       "id": "test-tampering",
       "name": "Edits the tests instead of the code",
-      "headline": "Changed the tests to get a passing run",
+      "headline": "Removed or skipped tests, or narrowed the test command",
       "group": "correctness-honesty",
       "looksLike": "To get a green run, the agent deletes or skips tests, loosens assertions, narrows the test command, or defeats the harness itself (exit(0) before tests, SkipTest, patching the test reporter or conftest).",
       "whyItMatters": "It turns your safety net into a false signal. The run is green, the bug ships, and the log is the only place the tampering is visible.",
@@ -1007,7 +1007,7 @@
     {
       "id": "error-swallowing",
       "name": "Hides errors instead of fixing them",
-      "headline": "Hid errors instead of fixing them",
+      "headline": "Added code that silences errors",
       "group": "correctness-honesty",
       "looksLike": "The agent wraps failing code in broad try/except or empty catch blocks, adds || true or 2>/dev/null, adds ignore comments for the type checker or linter, or adds fallbacks for cases that should never happen.",
       "whyItMatters": "The symptom disappears and the bug stays, now harder to find because the error that pointed at it is gone.",
@@ -4505,7 +4505,7 @@
     {
       "id": "approval-fatigue",
       "name": "Approving prompts without reading them",
-      "headline": "Permission prompts approved without reading them",
+      "headline": "Approved nearly every permission prompt, quickly",
       "group": "safety",
       "looksLike": "You approve nearly every permission prompt, quickly, so the prompts stop protecting anything; or sessions run with permissions bypassed entirely.",
       "whyItMatters": "Manual approval only works if you read each request; the risky one looks like the ninety safe ones before it.",
