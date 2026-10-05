@@ -1,0 +1,205 @@
+/* The replay page's own styles, loaded after common.css. Colours come from common.css's tokens
+   only, so the light and dark themes both work. */
+
+/* ---- the page head ----------------------------------------------------------------------- */
+.rp-head { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 6px; max-width: 1320px; padding-bottom: 12px; }
+.rp-head h1 { font-size: 26px; line-height: 1.2; }
+.rp-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; font-size: 14px; color: var(--muted); }
+.rp-tool { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: var(--fix-wash); color: var(--accent-ink); }
+
+/* ---- the layout --------------------------------------------------------------------------- */
+.rp { max-width: 1320px; margin: 0 auto; padding: 0 24px 48px; display: flex; flex-direction: column; gap: 18px; }
+.rp-gap { flex-grow: 1; }
+.rp-tl { gap: 10px; padding: 14px 16px; }
+.rp-tl:focus { outline: none; }
+.rp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.rp-bar .toolbar { gap: 6px 8px; }
+.rp-sum { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 14px; color: var(--ink-2); }
+.rp-sum strong { color: var(--ink); font-weight: 600; }
+.rp-sum label { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+.rp-sum a { font-size: 13px; color: var(--accent); }
+.tierpill { display: inline-flex; align-items: center; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent; }
+.tierpill.t-high { background: var(--high-wash); color: var(--high); }
+.tierpill.t-medium { background: var(--medium-wash); color: var(--medium); }
+.tierpill.t-low { background: var(--subtle); color: var(--muted); border-color: var(--line); }
+.tierpill.t-routine { background: transparent; color: var(--muted); border-color: var(--line); font-weight: 600; }
+
+/* ---- the now line ----------------------------------------------------------------------- */
+.rp-now { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 8px 12px; border-radius: 8px; background: var(--accent-wash); font-size: 14px; min-height: 22px; min-width: 0; }
+.rp-now .readout { font-family: var(--font); font-size: 14px; font-weight: 700; color: var(--accent-ink); white-space: nowrap; }
+.rp-now-lane { color: var(--muted); white-space: nowrap; }
+.rp-now-text { min-width: 0; flex: 1 1 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.rp-now-span { color: var(--muted); white-space: nowrap; font-size: 13px; }
+.rp-jump { font-weight: 600; text-decoration: none; white-space: nowrap; }
+
+/* ---- the chart ---------------------------------------------------------------------------- */
+.rp-tl svg.chart { overflow: visible; }
+.brk-band { fill: var(--subtle); }
+.brk-edge { stroke: var(--field); stroke-dasharray: 3 3; }
+.brk-label { font-size: 11px; fill: var(--muted); }
+.prob-bg { fill: var(--high-soft); }
+.prob-label { font-size: 12px; font-weight: 700; fill: var(--high); }
+.prob-note { font-size: 12px; fill: var(--muted); }
+.pdot, .pbubble { cursor: pointer; }
+.pdot:focus, .pbubble:focus { outline: none; }
+.pdot:focus-visible .pm, .pbubble:focus-visible .pm { stroke: var(--accent); stroke-width: 3; }
+.pdot .pm { stroke: var(--surface); stroke-width: 2; }
+.pdot.t-high .pm { fill: var(--high); }
+.pdot.t-medium .pm { fill: var(--medium); }
+.pdot.t-low .pm { fill: var(--muted); }
+.pdot.t-routine .pm { fill: var(--surface); stroke: var(--muted); stroke-width: 1.5; }
+.pdot.on .pm { stroke: var(--accent); stroke-width: 2.5; }
+.pbubble .pm { fill: var(--raised); stroke-width: 2; }
+.pbubble.t-high .pm { stroke: var(--high); }
+.pbubble.t-medium .pm { stroke: var(--medium); }
+.pbubble.t-low .pm, .pbubble.t-routine .pm { stroke: var(--muted); }
+.pbubble text { font-size: 10px; font-weight: 700; fill: var(--ink); }
+.ring { fill: none; stroke-width: 2; pointer-events: none; }
+.ring.t-high { stroke: var(--high); }
+.ring.t-medium { stroke: var(--medium); }
+.ring.t-low { stroke: var(--muted); }
+.selhalo { fill: var(--accent-wash); stroke: var(--accent); stroke-width: 1.5; pointer-events: none; }
+.failtest { fill: var(--high); }
+/* A step the agent waited on: a bar to scale, lightly filled, with a solid start. */
+.wait { fill-opacity: 0.16; stroke-width: 1.5; }
+.wait.g-run { fill: var(--run); stroke: var(--run); }
+.wait.g-change { fill: var(--change); stroke: var(--change); }
+.wait.g-look { fill: var(--look); stroke: var(--look); }
+.wait.g-other { fill: var(--other); stroke: var(--other); }
+.wait.g-fail { fill: var(--high); stroke: var(--high); }
+.wait-start { pointer-events: none; }
+.wait-start.g-run { fill: var(--run); }
+.wait-start.g-change { fill: var(--change); }
+.wait-start.g-look { fill: var(--look); }
+.wait-start.g-other { fill: var(--other); }
+.wait-start.g-fail { fill: var(--high); }
+.ilabel { font-size: 11px; fill: var(--ink-2); pointer-events: none; }
+.ilabel.dim { fill: var(--muted); }
+.ilabel.bad { fill: var(--high); font-weight: 600; }
+.ilabel-bg { fill: var(--surface); }
+.rp-tl .playhead { stroke: var(--accent); }
+.rp-tl .playknob { fill: var(--accent); }
+.turnseg .tick { font-size: 10px; }
+.rp-scrub { display: flex; align-items: center; min-width: 0; }
+.rp-scrub input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.rp-player { padding-top: 8px; }
+.rp-player .controls button { min-height: 40px; font-size: 14px; }
+
+/* ---- the short legend ------------------------------------------------------------------- */
+.rp-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; font-size: 12px; color: var(--muted); }
+.rp-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.lg { display: inline-block; flex: none; }
+.lg-prompt { width: 8px; height: 8px; transform: rotate(45deg); background: var(--person); }
+.lg-run { width: 3px; height: 12px; background: var(--run); }
+.lg-fail { width: 4px; height: 14px; background: var(--high); }
+.lg-change { width: 4px; height: 12px; background: var(--change); }
+.lg-msg { width: 8px; height: 8px; border-radius: 999px; background: var(--ink-2); }
+.lg-prob { width: 10px; height: 10px; border-radius: 999px; background: var(--high); box-shadow: 0 0 0 2px var(--surface); }
+.lg-wait { width: 22px; height: 10px; border-radius: 3px; border: 1.5px solid var(--run); border-left-width: 3px; background: var(--wash); }
+.lg-brk { width: 10px; height: 12px; background: var(--subtle); border-left: 1px dashed var(--field); border-right: 1px dashed var(--field); }
+.legend .sw.rp-brk { background: var(--subtle); border: 1px dashed var(--field); }
+.legend .sw.rp-wait { background: var(--wash); border: 1.5px solid var(--run); border-left-width: 3px; width: 18px; }
+.legend .sw.rp-ring { background: transparent; border: 2px solid var(--high); border-radius: 999px; width: 8px; height: 8px; }
+
+/* ---- below the chart: the story and the selected step -------------------------------------- */
+.rp-below { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+.rp-story { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.rp-side { flex: 1 1 320px; max-width: 440px; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+.rp-mode { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.rp-seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--line); }
+.rp-seg button { border: 0; background: transparent; color: var(--ink); min-height: 40px; padding: 8px 14px; }
+.rp-seg button[aria-pressed="true"] { background: var(--surface); font-weight: 600; }
+.rp-mode-note { font-size: 13px; color: var(--muted); }
+#storyBody { display: flex; flex-direction: column; gap: 14px; }
+.sgap { text-align: center; font-size: 13px; color: var(--muted); padding: 2px 0; }
+.rcard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.shead { width: 100%; display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 14px 16px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--accent-wash); color: var(--ink); min-height: 0; font-size: 15px; }
+.shead:hover { background: var(--accent-wash); color: var(--ink); }
+.shead.is-sel { box-shadow: inset 3px 0 0 var(--accent); }
+.shead.first { background: var(--subtle); }
+.shead .stime { font-size: 12px; font-weight: 700; color: var(--accent-ink); min-width: 74px; padding-top: 2px; }
+.sbody { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.sask { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.sprompt { font-size: 15px; overflow-wrap: anywhere; }
+.rtag { font-size: 12px; padding: 2px 8px; border-radius: 999px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.rtag.corr { background: var(--medium-wash); color: var(--medium); }
+.rtag.sess { background: var(--surface); color: var(--muted); border: 1px solid var(--line); font-weight: 500; }
+.srows { list-style: none; margin: 0; padding: 6px 0; }
+.srow { display: flex; gap: 12px; align-items: flex-start; padding: 10px 16px; }
+.srow.dim { padding-top: 6px; padding-bottom: 6px; }
+.srow.strong { background: var(--high-soft); }
+.srow.is-sel { background: var(--accent-wash); box-shadow: inset 3px 0 0 var(--accent); }
+.srow.sgaprow { justify-content: center; font-size: 13px; color: var(--muted); padding: 4px 16px; }
+.srow > .stime { font-size: 12px; color: var(--muted); min-width: 74px; padding-top: 3px; font-variant-numeric: tabular-nums; }
+.kd { width: 10px; height: 10px; margin-top: 6px; flex: none; border-radius: 2px; background: var(--other); }
+.kd.k-run { background: var(--run); }
+.kd.k-fail { background: var(--high); }
+.kd.k-change { background: var(--change); }
+.kd.k-look { background: var(--look); }
+.kd.k-msg { background: var(--ink-2); border-radius: 999px; }
+.kd.k-you { background: var(--person); transform: rotate(45deg); width: 8px; height: 8px; }
+.kd.k-helper { background: var(--accent); }
+.kd.k-harness { background: var(--field); }
+.kd.k-stop { background: var(--medium); }
+.kd.k-git { background: var(--git); }
+.smain { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+.sbtn { display: flex; flex-direction: column; gap: 4px; align-items: stretch; text-align: left; background: transparent; border: 0; padding: 0; min-height: 0; color: var(--ink); font-size: 15px; }
+.sbtn:hover { background: transparent; color: var(--ink); }
+.sbtn:hover .stitle { text-decoration: underline; }
+.stitle { font-weight: 600; }
+.srow.dim .stitle { font-weight: 400; font-size: 14px; color: var(--ink-2); }
+.scode { display: block; font-family: var(--mono); font-size: 13px; color: var(--muted); overflow-wrap: anywhere; white-space: pre-wrap; max-height: 7.5em; overflow: hidden; }
+.squote { display: block; font-size: 15px; padding: 8px 12px; border-radius: 8px; background: var(--subtle); border: 1px solid var(--line); overflow-wrap: anywhere; color: var(--ink); }
+.sres { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 13px; padding: 6px 10px; border-radius: 8px; background: var(--subtle); border: 1px solid var(--line); color: var(--ink-2); }
+.sres.fail { background: var(--high-soft); border-color: var(--high-line); color: var(--high); }
+.schips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fchip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; border: 1px solid transparent; }
+.fchip.t-high { background: var(--high-wash); color: var(--high); }
+.fchip.t-medium { background: var(--medium-wash); color: var(--medium); }
+.fchip.t-low, .fchip.t-routine { background: var(--subtle); color: var(--muted); border-color: var(--line); }
+.fchip.t-wait { background: var(--accent-wash); color: var(--accent-ink); border-color: var(--accent-line); }
+.fchip .chip { color: inherit; }
+.fchip .evsym { color: inherit; }
+.totl { align-self: flex-start; font-size: 13px; font-weight: 600; text-decoration: none; }
+.gtoggle { font-size: 13px; font-weight: 600; color: var(--accent); background: transparent; border: 0; padding: 4px 6px; min-height: 32px; white-space: nowrap; }
+.gtoggle:hover { background: var(--accent-wash); color: var(--accent-ink); }
+.sev { font-size: 13px; color: var(--muted); padding-top: 3px; min-width: 14px; }
+.kids { list-style: none; margin: 2px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--subtle); border: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 4px; }
+.kid > .kbtn { display: flex; gap: 10px; width: 100%; text-align: left; border: 0; border-radius: 6px; padding: 3px 6px; min-height: 0; background: transparent; color: var(--ink); font-size: 13px; }
+.kid > .kbtn:hover { background: var(--accent-wash); }
+.kid .stime { color: var(--muted); min-width: 64px; font-variant-numeric: tabular-nums; }
+.kid code { font-family: var(--mono); overflow-wrap: anywhere; white-space: pre-wrap; }
+.kid.is-sel > .kbtn { background: var(--accent-wash); box-shadow: inset 3px 0 0 var(--accent); }
+.kid .totl { margin: 2px 0 2px 6px; }
+.kid .schips { margin: 2px 0 2px 6px; }
+
+/* ---- the selected step ------------------------------------------------------------------- */
+.rp-panel { display: flex; flex-direction: column; gap: 10px; padding: 18px; }
+.rp-panel .sel-k { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 0; }
+.rp-panel .sel-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 13px; color: var(--muted); margin: 0; }
+.rp-panel .sel-title { font-weight: 600; font-size: 17px; margin: 0; }
+.rp-panel .sel-code { font-family: var(--mono); font-size: 13px; padding: 10px 12px; border-radius: 8px; background: var(--subtle); border: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; margin: 0; max-height: 40vh; overflow: auto; }
+.rp-panel .sel-quote { font-size: 14px; padding: 10px 12px; border-radius: 8px; background: var(--subtle); border: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; margin: 0; max-height: 40vh; overflow: auto; }
+.rp-panel .sel-flags { display: flex; flex-direction: column; gap: 12px; border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.rp-panel .sel-flag { display: flex; flex-direction: column; gap: 6px; }
+.rp-panel .sel-flag .fchip { align-self: flex-start; }
+.rp-panel .sel-flag p { margin: 0; font-size: 14px; }
+.rp-panel .sel-links { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 14px; }
+.rp-panel .sel-links a { font-weight: 600; color: var(--accent); text-decoration: none; padding: 4px 0; }
+.rp-panel .sel-links a:hover { text-decoration: underline; }
+.rp-panel .sel-none { font-size: 14px; color: var(--muted); border-top: 1px solid var(--line-soft); padding-top: 12px; margin: 0; }
+.rp-panel .sel-full { align-self: flex-start; min-height: 36px; }
+.rp-panel details.sel-more { border-top: 1px solid var(--line-soft); padding-top: 10px; }
+.rp-panel details.sel-more > summary { color: var(--ink-2); font-size: 14px; cursor: pointer; }
+.rp-panel details.sel-more h2 { margin-top: 12px; }
+.rp-folds { display: flex; flex-direction: column; gap: 12px; }
+
+@media (max-width: 760px) {
+  .rp { padding: 0 16px 40px; }
+  .rp-head { padding-left: 16px; padding-right: 16px; }
+  .rp-head h1 { font-size: 22px; }
+  .rp-side { position: static; max-height: none; max-width: none; }
+  .srow { padding: 10px 12px; gap: 8px; }
+  .srow > .stime, .shead .stime { min-width: 0; }
+  .rp-player .controls button { padding: 4px 8px; }
+}
