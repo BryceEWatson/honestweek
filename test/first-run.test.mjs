@@ -198,12 +198,13 @@ test('view --no-open after init: prints an address and the private-word notice, 
   let s;
   for (let i = 0; i < 600; i++) {
     s = (await get(port, '/api/status', { [KEY_HEADER]: key })).json;
-    if (s.state !== 'building') break;
+    if (s.state !== 'building' && !s.window?.partial) break;
     await new Promise((r) => setTimeout(r, 50));
   }
   assert.equal(s.state, 'ready', s.failed ?? '');
   assert.equal(s.command, pageCommand(FORM), 'a page names the command without the folder it lives in');
-  assert.match(s.privateWords.note, /^No private words are set up/);
+  assert.equal(s.privateWords.note, 'No private words set, so names show as written.', 'one short line on the page');
+  assert.match(s.privateWords.more, /^No private words are set up/, 'the rest behind its "?"');
   // Failing path: a code works once.
   assert.equal((await get(port, '/api/claim', { [CODE_HEADER]: m[2] })).status === 200, false);
   child.kill('SIGINT');

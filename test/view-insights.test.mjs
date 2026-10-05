@@ -281,7 +281,9 @@ async function view(cwd, env) {
   const c = /#c=([0-9a-f]+)/.exec(handle.address('printed'))[1];
   const key = (await call(handle.port, { path: '/api/claim', headers: { [CODE_HEADER]: c } })).json.key;
   for (let i = 0; i < 600; i++) {
-    if ((await call(handle.port, { path: '/api/status', key })).json.state !== 'building') break;
+    // The whole week, not just its newest day, which loads first.
+    const st = (await call(handle.port, { path: '/api/status', key })).json;
+    if (st.state !== 'building' && !st.window?.partial) break;
     await sleep(50);
   }
   return { handle, port: handle.port, key };

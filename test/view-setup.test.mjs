@@ -126,7 +126,7 @@ test('a successful setup: the proposal, a preview, then Save writes the config w
   const saved = await post(s, 'save', answers(s));
   assert.equal(saved.status, 200, saved.text);
   assert.equal(saved.json.saved, true);
-  assert.equal(saved.json.next, 'search.html');
+  assert.equal(saved.json.next, 'problems.html', 'Problems is the home page');
   assert.equal(saved.json.restart, undefined, 'no restart');
 
   const written = readFileSync(join(s.project, 'honestweek.config.json'), 'utf8');
@@ -287,7 +287,7 @@ test('a repository marked display is never passed to git: not when saving, and n
     let st;
     for (let i = 0; i < 400; i++) {
       st = (await call(s.port, { path: '/api/status', key: s.key })).json;
-      if (st.state === 'ready' || st.state === 'failed') break;
+      if ((st.state === 'ready' && !st.window?.partial) || st.state === 'failed') break;
       await new Promise((r) => setTimeout(r, 50));
     }
     assert.equal(st.state, 'ready', st.failed ?? '');
@@ -380,4 +380,25 @@ test('a network or device path is refused by its shape before any file is looked
   }
   assert.deepEqual(touched, [], 'no file call named the host');
   assert.deepEqual(files(s.root), before);
+});
+
+test("Setup's line reads the days in the timezone being saved, so it states exactly the days the server then loads", async () => {
+  const s = await setupRun('same-days');
+  const zone = 'Pacific/Kiritimati';
+  const ask = async (q) => call(s.port, { path: `/api/window?${q}`, key: s.key });
+  const preview = (await ask(`kind=days&days=30&tz=${encodeURIComponent(zone)}`)).json;
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: zone });
+  assert.equal(preview.to, today, 'the last day is today where the config will say');
+  assert.equal(preview.timezone, zone);
+  // Failing path: a timezone this machine doesn't know is refused, not read as the host's.
+  assert.equal((await ask('kind=days&days=30&tz=Not%2FA_Zone')).status, 400);
+  const saved = await post(s, 'save', answers(s, { timezone: zone, history: { days: 30 } }));
+  assert.equal(saved.status, 200, saved.text);
+  let st;
+  for (let i = 0; i < 400; i++) {
+    st = (await call(s.port, { path: '/api/status', key: s.key })).json;
+    if ((st.state === 'ready' && !st.window?.partial) || st.state === 'failed') break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  assert.deepEqual([st.window.from, st.window.to], [preview.from, preview.to], `the line said: ${preview.line}`);
 });
