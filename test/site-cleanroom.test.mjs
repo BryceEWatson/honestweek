@@ -108,3 +108,10 @@ test('lib/problems, its catalog and its tests are clean-room', () => {
   assert.ok(files.length >= 1, 'expected the problem checks to be present');
   assertCleanRoom(files, 'lib/problems');
 });
+
+// The sources index the catalog writes, the tool that writes it, and its test: the same fence.
+test('the sources index, its tool and its test are clean-room', () => {
+  const files = [join(ROOT, 'docs', 'sources.md'), join(ROOT, 'tools', 'sources-index.mjs'), join(HERE, 'sources-index.test.mjs')];
+  for (const f of files) assert.ok(existsSync(f), `${relative(ROOT, f)} is present`);
+  assertCleanRoom(files, 'sources index');
+});

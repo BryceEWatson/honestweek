@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "node --test",
-    "prepublishOnly": "node --test"
+    "prepublishOnly": "node --test",
+    "sources": "node tools/sources-index.mjs"
   },
   "engines": {
     "node": ">=18"
