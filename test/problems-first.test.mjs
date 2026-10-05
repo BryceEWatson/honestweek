@@ -114,6 +114,39 @@ test('every pattern with a check has a short, safe test prompt; patterns without
   for (const id of ['destructive-command', 'bypassing-safeguards']) assert.match(catalog.patterns.find((p) => p.id === id).testPrompt, /^In a new empty folder/, id);
 });
 
+test('every test prompt says what it costs and what to look for, and a change made for it says how to undo it', () => {
+  const catalog = loadCatalog();
+  const line = (t, what) => {
+    assert.equal(typeof t, 'string', what);
+    assert.ok(t.length >= 10 && t.length <= 400, `${what}: short (${t.length} characters)`);
+    assert.doesNotMatch(t, /—/, `${what}: no em dash`);
+    assert.deepEqual(secretShapes(t), {}, `${what}: nothing secret-shaped`);
+  };
+  let withSetup = 0;
+  for (const p of catalog.patterns) {
+    if (!p.testPrompt) {
+      for (const k of ['testSetup', 'testCost', 'testCostWhy', 'testExpect']) assert.equal(p[k], undefined, `${p.id}: no prompt, so no ${k}`);
+      continue;
+    }
+    assert.ok(['low', 'medium', 'high'].includes(p.testCost), `${p.id}: testCost is low, medium or high`);
+    line(p.testCostWhy, `${p.id}: the cost's reason`);
+    // What the fix working looks like, what failing looks like, where to look, and what Replay shows.
+    assert.deepEqual(Object.keys(p.testExpect ?? {}).sort(), ['fails', 'look', 'replay', 'works'], `${p.id}: testExpect`);
+    for (const [k, t] of Object.entries(p.testExpect)) line(t, `${p.id}: testExpect.${k}`);
+    assert.match(p.testExpect.replay, /Replay|honestweek/, `${p.id}: says what honestweek shows for the test session`);
+    if (p.testSetup === undefined) continue;
+    withSetup += 1;
+    assert.deepEqual(Object.keys(p.testSetup).sort(), ['do', 'undo'], `${p.id}: a change and how to undo it`);
+    line(p.testSetup.do, `${p.id}: the change`);
+    line(p.testSetup.undo, `${p.id}: the undo`);
+  }
+  assert.ok(withSetup >= 1, 'at least one test makes a temporary change');
+  // The long-session test lowers the threshold its hook names, and puts it back.
+  const bloat = catalog.patterns.find((p) => p.id === 'context-bloat');
+  for (const t of [DRAFTS['context-bloat'].text, DRAFTS['context-bloat'].codex.text, bloat.testSetup.do, bloat.testSetup.undo]) assert.match(t, /150,000/);
+  assert.equal(bloat.testCost, 'low', 'the lowered threshold makes the long-session test cheap');
+});
+
 // ---- Copy ------------------------------------------------------------------------------------
 test('Copy copies the fix and the prompt exactly as the server sent them, and never a redacted one', () => {
   const js = readFileSync(join(ASSETS_DIR, 'problems.js'), 'utf8');
@@ -342,6 +375,38 @@ test('#<pattern id> opens one problem: when, what happened in order, Replay, the
   assert.match(clear('detail').innerHTML, /Checked; nothing found in this window\./);
   assert.doesNotMatch(clear('detail').innerHTML, /class="pd-when"|data-pri=/);
   assert.match(clear('detail').innerHTML, /Stop it happening again/);
+});
+
+test('Check the fix works shows the setup, the prompt, a high-cost warning and what to look for, in that order, one line each', async () => {
+  const D = answer();
+  const p = D.patterns.find((x) => x.id === 'claim-contradicts-evidence');
+  Object.assign(p, {
+    testSetup: { do: 'Lower the threshold to 5,000.', undo: 'Put 150,000 back.' },
+    testCost: 'high',
+    testCostWhy: 'It reads a big file on purpose.',
+    testExpect: { works: 'The hook says so.', fails: 'Nothing happens.', look: 'The conversation.', replay: 'Open it in Replay: not found.' },
+  });
+  const { el } = await drawProblems(D, { hash: '#claim-contradicts-evidence' });
+  const box = blocks(el('detail').innerHTML, 'section', 'pd-try')[0];
+  const at = (s) => box.indexOf(s);
+  for (const s of ['class="trystep"', 'data-copytext="try"', 'class="trycost"', 'class="tryexpect"']) assert.ok(at(s) > 0, s);
+  assert.ok(at('class="trystep"') < at('data-copytext="try"') && at('data-copytext="try"') < at('class="trycost"') && at('class="trycost"') < at('class="tryexpect"'), 'setup, prompt, warning, then what you should see');
+  assert.match(box, /<p class="trystep"><b>First:<\/b> Lower the threshold to 5,000\. <b>After:<\/b> Put 150,000 back\.<\/p>/);
+  // The warning on its line, its reason behind a "?".
+  assert.match(box, /<div class="trycost"><span class="tag costly">High token use<\/span> <details class="fwhy"><summary title="Why it uses many tokens" aria-label="Why it uses many tokens">\?<\/summary><div><p>It reads a big file on purpose\.<\/p><\/div><\/details><\/div>/);
+  // What you should see on one line; the rest behind its "?".
+  const expect = box.slice(box.indexOf('<div class="tryexpect"'));
+  assert.equal(words(expect.split('<details')[0]), 'What you should see: The hook says so.');
+  assert.match(expect, /<summary title="More on what to look for"[^>]*>\?<\/summary><div><p><b>If it didn't work:<\/b> Nothing happens\.<\/p><p><b>Where to look:<\/b> The conversation\.<\/p><p><b>In Replay:<\/b> Open it in Replay: not found\.<\/p><\/div>/);
+  // A cheap prompt with no setup draws neither the setup line nor the warning; nor does an answer without the fields.
+  Object.assign(p, { testSetup: null, testCost: 'low' });
+  const { el: low } = await drawProblems(D, { hash: '#claim-contradicts-evidence' });
+  const lowBox = blocks(low('detail').innerHTML, 'section', 'pd-try')[0];
+  assert.doesNotMatch(lowBox, /trystep|trycost|High token use/);
+  assert.match(lowBox, /What you should see:/);
+  Object.assign(p, { testCost: undefined, testCostWhy: undefined, testExpect: undefined });
+  const { el: bare } = await drawProblems(D, { hash: '#claim-contradicts-evidence' });
+  assert.doesNotMatch(blocks(bare('detail').innerHTML, 'section', 'pd-try')[0], /trystep|trycost|tryexpect/);
 });
 
 test('#checked opens "What was checked"; the controls that left the first screen are all there', async () => {

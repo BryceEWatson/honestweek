@@ -4,42 +4,58 @@
 
 This page lists every published source behind honestweek's 41 known problems, each one once: vendor docs, bug reports, research papers and a few others. Each entry gives the source's title, linked to where it's published, its date, and the problems that cite it, so you can check the evidence for any problem in one place. I generate it from the problem catalog, so it changes only when the catalog does.
 
-201 sources. The catalog was checked on 2026-10-03 and 2026-10-05.
+212 sources. The catalog was checked on 2026-10-03 and 2026-10-05.
 
-## Vendor docs (42)
+## Vendor docs (53)
 
 - [Addendum to GPT-5.2 System Card: GPT-5.2-Codex (section 4.2, avoid data-destructive actions)](https://cdn.openai.com/pdf/ac7c37ae-7f4c-4442-b741-2eabdeaf77e0/oai_5_2_Codex.pdf) (2025-12)
   Cited by: Committed, pushed or rewrote history without being asked; Ran a command that can't be undone.
 - [Agent approvals & security](https://learn.chatgpt.com/docs/agent-approvals-security) (undated page, fetched 2026-10-05)
-  Cited by: Approved nearly every permission prompt, quickly; Committed, pushed or rewrote history without being asked; Exposed a credential, or went looking for one; Followed instructions planted in what it read; Went around a hook, a check or a refusal.
+  Cited by: Approved nearly every permission prompt, quickly; Committed, pushed or rewrote history without being asked; Edited files outside the session's folder; Exposed a credential, or went looking for one; Followed instructions planted in what it read; Went around a hook, a check or a refusal.
 - [Auto-review (Codex)](https://learn.chatgpt.com/docs/sandboxing/auto-review) (undated page, fetched 2026-10-05)
   Cited by: Approved nearly every permission prompt, quickly; Exposed a credential, or went looking for one; Went around a hook, a check or a refusal.
 - [Best practices (Codex)](https://learn.chatgpt.com/guides/best-practices) (undated page, fetched 2026-10-05)
   Cited by: Broke something outside the task; Instruction files grew too long to follow; Said it was done without running a check; Sessions ran long past where a fresh start would help; Started editing before reading enough of the code; You had to correct the same thing more than once.
 - [Best practices for Claude Code](https://code.claude.com/docs/en/best-practices) (undated page, fetched 2026-10-03)
   Cited by: Added code that silences errors; Approved nearly every permission prompt, quickly; Broke a rule it was given; Instruction files grew too long to follow; Ran a command that can't be undone; Read far more than the task needed; Said it was done without running a check; Sessions ran long past where a fresh start would help; Started editing before reading enough of the code; The tests passed, but the fix was still wrong; You had to correct the same thing more than once.
+- [Build skills (Codex)](https://learn.chatgpt.com/docs/build-skills) (undated page, fetched 2026-10-05)
+  Cited by: Started helpers the work didn't need.
 - [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) (2024-12-19)
   Cited by: Called a failed run a pass, or its failures unrelated; Repeated the same step without getting further.
+- [Choose a permission mode](https://code.claude.com/docs/en/permission-modes) (undated page, fetched 2026-10-05)
+  Cited by: Broke a rule it was given; Edited files outside the session's folder.
 - [Claude 3.7 Sonnet System Card (section 6, excessive focus on passing tests)](https://www-cdn.anthropic.com/9ff93dfa8f445c932415d335c88852ef47f1201e.pdf) (2025-02 (release month; card undated))
   Cited by: Hard-coded what the tests check for; Removed or skipped tests, or narrowed the test command.
 - [Codex Prompting Guide](https://developers.openai.com/cookbook/examples/gpt-5/codex_prompting_guide) (2026-02-25)
   Cited by: Added code that silences errors; Committed, pushed or rewrote history without being asked; Ran a command that can't be undone; Read the same file again when it hadn't changed; Stopped before the work was finished; Stopped to ask permission it didn't need.
+- [Commands (Claude Code)](https://code.claude.com/docs/en/commands) (undated page, fetched 2026-10-05)
+  Cited by: Kept deliberating when one step would settle it; Said it was done without running a check; Sessions ran long past where a fresh start would help; Stopped before the work was finished.
+- [Configuration Reference (Codex)](https://learn.chatgpt.com/docs/config-file/config-reference) (undated page, fetched 2026-10-05)
+  Cited by: Kept deliberating when one step would settle it.
+- [Configure permissions](https://code.claude.com/docs/en/permissions) (undated page, fetched 2026-10-05)
+  Cited by: Approved nearly every permission prompt, quickly; Committed, pushed or rewrote history without being asked; Exposed a credential, or went looking for one; Removed or skipped tests, or narrowed the test command.
 - [Configure the sandboxed Bash tool (Claude Code)](https://code.claude.com/docs/en/sandboxing) (undated page, fetched 2026-10-05)
   Cited by: Approved nearly every permission prompt, quickly; Edited files outside the session's folder; Exposed a credential, or went looking for one.
 - [Custom instructions with AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md) (undated page, fetched 2026-10-05)
   Cited by: Instruction files grew too long to follow.
+- [Customize your status line](https://code.claude.com/docs/en/statusline) (undated page, fetched 2026-10-05)
+  Cited by: Sessions ran long past where a fresh start would help.
 - [Don't Build Multi-Agents](https://cognition.com/blog/dont-build-multi-agents) (2025-06-12)
   Cited by: Guessed instead of asking; Lost or ignored what a helper found.
 - [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) (2025-09-29)
   Cited by: Filled the context with huge command output; Forgot earlier work after the context was summarized; Sessions ran long past where a fresh start would help.
 - [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) (2025-11-26)
   Cited by: Removed or skipped tests, or narrowed the test command; Said it was done without running a check; Started editing before reading enough of the code.
+- [Environment variables (Claude Code)](https://code.claude.com/docs/en/env-vars) (undated page, fetched 2026-10-05)
+  Cited by: Started helpers the work didn't need.
 - [GPT-5 prompting guide](https://developers.openai.com/cookbook/examples/gpt-5/gpt-5_prompting_guide) (2025-08-07)
   Cited by: Instruction files grew too long to follow; Read far more than the task needed; Stopped before the work was finished.
 - [GPT-5 System Card (section 3.8, deception)](https://cdn.openai.com/gpt-5-system-card.pdf) (2025-08)
   Cited by: Said it did something the log doesn't show; Said it was done without running a check.
 - [Hooks (Codex)](https://learn.chatgpt.com/docs/hooks) (undated page, fetched 2026-10-05)
-  Cited by: Broke a rule it was given; Installed a package it shouldn't have; Removed or skipped tests, or narrowed the test command; Said it was done without running a check.
+  Cited by: Broke a rule it was given; Called a failed run a pass, or its failures unrelated; Filled the context with huge command output; Hit the same tool error again and again; Installed a package it shouldn't have; Left scratch files or debug edits behind; Read the same file again when it hadn't changed; Removed or skipped tests, or narrowed the test command; Repeated the same step without getting further; Said it was done without running a check; Sessions ran long past where a fresh start would help; Waited by sleeping and checking again and again; Went around a hook, a check or a refusal.
+- [Hooks reference (Claude Code)](https://code.claude.com/docs/en/hooks) (undated page, fetched 2026-10-05)
+  Cited by: Broke a rule it was given; Called a failed run a pass, or its failures unrelated; Filled the context with huge command output; Hit the same tool error again and again; Installed a package it shouldn't have; Left scratch files or debug edits behind; Ran a command that can't be undone; Read the same file again when it hadn't changed; Removed or skipped tests, or narrowed the test command; Repeated the same step without getting further; Said it was done without running a check; Sessions ran long past where a fresh start would help; Stopped before the work was finished; Waited by sleeping and checking again and again; Went around a hook, a check or a refusal.
 - [How Claude remembers your project](https://code.claude.com/docs/en/memory) (undated page, fetched 2026-10-03)
   Cited by: Broke a rule it was given; Forgot earlier work after the context was summarized; Instruction files grew too long to follow.
 - [How we built Claude Code auto mode: a safer way to skip permissions](https://www.anthropic.com/engineering/claude-code-auto-mode) (2026-03-25)
@@ -52,6 +68,8 @@ This page lists every published source behind honestweek's 41 known problems, ea
   Cited by: Filled the context with huge command output; Kept deliberating when one step would settle it; Read far more than the task needed; Read the same file again when it hadn't changed; Sessions ran long past where a fresh start would help; Started editing before reading enough of the code; Started helpers the work didn't need; Waited by sleeping and checking again and again.
 - [Migrating to Claude Opus 5.5](https://platform.claude.com/docs/en/models/opus-5-5/migration-guide) (undated page, fetched 2026-10-05)
   Cited by: Instruction files grew too long to follow.
+- [Model configuration (Claude Code)](https://code.claude.com/docs/en/model-config) (undated page, fetched 2026-10-05)
+  Cited by: Kept deliberating when one step would settle it.
 - [Models (Codex)](https://learn.chatgpt.com/docs/models) (undated page, fetched 2026-10-05)
   Cited by: Kept deliberating when one step would settle it; Started helpers the work didn't need.
 - [Permission profiles (Codex)](https://learn.chatgpt.com/docs/permissions) (undated page, fetched 2026-10-05)
@@ -69,13 +87,15 @@ This page lists every published source behind honestweek's 41 known problems, ea
 - [Rethinking skills and prompts for GPT-6 Astra](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra) (2026-09-11)
   Cited by: Instruction files grew too long to follow; Kept deliberating when one step would settle it; Read far more than the task needed; Stopped before the work was finished; Stopped to ask permission it didn't need.
 - [Rules (Codex)](https://learn.chatgpt.com/docs/agent-configuration/rules) (undated page, fetched 2026-10-05)
-  Cited by: Approved nearly every permission prompt, quickly; Ran a command that can't be undone.
+  Cited by: Approved nearly every permission prompt, quickly; Committed, pushed or rewrote history without being asked; Ran a command that can't be undone.
 - [Sandbox (Codex)](https://learn.chatgpt.com/docs/sandboxing) (undated page, fetched 2026-10-05)
   Cited by: Approved nearly every permission prompt, quickly.
 - [Security](https://code.claude.com/docs/en/security) (undated page, fetched 2026-10-03)
   Cited by: Followed instructions planted in what it read.
 - [Settings files and precedence](https://code.claude.com/docs/en/settings) (undated page, fetched 2026-10-03)
   Cited by: Exposed a credential, or went looking for one.
+- [Slash commands in Codex CLI](https://learn.chatgpt.com/docs/developer-commands?surface=cli) (undated page, fetched 2026-10-05)
+  Cited by: Said it was done without running a check; Sessions ran long past where a fresh start would help; Stopped before the work was finished.
 - [Subagents (Claude Code docs)](https://code.claude.com/docs/en/sub-agents) (undated page, fetched 2026-10-03)
   Cited by: Started helpers the work didn't need.
 - [System Card: Claude Opus 4.6](https://www-cdn.anthropic.com/c788cbc0a3da9135112f97cdf6dcd06f2c16cee2.pdf) (2026-02)
@@ -83,7 +103,9 @@ This page lists every published source behind honestweek's 41 known problems, ea
 - [System Card: Claude Opus 5](https://www-cdn.anthropic.com/c5fbac3f0b1280a933ebd26d3cb8bb9f5bdeaf48/Claude%20Opus%205%20System%20Card.pdf) (2026-07)
   Cited by: Broke a rule it was given; Called a failed run a pass, or its failures unrelated; Exposed a credential, or went looking for one; Kept deliberating when one step would settle it; Oversold the result; Went around a hook, a check or a refusal.
 - [Tools reference](https://code.claude.com/docs/en/tools-reference) (undated page, fetched 2026-10-03)
-  Cited by: Filled the context with huge command output; Waited by sleeping and checking again and again.
+  Cited by: Filled the context with huge command output; Stopped before the work was finished; Waited by sleeping and checking again and again.
+- [Track cost and usage (Agent SDK)](https://code.claude.com/docs/en/agent-sdk/cost-tracking) (undated page, fetched 2026-10-05)
+  Cited by: Started helpers the work didn't need.
 - [Unified diffs make GPT-4 Turbo 3X less lazy](https://aider.chat/2023/12/21/unified-diffs.html) (2023-12-21)
   Cited by: Left placeholders in and called the work finished.
 - [Using GPT-6](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra) (undated page, fetched 2026-10-05)

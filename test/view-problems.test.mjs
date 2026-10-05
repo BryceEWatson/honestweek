@@ -316,6 +316,9 @@ test("each pattern's fix is the catalog's draft, word for word, and its test pro
     assert.deepEqual(p.draft, DRAFTS[p.id] ?? null, `${p.id}: the draft the Copy button copies`);
     const cat = loadCatalog().patterns.find((x) => x.id === p.id);
     assert.equal(p.testPrompt, PATTERN_CHECKS[p.id] ? cat.testPrompt : null, `${p.id}: its test prompt`);
+    // What the test costs and what to look for ride with the prompt, and only with it.
+    for (const k of ['testSetup', 'testCost', 'testCostWhy', 'testExpect']) assert.deepEqual(p[k], p.testPrompt ? cat[k] ?? null : null, `${p.id}: its ${k}`);
+    if (p.testPrompt) assert.ok(p.testCost && p.testExpect, `${p.id}: a cost and what to look for`);
   }
 });
 
@@ -374,10 +377,11 @@ test('a private word that is a coverage status leaves the status whole, and the 
   await own.stop?.();
 });
 
-test('the Problems answer is otherwise unchanged: coverage, the Codex form and the headline are the only new fields', () => {
+test('the Problems answer is otherwise unchanged: coverage, the Codex form, the headline and the test prompt\'s cost, setup and what to look for are the only new fields', () => {
   const BEFORE = ['claim', 'count', 'countEvidence', 'derivedFound', 'detection', 'draft', 'findings', 'findingsListed', 'group', 'id', 'look', 'looksLike', 'measures', 'mitigation', 'name', 'notRun', 'notesFound', 'possible', 'priority', 'related', 'sourceKinds', 'sources', 'status', 'strength', 'strengthReason', 'sure', 'testPrompt', 'tokens', 'whyItMatters'];
+  const NEW = new Set(['coverage', 'headline', 'testSetup', 'testCost', 'testCostWhy', 'testExpect']);
   for (const p of whole.patterns) {
-    assert.deepEqual(Object.keys(p).filter((k) => k !== 'coverage' && k !== 'headline').sort(), BEFORE, p.id);
+    assert.deepEqual(Object.keys(p).filter((k) => !NEW.has(k)).sort(), BEFORE, p.id);
     if (p.draft) assert.deepEqual(Object.keys(p.draft).filter((k) => k !== 'codex').sort(), ['kind', 'text', 'title', 'where'], p.id);
   }
 });
