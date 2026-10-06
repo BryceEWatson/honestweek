@@ -141,6 +141,22 @@ test('matchLaunches: hooks never count by timing, and a launch naming a known se
   const named = (s, id) => ({ event: ev(id), session: s, kind: 'claude', text: `claude -p --session-id ${IDS.byText}`, cwd: null, t: 50 });
   const two = matchLaunches({ launches: [a, named('p', 'n1'), named('q', 'n2')], children: [{ ...child, id: IDS.byText }] });
   assert.deepEqual(two.get('c'), { ambiguous: true, evidence: 'recorded', rule: 'launch.session-id', launches: 2 });
+  // One step holding the same opening as two runs days apart (a rerun the logs don't show)
+  // links neither; one command holding two different openings (a loop) links both.
+  const P = 'Check the release notes against the merged pull requests and list any gaps.';
+  const Q = 'Check the README examples against the current flags and list any that fail.';
+  const run = (session, opening, startT) => ({ session, kind: 'claude', id: `id-${session}`, opening, cwd: null, startT });
+  const once = { event: ev('m'), session: 'p', kind: 'claude', text: `claude -p "${P}"`, cwd: null, t: 1000 };
+  const rerun = matchLaunches({ launches: [once], children: [run('mon', P, 2000), run('sat', P, 2000 + 5 * 86400e3)] });
+  for (const k of ['mon', 'sat']) assert.deepEqual(rerun.get(k), { ambiguous: true, evidence: 'derived', rule: 'launch.opening-text', launches: 1, sessions: 2 });
+  const loop = { event: ev('l'), session: 'p', kind: 'claude', text: `for p in "${P}" "${Q}"; do claude -p "$p"; done`, cwd: null, t: 1000 };
+  const both = matchLaunches({ launches: [loop], children: [run('a', P, 2000), run('b', Q, 3000)] });
+  assert.deepEqual([both.get('a').event, both.get('b').event, both.get('a').evidence], ['l', 'l', 'derived']);
+  // A step that names run A's id is A's: run B with the same opening isn't matched to it by text.
+  const idStep = { event: ev('n'), session: 'p', kind: 'claude', text: `claude -p --session-id ${IDS.byId} "${P}"`, cwd: 'c:/repo', t: 1000 };
+  const claimed = matchLaunches({ launches: [idStep], children: [{ ...run('A', P, 2000), id: IDS.byId }, { ...run('B', P, 2000), cwd: 'c:/repo' }], knownIds: new Set([IDS.byId]) });
+  assert.equal(claimed.get('A').evidence, 'recorded');
+  assert.equal(claimed.has('B'), false);
   // An opening shorter than 40 characters is never matched by its text.
   const short = matchLaunches({ launches: [{ event: ev('s'), session: 'p', kind: 'claude', text: 'claude -p "Fix it."', cwd: 'c:/elsewhere', t: 50 }], children: [{ ...child, opening: 'Fix it.' }] });
   assert.equal(short.size, 0);
