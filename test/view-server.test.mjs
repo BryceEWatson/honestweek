@@ -10,7 +10,7 @@ import { connect } from 'node:net';
 import { join } from 'node:path';
 
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
-import { ASSETS_DIR, CODE_HEADER, CSP, CSP_SELF_TEST, KEY_HEADER, readAssets, SELFTEST_DIR, startViewServer } from '../lib/view/server.mjs';
+import { ASSETS_DIR, CODE_HEADER, CODE_TTL_MS, CSP, CSP_SELF_TEST, KEY_HEADER, readAssets, SELFTEST_DIR, startViewServer } from '../lib/view/server.mjs';
 import { createViewData } from '../lib/view/data.mjs';
 import { buildViewWeek, TERM, WEEK } from './fixtures/view/week.mjs';
 
@@ -215,6 +215,23 @@ test('a code given a lifetime stops working when it ends, and is still used up',
   assert.equal(s.pendingCodes(), 0, 'and the expired code is gone');
   const fresh = new URL(s.address('opener', '', { ttlMs: 60000 })).hash.slice(3);
   assert.equal((await raw(s.port, { path: '/api/claim', headers: { [CODE_HEADER]: fresh } })).status, 200);
+});
+
+test('a code given no lifetime, or an endless one, still stops working after CODE_TTL_MS', async () => {
+  assert.equal(CODE_TTL_MS, 15 * 60 * 1000);
+  let clock = Date.UTC(2026, 0, 1);
+  const s = await start({ now: () => clock });
+  const claimAt = (code) => raw(s.port, { path: '/api/claim', headers: { [CODE_HEADER]: code } });
+  const plain = s.issueCode('printed');
+  const endless = s.issueCode('printed', { ttlMs: Infinity });
+  const edge = new URL(s.address('printed')).hash.slice(3);
+  clock += CODE_TTL_MS;
+  assert.equal((await claimAt(edge)).status, 200, 'it works to the end of its lifetime');
+  clock += 1;
+  assert.equal((await claimAt(plain)).status, 403, 'a printed code from old scrollback is refused');
+  assert.equal((await claimAt(endless)).status, 403, 'no code works for ever');
+  assert.equal(s.pendingCodes(), 0);
+  assert.equal((await claimAt(s.issueCode('printed'))).status, 200, 'a fresh code works');
 });
 
 test('a data request without the run key, or with a stale one, is refused even with a correct Host', async () => {

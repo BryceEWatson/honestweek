@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 import { HELP, parseViewPort, resolveViewWindow, runView } from '../lib/view.mjs';
 import { setCommandForm } from '../lib/invocation.mjs';
-import { CODE_HEADER, KEY_HEADER } from '../lib/view/server.mjs';
+import { CODE_HEADER, CODE_TTL_MS, KEY_HEADER } from '../lib/view/server.mjs';
 import { createLeakCounter } from '../lib/view/leaks.mjs';
 import { buildViewWeek, PRIVATE_WORDS, TERM, WEEK } from './fixtures/view/week.mjs';
 
@@ -44,11 +44,11 @@ function capture() {
   return { io: { out: (s) => out.push(s), err: (s) => err.push(s) }, out: () => out.join(''), err: () => err.join('') };
 }
 
-async function view(argv, { cwd = project, env = ENV, input = null, opener, openerTtlMs } = {}) {
+async function view(argv, { cwd = project, env = ENV, input = null, opener, openerTtlMs, printedTtlMs, codeClock } = {}) {
   const c = capture();
   const opened = [];
   let handle = null;
-  const code = await runView({ argv, cwd, env, io: c.io, input, opener: opener ?? ((file, o) => opened.push({ file, o })), block: false, onServe: (h) => (handle = h), ...(openerTtlMs ? { openerTtlMs } : {}) });
+  const code = await runView({ argv, cwd, env, io: c.io, input, opener: opener ?? ((file, o) => opened.push({ file, o })), block: false, onServe: (h) => (handle = h), ...(openerTtlMs ? { openerTtlMs } : {}), ...(printedTtlMs ? { printedTtlMs } : {}), ...(codeClock ? { codeClock } : {}) });
   if (handle) running.push(handle);
   return { code, handle, out: c.out, err: c.err, opened };
 }
@@ -280,6 +280,39 @@ test('with --no-open nothing is opened, and the printed address works; Enter pri
   assert.equal(await claim(all[1].port, all[1].code), key, 'the fresh address works');
   assert.ok(!r.out().includes(key));
   await r.handle.stop();
+});
+
+test('a printed address stops working when its lifetime ends, and Enter still prints a fresh one that works', async () => {
+  // A clock the test moves, so nothing depends on how fast the machine answers.
+  let clock = Date.now();
+  const codeClock = () => clock;
+  const fresh = async (r, n) => {
+    for (let i = 0; i < 200 && codesIn(r.out()).length < n; i++) await new Promise((done) => setTimeout(done, 10));
+    return codesIn(r.out())[n - 1];
+  };
+  const input = new PassThrough();
+  const r = await view(['--no-open', ...RANGE], { input, codeClock });
+  assert.match(r.out(), /Each address works once, within 15 minutes\. Press Enter here to print a fresh one\./);
+  const [old] = codesIn(r.out());
+  clock += CODE_TTL_MS + 1;
+  assert.equal(await claim(old.port, old.code), null, 'a printed address left in scrollback no longer works');
+  input.write('\n');
+  const next = await fresh(r, 2);
+  assert.ok(next, 'Enter printed a fresh address');
+  assert.match(await claim(next.port, next.code), /^[0-9a-f]{64}$/, 'the fresh address works');
+  await r.handle.stop();
+  // A lifetime the caller names is the one printed codes get, and the terminal says it.
+  const input2 = new PassThrough();
+  const s = await view(['--no-open', ...RANGE], { input: input2, codeClock, printedTtlMs: 60_000 });
+  assert.match(s.out(), /Each address works once, within 1 minute\. Press Enter/);
+  const [short] = codesIn(s.out());
+  input2.write('\n');
+  const kept = await fresh(s, 2);
+  clock += 60_000;
+  assert.match(await claim(kept.port, kept.code), /^[0-9a-f]{64}$/, 'it works to the end of its lifetime');
+  clock += 1;
+  assert.equal(await claim(short.port, short.code), null, 'and not a moment past it');
+  await s.handle.stop();
 });
 
 test('with --self-test it also prints the click-through page\'s address, with its own code, and a fresh one on Enter', async () => {

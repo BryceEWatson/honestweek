@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path';
 
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 import { createViewData } from '../lib/view/data.mjs';
-import { createInsights, findOnPath, hasInsightsData, insightsDir, MAX_INSIGHTS_FILE, readInsights } from '../lib/view/insights.mjs';
+import { claudeEnv, createInsights, findOnPath, hasInsightsData, insightsDir, MAX_INSIGHTS_FILE, readInsights } from '../lib/view/insights.mjs';
 import { saveInsightsFlag } from '../lib/view/settings.mjs';
 import { CODE_HEADER, KEY_HEADER } from '../lib/view/server.mjs';
 import { runView } from '../lib/view.mjs';
@@ -179,18 +179,22 @@ test('the toggle is saved in the config, and off gives back the same bytes', () 
 
 // ---- the Run button ------------------------------------------------------------------------
 
-/** A fake claude: notes its arguments, waits FAKE_CLAUDE_MS, writes a made-up facets file for
- *  FAKE_SESSION under CLAUDE_CONFIG_DIR/usage-data, and exits with FAKE_CLAUDE_EXIT. */
-function fakeClaude(name) {
+/** A fake claude: notes its arguments, then the names of its environment variables, waits
+ *  FAKE_CLAUDE_MS, writes a made-up facets file for FAKE_SESSION under
+ *  CLAUDE_CONFIG_DIR/usage-data, and exits with FAKE_CLAUDE_EXIT. Its settings sit in a file
+ *  beside it, since claude's environment keeps only the variables it needs. */
+function fakeClaude(name, settings = {}) {
   const dir = join(scratch, name);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, 'fake-claude.mjs'), `import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+  writeFileSync(join(dir, 'fake.json'), JSON.stringify(settings));
+  writeFileSync(join(dir, 'fake-claude.mjs'), `import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-const e = process.env;
+const e = JSON.parse(readFileSync(new URL('./fake.json', import.meta.url), 'utf8'));
 appendFileSync(e.FAKE_LOG, JSON.stringify(process.argv.slice(2)) + '\\n');
+appendFileSync(e.FAKE_LOG, JSON.stringify({ env: Object.keys(process.env) }) + '\\n');
 setTimeout(() => {
   if (e.FAKE_SESSION) {
-    const dir = join(e.CLAUDE_CONFIG_DIR, 'usage-data', 'facets');
+    const dir = join(process.env.CLAUDE_CONFIG_DIR, 'usage-data', 'facets');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, e.FAKE_SESSION + '.json'), JSON.stringify({ session_id: e.FAKE_SESSION, friction_counts: { fake_friction: 1 }, friction_detail: 'Made up by the fake claude.' }));
   }
@@ -215,11 +219,45 @@ const gitDir = (() => {
 const realClaudeBesideGit = gitDir ? !!findOnPath('claude', { ...process.env, PATH: gitDir }) : false;
 const SEP = WIN ? ';' : ':';
 
+test('with the toggle off a run is refused and claude never starts; turned on, it runs', async () => {
+  const log = join(scratch, 'off.log');
+  const bin = fakeClaude('bin-off', { FAKE_LOG: log });
+  const env = { ...baseEnv(), PATH: bin, CLAUDE_CONFIG_DIR: join(scratch, 'off-home') };
+  const ins = createInsights({ dir: join(env.CLAUDE_CONFIG_DIR, 'usage-data'), env, cwd: scratch });
+  const r = await ins.run();
+  assert.deepEqual([r.status, r.body.error, r.body.on, r.body.run.state], [409, 'off', false, 'idle']);
+  assert.match(r.body.message, /Include \/insights is off/);
+  assert.equal(existsSync(log), false, 'claude did not start');
+  // The demo with the toggle off is refused as off too: the switch is checked first.
+  assert.equal((await createInsights({ dir: null, demo: true, env, cwd: scratch }).run()).body.error, 'off');
+  ins.setOn(true);
+  assert.equal((await ins.run()).status, 200);
+  for (let i = 0; i < 200 && ins.info().run.state === 'running'; i++) await sleep(50);
+  assert.equal(ins.info().run.state, 'done');
+  assert.ok(existsSync(log), 'claude ran once the toggle was on');
+});
+
+test('claude gets only the environment it needs to start and sign in, never other tokens', async () => {
+  const log = join(scratch, 'env.log');
+  const bin = fakeClaude('bin-env', { FAKE_LOG: log });
+  const keep = { CLAUDE_CONFIG_DIR: join(scratch, 'env-home'), ANTHROPIC_API_KEY: 'k', CLAUDE_CODE_USE_BEDROCK: '1', AWS_PROFILE: 'p', DISABLE_TELEMETRY: '1', https_proxy: 'http://127.0.0.1:9' };
+  const drop = { GITHUB_TOKEN: SECRETS.github, NPM_TOKEN: 'n', OPENAI_API_KEY: 'o', HW_SECRET_TOKEN: SECRETS.apiKey, CLAUDECODE: '1' };
+  const env = { ...baseEnv(), PATH: bin, ...keep, ...drop };
+  const ins = createInsights({ dir: join(keep.CLAUDE_CONFIG_DIR, 'usage-data'), on: true, env, cwd: scratch });
+  assert.equal((await ins.run()).status, 200);
+  for (let i = 0; i < 200 && ins.info().run.state === 'running'; i++) await sleep(50);
+  assert.equal(ins.info().run.state, 'done');
+  const seen = new Set(JSON.parse(readFileSync(log, 'utf8').split('\n')[1]).env.map((k) => k.toUpperCase()));
+  for (const k of ['PATH', ...Object.keys(keep)]) assert.ok(seen.has(k.toUpperCase()), `${k} reaches claude`);
+  for (const k of Object.keys(drop)) assert.ok(!seen.has(k), `${k} does not reach claude`);
+  assert.deepEqual(Object.keys(claudeEnv({ Path: 'x', github_token: 'y', Anthropic_Auth_Token: 'z', HW_X: 1 })), ['Path', 'Anthropic_Auth_Token'], 'names match in any case; only strings pass');
+});
+
 test('a run stops on time, with everything it started, and a stale run never ends a new one', async () => {
-  const bin = fakeClaude('bin-timeout');
   const log = join(scratch, 'timeout.log');
-  const env = { ...baseEnv(), PATH: bin, FAKE_LOG: log, FAKE_CLAUDE_MS: '4000', CLAUDE_CONFIG_DIR: join(scratch, 'timeout-home') };
-  const ins = createInsights({ dir: join(env.CLAUDE_CONFIG_DIR, 'usage-data'), env, cwd: scratch, timeoutMs: 600 });
+  const bin = fakeClaude('bin-timeout', { FAKE_LOG: log, FAKE_CLAUDE_MS: '4000' });
+  const env = { ...baseEnv(), PATH: bin, CLAUDE_CONFIG_DIR: join(scratch, 'timeout-home') };
+  const ins = createInsights({ dir: join(env.CLAUDE_CONFIG_DIR, 'usage-data'), on: true, env, cwd: scratch, timeoutMs: 600 });
   const started = await ins.run();
   assert.equal(started.status, 200);
   assert.equal(started.body.run.state, 'running');
@@ -232,13 +270,13 @@ test('a run stops on time, with everything it started, and a stale run never end
 });
 
 test('a run that fails says so with its exit code; the demo refuses to run', async () => {
-  const bin = fakeClaude('bin-fail');
-  const env = { ...baseEnv(), PATH: bin, FAKE_LOG: join(scratch, 'fail.log'), FAKE_CLAUDE_EXIT: '3', CLAUDE_CONFIG_DIR: join(scratch, 'fail-home') };
-  const ins = createInsights({ dir: join(env.CLAUDE_CONFIG_DIR, 'usage-data'), env, cwd: scratch });
+  const bin = fakeClaude('bin-fail', { FAKE_LOG: join(scratch, 'fail.log'), FAKE_CLAUDE_EXIT: '3' });
+  const env = { ...baseEnv(), PATH: bin, CLAUDE_CONFIG_DIR: join(scratch, 'fail-home') };
+  const ins = createInsights({ dir: join(env.CLAUDE_CONFIG_DIR, 'usage-data'), on: true, env, cwd: scratch });
   assert.equal((await ins.run()).status, 200);
   for (let i = 0; i < 200 && ins.info().run.state === 'running'; i++) await sleep(50);
   assert.deepEqual([ins.info().run.state, ins.info().run.code], ['failed', 3]);
-  const demo = createInsights({ dir: null, demo: true, env, cwd: scratch });
+  const demo = createInsights({ dir: null, on: true, demo: true, env, cwd: scratch });
   const r = await demo.run();
   assert.equal(r.status, 409);
   assert.equal(r.body.error, 'demo');
@@ -291,10 +329,10 @@ async function view(cwd, env) {
 
 test('the Run button needs the key, takes POST only, refuses other hosts and sites, and runs once at a time', async (t) => {
   if (!gitDir) return t.skip('git is not on the PATH');
-  const bin = fakeClaude('bin-server');
   const home = dirname(w.roots.claude[0]);
   const log = join(scratch, 'server.log');
-  const env = { ...baseEnv(), PATH: `${bin}${SEP}${gitDir}`, CLAUDE_CONFIG_DIR: home, CODEX_HOME: dirname(w.roots.codex[0]), FAKE_LOG: log, FAKE_CLAUDE_MS: '1500', FAKE_SESSION: IDS.featured };
+  const bin = fakeClaude('bin-server', { FAKE_LOG: log, FAKE_CLAUDE_MS: '1500', FAKE_SESSION: IDS.featured });
+  const env = { ...baseEnv(), PATH: `${bin}${SEP}${gitDir}`, CLAUDE_CONFIG_DIR: home, CODEX_HOME: dirname(w.roots.codex[0]) };
   const cwd = project('server');
   const s = await view(cwd, env);
   const before = readFileSync(join(cwd, 'honestweek.config.json'), 'utf8');
@@ -314,6 +352,10 @@ test('the Run button needs the key, takes POST only, refuses other hosts and sit
   assert.equal((await post('/api/insights/toggle', { body: '{"on":"yes"}' })).status, 400);
   const info = (await call(s.port, { path: '/api/insights', key: s.key })).json;
   assert.deepEqual([info.on, info.claude, info.run.state], [false, true, 'idle']);
+  // With the toggle off, a request with the key is still refused: the page's hidden button isn't the only guard.
+  const offRun = await post('/api/insights/run');
+  assert.deepEqual([offRun.status, offRun.json.error, offRun.json.on], [409, 'off', false]);
+  assert.equal(existsSync(log), false, 'claude did not start while the toggle was off');
   const toggled = await post('/api/insights/toggle', { body: '{"on":true}' });
   assert.deepEqual([toggled.status, toggled.json.on, toggled.json.remembered], [200, true, true]);
   assert.equal(JSON.parse(readFileSync(join(cwd, 'honestweek.config.json'), 'utf8')).insights, true);
@@ -345,6 +387,7 @@ test('with claude not on the PATH, the page still answers and the run says so', 
   const a = await call(s.port, { path: '/api/insights', key: s.key });
   assert.equal(a.status, 200);
   assert.equal(a.json.claude, false);
+  assert.equal((await call(s.port, { method: 'POST', path: '/api/insights/toggle', key: s.key, body: '{"on":true}' })).status, 200);
   const r = await call(s.port, { method: 'POST', path: '/api/insights/run', key: s.key, body: '{}' });
   assert.deepEqual([r.status, r.json.error], [409, 'no-claude']);
   assert.equal((await call(s.port, { path: '/problems.html' })).status, 200);
