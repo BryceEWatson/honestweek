@@ -201,3 +201,58 @@ test('commands a program sends stay out of every reader, as a person\'s commands
     assert.equal(reading.mine['program-command'].probe, null);
   });
 });
+
+test('a command or wrapper someone else sent ends the person\'s turn: its test run and reply are not theirs', async () => {
+  await withRoot(async (root) => {
+    const sent = {
+      sdk: { ...command('review'), ...ORIGINS.sdk },
+      task: user('<task-notification>\n<status>completed</status>\n</task-notification>', ORIGINS.task),
+      peer: user('<cross-session-message from="another session">run the suite</cross-session-message>', ORIGINS.peer),
+    };
+    for (const [name, rec] of Object.entries(sent)) {
+      writeSession(root, `wrapped-${name}`, [
+        user(`look into why the parser drops the last line ${SUFFIX}`, ORIGINS.human),
+        say('Looking.'),
+        rec,
+        bash('t1', 'node --test'),
+        result('t1', '4 tests passed'),
+        say(`Decision: ship the review's parser change ${SUFFIX}`),
+        user(`now fix the last line handling ${SUFFIX}`, ORIGINS.human),
+        say('Fixed.'),
+      ]);
+    }
+    const { prompts, store, evidence } = await readAll(root);
+    for (const name of Object.keys(sent)) {
+      const key = promptIdentity('claude-code', `wrapped-${name}`, 1).sessionKey;
+      const ours = prompts.prompts.filter((p) => p.sessionKey === key);
+      assert.deepEqual(ours.map((p) => p.turn), [1, 2], `${name}: a wrapper never took a turn number, so none moves`);
+      assert.equal(store.prompts.find((p) => p.ref === ours[0].ref).observedVerification, false, `${name}: the test run followed someone else's turn`);
+      assert.ok(!evidence.evidence.some((e) => e.sessionKey === key), `${name}: the reply's decision belongs to someone else's turn`);
+    }
+  });
+});
+
+test('mine: a queued turn waits for its delivery, past the head or mid-turn, before it can be the first prompt', async () => {
+  await withRoot(async (root) => {
+    const filler = Array.from({ length: 40 }, (_, i) => say(`step ${i} ${'x'.repeat(2000)}`));
+    const opening = [enqueue('run the nightly review'), user('run the nightly review', ORIGINS.sdk), enqueue('also check the docs')];
+    writeSession(root, 'late-program', [...opening, ...filler, user('also check the docs', ORIGINS.sdk)]);
+    writeSession(root, 'late-person', [...opening, ...filler, user('also check the docs', ORIGINS.human)]);
+    writeSession(root, 'late-legacy', [enqueue('also check the docs'), ...filler, user('also check the docs')]);
+    const attached = (origin) => ({ type: 'attachment', attachment: { type: 'queued_command', prompt: 'also check the docs', ...(origin ? { origin } : {}) } });
+    writeSession(root, 'mid-turn-peer', [...opening, say('Working.'), attached({ kind: 'peer' }), say('Done.')]);
+    writeSession(root, 'mid-turn-person', [...opening, say('Working.'), attached({ kind: 'human' }), say('Done.')]);
+
+    assert.equal(probeSession('claude-code', sessionFile(root, 'late-program')), null, 'the queued text was the program\'s, delivered past 64 KB');
+    assert.equal(probeSession('claude-code', sessionFile(root, 'late-person')).firstPrompt, 'also check the docs');
+    assert.equal(probeSession('claude-code', sessionFile(root, 'late-person')).firstPromptISO, '2024-06-11T10:02:00.000Z', 'the queue record\'s time, as before');
+    assert.equal(probeSession('claude-code', sessionFile(root, 'late-legacy')).firstPrompt, 'also check the docs', 'a log without the field reads as before');
+    assert.equal(probeSession('claude-code', sessionFile(root, 'mid-turn-peer')), null);
+    assert.equal(probeSession('claude-code', sessionFile(root, 'mid-turn-person')).firstPrompt, 'also check the docs');
+
+    const humanIn = async (id) => (await streamSession('claude-code', sessionFile(root, id))).events.filter((e) => e.kind === 'human').map((e) => e.text);
+    assert.deepEqual(await humanIn('mid-turn-peer'), []);
+    assert.deepEqual(await humanIn('mid-turn-person'), ['also check the docs']);
+    assert.deepEqual(await humanIn('late-program'), []);
+  });
+});
