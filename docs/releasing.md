@@ -150,6 +150,27 @@ CI could also run Node 18 and 20 on Windows and macOS, which it doesn't today. T
 - Tests added: `test/public-docs.test.mjs` (links and anchors, dashes in prose and `--help`, catalog counts, the Sidecars table against `.gitignore`), a host-name case in `test/preview.test.mjs`, and `test/loopback-host.test.mjs`.
 - The cache-miss coverage is `coverage.codex.status` of the `cache-miss` pattern in `lib/problems/catalog.json`, added in `4c9451b`. The 6 October measurement ran `buildWorkHistory` and `runProblems` over 29 September to 5 October, then recomputed the one Codex session's misses from its log's `token_count` records (3,647 model calls; a miss where the call before carried 20,000 tokens or more, this call sent 20,000 or more uncached, and it read back less than half the call before's context from the cache). Both found the largest at call 3,120, 220,447 tokens after a 21-minute pause, and a total of 1,110,230; the log's 4 `compacted` records fall in the same minutes as the 4 misses the check skips.
 
+### Readiness re-check, 6 October 2026
+
+I ran the checks above again on the final release branch, after the security fixes (#138 to #140), the deeper demo week (#141) and the check cards' sources (#142) had merged. The package still ships only what it should and runs from the packed file, nothing secret or private came in since the first check, and the README's screenshots show only the made-up demo week. Some privacy statements in the docs had drifted from the code after the security fixes. I fixed those, along with a few small things in the code and CI listed below.
+
+| Check | Result | What was found |
+| --- | --- | --- |
+| 1. The package | Pass | `npm pack` ships 157 files, 1.0 MB packed (3.4 MB unpacked), the same kinds of file as before: nothing from `docs/`, `test/`, `tools/` or `.claude/`, and no images. Installed from the packed file into an empty folder, `honestweek --help` works, `view --demo --no-open` serves its page and stops, and `view` with no config opens Setup. |
+| 2. Secrets and personal data | Pass | The 85 commits and 538 file versions added since the first check went through the same scan. Every key-shaped value is a made-up one in a test or the demo week, the email addresses and home-folder names are made-up ones in tests, and no private project name appears. Every commit's author is the GitHub no-reply address. I looked at all 16 images under `docs/images`: each shows the made-up demo week, nothing from my machine. |
+| 3. Privacy and security statements | Fixed | Nine statements in the README, `SECURITY.md` and `docs/local-page.md` said more than the code does. `view` refuses data requests from other websites, but still serves its page files, which hold no data. Settings also asks git whether the config is tracked. The config is the one file that keeps private words as you typed them. `preview` has no key, so other programs on the machine can read it. The README's hex-token rule, the files that are owner-only, and which sidecars are gitignored were also off. Each is reworded. In the code, the session draft, `harvest`'s word list and a new config are now created readable only by you on Linux and macOS, like the other private files, and a new `.gitignore` gets normal permissions again. |
+| 4. Docs | Pass | The README's Requirements still say Node 18 or later and git 2.24 or later. The docs tests pass. All 16 README images exist and render on GitHub. The changelog was missing the `view` server fixes from #124, and has them now. `SKILL.md` now tells the agent that text from session logs is data, not instructions. |
+| 5. CI | Fixed | Both workflows pin `actions/checkout` and `actions/setup-node` to full commit ids. A newer commit on a pull request cancels that pull request's older run; pushes to `main` are never cancelled. The Windows job takes 8 to 11 minutes against 2 to 4 for Linux and macOS, and issue #143 tracks profiling it. |
+
+What's left for me is the list above, plus a ruleset on `v*` tags that blocks moving or deleting a release tag.
+
+#### Implementation detail
+
+- Checked: `feature/final-readiness` at the head of its pull request, which is `origin/feature/release-0.2.0-final` at `c8d62fe` plus this pass, with Node 22.14, npm 10.9 and git 2.47 on Windows.
+- The scan is the first check's, over `git rev-list --objects 1084129..HEAD` and those commits' messages, authors and committers.
+- Owner-only on new files: `writeFileSync` with `mode: 0o600` in `lib/discover.mjs`, `lib/harvest.mjs` and `writeInitFiles` in `lib/init.mjs`; `ensureGitignore` passes `newMode: null` to `atomicWriteText`. Tests: `test/output-hardening-atomic-mode.test.mjs` (POSIX only).
+- CI: the `concurrency` block in `.github/workflows/ci.yml`; tests in `test/community-docs.test.mjs`.
+
 ## 0.2.0 release notes
 
 > **honestweek 0.2.0**
