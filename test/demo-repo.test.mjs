@@ -100,6 +100,23 @@ test("the writer's stats, branches and checkouts are the ones git shows and read
   assert.ok(git(dir, ['ls-files']).split('\n').includes('notes.md'), 'the uncommitted file went in with the next commit');
 });
 
+test('a person whose git makes reftable or SHA-256 repositories by default still gets the files and ids the writer expects', () => {
+  const root = makeTempDir('hw-demo-repo-');
+  const globalConfig = join(root, 'gitconfig');
+  writeFileSync(globalConfig, '[init]\n\tdefaultRefFormat = reftable\n\tdefaultObjectFormat = sha256\n');
+  const before = process.env.GIT_CONFIG_GLOBAL;
+  process.env.GIT_CONFIG_GLOBAL = globalConfig;
+  try {
+    const dir = join(root, 'repo');
+    const r = createRepo(dir, { name: NAME, email: EMAIL, config: CONFIG });
+    const c = r.commit({ 'a.txt': 'a\n' }, 'Start', '2025-01-02T10:00:00Z');
+    assert.equal(git(dir, ['rev-parse', 'main']), c.sha);
+  } finally {
+    if (before === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+    else process.env.GIT_CONFIG_GLOBAL = before;
+  }
+});
+
 test('the writer refuses what it would get wrong: a write command, a two-sided change, a switch over an edit', () => {
   const dir = join(makeTempDir('hw-demo-repo-'), 'repo');
   const r = createRepo(dir, { name: NAME, email: EMAIL, config: CONFIG });
