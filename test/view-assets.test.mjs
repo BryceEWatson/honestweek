@@ -260,6 +260,10 @@ test("the pages put a program's command and instructions in the agent's lane, ne
   }
   // The same command typed by you stays in your lane.
   assert.equal(HW.laneOf({ id: 'cc-abcdefghijkl.9.0', kind: 'command', actor: 'person', agent, inferred: [] }), 'person');
+  // Replay's show-or-hide list counts a program's turns apart from your slash commands.
+  const replay = readFileSync(join(ASSETS, 'replay.js'), 'utf8');
+  assert.match(replay, /p\.e\.actor === 'program' \? 'kind:program'/);
+  assert.match(replay, /\['kind:program', 'Sent by a program/);
 });
 
 test("a goal's session count on a page is no stronger than its weakest session", () => {
