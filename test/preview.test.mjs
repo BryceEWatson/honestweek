@@ -438,7 +438,7 @@ test('preview.mjs default-exports a run() that delegates to runPreview', async (
   assert.equal(typeof mod.default, 'function');
 });
 
-test('runPreview serves a `page` (.html) output VERBATIM under a script-permitting, no-egress CSP', async () => {
+test('runPreview serves a `page` (.html) output VERBATIM under a hashed-script, no-egress CSP', async () => {
   const dir = tmp();
   let handle;
   try {
@@ -453,7 +453,8 @@ test('runPreview serves a `page` (.html) output VERBATIM under a script-permitti
     assert.equal(res.body, doc, 'the standalone HTML is served byte-for-byte (no markdown conversion)');
     const csp = res.headers['content-security-policy'];
     assert.match(csp, /default-src 'none'/, 'still zero external egress');
-    assert.match(csp, /script-src 'unsafe-inline'/, 'inline interactivity is allowed for the page output');
+    assert.match(csp, /script-src 'sha256-/, 'only hashed inline scripts are allowed for the page output');
+    assert.ok(!/script-src[^;]*'unsafe-inline'/.test(csp), 'no blanket inline script');
     assert.ok(!/https?:\/\//.test(csp), 'no external source is whitelisted in the CSP');
   } finally {
     if (handle) await handle.close();
