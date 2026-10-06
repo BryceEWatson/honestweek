@@ -315,8 +315,8 @@ test('the demo session: 9 dots worth a look, two breaks of 19 and 5 minutes, and
   assert.deepEqual(gaps.map(([a, b]) => Math.round((b - a) / MIN)), [19, 5]);
   const labels = gaps.map((g) => M.breakLabel(g, { steps: events.filter((e) => e.kind !== 'quiet'), agents: r.agents, turns: r.session.turns.filter((t) => t.agent.endsWith(':main')) }));
   assert.deepEqual(labels.map((l) => l.text), ['19 min before your next prompt', '5 min before your next prompt']);
-  // The findings: 9 worth a look (3 high, counting the cache it re-sent after a pause, 2 medium,
-  // 4 low) and 4 routine notes.
+  // The findings: 9 worth a look (2 high, 3 medium counting the cache it re-sent after a pause,
+  // which the bigger demo week makes a smaller share of its tokens, and 4 low) and 4 routine notes.
   const p = (await data.route('/api/problems', new URLSearchParams({ thread: r.thread.id }))).body;
   const byId = new Map(events.map((e) => [e.id, e]));
   const items = M.findingItems(p, { sessions: [session], eventT: (id) => byId.get(id)?.t ?? null });
@@ -324,7 +324,7 @@ test('the demo session: 9 dots worth a look, two breaks of 19 and 5 minutes, and
   assert.equal(dots.length, 9);
   // Of the 9 worth a look, 6 rest on a rule's reading or a missing record: the summary says so.
   const counts = M.tierCounts(items);
-  assert.deepEqual({ ...counts, levels: undefined }, { high: 3, medium: 2, low: 4, look: 9, possible: 6, levels: undefined, routine: 4, dismissed: 0 });
+  assert.deepEqual({ ...counts, levels: undefined }, { high: 2, medium: 3, low: 4, look: 9, possible: 6, levels: undefined, routine: 4, dismissed: 0 });
   assert.equal(counts.levels.length, 9);
   assert.ok(dots.every((i) => i.known), 'every dot sits on a step of this replay');
   // The story: three prompt cards and a lead card, with the two breaks between them, and the

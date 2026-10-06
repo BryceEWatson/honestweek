@@ -474,9 +474,11 @@ test("a count is no stronger than the weakest thing it counts", async () => {
     assert.equal(shown.recorded + shown.inferred + shown.ambiguous, shown.members.value, id);
     if (expectWeak) weak += 1;
   }
-  // The fixture's members each have a recorded or derived join, so the weaker case is
-  // checked on made-up members.
-  assert.equal(weak, 0);
+  // One goal has a member joined only by a rule: Friday's review of #15 runs gh commands on the
+  // pull request the json-output goal cites, and nothing records it working toward the goal. The
+  // ambiguous case is checked on made-up members.
+  assert.equal(weak, 1);
+  assert.equal(home.goals.find((x) => x.key === goalKey('json-output')).members.evidence, 'inferred');
   const rule = { session: 'a', evidence: 'inferred', joins: [{ type: 'command-on-pr' }] };
   const amb = { session: 'b', evidence: 'recorded', ambiguous: true, joins: [{ type: 'cited-pr' }] };
   const mine = { session: 'c', evidence: 'recorded', joins: [{ type: 'cited-session' }] };

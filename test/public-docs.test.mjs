@@ -75,6 +75,31 @@ test('every relative link and #anchor in the public docs resolves', () => {
   assert.deepEqual(broken, []);
 });
 
+// The README shows screenshots with <picture> (a light and a dark version) and <img>, which the
+// Markdown link check above doesn't see. Each image resolves, says what it shows, and stays small.
+test('every image in the public docs resolves, has alt text, and stays under 300 KB', () => {
+  const problems = [];
+  const used = new Set();
+  for (const f of PUBLIC) {
+    const from = resolve(ROOT, f);
+    for (const [n, line] of proseLines(read(f))) {
+      const targets = [...line.matchAll(/<(?:img|source)\b[^>]*?\b(?:src|srcset)="([^"]+)"/g)].flatMap((m) => m[1].split(',').map((s) => s.trim().split(/\s+/)[0]));
+      for (const t of [...targets, ...[...line.matchAll(/!\[[^\]]*\]\(([^)\s]+)\)/g)].map((m) => m[1])]) {
+        if (/^[a-z]+:/i.test(t)) continue;
+        const to = resolve(dirname(from), decodeURIComponent(t));
+        used.add(to);
+        if (!existsSync(to)) problems.push(`${f}:${n} shows ${t}, which doesn't exist`);
+        else if (statSync(to).size > 300 * 1024) problems.push(`${f}:${n} shows ${t}, over 300 KB`);
+      }
+      for (const img of line.matchAll(/<img\b[^>]*>/g)) if (!/\balt="[^"]{20,}"/.test(img[0])) problems.push(`${f}:${n} has an image without alt text that says what it shows`);
+    }
+  }
+  const images = join(ROOT, 'docs', 'images');
+  if (existsSync(images)) for (const name of readdirSync(images)) if (!used.has(join(images, name))) problems.push(`docs/images/${name} isn't shown anywhere`);
+  assert.ok(used.size > 0, 'the README shows its screenshots');
+  assert.deepEqual(problems, []);
+});
+
 test('the public docs keep the voice bar: no em or en dash in prose', () => {
   const found = [];
   for (const f of PUBLIC) {
