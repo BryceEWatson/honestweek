@@ -46,7 +46,7 @@ Your commits show what shipped. Your sessions show what you *figured out*: the d
 ## Requirements
 
 - **Node ≥ 18**
-- The system **`git` CLI** on your `PATH`
+- The system **`git` CLI**, version 2.24 or later, on your `PATH`
 - **Zero runtime dependencies**: Node built-ins plus `git` only
 - Runs **entirely locally**. No telemetry, and honestweek itself makes no network call. The two optional buttons under Include /insights run your own `claude` or `codex`, which do send sessions to Claude or OpenAI, only when you press them. The optional `preview` and `view` servers bind to loopback (`127.0.0.1`) only.
 

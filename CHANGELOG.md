@@ -83,6 +83,14 @@ This is the first version on npm. 0.1.0 was released on GitHub, but its npm publ
 - Setup's and Settings' goal-list check no longer quotes the start of the file it was pointed at, or says whether a path is a folder. It says the file isn't a goal list, or that there's no file there.
 - Every answer from `view` and `preview` carries the same security headers, its errors included, and `view` also tells the browser to keep its pages and files out of other sites' pages and windows.
 
+### Security
+
+- honestweek's `git` no longer trusts a repository's own config. Before, a folder next to the one `init`, Setup or Settings looked in could make git start a program its config named, by marking itself a partial clone or by asking for commit signatures to be checked. Now every git call turns those off, never fetches, runs no hooks, drops the `GIT_` variables it inherits (your global and system config locations stay), and stops after a minute.
+- A commit id from a session log or a summary item has to look like a commit id (4 to 64 hex digits) before it reaches git. Before, a value starting with `-` was read as an option: it could make git write a file, record a commit that doesn't exist as found, or let `build` pass an item whose commit was forged. Now it counts as not found, and `build` exits 2 as for any unresolved commit.
+- A large repository no longer shows zero commits. Git's output had a 1 MiB limit, so a history of about 15,000 commits read as none. The limit is now 256 MiB, and output past it, a git that couldn't start, or one stopped for time counts as unreadable, which shows no number rather than 0.
+- A config that lists one repository as both display-only and featured or reference, by the same folder or a worktree of it, is refused when it loads, as Setup and Settings already refused it.
+- On Windows, the browser opener no longer goes through `cmd`, which could read `&`, `^` or `%` in a path as its own syntax. It uses `rundll32` from the system folder, and the `cmd.exe` and `taskkill.exe` that /insights and Codex use are named by their full path there when `ComSpec` or `SystemRoot` is missing.
+
 ## 0.1.0 (14 August 2026)
 
 The first release, on GitHub. Its npm publish failed, so it never reached npm.

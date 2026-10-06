@@ -204,12 +204,12 @@ test('renderPage escapes the title', () => {
 // --- browserOpenCommand (pure, per platform) --------------------------------
 
 test('browserOpenCommand picks the right opener per platform, incl. WSL', () => {
-  assert.deepEqual(browserOpenCommand('win32', 'http://127.0.0.1:9/'), { cmd: 'cmd', args: ['/c', 'start', '', 'http://127.0.0.1:9/'] });
+  assert.deepEqual(browserOpenCommand('win32', 'http://127.0.0.1:9/', { env: { SystemRoot: 'C:\\Windows' } }), { cmd: 'C:\\Windows\\System32\\rundll32.exe', args: ['url.dll,FileProtocolHandler', 'http://127.0.0.1:9/'] });
   assert.deepEqual(browserOpenCommand('darwin', 'http://127.0.0.1:9/'), { cmd: 'open', args: ['http://127.0.0.1:9/'] });
   assert.deepEqual(browserOpenCommand('linux', 'http://127.0.0.1:9/'), { cmd: 'xdg-open', args: ['http://127.0.0.1:9/'] });
-  assert.deepEqual(browserOpenCommand('linux', 'http://127.0.0.1:9/', { isWsl: true }), { cmd: 'cmd.exe', args: ['/c', 'start', '', 'http://127.0.0.1:9/'] });
-  // the win32 'start' empty-title placeholder must be present (URL with & gotcha)
-  assert.equal(browserOpenCommand('win32', 'http://127.0.0.1:9/?a=1&b=2').args[2], '');
+  assert.deepEqual(browserOpenCommand('linux', 'http://127.0.0.1:9/', { isWsl: true }), { cmd: 'rundll32.exe', args: ['url.dll,FileProtocolHandler', 'http://127.0.0.1:9/'] });
+  // A URL with & reaches the opener whole, as one argument, with no shell to split it.
+  assert.equal(browserOpenCommand('win32', 'http://127.0.0.1:9/?a=1&b=2').args[1], 'http://127.0.0.1:9/?a=1&b=2');
 });
 
 // --- startServer: loopback bind, correct headers, 404 -----------------------
