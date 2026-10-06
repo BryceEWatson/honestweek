@@ -1026,3 +1026,16 @@ test('with the problem checks failing, the sessions list still answers, with no 
   assert.ok(looks instanceof Map && looks.size > 0);
   for (const n of looks.values()) assert.ok(n.value > 0 && ['derived', 'inferred'].includes(n.evidence));
 });
+
+test('the sessions list says when its days fall in more than one calendar year, on every answer, and not otherwise', async () => {
+  const list = async (times) => {
+    const h = manySessions(times.length, (i) => times[i]);
+    const d = createViewData({ config: w.config, roots: w.roots, ...WINDOW, buildHistory: async () => h });
+    await d.start();
+    return walkSessions(d);
+  };
+  const spanning = await list(['2025-12-31T12:00:00.000Z', '2026-01-02T12:00:00.000Z']);
+  assert.ok([...spanning.pages, ...spanning.dayPages].every((p) => p.spansYears === true));
+  const one = await list(['2026-01-02T12:00:00.000Z', '2026-01-03T12:00:00.000Z']);
+  assert.ok(one.pages.every((p) => !('spansYears' in p)), 'one year: the answer is as before');
+});
