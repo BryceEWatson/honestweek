@@ -95,7 +95,7 @@ This is the first version on npm. 0.1.0 was released on GitHub, but its npm publ
   - `build` stops with exit 2 when the items file's week isn't given as plain `YYYY-MM-DD` dates, since the archive names its file after the week.
   - `discover` doesn't check tracked files when it runs from anywhere inside a display-only repository, not just its top folder.
   - Settings says so when your config is tracked by git, instead of claiming `.gitignore` hides it, and reads a later `!` line in `.gitignore`.
-  - On Linux and macOS, a private store is created readable only by you, and so are the session draft, `harvest`'s word list and a new config; a rewrite keeps the permissions you set. Output files, the example config and a new `.gitignore` keep the system default.
+  - On Linux and macOS, a private store is created readable only by you, and so are the session draft, `harvest`'s word list and a new config; a rewrite keeps the permissions you set. Output files, `mine`'s post drafts, the example config and a new `.gitignore` keep the system default.
   - `preview` allows only honestweek's own page scripts, by hash, and forbids forms and a changed base address. The goals page links a report whose file name isn't plain as a relative, encoded path. `view` escapes a few more values it shows.
   - `view --demo` removes its own demo folders older than a day when it starts, leaving any whose run is still going, so a stopped demo doesn't leave them behind.
 
