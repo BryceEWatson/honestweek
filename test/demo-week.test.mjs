@@ -86,16 +86,20 @@ test('twenty-two sessions on six days, seven of them Codex, and one more outside
 });
 
 test('one person working: no two sessions overlap, Sunday is quiet, and there are quiet stretches inside sessions', () => {
-  const spans = all.sessions.map((s) => [Date.parse(s.firstAt), Date.parse(s.lastAt)]).sort((a, b) => a[0] - b[0]);
+  // A run one of my sessions launched starts seconds after the launch, so only it may follow
+  // the session before it closely; nothing overlaps.
+  const launched = new Set(all.sessions.filter((s) => s.launchedBy?.event).map((s) => s.key));
+  const spans = all.sessions.map((s) => [Date.parse(s.firstAt), Date.parse(s.lastAt), launched.has(s.key)]).sort((a, b) => a[0] - b[0]);
   const gaps = [];
   let end = spans[0][1];
-  for (const [start, last] of spans.slice(1)) {
-    gaps.push(start - end);
+  for (const [start, last, run] of spans.slice(1)) {
+    gaps.push([start - end, run]);
     end = Math.max(end, last);
   }
-  assert.ok(gaps.every((g) => g >= 5 * 60 * 1000), 'no two sessions overlap or run back to back');
+  assert.equal(launched.size, 1);
+  assert.ok(gaps.every(([g, run]) => g >= (run ? 0 : 5 * 60 * 1000)), 'no two sessions overlap or run back to back');
   assert.ok(spans.every(([start, last]) => new Date(start).getUTCHours() >= 9 && new Date(last).getUTCHours() < 19), 'every session falls in working hours');
-  assert.equal(h.overview().totals.quietIntervals.value, 10);
+  assert.equal(h.overview().totals.quietIntervals.value, 11);
 });
 
 test('worktree sessions count for the project, and the resumed session joins the one it continues', () => {
@@ -120,13 +124,13 @@ test('worktree sessions count for the project, and the resumed session joins the
 
 test('prompts: 1 to 7 typed per session, one queued until the next turn, one absorbed mid-turn', () => {
   const totals = h.overview().totals;
-  assert.equal(totals.prompts.value, 54);
+  assert.equal(totals.prompts.value, 55);
   assert.equal(totals.prompts.evidence, 'inferred', 'three prompts come from a Claude Code that records no origin');
-  assert.equal(all.overview().totals.prompts.value, 56);
+  assert.equal(all.overview().totals.prompts.value, 57);
   const perSession = Object.fromEntries(all.sessions.map((s) => [s.key, of(all, s.key, 'prompt').length]));
   assert.deepEqual(perSession, {
     [k.since]: 4, [k.wide]: 2, [k.breaking]: 2, [k.group]: 5, [k.bare]: 3, [k.markdown]: 7, [k.contributing]: 2, [k.resumed]: 4, [k.windows]: 1, [k.release]: 2,
-    [k.json]: 3, [k.node18]: 2, [k.unreleased]: 3, [k.upload]: 2, [k.summary]: 0, [k.site]: 2, [k.lookup]: 2, [k.width]: 2, [k.widthCommit]: 2, [k.scratch]: 2, [k.label]: 1, [k.why]: 3,
+    [k.json]: 3, [k.node18]: 2, [k.unreleased]: 3, [k.upload]: 2, [k.summary]: 0, [k.site]: 2, [k.lookup]: 3, [k.width]: 2, [k.widthCommit]: 2, [k.scratch]: 2, [k.label]: 1, [k.why]: 3,
     [k.review]: 0,
   });
   // Neither the codex exec run nor the review run a script started has a prompt of yours.
@@ -189,9 +193,9 @@ test('eight sub-agents: four Explore, two general-purpose, two Codex child threa
 
 test('tool calls: reads, searches, edits with patches, shell, delegation, and the git and gh commands', () => {
   const acts = h.events.filter((e) => e.kind === 'action');
-  // 3 of them in Saturday's review run.
-  assert.equal(acts.length, 312);
-  assert.equal(all.overview().totals.actions.value, 315);
+  // 3 of them in Saturday's review run, and 1 the claude -p call that started it.
+  assert.equal(acts.length, 313);
+  assert.equal(all.overview().totals.actions.value, 316);
   for (const cat of ['read', 'search', 'edit', 'shell', 'delegate', 'handoff', 'wait']) assert.ok(acts.some((e) => e.facts.category === cat), `a ${cat} call`);
   const cmds = acts.map((e) => e.facts.command ?? '');
   for (const re of [/^git add -A && git commit -m /, /^gh pr create /, /^gh pr view /, /^gh pr merge \d+ --squash$/, /^git push/, /^git reset --hard /, /^rm -rf /]) assert.ok(cmds.some((c) => re.test(c)), String(re));
@@ -363,7 +367,11 @@ test("Replay's sessions list on the demo week: six days, newest first, a few eac
   assert.ok([...rows.values()].some((r) => r.tool === 'codex' && r.prompts.value === 0 && r.startedBy?.text === 'started by codex exec, no prompt'));
   // The review run a script started says so, and its command stands in for the missing title.
   const review = rows.get(k.review);
-  assert.deepEqual([review.title, review.label, review.prompts.value, review.startedBy], [null, '/review, Mar 15, 10:41 AM', 0, { text: 'started by a program: /review', evidence: 'recorded' }]);
+  const { launch, ...started } = review.startedBy;
+  assert.deepEqual([review.title, review.label, review.prompts.value, started], [null, '/review, Mar 15, 10:41 AM', 0, { text: 'started by a program: /review', evidence: 'recorded' }]);
+  // It names the goal-lookup step that ran claude -p with its session id, recorded.
+  assert.deepEqual([launch.session, launch.title, launch.evidence, launch.thread], [k.lookup, "List this week's goal events", 'recorded', sessionOf(k.lookup).thread]);
+  assert.match(h.events.find((e) => e.id === launch.event).facts.command, /^claude -p --session-id /);
   // The made-up project's name shows only with the switch on.
   assert.ok(!JSON.stringify([list, friday]).includes(DEMO_TERM));
   await data.start('private');
@@ -462,7 +470,7 @@ test('the problem checks find a spread of patterns across the three tiers, each 
   for (const key of [k.markdown, k.resumed]) assert.match(missIn(key).note, /pause, longer than its 5-minute cache\.$/);
   assert.match(missIn(k.why).note, /pause; Codex doesn't record how long it caches\.$/);
   // The token figures docs/demo-week.md states (6 of the calls are Saturday's review run's).
-  assert.deepEqual([r.coverage.modelCalls.value, Math.round(r.coverage.tokens.value / 1e5)], [365, 193]);
+  assert.deepEqual([r.coverage.modelCalls.value, Math.round(r.coverage.tokens.value / 1e5)], [367, 194]);
   const bloat = r.patterns.find((p) => p.id === 'context-bloat');
   const bloatIn = (key) => bloat.findings.find((f) => f.session === key).note;
   assert.match(bloatIn(k.markdown), /at model call 44 of 77 .*largest context was 163k.*about 3\.8M tokens/);
