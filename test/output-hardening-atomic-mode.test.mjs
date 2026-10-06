@@ -1,5 +1,6 @@
 // Atomic writes keep private files private on POSIX: a new file is created 0600, and a rewrite
 // keeps the file's own mode (a user's chmod 600, or anything else) instead of resetting it.
+// Files the user commits or publishes (an output page, a .gitignore) get the system default.
 // Windows doesn't use POSIX mode bits, so the mode checks skip there; the content checks run
 // everywhere.
 import { test } from 'node:test';
@@ -8,6 +9,7 @@ import { chmodSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { atomicWriteJson, atomicWriteText } from '../lib/atomic-json.mjs';
+import { ensureGitignore } from '../lib/init.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const posixOnly = { skip: process.platform === 'win32' ? 'POSIX mode bits only' : false };
@@ -66,4 +68,20 @@ test('an output file the user will publish gets the system default mode when new
   chmodSync(file, 0o600);
   atomicWriteText(file, 'two\n', undefined, { newMode: null });
   assert.equal(modeOf(file).toString(8), '600');
+});
+
+test('a new .gitignore gets the system default mode, not owner-only, and an existing one keeps its own', posixOnly, (t) => {
+  const dir = scratch(t);
+  const file = join(dir, '.gitignore');
+  const old = process.umask(0o022);
+  try {
+    assert.equal(ensureGitignore(dir, 'honestweek.draft.json'), true);
+  } finally {
+    process.umask(old);
+  }
+  assert.equal(modeOf(file).toString(8), '644');
+  chmodSync(file, 0o640);
+  assert.equal(ensureGitignore(dir, 'honestweek.history.json'), true);
+  assert.equal(modeOf(file).toString(8), '640');
+  assert.equal(readFileSync(file, 'utf8'), 'honestweek.draft.json\nhonestweek.history.json\n');
 });
