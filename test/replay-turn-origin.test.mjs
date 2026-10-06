@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { parseClaudeSource } from '../lib/replay/claude.mjs';
 import { describe } from '../lib/replay/views.mjs';
-import { isExecInstruction, isPersonPrompt } from '../lib/problems/context.mjs';
+import { createContext, isExecInstruction, isPersonPrompt } from '../lib/problems/context.mjs';
 import { runProblems } from '../lib/problems/index.mjs';
 import { createViewData } from '../lib/view/data.mjs';
 import { whoOf } from '../lib/view/replay-export.mjs';
@@ -147,4 +147,13 @@ test('an older log whose first prompt was typed mid-turn joins no hand-off, as b
   assert.deepEqual(out.events.filter((e) => e.kind === 'prompt').map((e) => e.facts.index), [1, 2]);
   assert.equal(out.joins.firstPromptDigest, null);
   assert.equal(out.joins.firstPromptEvent, null);
+});
+
+test("a program's slash command opens a turn for the Problems checks, as a codex exec run's instruction does", () => {
+  const c = createContext(h, { builtT: Date.parse('2024-07-01T00:00:00Z') });
+  const turns = c.turnsOf(w.key.programCommand);
+  assert.deepEqual(turns.map((t) => [t.prompt.kind, t.prompt.actor, t.steps.length > 0]), [['command', 'program', true]]);
+  assert.ok(isExecInstruction(turns[0].prompt) && !isPersonPrompt(turns[0].prompt));
+  // A command you typed opens no turn there, as before.
+  assert.equal(c.turnsOf(w.key.typedCommand).length, 0);
 });
