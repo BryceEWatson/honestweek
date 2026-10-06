@@ -5,6 +5,68 @@
 
 See where your Claude Code and Codex sessions went wrong, open the exact steps behind each problem, and check every count yourself. Local and rule-based; nothing is sent to an AI unless you ask.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/replay-dark.png">
+  <img src="docs/images/replay-light.png" alt="Replay of a three-hour session from the made-up demo week: one row for the main agent and one for each of its seven sub-agents, a Problems row with two rings, and the selected step, where the agent says all tests pass right after a test run failed.">
+</picture>
+
+Replay of the longest session in the made-up demo week (`npx honestweek view --demo`, with Show private text on): a main agent and seven sub-agents building a feature over three hours. The rings on the Problems row mark the two things worth a look, and the selected one is the agent saying "All tests pass" right after a run that failed.
+
+<details>
+<summary>More screenshots: Problems, a problem up close, sessions, Find, Goals, Setup, a weekly page and a client report</summary>
+
+**Problems** shows the known ways agents go wrong that turned up in your week, worst first, each with a fix to copy.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/problems-dark.png">
+  <img src="docs/images/problems-light.png" alt="The Problems page for the demo week: two problems to fix, six smaller and nine to check, the first one listing the two sessions it happened in with a Copy for Claude Code button.">
+</picture>
+
+**One problem up close** says what happened step by step, how each part is known, and what to add so it doesn't happen again.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/problem-focus-dark.png">
+  <img src="docs/images/problem-focus-light.png" alt="One problem opened: the six times it happened down the left, What happened for the selected one in four numbered steps (the failed run, nothing after it, the success claim, what the agent said), and below it a hook to copy into Claude Code.">
+</picture>
+
+**Sessions** lists your week newest day first. A run a program started says what started it and links to that step.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/sessions-dark.png">
+  <img src="docs/images/sessions-light.png" alt="Replay's sessions list for the demo week, Saturday first: each session with its time, length, tool, prompts and problems, and a review run marked as started by another session's step.">
+</picture>
+
+**Find** takes a pull request, a commit, a file, a branch or a few words and shows the sessions and goals behind it.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/find-dark.png">
+  <img src="docs/images/find-light.png" alt="Find, looking up the file src/parse.mjs: the six sessions that touched it, each with how that's known, and the two goals they worked toward.">
+</picture>
+
+**Goals** puts one goal's sessions on a single timeline you can play.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/goals-dark.png">
+  <img src="docs/images/goals-light.png" alt="Goals: the release goal's four sessions on one timeline, with a panel explaining why each session belongs to the goal.">
+</picture>
+
+**Setup** opens the first time you run `view` in a folder with no config: it lists the repositories it found nearby and asks what to keep private.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/setup-dark.png">
+  <img src="docs/images/setup-light.png" alt="Setup on first run: two git repositories found nearby, each with a role menu, then the email, the timezone, how far back to look, and the words to keep private.">
+</picture>
+
+**A weekly page** ([page mode](#standalone-site-page-mode)) is the summary you publish yourself, every change with its status and a git receipt. This one was built from the demo week.
+
+<img src="docs/images/weekly-page.png" alt="A weekly page built from the demo week: commits per day, a one-line headline, and the week's changes, three shipped and one in progress.">
+
+**A client report** ([client mode](#a-report-for-a-client-client-mode)) is a printable page of the work done for one client, its counts checked against git. This one was built from the demo week too.
+
+<img src="docs/images/client-report.png" alt="A client report built from the demo week: the title, who it's for and by, the period, a headline, counts of merged pull requests and commits, and two highlights.">
+
+</details>
+
 honestweek works with the session logs that Claude Code and Codex already keep on your computer. It does three things with them, all on your own machine:
 
 - **See where it went wrong.** `honestweek view` opens on a Problems page: the known ways AI coding agents go wrong that showed up in your sessions, claims the agent couldn't back first ("done" with no check after the last edit, or success the output doesn't show). Each one links to the step in your replay, says how it's known, shows whether it happened less than in the week before, and offers a fix you can copy into your own instructions or hooks.
