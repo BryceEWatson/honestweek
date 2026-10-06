@@ -1,0 +1,485 @@
+{
+  "digest": [
+    {
+      "id": "session-bea2d924",
+      "date": "2024-06-11",
+      "project": "your-project",
+      "repo": "your-project",
+      "isPrivate": false,
+      "steers": [
+        "fix the flaky retry test in the parser with enough plain neutral words that the weekly digest keeps this line as one reviewable item idea: keep every retry bounded by a deadline with enough plain neutral words that the weekly digest keeps this line as one reviewable item",
+        "<task-notification> <status>completed</status> </task-notification>",
+        "no, use the other parser file instead with enough plain neutral words that the weekly digest keeps this line as one reviewable item",
+        "<cross-session-message from=\"another session\">a note from elsewhere</cross-session-message>"
+      ],
+      "assistantNotes": [
+        "Decision: bound the retry loop by a deadline with enough plain neutral words that the weekly digest keeps this line as one reviewable item Next step: document the deadline in the parser notes with enough plain neutral words that the weekly digest keeps this line as one reviewable item",
+        "Done."
+      ],
+      "toolSignal": {
+        "counts": {
+          "Bash": 2
+        },
+        "files": [],
+        "tests": [
+          "node --test"
+        ],
+        "searches": []
+      },
+      "statusSignals": [
+        "pass"
+      ],
+      "redirects": [
+        "no, use the other parser file instead with enough plain neutral words that the weekly digest keeps this line as one reviewable item"
+      ],
+      "candidateCommits": [
+        {
+          "sha": "abc1234",
+          "date": "2024-06-11",
+          "subject": ""
+        }
+      ]
+    },
+    {
+      "id": "session-3f91de90",
+      "date": "2024-06-13",
+      "project": "private",
+      "repo": null,
+      "isPrivate": true,
+      "steers": [],
+      "assistantNotes": [],
+      "toolSignal": {
+        "counts": {},
+        "files": [],
+        "tests": [],
+        "searches": []
+      },
+      "statusSignals": [],
+      "redirects": [],
+      "candidateCommits": []
+    }
+  ],
+  "prompts": {
+    "prompts": [
+      {
+        "sessionKey": "b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1",
+        "refCanonical": "claude-code\u0000b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1\u00001",
+        "ref": "e1e83f23a410ec0891fe2a9ef7a9d367a46df283e35891388e7c198413530c65",
+        "source": "claude-code",
+        "turn": 1,
+        "timestamp": "2024-06-11T10:01:00.000Z",
+        "repoKey": "<repoKey>",
+        "project": "your-project",
+        "isPrivate": false,
+        "state": "inbox",
+        "sourceHash": "b88348d16f013030fc85619d9637c9b6aed7a1ae0b6594cfa01f87844ac3c4f8",
+        "contentHash": "b88348d16f013030fc85619d9637c9b6aed7a1ae0b6594cfa01f87844ac3c4f8",
+        "text": "fix the flaky retry test in the parser with enough plain neutral words that the weekly digest keeps this line as one reviewable item\nidea: keep every retry bounded by a deadline with enough plain neutral words that the weekly digest keeps this line as one reviewable item",
+        "redactionCount": 0,
+        "sourceLength": 224,
+        "changedPercent": 0,
+        "rawRisk": "low",
+        "rawDetectors": [],
+        "redactionOps": [],
+        "truncated": false,
+        "followOnCorrection": false,
+        "observedVerification": true,
+        "_followOnCorrectionTurn": 2
+      },
+      {
+        "sessionKey": "b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1",
+        "refCanonical": "claude-code\u0000b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1\u00002",
+        "ref": "fac9587f43994c2cffb0cb452091c75df7470a36a54777f4c93e709a8df093db",
+        "source": "claude-code",
+        "turn": 2,
+        "timestamp": "2024-06-11T10:08:00.000Z",
+        "repoKey": "<repoKey>",
+        "project": "your-project",
+        "isPrivate": false,
+        "state": "inbox",
+        "sourceHash": "5ea534ba7c78be8557bc0d253352cbee9d3f1ae49f3b6ae7df78f8e8764466d7",
+        "contentHash": "5ea534ba7c78be8557bc0d253352cbee9d3f1ae49f3b6ae7df78f8e8764466d7",
+        "text": "no, use the other parser file instead with enough plain neutral words that the weekly digest keeps this line as one reviewable item",
+        "redactionCount": 0,
+        "sourceLength": 109,
+        "changedPercent": 0,
+        "rawRisk": "low",
+        "rawDetectors": [],
+        "redactionOps": [],
+        "truncated": false,
+        "followOnCorrection": false,
+        "observedVerification": true,
+        "_followOnCorrectionTurn": null
+      },
+      {
+        "sessionKey": "b6b0f5df37c4bd9ef5c669c5f0471a4cbac9987649938bcbfd555d720704111a",
+        "refCanonical": "claude-code\u0000b6b0f5df37c4bd9ef5c669c5f0471a4cbac9987649938bcbfd555d720704111a\u00001",
+        "ref": "7df953d6d3697ca1830979e683cc23dbc6886112741235144654a06271618766",
+        "source": "claude-code",
+        "turn": 1,
+        "timestamp": "2024-06-13T10:00:00.000Z",
+        "repoKey": null,
+        "project": null,
+        "isPrivate": true,
+        "state": "inbox",
+        "sourceHash": "9b31fe29b2b76aadf3c33662a9fe315812ecc49d59ad9a5fb68f9f1fc4ac96a9",
+        "contentHash": "9b31fe29b2b76aadf3c33662a9fe315812ecc49d59ad9a5fb68f9f1fc4ac96a9",
+        "text": "look over the scratch notes",
+        "redactionCount": 0,
+        "sourceLength": 23,
+        "changedPercent": 0,
+        "rawRisk": "medium",
+        "rawDetectors": [
+          "display-context"
+        ],
+        "redactionOps": [],
+        "truncated": false,
+        "followOnCorrection": false,
+        "observedVerification": false,
+        "_followOnCorrectionTurn": null
+      }
+    ],
+    "sourceStatus": {
+      "claude-code": {
+        "state": "present",
+        "weekStart": "2024-06-10",
+        "weekEnd": "2024-06-16",
+        "syncedAt": "2024-06-17T12:00:00.000Z",
+        "records": 3,
+        "malformedLines": 0
+      },
+      "codex": {
+        "state": "absent",
+        "weekStart": "2024-06-10",
+        "weekEnd": "2024-06-16",
+        "syncedAt": "2024-06-17T12:00:00.000Z",
+        "records": 0,
+        "malformedLines": 0
+      }
+    }
+  },
+  "store": {
+    "version": 1,
+    "generatedAt": "2024-06-17T12:00:00.000Z",
+    "sourceStatus": {
+      "claude-code": {
+        "state": "present",
+        "weekStart": "2024-06-10",
+        "weekEnd": "2024-06-16",
+        "syncedAt": "2024-06-17T12:00:00.000Z",
+        "records": 3,
+        "malformedLines": 0
+      },
+      "codex": {
+        "state": "absent",
+        "weekStart": "2024-06-10",
+        "weekEnd": "2024-06-16",
+        "syncedAt": "2024-06-17T12:00:00.000Z",
+        "records": 0,
+        "malformedLines": 0
+      }
+    },
+    "prompts": [
+      {
+        "sessionKey": "b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1",
+        "refCanonical": "claude-code\u0000b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1\u00001",
+        "ref": "e1e83f23a410ec0891fe2a9ef7a9d367a46df283e35891388e7c198413530c65",
+        "source": "claude-code",
+        "turn": 1,
+        "timestamp": "2024-06-11T10:01:00.000Z",
+        "repoKey": "<repoKey>",
+        "project": "your-project",
+        "isPrivate": false,
+        "state": "inbox",
+        "sourceHash": "b88348d16f013030fc85619d9637c9b6aed7a1ae0b6594cfa01f87844ac3c4f8",
+        "contentHash": "b88348d16f013030fc85619d9637c9b6aed7a1ae0b6594cfa01f87844ac3c4f8",
+        "text": "fix the flaky retry test in the parser with enough plain neutral words that the weekly digest keeps this line as one reviewable item\nidea: keep every retry bounded by a deadline with enough plain neutral words that the weekly digest keeps this line as one reviewable item",
+        "redactionCount": 0,
+        "sourceLength": 224,
+        "changedPercent": 0,
+        "rawRisk": "low",
+        "rawDetectors": [],
+        "redactionOps": [],
+        "truncated": false,
+        "followOnCorrection": true,
+        "observedVerification": true
+      },
+      {
+        "sessionKey": "b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1",
+        "refCanonical": "claude-code\u0000b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1\u00002",
+        "ref": "fac9587f43994c2cffb0cb452091c75df7470a36a54777f4c93e709a8df093db",
+        "source": "claude-code",
+        "turn": 2,
+        "timestamp": "2024-06-11T10:08:00.000Z",
+        "repoKey": "<repoKey>",
+        "project": "your-project",
+        "isPrivate": false,
+        "state": "inbox",
+        "sourceHash": "5ea534ba7c78be8557bc0d253352cbee9d3f1ae49f3b6ae7df78f8e8764466d7",
+        "contentHash": "5ea534ba7c78be8557bc0d253352cbee9d3f1ae49f3b6ae7df78f8e8764466d7",
+        "text": "no, use the other parser file instead with enough plain neutral words that the weekly digest keeps this line as one reviewable item",
+        "redactionCount": 0,
+        "sourceLength": 109,
+        "changedPercent": 0,
+        "rawRisk": "low",
+        "rawDetectors": [],
+        "redactionOps": [],
+        "truncated": false,
+        "followOnCorrection": false,
+        "observedVerification": true
+      },
+      {
+        "sessionKey": "b6b0f5df37c4bd9ef5c669c5f0471a4cbac9987649938bcbfd555d720704111a",
+        "refCanonical": "claude-code\u0000b6b0f5df37c4bd9ef5c669c5f0471a4cbac9987649938bcbfd555d720704111a\u00001",
+        "ref": "7df953d6d3697ca1830979e683cc23dbc6886112741235144654a06271618766",
+        "source": "claude-code",
+        "turn": 1,
+        "timestamp": "2024-06-13T10:00:00.000Z",
+        "repoKey": null,
+        "project": null,
+        "isPrivate": true,
+        "state": "inbox",
+        "sourceHash": "9b31fe29b2b76aadf3c33662a9fe315812ecc49d59ad9a5fb68f9f1fc4ac96a9",
+        "contentHash": "9b31fe29b2b76aadf3c33662a9fe315812ecc49d59ad9a5fb68f9f1fc4ac96a9",
+        "text": "look over the scratch notes",
+        "redactionCount": 0,
+        "sourceLength": 23,
+        "changedPercent": 0,
+        "rawRisk": "medium",
+        "rawDetectors": [
+          "display-context"
+        ],
+        "redactionOps": [],
+        "truncated": false,
+        "followOnCorrection": false,
+        "observedVerification": false
+      }
+    ],
+    "tombstones": []
+  },
+  "evidence": {
+    "evidence": [
+      {
+        "evidenceRef": "299b1a474fe78ebc3037d323d46650da1d247723c15cc0a0aca42c080aed8f90",
+        "evidenceCanonical": "claude-code\u0000b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1\u00001\u0000human-cue\u00001\u00009e4bab88d9b0015fe9512f565d81c7a7e7775bc8a048f1923d95b37a65414954",
+        "category": "ideas",
+        "discriminator": "idea:1",
+        "source": "claude-code",
+        "sessionKey": "b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1",
+        "turn": 1,
+        "kind": "human-cue",
+        "ordinal": 1,
+        "timestamp": "2024-06-11T10:01:00.000Z",
+        "promptRef": "e1e83f23a410ec0891fe2a9ef7a9d367a46df283e35891388e7c198413530c65",
+        "project": "your-project",
+        "isPrivate": false,
+        "sourceHash": "9e4bab88d9b0015fe9512f565d81c7a7e7775bc8a048f1923d95b37a65414954",
+        "contentHash": "9e4bab88d9b0015fe9512f565d81c7a7e7775bc8a048f1923d95b37a65414954",
+        "text": "keep every retry bounded by a deadline with enough plain neutral words that the weekly digest keeps this line as one reviewable item",
+        "redactionCount": 0,
+        "sourceLength": 110,
+        "changedPercent": 0,
+        "rawRisk": "low",
+        "rawDetectors": [],
+        "redactionOps": [],
+        "truncated": false,
+        "residualRisk": "low",
+        "observedVerification": true
+      },
+      {
+        "evidenceRef": "befd8b233c3000f4aa1591cebff3d9b9390f9e50ce773df44d3bb39e686a4c71",
+        "evidenceCanonical": "claude-code\u0000b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1\u00001\u0000assistant-final\u00001\u00004ed66762f887691678b9f1f0317185c3a5eb701d0af8c8606757d832b21c0f3e",
+        "category": "decisions",
+        "discriminator": "decision:1",
+        "source": "claude-code",
+        "sessionKey": "b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1",
+        "turn": 1,
+        "kind": "assistant-final",
+        "ordinal": 1,
+        "timestamp": "2024-06-11T10:05:00.000Z",
+        "promptRef": "e1e83f23a410ec0891fe2a9ef7a9d367a46df283e35891388e7c198413530c65",
+        "project": "your-project",
+        "isPrivate": false,
+        "sourceHash": "4ed66762f887691678b9f1f0317185c3a5eb701d0af8c8606757d832b21c0f3e",
+        "contentHash": "4ed66762f887691678b9f1f0317185c3a5eb701d0af8c8606757d832b21c0f3e",
+        "text": "bound the retry loop by a deadline with enough plain neutral words that the weekly digest keeps this line as one reviewable item",
+        "redactionCount": 0,
+        "sourceLength": 106,
+        "changedPercent": 0,
+        "rawRisk": "low",
+        "rawDetectors": [],
+        "redactionOps": [],
+        "truncated": false,
+        "residualRisk": "low",
+        "observedVerification": true
+      },
+      {
+        "evidenceRef": "0347587389278d6d1e77fa535e94f6cf3ad9e06e50f65299eceff1ed93d77d90",
+        "evidenceCanonical": "claude-code\u0000b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1\u00001\u0000assistant-final\u00002\u000080e260a33a4115fd680ce9de3b53d3b74720ca0032fea0a0d1e1a324a60fffe7",
+        "category": "nextSteps",
+        "discriminator": "next-step:2",
+        "source": "claude-code",
+        "sessionKey": "b6c40ec3dae938d390f9c81facefee8c6b9914559748425b8a4c89d3baa659d1",
+        "turn": 1,
+        "kind": "assistant-final",
+        "ordinal": 2,
+        "timestamp": "2024-06-11T10:05:00.000Z",
+        "promptRef": "e1e83f23a410ec0891fe2a9ef7a9d367a46df283e35891388e7c198413530c65",
+        "project": "your-project",
+        "isPrivate": false,
+        "sourceHash": "80e260a33a4115fd680ce9de3b53d3b74720ca0032fea0a0d1e1a324a60fffe7",
+        "contentHash": "80e260a33a4115fd680ce9de3b53d3b74720ca0032fea0a0d1e1a324a60fffe7",
+        "text": "document the deadline in the parser notes with enough plain neutral words that the weekly digest keeps this line as one reviewable item",
+        "redactionCount": 0,
+        "sourceLength": 113,
+        "changedPercent": 0,
+        "rawRisk": "low",
+        "rawDetectors": [],
+        "redactionOps": [],
+        "truncated": false,
+        "residualRisk": "low",
+        "observedVerification": true
+      }
+    ],
+    "terminalEvidence": [],
+    "scanExcluded": {
+      "prompts": {
+        "human-cue": 0,
+        "assistant-final": 0
+      },
+      "ideas": {
+        "human-cue": 0,
+        "assistant-final": 0
+      },
+      "techniques": {
+        "human-cue": 0,
+        "assistant-final": 0
+      },
+      "decisions": {
+        "human-cue": 0,
+        "assistant-final": 0
+      },
+      "reversals": {
+        "human-cue": 0,
+        "assistant-final": 0
+      },
+      "nextSteps": {
+        "human-cue": 0,
+        "assistant-final": 0
+      }
+    },
+    "accounting": {
+      "scannedPromptCount": 3,
+      "acceptedPromptCount": 3,
+      "scannedCueCount": 3,
+      "acceptedCueCount": 3
+    }
+  },
+  "mine": {
+    "legacy-command-only": {
+      "probe": null,
+      "stream": {
+        "events": [
+          {
+            "kind": "assistant",
+            "text": "All clear."
+          }
+        ],
+        "truncated": false,
+        "lines": 2
+      }
+    },
+    "legacy-private": {
+      "probe": {
+        "startISO": "2024-06-13T10:00:00.000Z",
+        "cwd": "/elsewhere/scratch",
+        "firstPrompt": "look over the scratch notes",
+        "firstPromptISO": "2024-06-13T10:00:00.000Z",
+        "isSubagent": false
+      },
+      "stream": {
+        "events": [
+          {
+            "kind": "human",
+            "text": "look over the scratch notes"
+          },
+          {
+            "kind": "assistant",
+            "text": "Read them."
+          }
+        ],
+        "truncated": false,
+        "lines": 2
+      }
+    },
+    "legacy-work": {
+      "probe": {
+        "startISO": "2024-06-11T10:00:00.000Z",
+        "cwd": "/work/your-project",
+        "firstPrompt": "fix the flaky retry test in the parser with enough plain neutral words that the weekly digest keeps this line as one reviewable item",
+        "firstPromptISO": "2024-06-11T10:00:00.000Z",
+        "isSubagent": false
+      },
+      "stream": {
+        "events": [
+          {
+            "kind": "human",
+            "text": "fix the flaky retry test in the parser with enough plain neutral words that the weekly digest keeps this line as one reviewable item"
+          },
+          {
+            "kind": "human",
+            "text": "fix the flaky retry test in the parser with enough plain neutral words that the weekly digest keeps this line as one reviewable item\nidea: keep every retry bounded by a deadline with enough plain neutral words that the weekly digest keeps this line as one reviewable item"
+          },
+          {
+            "kind": "tool_use",
+            "name": "Bash",
+            "text": "node --test"
+          },
+          {
+            "kind": "result",
+            "text": "4 tests passed",
+            "isError": false,
+            "tool": "Bash"
+          },
+          {
+            "kind": "assistant",
+            "text": "the retry loop needs a deadline"
+          },
+          {
+            "kind": "assistant",
+            "text": "Decision: bound the retry loop by a deadline with enough plain neutral words that the weekly digest keeps this line as one reviewable item\nNext step: document the deadline in the parser notes with enough plain neutral words that the weekly digest keeps this line as one reviewable item"
+          },
+          {
+            "kind": "human",
+            "text": "no, use the other parser file instead with enough plain neutral words that the weekly digest keeps this line as one reviewable item"
+          },
+          {
+            "kind": "tool_use",
+            "name": "Bash",
+            "text": "git commit -m \"bound the retry loop\""
+          },
+          {
+            "kind": "result",
+            "text": "[main abc1234] bound the retry loop\n 1 file changed",
+            "isError": false,
+            "tool": "Bash"
+          },
+          {
+            "kind": "human",
+            "text": "<cross-session-message from=\"another session\">a note from elsewhere</cross-session-message>"
+          },
+          {
+            "kind": "human",
+            "text": "also check the timeout path"
+          },
+          {
+            "kind": "assistant",
+            "text": "Done."
+          }
+        ],
+        "truncated": false,
+        "lines": 14
+      }
+    }
+  }
+}
