@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 
-import { streamSession } from '../lib/mine/corpus.mjs';
+import { probeSession, streamSession } from '../lib/mine/corpus.mjs';
 import { extractFeatures } from '../lib/mine/detect.mjs';
 import { ORIGINS, enqueue, say, user, writeSession } from './fixtures/turn-origin-readers.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
@@ -84,6 +84,19 @@ test('mine: a delivery delivers a queued turn only by its exact text or the text
     note('yes', 'human'), say('Done.'),
   ]);
   assert.deepEqual(humans(quoted), ['yes'], 'another session\'s message clears a queued text only when it holds it on lines of its own');
+});
+
+test('mine: a session only another session queued into has no first prompt and no human turn', async () => {
+  const peer = '<agent-message from="helper">the build is green</agent-message>';
+  const root = makeTempDir('hw-mine-queued-');
+  try {
+    writeSession(root, 'peer-only', [enqueue(peer), absorbed(peer), note(peer, 'peer'), say('Noted.')]);
+    const file = join(root, 'projects', 'p', 'peer-only.jsonl');
+    assert.equal(probeSession('claude-code', file), null);
+    assert.deepEqual(humans((await streamSession('claude-code', file)).events), []);
+  } finally {
+    removeTempDir(root);
+  }
 });
 
 test('mine: a log without sender marks counts a queued turn and its delivery once', async () => {
