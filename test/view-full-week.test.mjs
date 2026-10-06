@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { createViewData, partialState, PRIVATE_WORDS_SHORT } from '../lib/view/data.mjs';
-import { createProgressiveData, fitWindow } from '../lib/view/progressive.mjs';
+import { createProgressiveData, fitWindow, REST_GAP_MS } from '../lib/view/progressive.mjs';
 import { trendOf } from '../lib/problems/index.mjs';
 import { claudeSessionKey } from '../lib/replay/sources.mjs';
 import { SESSION_IDS } from '../lib/demo/week.mjs';
@@ -68,7 +68,36 @@ const waitFor = async (f, what) => {
   assert.fail(`timed out waiting for ${what}`);
 };
 const progressive = (g, more = {}) =>
-  createProgressiveData({ from: WEEK.from, to: WEEK.to, timezone: 'UTC', roots: w.roots, room: () => 64 * 1024 * MB, files: [], make: (o) => createViewData({ config: w.config, roots: w.roots, timezone: 'UTC', goalRecord: w.goalRecord, buildHistory: g.build, ...o }), ...more });
+  createProgressiveData({ from: WEEK.from, to: WEEK.to, timezone: 'UTC', roots: w.roots, room: () => 64 * 1024 * MB, files: [], gapMs: 5, make: (o) => createViewData({ config: w.config, roots: w.roots, timezone: 'UTC', goalRecord: w.goalRecord, buildHistory: g.build, ...o }), ...more });
+
+test('once the first day is in, the server stays free a moment before the rest starts, so a page hears first', async () => {
+  assert.ok(REST_GAP_MS > 1000, 'longer than a page waits between its questions');
+  const g = gated();
+  const data = progressive(g, { gapMs: 200 });
+  const t0 = Date.now();
+  data.start();
+  await waitFor(() => data.status().state === 'ready', 'the first day');
+  // During the gap: the page's answer is the first day, and the rest hasn't begun.
+  assert.equal(g.calls.length, 1);
+  const st = data.status();
+  assert.deepEqual([st.window.partial.elapsedMs, st.window.partial.rest.from], [null, WEEK.from]);
+  await waitFor(() => g.calls.length === 2, 'the rest to start');
+  assert.ok(Date.now() - t0 >= 200, 'not before the gap');
+  g.release();
+  await data.whenWhole();
+  assert.equal(data.loaded(), 'whole');
+  data.stop();
+});
+
+test('stopped during the gap, the rest never starts', async () => {
+  const g = gated();
+  const data = progressive(g, { gapMs: 50 });
+  data.start();
+  await waitFor(() => data.status().state === 'ready', 'the first day');
+  data.stop();
+  await data.whenWhole();
+  assert.equal(g.calls.length, 1);
+});
 
 test('a week loads its newest day first: until every day is in, every count, trend and "nothing" says so; then the answers are the whole week', async () => {
   const g = gated();
@@ -77,12 +106,13 @@ test('a week loads its newest day first: until every day is in, every count, tre
   await waitFor(() => data.status().state === 'ready', 'the first day');
   assert.equal(data.loaded(), 'first');
 
-  // The window, the two quiet lines and the header's span: only the newest day so far.
+  // The window and the header's span: only the newest day so far. The page's one loading line
+  // reads the rest's days from the window; there's no separate "only this day" note.
   const st = data.status();
   assert.deepEqual([st.window.from, st.window.to], [WEEK.to, WEEK.to]);
   assert.deepEqual([st.window.partial.from, st.window.partial.to], [WEEK.from, WEEK.to]);
-  assert.equal(st.window.note, `Only ${WEEK.to} so far: every count here covers just that day.`);
-  assert.match(st.window.partial.progress, new RegExp(`^Loading ${WEEK.from} to ${WEEK.to}(: \\d+ of \\d+ log files read)?\\.$`));
+  assert.equal(st.window.note, undefined);
+  assert.deepEqual(st.window.partial.rest, { from: WEEK.from, to: '2025-03-15' });
 
   // Every answer carries the partial window, and its counts are the first day's alone.
   const home = (await data.route('/api/home', params())).body;
@@ -103,6 +133,9 @@ test('a week loads its newest day first: until every day is in, every count, tre
   // The whole week is one build, given a progress callback; the first day had none.
   await waitFor(() => g.calls.length === 2, 'the whole week to start');
   assert.deepEqual(g.calls.map((c) => [c.from, c.to, c.onProgress]), [[WEEK.to, WEEK.to, false], [WEEK.from, WEEK.to, true]]);
+  // How long the rest has been loading, for the line's seconds.
+  const ms = data.status().window.partial.elapsedMs;
+  assert.ok(Number.isFinite(ms) && ms >= 0, String(ms));
 
   g.release();
   await data.whenWhole();
@@ -131,7 +164,7 @@ test('when the rest of the week fails to load, the page keeps the first day and 
   assert.equal(data.loaded(), 'first');
   const st = data.status();
   assert.ok(st.window.partial, 'still marked partial: never shown as complete');
-  assert.match(st.window.partial.progress, new RegExp(`^${WEEK.from} to \\d{4}-\\d{2}-\\d{2} couldn't be loaded: replay: the disk went away$`));
+  assert.deepEqual([st.window.partial.rest.from, st.window.partial.failed], [WEEK.from, 'replay: the disk went away']);
   assert.equal((await data.route('/api/problems', params({ trend: '1' }))).body.waiting, 'loading');
   data.stop();
 });
@@ -273,13 +306,14 @@ test('the engine marks a claude -p session headless only when its log says so, a
   } });
 });
 
-test('partialState: the two lines, a failure, and no progress yet', () => {
-  const p = partialState({ from: WEEK.from, to: WEEK.to, progress: () => ({ read: 3, total: 9 }), failed: () => null }, { from: WEEK.to, to: WEEK.to });
-  assert.equal(p.note, `Only ${WEEK.to} so far: every count here covers just that day.`);
-  assert.equal(p.progress, `Loading ${WEEK.from} to ${WEEK.to}: 3 of 9 log files read.`);
-  const two = partialState({ from: WEEK.from, to: WEEK.to, progress: () => null, failed: () => 'no room' }, { from: '2025-03-15', to: WEEK.to });
-  assert.equal(two.note, `Only 2025-03-15 to ${WEEK.to} so far: every count here covers just those days.`);
-  assert.equal(two.progress, `${WEEK.from} to 2025-03-14 couldn't be loaded: no room`);
+test("partialState: the rest's days, how far and how long, a window cut to fit, a failure, and no progress yet", () => {
+  const p = partialState({ from: WEEK.from, to: WEEK.to, progress: () => ({ read: 3, total: 9 }), failed: () => null, start: () => WEEK.from, startedAt: () => 1000 }, { from: WEEK.to, now: () => 42_000 });
+  assert.deepEqual(p, { from: WEEK.from, to: WEEK.to, rest: { from: WEEK.from, to: '2025-03-15' }, read: 3, total: 9, elapsedMs: 41_000, failed: null });
+  // Cut to fit memory: the rest reads from where the cut starts.
+  const cut = partialState({ from: WEEK.from, to: WEEK.to, progress: () => null, failed: () => null, start: () => '2025-03-13', startedAt: () => null }, { from: WEEK.to });
+  assert.deepEqual([cut.rest, cut.read, cut.total, cut.elapsedMs], [{ from: '2025-03-13', to: '2025-03-15' }, null, null, null]);
+  const two = partialState({ from: WEEK.from, to: WEEK.to, progress: () => null, failed: () => 'no room' }, { from: '2025-03-15' });
+  assert.deepEqual([two.rest, two.failed], [{ from: WEEK.from, to: '2025-03-14' }, 'no room']);
   assert.equal(PRIVATE_WORDS_SHORT.split(' ').length <= 10, true, 'the private-words line is short');
 });
 

@@ -32,14 +32,14 @@
     <section class="psec" id="sureSec" aria-labelledby="sureH">
       <div class="psec-head">
         <h2 id="sureH" class="eyebrow">Found in the log</h2>
-        <details class="pfilter" id="filterBox"><summary>Filter</summary>
+        <details class="pfilter" id="filterBox" hidden><summary>Filter</summary>
           <div class="chips pgroups" id="groups" role="group" aria-label="Show one group of patterns"></div>
         </details>
       </div>
       <p class="filternote" id="filterNote" hidden></p>
-      <div id="cards"></div>
+      <div id="cards"><p class="checking"><span class="spin" aria-hidden="true"></span>Checking…</p></div>
     </section>
-    <section class="psec" id="possSec" aria-labelledby="possH">
+    <section class="psec" id="possSec" aria-labelledby="possH" hidden>
       <div class="psec-head">
         <h2 id="possH" class="eyebrow">Possible: check these yourself</h2>
         <span class="psec-note">A rule read the words, or a record the check expected is missing, so each could be wrong.</span>
