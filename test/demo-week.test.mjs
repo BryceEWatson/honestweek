@@ -47,6 +47,7 @@ before(async () => {
     site: claudeSessionKey(dirs.site, SESSION_IDS.sitePost),
     lookup: claudeSessionKey(dirs.lantern, SESSION_IDS.goalLookup),
     scratch: claudeSessionKey(dirs.scratch, SESSION_IDS.scratch),
+    review: claudeSessionKey(dirs.lantern, SESSION_IDS.reviewRun),
     breaking: claudeSessionKey(dirs.lantern, SESSION_IDS.breakingQuestion),
     bare: claudeSessionKey(dirs.lantern, SESSION_IDS.bracketless),
     markdown: claudeSessionKey(dirs.markdownWorktree, SESSION_IDS.markdownOutput),
@@ -73,12 +74,13 @@ after(() => {
   }
 });
 
-test('twenty-one sessions on six days, seven of them Codex, and one more outside the configured repos', () => {
-  assert.equal(h.sessions.length, 21);
+test('twenty-two sessions on six days, seven of them Codex, and one more outside the configured repos', () => {
+  // 22 with Saturday's review run, which a script started.
+  assert.equal(h.sessions.length, 22);
   const tools = h.sessions.map((s) => s.tool);
-  assert.deepEqual([tools.filter((t) => t === 'claude-code').length, tools.filter((t) => t === 'codex').length], [14, 7]);
+  assert.deepEqual([tools.filter((t) => t === 'claude-code').length, tools.filter((t) => t === 'codex').length], [15, 7]);
   assert.equal(h.skipped.outsideConfiguredRepos, 1);
-  assert.equal(all.sessions.length, 22);
+  assert.equal(all.sessions.length, 23);
   assert.deepEqual(h.overview().days.map((x) => x.date), ['2025-03-10', '2025-03-11', '2025-03-12', '2025-03-13', '2025-03-14', '2025-03-15']);
   for (const key of Object.values(k)) assert.ok(all.sessions.some((s) => s.key === key), `session ${key} is read`);
 });
@@ -99,7 +101,8 @@ test('one person working: no two sessions overlap, Sunday is quiet, and there ar
 test('worktree sessions count for the project, and the resumed session joins the one it continues', () => {
   for (const key of [k.group, k.resumed, k.markdown, k.release, k.upload, k.json, k.node18]) assert.equal(sessionOf(key).repo, 'lantern');
   assert.match(d.repo.worktrees.groupByScope.replace(/\\/g, '/'), /\/lantern\/\.claude\/worktrees\/group-by-scope$/);
-  assert.equal(h.threads.length, 19);
+  // The review run a script started is a thread of its own.
+  assert.equal(h.threads.length, 20);
   assert.ok(h.threads.some((t) => t.sessions.includes(k.group) && t.sessions.includes(k.resumed)));
   const cont = h.links.filter((l) => l.type === 'continuation').map((l) => [l.from, l.to]);
   assert.deepEqual(cont.sort(), [[k.resumed, k.group], [k.widthCommit, k.width]].sort());
@@ -124,8 +127,10 @@ test('prompts: 1 to 7 typed per session, one queued until the next turn, one abs
   assert.deepEqual(perSession, {
     [k.since]: 4, [k.wide]: 2, [k.breaking]: 2, [k.group]: 5, [k.bare]: 3, [k.markdown]: 7, [k.contributing]: 2, [k.resumed]: 4, [k.windows]: 1, [k.release]: 2,
     [k.json]: 3, [k.node18]: 2, [k.unreleased]: 3, [k.upload]: 2, [k.summary]: 0, [k.site]: 2, [k.lookup]: 2, [k.width]: 2, [k.widthCommit]: 2, [k.scratch]: 2, [k.label]: 1, [k.why]: 3,
+    [k.review]: 0,
   });
-  const typed = Object.entries(perSession).filter(([key]) => key !== k.summary).map(([, n]) => n);
+  // Neither the codex exec run nor the review run a script started has a prompt of yours.
+  const typed = Object.entries(perSession).filter(([key]) => key !== k.summary && key !== k.review).map(([, n]) => n);
   assert.deepEqual([Math.min(...typed), Math.max(...typed)], [1, 7]);
   const queued = of(h, k.since, 'prompt').find((e) => e.facts.queuedAt);
   assert.match(queued.facts.text, /tag name/);
@@ -140,6 +145,20 @@ test('prompts: 1 to 7 typed per session, one queued until the next turn, one abs
   assert.deepEqual([k.width, k.widthCommit].map((key) => of(h, key, 'prompt').map(authorship)), [['person', 'person'], ['person', 'person']]);
   assert.deepEqual(of(h, k.summary, 'delegation-received').map((e) => [e.actor, e.agent === `${k.summary}:main`, e.facts.from]), [['agent', true, 'codex-exec']]);
   assert.ok(h.events.filter((e) => e.kind === 'prompt' && ![k.width, k.widthCommit, k.summary].includes(e.session)).every((e) => authorship(e) === null));
+});
+
+test("Saturday's review run: a script sent its command and both replies, so none of them is yours", () => {
+  // Every user record in it says `turnOrigin: "sdk"`: the command is the program's, and its two
+  // later turns are messages from a program, never prompts.
+  const steps = of(h, k.review).filter((e) => ['prompt', 'command', 'agent-message', 'delegation-received'].includes(e.kind));
+  assert.deepEqual(steps.map((e) => [e.kind, e.actor, e.facts.from, e.evidence]), [
+    ['command', 'program', 'program', 'recorded'],
+    ['agent-message', 'program', 'program', 'recorded'],
+    ['agent-message', 'program', 'program', 'recorded'],
+  ]);
+  assert.equal(steps[0].facts.name, '/review');
+  // The person's slash commands this week: none (the review run's was the only command).
+  assert.equal(h.events.filter((e) => e.kind === 'command' && e.actor === 'person').length, 0);
 });
 
 test('eight sub-agents: four Explore, two general-purpose, two Codex child threads, each tied to its starting call', () => {
@@ -170,8 +189,9 @@ test('eight sub-agents: four Explore, two general-purpose, two Codex child threa
 
 test('tool calls: reads, searches, edits with patches, shell, delegation, and the git and gh commands', () => {
   const acts = h.events.filter((e) => e.kind === 'action');
-  assert.equal(acts.length, 309);
-  assert.equal(all.overview().totals.actions.value, 312);
+  // 3 of them in Saturday's review run.
+  assert.equal(acts.length, 312);
+  assert.equal(all.overview().totals.actions.value, 315);
   for (const cat of ['read', 'search', 'edit', 'shell', 'delegate', 'handoff', 'wait']) assert.ok(acts.some((e) => e.facts.category === cat), `a ${cat} call`);
   const cmds = acts.map((e) => e.facts.command ?? '');
   for (const re of [/^git add -A && git commit -m /, /^gh pr create /, /^gh pr view /, /^gh pr merge \d+ --squash$/, /^git push/, /^git reset --hard /, /^rm -rf /]) assert.ok(cmds.some((c) => re.test(c)), String(re));
@@ -185,7 +205,7 @@ test('tool calls: reads, searches, edits with patches, shell, delegation, and th
 
 test('test runs: some pass, some fail, and the run cut off by the session ending is not counted', () => {
   const t = h.overview().totals;
-  assert.deepEqual([t.testRuns.value, t.testRunsAllPassed.value, t.testRunsWithFailures.value, t.testRunsUnclear.value, t.testRunsWithoutSummary.value], [29, 21, 8, 0, 0]);
+  assert.deepEqual([t.testRuns.value, t.testRunsAllPassed.value, t.testRunsWithFailures.value, t.testRunsUnclear.value, t.testRunsWithoutSummary.value], [30, 22, 8, 0, 0]);
   const failed = h.events.filter((e) => e.kind === 'action' && e.derived.tests?.fail > 0);
   assert.deepEqual([...new Set(failed.map((e) => e.session))].sort(), [k.since, k.wide, k.bare, k.markdown, k.node18, k.why].sort());
 });
@@ -316,7 +336,7 @@ test("Replay's sessions list on the demo week: six days, newest first, a few eac
   assert.equal(list.total.value, all.sessions.length);
   assert.equal(list.timezone, 'UTC');
   assert.deepEqual(list.days.map((x) => [x.day, x.count.value, x.rows.length, x.more.value]), [
-    ['2025-03-15', 5, 5, 0],
+    ['2025-03-15', 6, 5, 1],
     ['2025-03-14', 6, 5, 1],
     ['2025-03-13', 4, 4, 0],
     ['2025-03-12', 2, 2, 0],
@@ -325,10 +345,12 @@ test("Replay's sessions list on the demo week: six days, newest first, a few eac
   ]);
   assert.equal(list.older, null);
   assert.deepEqual(list.days.map((x) => x.rows[0].firstAt), [...list.days.map((x) => x.rows[0].firstAt)].sort().reverse(), 'newest day first');
-  // Friday's sixth session is one "Show 1 more" away.
+  // Friday's sixth session, and Saturday's, is one "Show 1 more" away.
   const friday = await ask({ day: '2025-03-14', offset: '5' });
   assert.equal(friday.rows.length, 1);
-  const rows = new Map([...list.days.flatMap((x) => x.rows), ...friday.rows].map((r) => [r.session, r]));
+  const saturday = await ask({ day: '2025-03-15', offset: '5' });
+  assert.equal(saturday.rows.length, 1);
+  const rows = new Map([...list.days.flatMap((x) => x.rows), ...friday.rows, ...saturday.rows].map((r) => [r.session, r]));
   assert.equal(rows.size, all.sessions.length);
   // The display-only and outside sessions: listed, labelled, redacted, and never counted for problems.
   const site = rows.get(k.site);
@@ -339,6 +361,9 @@ test("Replay's sessions list on the demo week: six days, newest first, a few eac
   assert.ok([...rows.values()].some((r) => r.problems?.value > 0), 'the demo week has sessions worth a look');
   // A codex exec run has no prompt: its row says what started it.
   assert.ok([...rows.values()].some((r) => r.tool === 'codex' && r.prompts.value === 0 && r.startedBy?.text === 'started by codex exec, no prompt'));
+  // The review run a script started says so, and its command stands in for the missing title.
+  const review = rows.get(k.review);
+  assert.deepEqual([review.title, review.label, review.prompts.value, review.startedBy], [null, '/review, Mar 15, 10:41 AM', 0, { text: 'started by a program: /review', evidence: 'recorded' }]);
   // The made-up project's name shows only with the switch on.
   assert.ok(!JSON.stringify([list, friday]).includes(DEMO_TERM));
   await data.start('private');
@@ -384,6 +409,8 @@ test('the problem checks find a spread of patterns across the three tiers, each 
     'scope-creep': ['low', 2, 0],
     'edits-outside-folder': ['low', 2, 0],
     'premature-stop': ['low', 2, 4],
+    // One note: the go-ahead after a question in Saturday's review run came from the script
+    // that ran it, not from you, so it isn't a second one.
     'needless-check-in': ['low', 0, 1],
   });
   const looks = r.patterns.flatMap((p) => p.findings.filter((f) => f.severity === 'look').map((f) => ({ ...f, tier: p.priority?.tier })));
@@ -423,10 +450,10 @@ test('the problem checks find a spread of patterns across the three tiers, each 
   // An edit into the display-only site from each agent, both asked for: shown, and git never reads the site.
   assert.deepEqual(where('edits-outside-folder'), [k.widthCommit, k.why].sort());
   for (const f of r.patterns.find((p) => p.id === 'edits-outside-folder').findings) assert.match(f.note, /^1 edit outside the folder this session started in: 1 in a display-only repository\. Files: \*\.md\.$/);
-  // Most of the week is ordinary work: 12 of the 20 sessions the checks read (the display-only
-  // one isn't checked) have anything worth a look.
+  // Most of the week is ordinary work: 12 of the 21 sessions the checks read (the display-only
+  // one isn't checked) have anything worth a look. Saturday's review run has nothing.
   const flagged = new Set(looks.map((f) => f.session));
-  assert.deepEqual([flagged.size, r.coverage.sessions.value], [12, 20]);
+  assert.deepEqual([flagged.size, r.coverage.sessions.value], [12, 21]);
   // The cache figures docs/demo-week.md states: each miss came after a pause longer than the
   // demo's five-minute cache, which Claude Code records and Codex doesn't.
   const miss = r.patterns.find((p) => p.id === 'cache-miss');
@@ -434,8 +461,8 @@ test('the problem checks find a spread of patterns across the three tiers, each 
   assert.deepEqual([k.markdown, k.why, k.resumed].map((key) => [missIn(key).steps, Math.round(missIn(key).estimate / 1e3)]), [[6, 865], [2, 336], [2, 42]]);
   for (const key of [k.markdown, k.resumed]) assert.match(missIn(key).note, /pause, longer than its 5-minute cache\.$/);
   assert.match(missIn(k.why).note, /pause; Codex doesn't record how long it caches\.$/);
-  // The token figures docs/demo-week.md states.
-  assert.deepEqual([r.coverage.modelCalls.value, Math.round(r.coverage.tokens.value / 1e5)], [359, 192]);
+  // The token figures docs/demo-week.md states (6 of the calls are Saturday's review run's).
+  assert.deepEqual([r.coverage.modelCalls.value, Math.round(r.coverage.tokens.value / 1e5)], [365, 193]);
   const bloat = r.patterns.find((p) => p.id === 'context-bloat');
   const bloatIn = (key) => bloat.findings.find((f) => f.session === key).note;
   assert.match(bloatIn(k.markdown), /at model call 44 of 77 .*largest context was 163k.*about 3\.8M tokens/);
