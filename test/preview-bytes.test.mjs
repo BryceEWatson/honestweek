@@ -59,11 +59,14 @@ test('preview serves the same bytes and headers as before', async () => {
   }
 });
 
-test('preview\'s browser opener commands are unchanged', () => {
-  assert.deepEqual(browserOpenCommand('win32', 'http://127.0.0.1:1/'), { cmd: 'cmd', args: ['/c', 'start', '', 'http://127.0.0.1:1/'] });
+test('preview\'s browser opener never goes through cmd, and names rundll32 by its full path on Windows', () => {
+  // A URL or path with &, ^ or % and no space: cmd would have read those as its own syntax.
+  const odd = 'C:\\x\\a&b^c%PATH%.html';
+  assert.deepEqual(browserOpenCommand('win32', odd, { env: { SystemRoot: 'D:\\Win' } }), { cmd: 'D:\\Win\\System32\\rundll32.exe', args: ['url.dll,FileProtocolHandler', odd] });
+  assert.equal(browserOpenCommand('win32', 'u', { env: {} }).cmd, 'C:\\Windows\\System32\\rundll32.exe');
   assert.deepEqual(browserOpenCommand('darwin', 'u'), { cmd: 'open', args: ['u'] });
   assert.deepEqual(browserOpenCommand('linux', 'u'), { cmd: 'xdg-open', args: ['u'] });
-  assert.deepEqual(browserOpenCommand('linux', 'u', { isWsl: true }), { cmd: 'cmd.exe', args: ['/c', 'start', '', 'u'] });
+  assert.deepEqual(browserOpenCommand('linux', 'u', { isWsl: true }), { cmd: 'rundll32.exe', args: ['url.dll,FileProtocolHandler', 'u'] });
 });
 
 const PINNED = {
