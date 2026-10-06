@@ -83,7 +83,7 @@ export function takenFrom() {
     const by = CHECKS.filter((c) => c.numbers?.includes(key)).map((c) => c.id);
     add(n.source, `${n.says}${by.length ? ` (${by.join(', ')})` : ''}`);
   }
-  for (const [id, url] of [...Object.entries(RULE_SOURCES), ...ENGINE_RULE_SOURCES, ...LAUNCH_RULE_SOURCES]) if (url) add(url, `the ${id} rule`);
+  for (const [id, url] of [...Object.entries(RULE_SOURCES), ...ENGINE_RULE_SOURCES, ...LAUNCH_RULE_SOURCES]) if (url) add(url.url ?? url, `the ${id} rule${url.covers ? ` (for ${url.covers})` : ''}`);
   return out;
 }
 

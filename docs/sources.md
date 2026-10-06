@@ -90,7 +90,7 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
   Cited by: Did more than you asked for; Hid what it needed from you in a long report; Kept deliberating when one step would settle it; Left placeholders in and called the work finished; Said it did something the log doesn't show; Started helpers the work didn't need.
 - [Prompting Claude Opus 5.5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5) (undated page, fetched 2026-10-05)
   Cited by: Followed instructions planted in what it read; Instruction files grew too long to follow; Kept deliberating when one step would settle it; Lost or ignored what a helper found; Read far more than the task needed; Said it did something the log doesn't show; Stopped before the work was finished; Stopped to ask permission it didn't need.
-  A check takes from it: the updates.position rule.
+  A check takes from it: the updates.position rule (for Claude Opus 5.5).
 - [Prompting Claude Sonnet 5.5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5) (undated page, fetched 2026-10-03)
   Cited by: Did more than you asked for; Hit the same tool error again and again; Installed a package it shouldn't have; Kept deliberating when one step would settle it; Left scratch files or debug edits behind; Said it was done without running a check; Started helpers the work didn't need; Stopped to ask permission it didn't need.
 - [Rethinking skills and prompts for GPT-6 Astra](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra) (2026-09-11)

@@ -13,8 +13,9 @@ import { LOOKUP_RULES, RULE_SOURCES as ENGINE_RULE_SOURCES, RULES as ENGINE_RULE
 import { LAUNCH_RULE_SOURCES, LAUNCH_RULES } from '../lib/replay/launch.mjs';
 
 const catalogUrls = new Set(loadCatalog().patterns.flatMap((p) => p.sources.map((s) => s.url)));
-/** Marked: null (honestweek's own) or the address of a source the catalog holds. */
-const marked = (source) => source === null || (typeof source === 'string' && catalogUrls.has(source));
+/** Marked: null (honestweek's own), the address of a source the catalog holds, or { url, covers }
+ *  when that source sets only the part of the rule `covers` names. */
+const marked = (source) => source === null || (typeof source === 'string' && catalogUrls.has(source)) || (typeof source?.covers === 'string' && source.covers.length > 0 && catalogUrls.has(source.url));
 const engineRuleIds = [...ENGINE_RULES.keys(), ...LOOKUP_RULES.keys(), ...UPDATE_RULES.keys()];
 
 test('every threshold is marked, and says its own value', () => {
@@ -67,7 +68,7 @@ test('the numbers and rules that rest on a published source name the one they us
   const from = Object.entries(NUMBERS).filter(([, n]) => n.source).map(([k, n]) => [k, n.source]);
   assert.deepEqual(from, [['cacheLifetime', 'https://code.claude.com/docs/en/prompt-caching']]);
   assert.deepEqual(Object.entries(RULE_SOURCES).filter(([, s]) => s), [['usage.call', 'https://code.claude.com/docs/en/statusline']]);
-  assert.deepEqual([...ENGINE_RULE_SOURCES].filter(([, s]) => s), [['updates.position', 'https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5']]);
+  assert.deepEqual([...ENGINE_RULE_SOURCES].filter(([, s]) => s), [['updates.position', { url: 'https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5', covers: 'Claude Opus 5.5' }]]);
   // The cache-miss check uses the lifetimes; the long-session limit's default isn't on any card.
   assert.ok(CHECKS.find((c) => c.id === 'cache-misses').numbers.includes('cacheLifetime'));
   assert.ok(!CHECKS.some((c) => c.numbers.includes('longCtx')));

@@ -525,6 +525,8 @@ test('each check card links the published sources behind what it measures, and s
   assert.match(words(card('action-loop')), /Its numbers\. Each is honestweek's own choice, not taken from a published source\./);
   // The rules: a source beside one that rests on it, one line for honestweek's own.
   assert.match(card('long-sessions'), /<dd>A model call&#39;s recorded token counts[^<]*From <a href="https:\/\/code\.claude\.com\/docs\/en\/statusline"[^>]*>Customize your status line<\/a>\.<\/dd>/);
+  // A source that sets only part of a rule says which part; the rest is honestweek's own.
+  assert.match(card('secret-in-log'), /<dd>A thinking block[^<]*For Claude Opus 5\.5, from <a href="https:\/\/platform\.claude\.com\/docs\/en\/build-with-claude\/prompt-engineering\/prompting-claude-opus-5-5"[^>]*>Prompting Claude Opus 5\.5<\/a>; the rest is honestweek's own\.<\/dd>/);
   assert.match(words(card('re-reads')), /It is honestweek's own rule, not taken from a published source\./);
   assert.match(words(card('needless-check-in')), /Each is honestweek's own rule, not taken from a published source\./);
   for (const r of whole.rules) assert.ok(r.source === null || (r.source && typeof r.source.title === 'string'), `${r.id} is marked`);
