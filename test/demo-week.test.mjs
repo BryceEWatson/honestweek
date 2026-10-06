@@ -322,6 +322,22 @@ test('pull requests: six opened, three squash-merged into main by you, each Clau
   assert.deepEqual(log.slice(1).map((l) => l.match(/^(\S+) .*\(#(\d+)\)$/)?.slice(1)), [[ME, '14'], [ME, '13'], [ME, '12']]);
 });
 
+test('a Codex session on main records the commit main had when it started, never a later one', () => {
+  const walk = (p) => readdirSync(p, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(p, e.name)) : [join(p, e.name)]));
+  let checked = 0;
+  for (const file of d.roots.codex.flatMap(walk).filter((f) => f.endsWith('.jsonl'))) {
+    const meta = JSON.parse(readFileSync(file, 'utf8').split('\n')[0]).payload;
+    if (meta?.git?.branch !== 'main' || !meta.git.commit_hash) continue;
+    const sha = meta.git.commit_hash;
+    const committedAt = execFileSync('git', ['-C', d.repo.dir, 'show', '-s', '--format=%cI', sha], { encoding: 'utf8' }).trim();
+    assert.ok(Date.parse(committedAt) <= Date.parse(meta.timestamp), `${relative(d.root, file)} records a commit made after it started`);
+    // On main: the commit is an ancestor of main's tip at the end of the week.
+    assert.equal(spawnSync('git', ['-C', d.repo.dir, 'merge-base', '--is-ancestor', sha, 'main']).status, 0, `${relative(d.root, file)} records a commit that never reached main`);
+    checked += 1;
+  }
+  assert.ok(checked >= 2, `the Codex sessions on main were found (${checked})`);
+});
+
 test('the display-only and outside sessions are private skeletons that git never reads', () => {
   const site = sessionOf(k.site);
   assert.equal(site.private, true);
