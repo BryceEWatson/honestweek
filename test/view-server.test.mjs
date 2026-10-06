@@ -10,7 +10,7 @@ import { connect } from 'node:net';
 import { join } from 'node:path';
 
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
-import { ASSETS_DIR, CODE_HEADER, CODE_TTL_MS, CSP, CSP_SELF_TEST, KEY_HEADER, readAssets, SELFTEST_DIR, startViewServer } from '../lib/view/server.mjs';
+import { ASSETS_DIR, CODE_HEADER, CODE_TTL_MS, CSP, CSP_SELF_TEST, KEY_HEADER, OTHER_SITE_META, readAssets, SELFTEST_DIR, startViewServer } from '../lib/view/server.mjs';
 import { createViewData } from '../lib/view/data.mjs';
 import { buildViewWeek, TERM, WEEK } from './fixtures/view/week.mjs';
 
@@ -73,13 +73,14 @@ function raw(port, { method = 'GET', path = '/', headers = {}, body = null, host
 }
 
 /** Send bytes the HTTP client wouldn't, and read the reply's status line. */
-function rawLine(port, line) {
+function rawLine(port, line, { whole = false } = {}) {
   return new Promise((resolve) => {
     const sock = connect(port, '127.0.0.1', () => sock.write(line));
     let got = '';
+    const done = () => resolve(whole ? got : got.split('\r\n')[0]);
     sock.on('data', (c) => (got += c.toString('utf8')));
-    sock.on('close', () => resolve(got.split('\r\n')[0]));
-    sock.on('error', () => resolve(got.split('\r\n')[0]));
+    sock.on('close', done);
+    sock.on('error', done);
     setTimeout(() => sock.destroy(), 2000);
   });
 }
@@ -93,12 +94,28 @@ async function keyOf(s) {
 
 // ---- headers ---------------------------------------------------------------------------
 
-test('every response carries the content policy, nosniff, no-referrer and no-store', async () => {
+test('every response carries the content policy, nosniff, no-referrer, no-store and both same-origin policies', async () => {
   const s = await start();
   const key = await keyOf(s);
-  for (const [path, headers, status] of [['/', {}, 200], ['/search.html', {}, 200], ['/nope', {}, 404], ['/api/home', { [KEY_HEADER]: key }, 200], ['/api/home', {}, 403], ['/api/claim', {}, 403]]) {
-    const r = await raw(s.port, { path, headers });
+  const cases = [
+    ['/', {}, 200],
+    ['/search.html', {}, 200],
+    ['/search.js', {}, 200],
+    ['/common.css', {}, 200],
+    ['/nope', {}, 404],
+    ['/api/home', { [KEY_HEADER]: key }, 200],
+    ['/api/home', {}, 403],
+    ['/api/claim', {}, 403],
+    ['/api/home', { [KEY_HEADER]: key, 'sec-fetch-site': 'cross-site' }, 403],
+    ['/%zz', {}, 400],
+    ['/search.html', {}, 405, 'DELETE'],
+    ['/search.html', {}, 403, 'GET', 'evil.example'],
+  ];
+  for (const [path, headers, status, method = 'GET', host] of cases) {
+    const r = await raw(s.port, { path, headers, method, ...(host ? { host } : {}) });
     assert.equal(r.status, status, path);
+    assert.equal(r.headers['cross-origin-resource-policy'], 'same-origin', path);
+    assert.equal(r.headers['cross-origin-opener-policy'], 'same-origin', path);
     assert.equal(r.headers['content-security-policy'], CSP, path);
     assert.equal(r.headers['x-content-type-options'], 'nosniff');
     assert.equal(r.headers['referrer-policy'], 'no-referrer');
@@ -127,6 +144,31 @@ test('another site\'s request is refused', async () => {
     assert.equal((await raw(s.port, { path: '/api/claim', headers: { [CODE_HEADER]: s.issueCode(), 'sec-fetch-site': site } })).status, 403, `claim ${site}`);
   }
   for (const site of ['same-origin', 'none']) assert.equal((await raw(s.port, { path: '/api/home', headers: { [KEY_HEADER]: key, 'sec-fetch-site': site } })).status, 200, site);
+});
+
+test('a page reached from another site is served marked, so it never asks other tabs for the key', async () => {
+  const s = await start();
+  const page = readFileSync(join(assets, 'search.html'), 'utf8');
+  for (const site of ['cross-site', 'same-site', 'Cross-Site']) {
+    for (const path of ['/', '/search.html']) {
+      const r = await raw(s.port, { path, headers: { 'sec-fetch-site': site } });
+      assert.equal(r.status, 200, `${site} ${path}`);
+      assert.equal(r.text, page.replace('<!doctype html>', `<!doctype html>${OTHER_SITE_META}`), `${site} ${path}: the flag sits after the doctype`);
+      assert.equal(Number(r.headers['content-length']), Buffer.byteLength(r.text));
+    }
+    // Only pages: a script is served as it is.
+    assert.equal((await raw(s.port, { path: '/search.js', headers: { 'sec-fetch-site': site } })).text, 'export {};\n');
+  }
+  for (const headers of [{}, { 'sec-fetch-site': 'same-origin' }, { 'sec-fetch-site': 'none' }]) assert.equal((await raw(s.port, { path: '/search.html', headers })).text, page, JSON.stringify(headers));
+});
+
+test('a real page reached from another site gets the flag once, in its head, before any script', async () => {
+  const real = await start({ assetsDir: ASSETS_DIR });
+  const r = await raw(real.port, { path: '/problems.html', headers: { 'sec-fetch-site': 'cross-site' } });
+  const at = r.text.indexOf(OTHER_SITE_META);
+  assert.ok(at > r.text.indexOf('<head>') && at < r.text.indexOf('<script'), 'in the head, before the scripts');
+  assert.equal(r.text.split(OTHER_SITE_META).length, 2, 'once');
+  assert.ok(!(await raw(real.port, { path: '/problems.html', headers: { 'sec-fetch-site': 'same-origin' } })).text.includes(OTHER_SITE_META));
 });
 
 test('another address\'s request is refused', async () => {
@@ -162,6 +204,9 @@ test('a malformed address gets an error, not a crash', async () => {
   for (const path of ['/%zz', '/api/lookup?q=%E0%A4%A', '/api/home?x=%', `/${'a'.repeat(9000)}`]) assert.equal((await raw(s.port, { path, headers: { [KEY_HEADER]: key } })).status, 400, path.slice(0, 40));
   assert.match(await rawLine(s.port, `GET http://evil.example/ HTTP/1.1\r\nHost: 127.0.0.1:${s.port}\r\n\r\n`), / 400 /);
   assert.match(await rawLine(s.port, 'NOT A REQUEST\r\n\r\n'), / 400 /);
+  // The parser's own 400 carries the same headers as every other answer.
+  const reply = (await rawLine(s.port, 'NOT A REQUEST\r\n\r\n', { whole: true })).split('\r\n');
+  for (const h of [`Content-Security-Policy: ${CSP}`, 'X-Content-Type-Options: nosniff', 'Referrer-Policy: no-referrer', 'Cache-Control: no-store', 'Cross-Origin-Resource-Policy: same-origin', 'Cross-Origin-Opener-Policy: same-origin']) assert.ok(reply.includes(h), h);
   assert.equal((await raw(s.port, { path: '/api/home', headers: { [KEY_HEADER]: key } })).status, 200, 'still serving');
 });
 

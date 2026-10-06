@@ -79,6 +79,9 @@ This is the first version on npm. 0.1.0 was released on GitHub, but its npm publ
 - Two rare redactor gaps are closed: text glued after a header's placeholder (`Authorization=[redacted:secret]'…`) is hidden, and text the redactor used to change on a second pass, like JSON-escaped keys nested in each other, is settled on the first, so fewer digest items are held back. (#105)
 - `init`, Setup and Settings refuse a display-only folder inside a repository git reads, and a read repository inside a display-only folder, since git reading the outer one would read the other too. Folders are compared by their real paths, so a link can't hide it. (#105)
 - `preview` refuses a request that names another host, as `view` already did, so a website that points its own name at your machine can't read your built summary through your browser while `preview` runs.
+- A `view` page that another website opened no longer gets this run's key from your other open `view` tabs. That website still couldn't read the page, but the key belongs only to tabs you opened. Tabs opened from `view`'s own pages share it as before.
+- Setup's and Settings' goal-list check no longer quotes the start of the file it was pointed at, or says whether a path is a folder. It says the file isn't a goal list, or that there's no file there.
+- Every answer from `view` and `preview` carries the same security headers, its errors included, and `view` also tells the browser to keep its pages and files out of other sites' pages and windows.
 
 ## 0.1.0 (14 August 2026)
 

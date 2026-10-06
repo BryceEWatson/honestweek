@@ -201,6 +201,7 @@ test('Settings rewrites only what was changed: everything else stays byte for by
 
 test('every failure path is refused and writes nothing', async () => {
   const dir = project('refuse');
+  writeFileSync(join(dir, 'notes.txt'), 'FIRSTWORDS-sk-should-never-echo and more\n');
   const s = await view(dir);
   const base = await untouched(s);
   const before = readFileSync(join(dir, 'honestweek.config.json'), 'utf8');
@@ -227,12 +228,17 @@ test('every failure path is refused and writes nothing', async () => {
     ['a new folder that is not there', { ...base, repos: [...base.repos, { path: join(scratch, 'nowhere'), role: 'featured' }] }, 400, /There's no folder/],
     ['a bad email', { ...base, authorEmails: ['nope'] }, 400, /doesn't look like an email/],
     ['a missing goal list', { ...base, goalsFile: 'nope.json' }, 400, /no goal list at/],
+    ['a goal list that is not JSON', { ...base, goalsFile: join(dir, 'notes.txt') }, 400, /notes\.txt isn't a goal list \(not valid JSON\)\.$/],
+    ['a goal list that is a folder', { ...base, goalsFile: dir }, 400, /isn't a goal list \(not valid JSON\)\.$/],
     ['a long-session limit too small', { ...base, longSessionTokens: 5 }, 400, /long-session limit must be a whole number of tokens from 10,000/],
     ['a long-session limit as words', { ...base, longSessionTokens: 'lots' }, 400, /long-session limit must be a whole number/],
   ]) {
-    const r = await post(s, 'save', body);
-    assert.equal(r.status, status, `${what}: ${r.text}`);
-    assert.match(r.json.message, message, what);
+    for (const route of ['preview', 'save']) {
+      const r = await post(s, route, body);
+      assert.equal(r.status, status, `${what} on ${route}: ${r.text}`);
+      assert.match(r.json.message, message, what);
+      assert.doesNotMatch(r.text, /FIRSTWORDS|EISDIR|Unexpected token|position/, `${what} on ${route}: no file content or parser detail`);
+    }
   }
   const big = await post(s, 'save', JSON.stringify({ ...base, terms: 'x'.repeat(SETUP_MAX_BODY) }));
   assert.equal(big.status, 413);
