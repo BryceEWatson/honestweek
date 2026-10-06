@@ -17,6 +17,7 @@ import {
   commitReachableFrom,
   commitsInWindow,
   gitEnv,
+  GIT_HARDENING,
   landedCommitsInWindow,
   lookupCommit,
   repoMetricsInWindow,
@@ -128,6 +129,33 @@ test('findRepos, init and Settings\' "Find new repositories" start no program a 
   const found = createSettings({ cwd: home }).found();
   assert.equal(found.editable, true);
   assert.ok(!ran(), 'Settings\' find started a program');
+});
+
+test('a repository that allows one transport by name still fetches nothing, even without GIT_NO_LAZY_FETCH', () => {
+  // protocol.ssh.allow in a repository's config beats protocol.allow on the command line, and a
+  // git older than 2.44 ignores GIT_NO_LAZY_FETCH, so leave that variable out here.
+  const pc = newRepo(join(parent, 'partial-ssh'));
+  git(pc, ['config', 'core.repositoryformatversion', '1']);
+  git(pc, ['config', 'extensions.partialClone', 'origin']);
+  git(pc, ['config', 'remote.origin.url', 'ssh://example.invalid/x']);
+  git(pc, ['config', 'remote.origin.promisor', 'true']);
+  git(pc, ['config', 'core.sshCommand', `"${hookProgram(parent)}"`]);
+  git(pc, ['config', 'protocol.ssh.allow', 'always']);
+  mkdirSync(join(pc, '.git', 'refs', 'heads'), { recursive: true });
+  writeFileSync(join(pc, '.git', 'refs', 'heads', 'main'), `${'1'.repeat(40)}\n`);
+  const read = (args) => {
+    try {
+      execFileSync('git', [...args, '-C', pc, 'for-each-ref', '--sort=-committerdate', 'refs/heads'], { stdio: 'ignore', env: env0 });
+    } catch {
+      /* the fetch fails, or the object is missing */
+    }
+  };
+  clearMarker();
+  read(['-c', 'protocol.allow=never']);
+  assert.ok(ran(), 'protocol.allow alone let the repository\'s ssh transport run (the test can fail)');
+  clearMarker();
+  read(GIT_HARDENING);
+  assert.ok(!ran(), 'the hardened command line let a transport run');
 });
 
 test('the commit lookups start no program a repository\'s config names', () => {
