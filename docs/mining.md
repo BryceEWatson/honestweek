@@ -251,7 +251,16 @@ reporting a confident number.
 
 **Text that looks like a person and is not.** Injected reminders, slash-command wrappers,
 subagent task descriptions, delegation envelopes, and automated status probes all appear
-in the same position as a typed prompt. All are filtered.
+in the same position as a typed prompt. All are filtered. So is a turn current Claude Code
+marks as sent by anyone but the person (its `turnOrigin` is `sdk` for a program, a script,
+a headless `claude -p` run or another session through one, or names a background task or
+another session). A queue record carries no such mark, so each queued turn is matched, in
+order, to the record that delivers the same text (the user record, or a `queued_command`
+attachment when it arrives mid-turn) and dropped when that one is marked as someone else's.
+A session with none of the person's turns has no first prompt and isn't a candidate. When
+the first 64 KB can't settle it in a log that marks senders (only someone else's turns so
+far, or a first queued turn whose delivery lies further on), the probe reads on to 256 KB
+and then 1 MB, as it does for Codex. Logs from before the mark read as they always have.
 
 **The same session written more than once.** Deduplicated on when the first human turn
 happened and what it said. Measured on the reference machine at 7.8% of keyed Claude Code
