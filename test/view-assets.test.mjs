@@ -248,6 +248,20 @@ test("the pages say a prompt from a non-interactive run is a person's or a scrip
   assert.equal(typed.level, 'recorded');
 });
 
+test("the pages put a program's command and instructions in the agent's lane, never yours", () => {
+  const sandbox = { window: { HWE: { chips: () => '' }, HWP: {} }, document: { getElementById: () => null } };
+  runInNewContext(readFileSync(join(ASSETS, 'common.js'), 'utf8'), sandbox);
+  const HW = sandbox.window.HW;
+  const agent = 'cc-abcdefghijkl:main';
+  const sent = [{ kind: 'command', facts: { name: '/review', from: 'program' } }, { kind: 'delegation-received', facts: { from: 'program' } }, { kind: 'agent-message', facts: { from: 'program', direction: 'inbound' } }];
+  for (const e of sent.map((x, i) => ({ id: `cc-abcdefghijkl.${i}.0`, actor: 'program', agent, inferred: [], ...x }))) {
+    assert.deepEqual([HW.who(e).short, HW.who(e).level], ['A program', 'recorded'], e.kind);
+    assert.equal(HW.laneOf(e), agent, e.kind);
+  }
+  // The same command typed by you stays in your lane.
+  assert.equal(HW.laneOf({ id: 'cc-abcdefghijkl.9.0', kind: 'command', actor: 'person', agent, inferred: [] }), 'person');
+});
+
 test("a goal's session count on a page is no stronger than its weakest session", () => {
   const sandbox = { window: { HWE: { chips: () => '' }, HWP: {} }, document: { getElementById: () => null } };
   runInNewContext(readFileSync(join(ASSETS, 'common.js'), 'utf8'), sandbox);

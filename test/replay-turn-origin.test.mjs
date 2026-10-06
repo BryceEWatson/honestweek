@@ -1,0 +1,123 @@
+// Who sent a Claude Code user record, by its `turnOrigin` field: "human" is a person (recorded),
+// "sdk" a program (a script, the Agent SDK, a headless `claude -p` run, or another session
+// through one) and never the person's prompt, "task_notification" a notice. A value this engine
+// doesn't know keeps the unknown-origin rule, and a log with no such field reads as before.
+
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { buildWorkHistory } from '../lib/replay/index.mjs';
+import { describe } from '../lib/replay/views.mjs';
+import { isExecInstruction, isPersonPrompt } from '../lib/problems/context.mjs';
+import { runProblems } from '../lib/problems/index.mjs';
+import { createViewData } from '../lib/view/data.mjs';
+import { whoOf } from '../lib/view/replay-export.mjs';
+import { buildWordIndex } from '../lib/view/word-index.mjs';
+import { LEGACY, IDS, WINDOW, normalizeReading, writeTurnOriginLogs } from './fixtures/replay/turn-origin.mjs';
+import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
+
+let root;
+let w;
+let h;
+const of = (key, kind) => h.events.filter((e) => e.session === key && (!kind || e.kind === kind));
+const turns = (key) => of(key).filter((e) => ['prompt', 'command', 'notice', 'notification', 'agent-message', 'delegation-received'].includes(e.kind));
+const authorship = (e) => (e.inferred ?? []).find((x) => x.key === 'authorship') ?? null;
+
+before(async () => {
+  root = makeTempDir('hw-turn-origin-');
+  w = writeTurnOriginLogs(root);
+  h = await buildWorkHistory({ config: w.config, from: WINDOW.from, to: WINDOW.to, roots: w.roots, git: false, usage: true, keepRaw: true });
+});
+after(() => removeTempDir(root));
+
+test('turnOrigin "human": the person typed it, recorded, with or without the origin object', () => {
+  const prompts = of(w.key.typed, 'prompt');
+  assert.deepEqual(prompts.map((e) => [e.actor, e.facts.origin, authorship(e)]), [['person', 'human', null], ['person', 'human', null]]);
+  assert.equal(h.session(w.key.typed).metrics.prompts.value, 2);
+  assert.equal(h.session(w.key.typed).metrics.prompts.evidence, 'recorded');
+  // A slash command typed by a person stays the person's.
+  assert.deepEqual(turns(w.key.typedCommand).map((e) => [e.kind, e.actor, e.facts.name]), [['command', 'person', '/deploy']]);
+});
+
+test('turnOrigin "sdk": a program sent it, so it is never a prompt and never the person\'s', () => {
+  const steps = turns(w.key.programText);
+  assert.deepEqual(steps.map((e) => [e.kind, e.actor, e.facts.from, e.evidence, e.inferred.length]), [
+    ['delegation-received', 'program', 'program', 'recorded', 0],
+    ['agent-message', 'program', 'program', 'recorded', 0],
+  ]);
+  assert.equal(steps[0].facts.text, 'Summarize the open issues in the tracker.');
+  assert.equal(steps[1].facts.direction, 'inbound');
+  assert.equal(h.session(w.key.programText).metrics.prompts.value, 0);
+  assert.match(describe(steps[0]), /^started by a program with instructions "Summarize/);
+  assert.match(describe(steps[1]), /^agent message inbound from a program "Yes, go ahead\."/);
+  // Both open a turn, the way a codex exec run's instructions do, and neither is a person's prompt.
+  assert.ok(steps.every((e) => isExecInstruction(e) && !isPersonPrompt(e)));
+  assert.deepEqual(whoOf(steps[0], new Map()), { label: 'a program', evidence: 'recorded', rule: null });
+  // A slash command a program sent is the program's.
+  const cmd = turns(w.key.programCommand);
+  assert.deepEqual(cmd.map((e) => [e.kind, e.actor, e.facts.from, e.facts.name]), [['command', 'program', 'program', '/review']]);
+  assert.match(describe(cmd[0]), /^slash command sent by a program \/review/);
+});
+
+test('turnOrigin "task_notification" is a notice, and a value this engine does not know keeps the unknown-origin rule', () => {
+  const steps = turns(w.key.otherValues);
+  assert.deepEqual(steps.map((e) => e.kind), ['prompt', 'notification', 'prompt']);
+  const unknown = steps[2];
+  assert.equal(unknown.actor, 'person');
+  assert.equal(unknown.facts.origin, 'system');
+  assert.equal(authorship(unknown)?.rule, 'prompt.authorship.unknown-origin');
+  assert.equal(h.session(w.key.otherValues).metrics.prompts.evidence, 'inferred');
+});
+
+// Invariant 6: a log with no turnOrigin reads exactly as it did before the engine read the
+// field. The fixture was taken from the engine before this change, on these same records.
+test('a log with no turnOrigin reads byte for byte as before', () => {
+  const keys = LEGACY.map((id) => w.key[Object.keys(IDS).find((n) => IDS[n] === id)]);
+  const mine = (k) => keys.includes(k);
+  const got = {
+    events: normalizeReading(h.events.filter((e) => mine(e.session)), root),
+    sessions: h.sessions.filter((s) => mine(s.key)).map(({ key, endState, firstAt, lastAt, tool, agents, title }) => ({ key, endState, firstAt, lastAt, tool, agents, title: title ?? null })),
+    metrics: keys.map((k) => normalizeReading(h.session(k).metrics, root)),
+  };
+  const want = JSON.parse(readFileSync(new URL('./fixtures/turn-origin-legacy-reading.json', import.meta.url), 'utf8'));
+  assert.equal(got.events.length, 9);
+  assert.deepEqual(got, want);
+  // Read without turnOrigin, a command and a prompt with no origin are still the person's.
+  assert.deepEqual(of(w.key.legacy, 'prompt').map((e) => authorship(e)?.rule ?? null), ['prompt.authorship.no-origin', null]);
+  assert.deepEqual(of(w.key.legacy, 'command').map((e) => e.actor), ['person']);
+});
+
+test("a program's go-ahead after the agent's question is not the person's check-in; the same go-ahead typed is", () => {
+  const r = runProblems(h, { builtT: Date.parse('2024-07-01T00:00:00Z') });
+  const checkIns = r.patterns.find((p) => p.id === 'needless-check-in')?.findings ?? [];
+  assert.deepEqual(checkIns.map((f) => f.session), [w.key.typedCheckIn]);
+});
+
+test("the sessions list says a program started a session, and a program's command stands in for the title", async () => {
+  const data = createViewData({ config: w.config, roots: w.roots, from: WINDOW.from, to: WINDOW.to, timezone: WINDOW.timezone });
+  await data.start();
+  const ask = async (q = {}) => (await data.route('/api/sessions', new URLSearchParams(q))).body;
+  const list = await ask();
+  // All eight sessions are on one day, which shows five before "Show 3 more".
+  const more = await ask({ day: '2024-06-11', offset: '5' });
+  const rows = new Map([...list.days.flatMap((d) => d.rows), ...more.rows].map((r) => [r.session, r]));
+  assert.equal(rows.size, 8);
+  const row = (k) => rows.get(k);
+  assert.deepEqual([row(w.key.programCommand).label, row(w.key.programCommand).startedBy], ['/review, Jun 11, 3:20 PM', { text: 'started by a program: /review', evidence: 'recorded' }]);
+  assert.deepEqual([row(w.key.programText).label, row(w.key.programText).startedBy], ['program run, Jun 11, 3:10 PM: “Summarize the open issues in the tracker.”', { text: 'started by a program', evidence: 'recorded' }]);
+  // A command typed by a person, with or without turnOrigin, keeps its label.
+  for (const k of [w.key.typedCommand, w.key.legacyCommand]) assert.match(row(k).startedBy.text, /^started with a command \(\/deploy\), no prompt$/);
+  assert.equal(row(w.key.typed).startedBy, null);
+  assert.equal(row(w.key.typed).prompts.value, 2);
+});
+
+test("word search reads a program's turn as nobody's words", async () => {
+  const index = await buildWordIndex({ roots: w.roots, startT: Date.parse(`${WINDOW.from}T00:00:00Z`), endT: Date.parse('2024-06-17T00:00:00Z') });
+  const texts = index.sessions.flatMap((s) => s.prompts.map((p) => p.text));
+  assert.ok(texts.includes('Add a --dry-run flag to the release script.'));
+  assert.ok(texts.includes('Yes, go ahead.'), 'the go-ahead a person typed is found');
+  assert.equal(texts.filter((t) => t === 'Yes, go ahead.').length, 1, "the program's go-ahead is not");
+  assert.ok(!texts.some((t) => /^Background command/.test(t)), 'a notice is not');
+});
