@@ -67,7 +67,7 @@ test('every rule is marked, the engine\'s included, and every rule a card shows'
 test('the numbers and rules that rest on a published source name the one they use', () => {
   const from = Object.entries(NUMBERS).filter(([, n]) => n.source).map(([k, n]) => [k, n.source]);
   assert.deepEqual(from, [['cacheLifetime', 'https://code.claude.com/docs/en/prompt-caching']]);
-  assert.deepEqual(Object.entries(RULE_SOURCES).filter(([, s]) => s), [['usage.call', 'https://code.claude.com/docs/en/statusline']]);
+  assert.deepEqual(Object.entries(RULE_SOURCES).filter(([, s]) => s), [['usage.call', { url: 'https://code.claude.com/docs/en/statusline', covers: 'Claude Code' }]]);
   assert.deepEqual([...ENGINE_RULE_SOURCES].filter(([, s]) => s), [['updates.position', { url: 'https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5', covers: 'Claude Opus 5.5' }]]);
   // The cache-miss check uses the lifetimes; the long-session limit's default isn't on any card.
   assert.ok(CHECKS.find((c) => c.id === 'cache-misses').numbers.includes('cacheLifetime'));

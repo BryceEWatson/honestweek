@@ -42,7 +42,7 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
   Cited by: Instruction files grew too long to follow.
 - [Customize your status line](https://code.claude.com/docs/en/statusline) (undated page, fetched 2026-10-05)
   Cited by: Sessions ran long past where a fresh start would help.
-  A check takes from it: the usage.call rule.
+  A check takes from it: the usage.call rule (for Claude Code).
 - [Don't Build Multi-Agents](https://cognition.com/blog/dont-build-multi-agents) (2025-06-12)
   Cited by: Guessed instead of asking; Lost or ignored what a helper found.
 - [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) (2025-09-29)
