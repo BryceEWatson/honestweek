@@ -211,6 +211,8 @@ test('a config that appears after the page opened is never overwritten, and noth
 
 test('malformed JSON, an oversized body and answers that do not fit are refused with a clear message, and nothing is written', async () => {
   const s = await setupRun('malformed');
+  // A file that isn't JSON and a folder read the same, and the answer quotes none of the file.
+  writeFileSync(join(s.root, 'notes.txt'), 'FIRSTWORDS-sk-should-never-echo and more\n');
   const before = files(s.root);
   const cases = [
     ['not JSON', '{ "repos": [', 400, /isn't valid JSON/],
@@ -223,12 +225,15 @@ test('malformed JSON, an oversized body and answers that do not fit are refused 
     ['a folder twice', answers(s, { repos: [{ path: s.project, role: 'featured' }, { path: `${s.project}/`, role: 'featured' }] }), 400, /are the same repository\. Remove one\./],
     ['words not text', answers(s, { names: ['Dana'] }), 400, /plain text/],
     ['a missing goal list', answers(s, { goalsFile: 'nope.json' }), 400, /no goal list at/],
+    ['a goal list that is not JSON', answers(s, { goalsFile: join(s.root, 'notes.txt') }), 400, /notes\.txt isn't a goal list \(not valid JSON\)\.$/],
+    ['a goal list that is a folder', answers(s, { goalsFile: s.root }), 400, /isn't a goal list \(not valid JSON\)\.$/],
   ];
   for (const [what, body, status, message] of cases) {
     for (const route of ['preview', 'save']) {
       const r = await post(s, route, body);
       assert.equal(r.status, status, `${what} on ${route}: ${r.text}`);
       assert.match(r.json.message, message, what);
+      assert.doesNotMatch(r.text, /FIRSTWORDS|EISDIR|Unexpected token|position/, `${what} on ${route}: no file content or parser detail`);
     }
   }
   const big = JSON.stringify(answers(s, { terms: 'x'.repeat(SETUP_MAX_BODY) }));

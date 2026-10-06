@@ -269,6 +269,42 @@ test('startServer refuses a request that names another host, as a DNS-rebinding 
   }
 });
 
+test('startServer sends its 403, 404 and 405 answers with the same security headers as the page', async () => {
+  const csp = "default-src 'none'; style-src 'unsafe-inline'";
+  const handle = await startServer({ port: 0, html: '<p>private week</p>', csp });
+  const ask = ({ method = 'GET', path = '/', hostHeader = `127.0.0.1:${handle.port}` }) =>
+    new Promise((resolve, reject) => {
+      http
+        .request({ host: '127.0.0.1', port: handle.port, method, path, headers: { Host: hostHeader } }, (res) => {
+          let body = '';
+          res.setEncoding('utf8');
+          res.on('data', (c) => (body += c));
+          res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body }));
+        })
+        .on('error', reject)
+        .end();
+    });
+  try {
+    for (const [what, opts, status] of [
+      ['the page', {}, 200],
+      ['another host', { hostHeader: `attacker.example:${handle.port}` }, 403],
+      ['another path', { path: '/nope' }, 404],
+      ['a write', { method: 'POST' }, 405],
+    ]) {
+      const res = await ask(opts);
+      assert.equal(res.status, status, what);
+      assert.equal(res.headers['content-security-policy'], csp, what);
+      assert.equal(res.headers['x-content-type-options'], 'nosniff', what);
+      assert.equal(res.headers['cache-control'], 'no-store', what);
+      assert.equal(res.headers['referrer-policy'], 'no-referrer', what);
+      if (status !== 200) assert.doesNotMatch(res.body, /private week/, what);
+    }
+    assert.equal((await ask({ method: 'POST' })).headers.allow, 'GET, HEAD');
+  } finally {
+    await handle.close();
+  }
+});
+
 // --- runPreview orchestration -----------------------------------------------
 
 test('runPreview --help prints usage and exits 0 without starting a server', async () => {
