@@ -1,0 +1,4855 @@
+{
+ "sessions": [
+  {
+   "key": "cc-cokbkckkbbal",
+   "tool": "claude-code",
+   "thread": "th-egakhdcimp",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": "Start the review runs",
+   "firstAt": "2024-06-11T15:00:00.000Z",
+   "lastAt": "2024-06-11T16:01:00.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cc-cokbkckkbbal"
+   ],
+   "agents": [
+    "cc-cokbkckkbbal:main"
+   ],
+   "turns": [
+    "cc-cokbkckkbbal.2.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cc-gldhbddkmdae",
+   "tool": "claude-code",
+   "thread": "th-hdccmjpbfj",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T15:01:03.000Z",
+   "lastAt": "2024-06-11T15:01:23.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cc-gldhbddkmdae"
+   ],
+   "agents": [
+    "cc-gldhbddkmdae:main"
+   ],
+   "turns": [
+    "cc-gldhbddkmdae.1.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cc-fkbimgepjlhn",
+   "tool": "claude-code",
+   "thread": "th-oophelepfb",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T15:05:02.000Z",
+   "lastAt": "2024-06-11T15:05:22.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cc-fkbimgepjlhn"
+   ],
+   "agents": [
+    "cc-fkbimgepjlhn:main"
+   ],
+   "turns": [
+    "cc-fkbimgepjlhn.1.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cc-obhjppecibfh",
+   "tool": "claude-code",
+   "thread": "th-diniodcjoc",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T15:10:30.000Z",
+   "lastAt": "2024-06-11T15:10:50.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cc-obhjppecibfh"
+   ],
+   "agents": [
+    "cc-obhjppecibfh:main"
+   ],
+   "turns": [
+    "cc-obhjppecibfh.1.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cc-mmamghonihbm",
+   "tool": "claude-code",
+   "thread": "th-diabeoeekn",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": "Night checks",
+   "firstAt": "2024-06-11T15:19:48.000Z",
+   "lastAt": "2024-06-11T16:31:00.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cc-mmamghonihbm"
+   ],
+   "agents": [
+    "cc-mmamghonihbm:main"
+   ],
+   "turns": [
+    "cc-mmamghonihbm.2.0",
+    "cc-mmamghonihbm.4.0",
+    "cc-mmamghonihbm.8.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cc-djaphnlfofgd",
+   "tool": "claude-code",
+   "thread": "th-odebebglbk",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T15:21:00.000Z",
+   "lastAt": "2024-06-11T15:21:20.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cc-djaphnlfofgd"
+   ],
+   "agents": [
+    "cc-djaphnlfofgd:main"
+   ],
+   "turns": [
+    "cc-djaphnlfofgd.1.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cc-mcmjfaabfdba",
+   "tool": "claude-code",
+   "thread": "th-jinmmmdljm",
+   "repo": "other-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T15:30:20.000Z",
+   "lastAt": "2024-06-11T15:30:40.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cc-mcmjfaabfdba"
+   ],
+   "agents": [
+    "cc-mcmjfaabfdba:main"
+   ],
+   "turns": [
+    "cc-mcmjfaabfdba.1.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cc-cgkbabcdlhfj",
+   "tool": "claude-code",
+   "thread": "th-fpinbnnboh",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T15:40:12.000Z",
+   "lastAt": "2024-06-11T15:40:32.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cc-cgkbabcdlhfj"
+   ],
+   "agents": [
+    "cc-cgkbabcdlhfj:main"
+   ],
+   "turns": [
+    "cc-cgkbabcdlhfj.1.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cc-nkiojlkooilm",
+   "tool": "claude-code",
+   "thread": "th-ckadagnkgf",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T15:50:10.000Z",
+   "lastAt": "2024-06-11T15:50:30.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cc-nkiojlkooilm"
+   ],
+   "agents": [
+    "cc-nkiojlkooilm:main"
+   ],
+   "turns": [
+    "cc-nkiojlkooilm.1.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cx-hooendkmikpp",
+   "tool": "codex",
+   "thread": "th-djnloklpji",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T16:00:04.000Z",
+   "lastAt": "2024-06-11T16:00:30.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cx-hooendkmikpp"
+   ],
+   "agents": [
+    "cx-hooendkmikpp:main"
+   ],
+   "turns": [
+    "cx-hooendkmikpp.2.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cx-kefgnigpkamf",
+   "tool": "codex",
+   "thread": "th-pnkngifmld",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T16:09:50.000Z",
+   "lastAt": "2024-06-11T16:11:00.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cx-kefgnigpkamf"
+   ],
+   "agents": [
+    "cx-kefgnigpkamf:main"
+   ],
+   "turns": [
+    "cx-kefgnigpkamf.2.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cc-ipjmpemnfhbm",
+   "tool": "claude-code",
+   "thread": "th-gponekfhjf",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T16:10:35.000Z",
+   "lastAt": "2024-06-11T16:10:55.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cc-ipjmpemnfhbm"
+   ],
+   "agents": [
+    "cc-ipjmpemnfhbm:main"
+   ],
+   "turns": [
+    "cc-ipjmpemnfhbm.1.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cc-ofajhjfnmidm",
+   "tool": "claude-code",
+   "thread": "th-angjihblch",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T16:20:00.000Z",
+   "lastAt": "2024-06-11T16:20:30.000Z",
+   "endState": "last-record-is-action",
+   "startedFrom": null,
+   "sources": [
+    "cc-ofajhjfnmidm"
+   ],
+   "agents": [
+    "cc-ofajhjfnmidm:main"
+   ],
+   "turns": [
+    "cc-ofajhjfnmidm.1.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cc-bbnocplkofoh",
+   "tool": "claude-code",
+   "thread": "th-gpdhpaapnk",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T16:20:40.000Z",
+   "lastAt": "2024-06-11T16:21:00.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cc-bbnocplkofoh"
+   ],
+   "agents": [
+    "cc-bbnocplkofoh:main"
+   ],
+   "turns": [
+    "cc-bbnocplkofoh.1.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cc-obnjplaekhdp",
+   "tool": "claude-code",
+   "thread": "th-hpbeglfapa",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T16:30:20.000Z",
+   "lastAt": "2024-06-11T16:30:40.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cc-obnjplaekhdp"
+   ],
+   "agents": [
+    "cc-obnjplaekhdp:main"
+   ],
+   "turns": [
+    "cc-obnjplaekhdp.1.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cc-mpgnnkololdg",
+   "tool": "claude-code",
+   "thread": "th-mfjcnfpdmi",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T16:30:40.000Z",
+   "lastAt": "2024-06-11T16:31:00.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cc-mpgnnkololdg"
+   ],
+   "agents": [
+    "cc-mpgnnkololdg:main"
+   ],
+   "turns": [
+    "cc-mpgnnkololdg.1.0"
+   ],
+   "missing": []
+  },
+  {
+   "key": "cx-fnpbacbpbcgb",
+   "tool": "codex",
+   "thread": "th-figgmpkfpi",
+   "repo": "your-project",
+   "repoRole": "featured",
+   "private": false,
+   "title": null,
+   "firstAt": "2024-06-11T16:40:00.000Z",
+   "lastAt": "2024-06-11T16:40:20.000Z",
+   "endState": "last-record-is-message",
+   "startedFrom": null,
+   "sources": [
+    "cx-fnpbacbpbcgb"
+   ],
+   "agents": [
+    "cx-fnpbacbpbcgb:main"
+   ],
+   "turns": [
+    "cx-fnpbacbpbcgb.2.0"
+   ],
+   "missing": []
+  }
+ ],
+ "links": [],
+ "rules": {
+  "prompt.authorship.no-origin": "An older record with no origin field; its text does not look like harness scaffolding, so it is read as typed by a person.",
+  "prompt.authorship.unknown-origin": "A record whose origin field names a kind this engine does not recognize; its text does not look like harness scaffolding or a relayed message, so it is read as typed by a person.",
+  "prompt.authorship.exec-session": "A prompt in a non-interactive Codex exec session; a script or a person may have written it.",
+  "prompt.correction": "The person's message opens with a redirect (\"no\", \"wait\", \"actually\", \"stop\", \"revert\", \"undo\", \"hold on\", \"instead\", \"that's wrong\", \"that's not\", \"don't\") or says \"instead of\", \"revert\", \"roll back\", \"undo that\", \"that's wrong\", or \"not what I\" (the patterns the weekly digest already uses).",
+  "prompt.approval": "A short message (at most 160 characters) that opens with go, yes, approve, approved, lgtm, ship it, merge, proceed, or do it.",
+  "prompt.resume": "A short message asking the agent to continue, resume, or pick up where it stopped.",
+  "prompt.question": "The person's message contains a question mark at the end of a sentence.",
+  "shell.test": "The command line runs a known test runner (node --test, npm test, jest, vitest, pytest, go test, cargo test, mocha).",
+  "shell.revert": "The command line discards or reverses work: git revert, git reset --hard, git checkout --, git restore, git stash drop.",
+  "shell.git-commit-output": "A commit id read from the summary line a successful git commit printed, or, when a quiet commit (-q) printed none, from the first commit a git log or show joined to it by && printed (HEAD, the commit just made), provided nothing before the commit in that line prints output. Used only when the harness recorded no commit itself.",
+  "shell.gh-pr-output": "A pull request named by the URL a gh pr create command printed, used only when the harness recorded no pull request itself.",
+  "git.pr-number-from-subject": "Git has no record of pull requests: a pull request counts as landed when a default-branch commit by a configured identity names it in its own subject (\"Merge pull request #N\" or a trailing \"(#N)\"), or reached the default branch in a merge whose subject names it (the merge's author is not checked). The earliest landing is cited; within one landing, a commit whose own subject names it is preferred.",
+  "review.delegation": "A delegated task whose description or agent type names a review, audit, verification, or fact-check.",
+  "review.skill": "An invoked skill whose name names a review.",
+  "handoff.chip-start": "A session whose first typed prompt is exactly the prompt of a task suggestion an earlier session made.",
+  "canonical.earliest-ending-copy": "When one record appears in several session files, the copy in the file whose last record is earliest is treated as the original."
+ },
+ "threads": [
+  {
+   "id": "th-egakhdcimp",
+   "sessions": [
+    "cc-cokbkckkbbal"
+   ]
+  },
+  {
+   "id": "th-hdccmjpbfj",
+   "sessions": [
+    "cc-gldhbddkmdae"
+   ]
+  },
+  {
+   "id": "th-oophelepfb",
+   "sessions": [
+    "cc-fkbimgepjlhn"
+   ]
+  },
+  {
+   "id": "th-diniodcjoc",
+   "sessions": [
+    "cc-obhjppecibfh"
+   ]
+  },
+  {
+   "id": "th-diabeoeekn",
+   "sessions": [
+    "cc-mmamghonihbm"
+   ]
+  },
+  {
+   "id": "th-odebebglbk",
+   "sessions": [
+    "cc-djaphnlfofgd"
+   ]
+  },
+  {
+   "id": "th-jinmmmdljm",
+   "sessions": [
+    "cc-mcmjfaabfdba"
+   ]
+  },
+  {
+   "id": "th-fpinbnnboh",
+   "sessions": [
+    "cc-cgkbabcdlhfj"
+   ]
+  },
+  {
+   "id": "th-ckadagnkgf",
+   "sessions": [
+    "cc-nkiojlkooilm"
+   ]
+  },
+  {
+   "id": "th-djnloklpji",
+   "sessions": [
+    "cx-hooendkmikpp"
+   ]
+  },
+  {
+   "id": "th-pnkngifmld",
+   "sessions": [
+    "cx-kefgnigpkamf"
+   ]
+  },
+  {
+   "id": "th-gponekfhjf",
+   "sessions": [
+    "cc-ipjmpemnfhbm"
+   ]
+  },
+  {
+   "id": "th-angjihblch",
+   "sessions": [
+    "cc-ofajhjfnmidm"
+   ]
+  },
+  {
+   "id": "th-gpdhpaapnk",
+   "sessions": [
+    "cc-bbnocplkofoh"
+   ]
+  },
+  {
+   "id": "th-hpbeglfapa",
+   "sessions": [
+    "cc-obnjplaekhdp"
+   ]
+  },
+  {
+   "id": "th-mfjcnfpdmi",
+   "sessions": [
+    "cc-mpgnnkololdg"
+   ]
+  },
+  {
+   "id": "th-figgmpkfpi",
+   "sessions": [
+    "cx-fnpbacbpbcgb"
+   ]
+  }
+ ],
+ "events": [
+  {
+   "id": "cc-cokbkckkbbal.2.0",
+   "kind": "prompt",
+   "at": "2024-06-11T15:00:00.000Z",
+   "t": 1718118000000,
+   "timeFrom": "record",
+   "source": "cc-cokbkckkbbal",
+   "session": "cc-cokbkckkbbal",
+   "agent": "cc-cokbkckkbbal:main",
+   "actor": "person",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-cokbkckkbbal",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Start the review runs.",
+    "chars": 22,
+    "origin": "human",
+    "index": 1
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-cokbkckkbbal.2.0"
+  },
+  {
+   "id": "cc-gldhbddkmdae.1.0",
+   "kind": "command",
+   "at": "2024-06-11T15:01:03.000Z",
+   "t": 1718118063000,
+   "timeFrom": "record",
+   "source": "cc-gldhbddkmdae",
+   "session": "cc-gldhbddkmdae",
+   "agent": "cc-gldhbddkmdae:main",
+   "actor": "program",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-gldhbddkmdae",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "name": "/review",
+    "args": "the changes since Monday",
+    "from": "program"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-gldhbddkmdae.1.0"
+  },
+  {
+   "id": "cc-gldhbddkmdae.2.0",
+   "kind": "message",
+   "at": "2024-06-11T15:01:23.000Z",
+   "t": 1718118083000,
+   "timeFrom": "record",
+   "source": "cc-gldhbddkmdae",
+   "session": "cc-gldhbddkmdae",
+   "agent": "cc-gldhbddkmdae:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-gldhbddkmdae",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Done.",
+    "chars": 5,
+    "to": "program"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-gldhbddkmdae.1.0"
+  },
+  {
+   "id": "cc-cokbkckkbbal.3.0",
+   "kind": "action",
+   "at": "2024-06-11T15:02:00.000Z",
+   "t": 1718118120000,
+   "timeFrom": "record",
+   "source": "cc-cokbkckkbbal",
+   "session": "cc-cokbkckkbbal",
+   "agent": "cc-cokbkckkbbal:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-cokbkckkbbal",
+     "line": 3
+    },
+    {
+     "src": "cc-cokbkckkbbal",
+     "line": 4
+    }
+   ],
+   "facts": {
+    "tool": "Bash",
+    "category": "shell",
+    "command": "claude -p --resume [redacted:secret] \"And run the tests.\"",
+    "description": null,
+    "result": "ok"
+   },
+   "derived": {
+    "recordedSpanMs": 0
+   },
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-cokbkckkbbal.2.0",
+   "end": {
+    "at": "2024-06-11T15:02:00.000Z",
+    "t": 1718118120000,
+    "ref": {
+     "src": "cc-cokbkckkbbal",
+     "line": 4
+    }
+   }
+  },
+  {
+   "id": "cc-cokbkckkbbal.quiet.cc-cokbkckkbbal.3.0",
+   "kind": "quiet",
+   "at": "2024-06-11T15:02:00.000Z",
+   "t": 1718118120000,
+   "timeFrom": "record",
+   "end": {
+    "at": "2024-06-11T15:30:00.000Z",
+    "t": 1718119800000
+   },
+   "source": "cc-cokbkckkbbal",
+   "session": "cc-cokbkckkbbal",
+   "agent": null,
+   "actor": "none",
+   "evidence": "derived",
+   "refs": [],
+   "basis": [
+    "cc-cokbkckkbbal.3.0",
+    "cc-cokbkckkbbal.5.0"
+   ],
+   "facts": {
+    "from": "2024-06-11T15:02:00.000Z",
+    "to": "2024-06-11T15:30:00.000Z"
+   },
+   "derived": {
+    "ms": 1680000
+   },
+   "inferred": [],
+   "missing": [],
+   "turn": null
+  },
+  {
+   "id": "cc-fkbimgepjlhn.1.0",
+   "kind": "delegation-received",
+   "at": "2024-06-11T15:05:02.000Z",
+   "t": 1718118302000,
+   "timeFrom": "record",
+   "source": "cc-fkbimgepjlhn",
+   "session": "cc-fkbimgepjlhn",
+   "agent": "cc-fkbimgepjlhn:main",
+   "actor": "program",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-fkbimgepjlhn",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "from": "program",
+    "text": "Summarize the open issues in the tracker and label each one by area, then report back."
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-fkbimgepjlhn.1.0"
+  },
+  {
+   "id": "cc-fkbimgepjlhn.2.0",
+   "kind": "message",
+   "at": "2024-06-11T15:05:22.000Z",
+   "t": 1718118322000,
+   "timeFrom": "record",
+   "source": "cc-fkbimgepjlhn",
+   "session": "cc-fkbimgepjlhn",
+   "agent": "cc-fkbimgepjlhn:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-fkbimgepjlhn",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Done.",
+    "chars": 5,
+    "to": "program"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-fkbimgepjlhn.1.0"
+  },
+  {
+   "id": "cc-obhjppecibfh.1.0",
+   "kind": "delegation-received",
+   "at": "2024-06-11T15:10:30.000Z",
+   "t": 1718118630000,
+   "timeFrom": "record",
+   "source": "cc-obhjppecibfh",
+   "session": "cc-obhjppecibfh",
+   "agent": "cc-obhjppecibfh:main",
+   "actor": "program",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-obhjppecibfh",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "from": "program",
+    "text": "Plan: tidy the changelog headings and fix the two broken links."
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-obhjppecibfh.1.0"
+  },
+  {
+   "id": "cc-obhjppecibfh.2.0",
+   "kind": "message",
+   "at": "2024-06-11T15:10:50.000Z",
+   "t": 1718118650000,
+   "timeFrom": "record",
+   "source": "cc-obhjppecibfh",
+   "session": "cc-obhjppecibfh",
+   "agent": "cc-obhjppecibfh:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-obhjppecibfh",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Done.",
+    "chars": 5,
+    "to": "program"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-obhjppecibfh.1.0"
+  },
+  {
+   "id": "cc-mmamghonihbm.2.0",
+   "kind": "prompt",
+   "at": "2024-06-11T15:19:48.000Z",
+   "t": 1718119188000,
+   "timeFrom": "record",
+   "source": "cc-mmamghonihbm",
+   "session": "cc-mmamghonihbm",
+   "agent": "cc-mmamghonihbm:main",
+   "actor": "person",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-mmamghonihbm",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Kick off the second task.",
+    "chars": 25,
+    "origin": "human",
+    "index": 1
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-mmamghonihbm.2.0"
+  },
+  {
+   "id": "cc-djaphnlfofgd.1.0",
+   "kind": "delegation-received",
+   "at": "2024-06-11T15:21:00.000Z",
+   "t": 1718119260000,
+   "timeFrom": "record",
+   "source": "cc-djaphnlfofgd",
+   "session": "cc-djaphnlfofgd",
+   "agent": "cc-djaphnlfofgd:main",
+   "actor": "program",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-djaphnlfofgd",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "from": "program",
+    "text": "Rename the config loader and update its tests."
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-djaphnlfofgd.1.0"
+  },
+  {
+   "id": "cc-djaphnlfofgd.2.0",
+   "kind": "message",
+   "at": "2024-06-11T15:21:20.000Z",
+   "t": 1718119280000,
+   "timeFrom": "record",
+   "source": "cc-djaphnlfofgd",
+   "session": "cc-djaphnlfofgd",
+   "agent": "cc-djaphnlfofgd:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-djaphnlfofgd",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Done.",
+    "chars": 5,
+    "to": "program"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-djaphnlfofgd.1.0"
+  },
+  {
+   "id": "cc-cokbkckkbbal.5.0",
+   "kind": "action",
+   "at": "2024-06-11T15:30:00.000Z",
+   "t": 1718119800000,
+   "timeFrom": "record",
+   "source": "cc-cokbkckkbbal",
+   "session": "cc-cokbkckkbbal",
+   "agent": "cc-cokbkckkbbal:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-cokbkckkbbal",
+     "line": 5
+    },
+    {
+     "src": "cc-cokbkckkbbal",
+     "line": 6
+    }
+   ],
+   "facts": {
+    "tool": "Bash",
+    "category": "shell",
+    "command": "claude -p < far.md",
+    "description": null,
+    "result": "ok"
+   },
+   "derived": {
+    "recordedSpanMs": 0
+   },
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-cokbkckkbbal.2.0",
+   "end": {
+    "at": "2024-06-11T15:30:00.000Z",
+    "t": 1718119800000,
+    "ref": {
+     "src": "cc-cokbkckkbbal",
+     "line": 6
+    }
+   }
+  },
+  {
+   "id": "cc-cokbkckkbbal.quiet.cc-cokbkckkbbal.5.0",
+   "kind": "quiet",
+   "at": "2024-06-11T15:30:00.000Z",
+   "t": 1718119800000,
+   "timeFrom": "record",
+   "end": {
+    "at": "2024-06-11T16:01:00.000Z",
+    "t": 1718121660000
+   },
+   "source": "cc-cokbkckkbbal",
+   "session": "cc-cokbkckkbbal",
+   "agent": null,
+   "actor": "none",
+   "evidence": "derived",
+   "refs": [],
+   "basis": [
+    "cc-cokbkckkbbal.5.0",
+    "cc-cokbkckkbbal.7.0"
+   ],
+   "facts": {
+    "from": "2024-06-11T15:30:00.000Z",
+    "to": "2024-06-11T16:01:00.000Z"
+   },
+   "derived": {
+    "ms": 1860000
+   },
+   "inferred": [],
+   "missing": [],
+   "turn": null
+  },
+  {
+   "id": "cc-mcmjfaabfdba.1.0",
+   "kind": "delegation-received",
+   "at": "2024-06-11T15:30:20.000Z",
+   "t": 1718119820000,
+   "timeFrom": "record",
+   "source": "cc-mcmjfaabfdba",
+   "session": "cc-mcmjfaabfdba",
+   "agent": "cc-mcmjfaabfdba:main",
+   "actor": "program",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-mcmjfaabfdba",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "from": "program",
+    "text": "Check the other project's build."
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-mcmjfaabfdba.1.0"
+  },
+  {
+   "id": "cc-mcmjfaabfdba.2.0",
+   "kind": "message",
+   "at": "2024-06-11T15:30:40.000Z",
+   "t": 1718119840000,
+   "timeFrom": "record",
+   "source": "cc-mcmjfaabfdba",
+   "session": "cc-mcmjfaabfdba",
+   "agent": "cc-mcmjfaabfdba:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-mcmjfaabfdba",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Done.",
+    "chars": 5,
+    "to": "program"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-mcmjfaabfdba.1.0"
+  },
+  {
+   "id": "cc-mmamghonihbm.3.0",
+   "kind": "message",
+   "at": "2024-06-11T15:39:00.000Z",
+   "t": 1718120340000,
+   "timeFrom": "record",
+   "source": "cc-mmamghonihbm",
+   "session": "cc-mmamghonihbm",
+   "agent": "cc-mmamghonihbm:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-mmamghonihbm",
+     "line": 3
+    }
+   ],
+   "facts": {
+    "text": "Done for now.",
+    "chars": 13,
+    "to": "person"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-mmamghonihbm.2.0"
+  },
+  {
+   "id": "cc-cgkbabcdlhfj.1.0",
+   "kind": "delegation-received",
+   "at": "2024-06-11T15:40:12.000Z",
+   "t": 1718120412000,
+   "timeFrom": "record",
+   "source": "cc-cgkbabcdlhfj",
+   "session": "cc-cgkbabcdlhfj",
+   "agent": "cc-cgkbabcdlhfj:main",
+   "actor": "program",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-cgkbabcdlhfj",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "from": "program",
+    "text": "Review the last turn for anything left unfinished."
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-cgkbabcdlhfj.1.0"
+  },
+  {
+   "id": "cc-cgkbabcdlhfj.2.0",
+   "kind": "message",
+   "at": "2024-06-11T15:40:32.000Z",
+   "t": 1718120432000,
+   "timeFrom": "record",
+   "source": "cc-cgkbabcdlhfj",
+   "session": "cc-cgkbabcdlhfj",
+   "agent": "cc-cgkbabcdlhfj:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-cgkbabcdlhfj",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Done.",
+    "chars": 5,
+    "to": "program"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-cgkbabcdlhfj.1.0"
+  },
+  {
+   "id": "cc-mmamghonihbm.4.0",
+   "kind": "prompt",
+   "at": "2024-06-11T15:49:00.000Z",
+   "t": 1718120940000,
+   "timeFrom": "record",
+   "source": "cc-mmamghonihbm",
+   "session": "cc-mmamghonihbm",
+   "agent": "cc-mmamghonihbm:main",
+   "actor": "person",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-mmamghonihbm",
+     "line": 4
+    }
+   ],
+   "facts": {
+    "text": "One more pass.",
+    "chars": 14,
+    "origin": "human",
+    "index": 2
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-mmamghonihbm.4.0"
+  },
+  {
+   "id": "cc-mmamghonihbm.5.0",
+   "kind": "message",
+   "at": "2024-06-11T15:49:30.000Z",
+   "t": 1718120970000,
+   "timeFrom": "record",
+   "source": "cc-mmamghonihbm",
+   "session": "cc-mmamghonihbm",
+   "agent": "cc-mmamghonihbm:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-mmamghonihbm",
+     "line": 5
+    }
+   ],
+   "facts": {
+    "text": "Done.",
+    "chars": 5,
+    "to": "person"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-mmamghonihbm.4.0"
+  },
+  {
+   "id": "cc-mmamghonihbm.6.0",
+   "kind": "hook",
+   "at": "2024-06-11T15:50:00.000Z",
+   "t": 1718121000000,
+   "timeFrom": "record",
+   "source": "cc-mmamghonihbm",
+   "session": "cc-mmamghonihbm",
+   "agent": "cc-mmamghonihbm:main",
+   "actor": "harness",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-mmamghonihbm",
+     "line": 6
+    }
+   ],
+   "facts": {
+    "hook": "Stop",
+    "hookEvent": "Stop",
+    "exitCode": null,
+    "harnessDurationMs": null,
+    "result": "hook_success"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-mmamghonihbm.4.0"
+  },
+  {
+   "id": "cc-mmamghonihbm.7.0",
+   "kind": "turn-end",
+   "at": "2024-06-11T15:50:00.000Z",
+   "t": 1718121000000,
+   "timeFrom": "record",
+   "source": "cc-mmamghonihbm",
+   "session": "cc-mmamghonihbm",
+   "agent": "cc-mmamghonihbm:main",
+   "actor": "harness",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-mmamghonihbm",
+     "line": 7
+    }
+   ],
+   "facts": {
+    "marker": "stop-hooks",
+    "hooks": 1,
+    "hookErrors": 0,
+    "preventedContinuation": false
+   },
+   "derived": {
+    "hookMs": 0
+   },
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-mmamghonihbm.4.0"
+  },
+  {
+   "id": "cc-mmamghonihbm.quiet.cc-mmamghonihbm.7.0",
+   "kind": "quiet",
+   "at": "2024-06-11T15:50:00.000Z",
+   "t": 1718121000000,
+   "timeFrom": "record",
+   "end": {
+    "at": "2024-06-11T16:29:00.000Z",
+    "t": 1718123340000
+   },
+   "source": "cc-mmamghonihbm",
+   "session": "cc-mmamghonihbm",
+   "agent": null,
+   "actor": "none",
+   "evidence": "derived",
+   "refs": [],
+   "basis": [
+    "cc-mmamghonihbm.7.0",
+    "cc-mmamghonihbm.8.0"
+   ],
+   "facts": {
+    "from": "2024-06-11T15:50:00.000Z",
+    "to": "2024-06-11T16:29:00.000Z"
+   },
+   "derived": {
+    "ms": 2340000
+   },
+   "inferred": [],
+   "missing": [],
+   "turn": null
+  },
+  {
+   "id": "cc-nkiojlkooilm.1.0",
+   "kind": "delegation-received",
+   "at": "2024-06-11T15:50:10.000Z",
+   "t": 1718121010000,
+   "timeFrom": "record",
+   "source": "cc-nkiojlkooilm",
+   "session": "cc-nkiojlkooilm",
+   "agent": "cc-nkiojlkooilm:main",
+   "actor": "program",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-nkiojlkooilm",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "from": "program",
+    "text": "Review the last turn again."
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-nkiojlkooilm.1.0"
+  },
+  {
+   "id": "cc-nkiojlkooilm.2.0",
+   "kind": "message",
+   "at": "2024-06-11T15:50:30.000Z",
+   "t": 1718121030000,
+   "timeFrom": "record",
+   "source": "cc-nkiojlkooilm",
+   "session": "cc-nkiojlkooilm",
+   "agent": "cc-nkiojlkooilm:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-nkiojlkooilm",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Done.",
+    "chars": 5,
+    "to": "program"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-nkiojlkooilm.1.0"
+  },
+  {
+   "id": "cx-hooendkmikpp.1.0",
+   "kind": "session",
+   "at": "2024-06-11T16:00:04.000Z",
+   "t": 1718121604000,
+   "timeFrom": "record",
+   "source": "cx-hooendkmikpp",
+   "session": "cx-hooendkmikpp",
+   "agent": "cx-hooendkmikpp:main",
+   "actor": "harness",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cx-hooendkmikpp",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "tool": "codex",
+    "started": "exec",
+    "surface": "exec",
+    "agentPath": null,
+    "nickname": null,
+    "branch": null,
+    "headAtStart": null,
+    "cliVersion": "0.1.0"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": null
+  },
+  {
+   "id": "cx-hooendkmikpp.2.0",
+   "kind": "delegation-received",
+   "at": "2024-06-11T16:00:05.000Z",
+   "t": 1718121605000,
+   "timeFrom": "record",
+   "source": "cx-hooendkmikpp",
+   "session": "cx-hooendkmikpp",
+   "agent": "cx-hooendkmikpp:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cx-hooendkmikpp",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "from": "codex-exec",
+    "text": "Write release notes for the changes merged since Monday, one line each."
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cx-hooendkmikpp.2.0"
+  },
+  {
+   "id": "cx-hooendkmikpp.3.0",
+   "kind": "message",
+   "at": "2024-06-11T16:00:30.000Z",
+   "t": 1718121630000,
+   "timeFrom": "record",
+   "source": "cx-hooendkmikpp",
+   "session": "cx-hooendkmikpp",
+   "agent": "cx-hooendkmikpp:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cx-hooendkmikpp",
+     "line": 3
+    }
+   ],
+   "facts": {
+    "text": "Wrote them.",
+    "chars": 11,
+    "to": "codex-exec"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cx-hooendkmikpp.2.0"
+  },
+  {
+   "id": "cc-cokbkckkbbal.7.0",
+   "kind": "message",
+   "at": "2024-06-11T16:01:00.000Z",
+   "t": 1718121660000,
+   "timeFrom": "record",
+   "source": "cc-cokbkckkbbal",
+   "session": "cc-cokbkckkbbal",
+   "agent": "cc-cokbkckkbbal:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-cokbkckkbbal",
+     "line": 7
+    }
+   ],
+   "facts": {
+    "text": "Started them.",
+    "chars": 13,
+    "to": "person"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-cokbkckkbbal.2.0"
+  },
+  {
+   "id": "cx-kefgnigpkamf.1.0",
+   "kind": "session",
+   "at": "2024-06-11T16:09:50.000Z",
+   "t": 1718122190000,
+   "timeFrom": "record",
+   "source": "cx-kefgnigpkamf",
+   "session": "cx-kefgnigpkamf",
+   "agent": "cx-kefgnigpkamf:main",
+   "actor": "harness",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cx-kefgnigpkamf",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "tool": "codex",
+    "started": "interactive",
+    "surface": "cli",
+    "agentPath": null,
+    "nickname": null,
+    "branch": null,
+    "headAtStart": null,
+    "cliVersion": "0.1.0"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": null
+  },
+  {
+   "id": "cx-kefgnigpkamf.2.0",
+   "kind": "prompt",
+   "at": "2024-06-11T16:10:00.000Z",
+   "t": 1718122200000,
+   "timeFrom": "record",
+   "source": "cx-kefgnigpkamf",
+   "session": "cx-kefgnigpkamf",
+   "agent": "cx-kefgnigpkamf:main",
+   "actor": "person",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cx-kefgnigpkamf",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Start a review run from here.",
+    "chars": 29,
+    "index": 1
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cx-kefgnigpkamf.2.0"
+  },
+  {
+   "id": "cc-ipjmpemnfhbm.1.0",
+   "kind": "command",
+   "at": "2024-06-11T16:10:35.000Z",
+   "t": 1718122235000,
+   "timeFrom": "record",
+   "source": "cc-ipjmpemnfhbm",
+   "session": "cc-ipjmpemnfhbm",
+   "agent": "cc-ipjmpemnfhbm:main",
+   "actor": "program",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-ipjmpemnfhbm",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "name": "/review",
+    "args": "the release branch",
+    "from": "program"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-ipjmpemnfhbm.1.0"
+  },
+  {
+   "id": "cc-ipjmpemnfhbm.2.0",
+   "kind": "message",
+   "at": "2024-06-11T16:10:55.000Z",
+   "t": 1718122255000,
+   "timeFrom": "record",
+   "source": "cc-ipjmpemnfhbm",
+   "session": "cc-ipjmpemnfhbm",
+   "agent": "cc-ipjmpemnfhbm:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-ipjmpemnfhbm",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Done.",
+    "chars": 5,
+    "to": "program"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-ipjmpemnfhbm.1.0"
+  },
+  {
+   "id": "cx-kefgnigpkamf.3.0",
+   "kind": "message",
+   "at": "2024-06-11T16:11:00.000Z",
+   "t": 1718122260000,
+   "timeFrom": "record",
+   "source": "cx-kefgnigpkamf",
+   "session": "cx-kefgnigpkamf",
+   "agent": "cx-kefgnigpkamf:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cx-kefgnigpkamf",
+     "line": 3
+    }
+   ],
+   "facts": {
+    "text": "Started it.",
+    "chars": 11,
+    "to": "person"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cx-kefgnigpkamf.2.0"
+  },
+  {
+   "id": "cc-ofajhjfnmidm.1.0",
+   "kind": "prompt",
+   "at": "2024-06-11T16:20:00.000Z",
+   "t": 1718122800000,
+   "timeFrom": "record",
+   "source": "cc-ofajhjfnmidm",
+   "session": "cc-ofajhjfnmidm",
+   "agent": "cc-ofajhjfnmidm:main",
+   "actor": "person",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-ofajhjfnmidm",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "text": "start the legacy run",
+    "chars": 20,
+    "origin": null,
+    "index": 1
+   },
+   "derived": {},
+   "inferred": [
+    {
+     "key": "authorship",
+     "value": "person",
+     "rule": "prompt.authorship.no-origin"
+    }
+   ],
+   "missing": [],
+   "turn": "cc-ofajhjfnmidm.1.0"
+  },
+  {
+   "id": "cc-ofajhjfnmidm.2.0",
+   "kind": "action",
+   "at": "2024-06-11T16:20:30.000Z",
+   "t": 1718122830000,
+   "timeFrom": "record",
+   "source": "cc-ofajhjfnmidm",
+   "session": "cc-ofajhjfnmidm",
+   "agent": "cc-ofajhjfnmidm:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-ofajhjfnmidm",
+     "line": 2
+    },
+    {
+     "src": "cc-ofajhjfnmidm",
+     "line": 3
+    }
+   ],
+   "facts": {
+    "tool": "Bash",
+    "category": "shell",
+    "command": "claude -p --session-id [redacted:secret] \"Tidy the README.\"",
+    "description": null,
+    "result": "ok"
+   },
+   "derived": {
+    "recordedSpanMs": 0
+   },
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-ofajhjfnmidm.1.0",
+   "end": {
+    "at": "2024-06-11T16:20:30.000Z",
+    "t": 1718122830000,
+    "ref": {
+     "src": "cc-ofajhjfnmidm",
+     "line": 3
+    }
+   }
+  },
+  {
+   "id": "cc-bbnocplkofoh.1.0",
+   "kind": "prompt",
+   "at": "2024-06-11T16:20:40.000Z",
+   "t": 1718122840000,
+   "timeFrom": "record",
+   "source": "cc-bbnocplkofoh",
+   "session": "cc-bbnocplkofoh",
+   "agent": "cc-bbnocplkofoh:main",
+   "actor": "person",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-bbnocplkofoh",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "text": "Tidy the README.",
+    "chars": 16,
+    "origin": null,
+    "index": 1
+   },
+   "derived": {},
+   "inferred": [
+    {
+     "key": "authorship",
+     "value": "person",
+     "rule": "prompt.authorship.no-origin"
+    }
+   ],
+   "missing": [],
+   "turn": "cc-bbnocplkofoh.1.0"
+  },
+  {
+   "id": "cc-bbnocplkofoh.2.0",
+   "kind": "message",
+   "at": "2024-06-11T16:21:00.000Z",
+   "t": 1718122860000,
+   "timeFrom": "record",
+   "source": "cc-bbnocplkofoh",
+   "session": "cc-bbnocplkofoh",
+   "agent": "cc-bbnocplkofoh:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-bbnocplkofoh",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Tidied it.",
+    "chars": 10,
+    "to": "person"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-bbnocplkofoh.1.0"
+  },
+  {
+   "id": "cc-mmamghonihbm.8.0",
+   "kind": "prompt",
+   "at": "2024-06-11T16:29:00.000Z",
+   "t": 1718123340000,
+   "timeFrom": "record",
+   "source": "cc-mmamghonihbm",
+   "session": "cc-mmamghonihbm",
+   "agent": "cc-mmamghonihbm:main",
+   "actor": "person",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-mmamghonihbm",
+     "line": 8
+    }
+   ],
+   "facts": {
+    "text": "Run the batch.",
+    "chars": 14,
+    "origin": "human",
+    "index": 3
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-mmamghonihbm.8.0"
+  },
+  {
+   "id": "cc-obnjplaekhdp.1.0",
+   "kind": "delegation-received",
+   "at": "2024-06-11T16:30:20.000Z",
+   "t": 1718123420000,
+   "timeFrom": "record",
+   "source": "cc-obnjplaekhdp",
+   "session": "cc-obnjplaekhdp",
+   "agent": "cc-obnjplaekhdp:main",
+   "actor": "program",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-obnjplaekhdp",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "from": "program",
+    "text": "Check the first half of the batch."
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-obnjplaekhdp.1.0"
+  },
+  {
+   "id": "cc-mpgnnkololdg.1.0",
+   "kind": "delegation-received",
+   "at": "2024-06-11T16:30:40.000Z",
+   "t": 1718123440000,
+   "timeFrom": "record",
+   "source": "cc-mpgnnkololdg",
+   "session": "cc-mpgnnkololdg",
+   "agent": "cc-mpgnnkololdg:main",
+   "actor": "program",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-mpgnnkololdg",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "from": "program",
+    "text": "Check the second half of the batch."
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-mpgnnkololdg.1.0"
+  },
+  {
+   "id": "cc-obnjplaekhdp.2.0",
+   "kind": "message",
+   "at": "2024-06-11T16:30:40.000Z",
+   "t": 1718123440000,
+   "timeFrom": "record",
+   "source": "cc-obnjplaekhdp",
+   "session": "cc-obnjplaekhdp",
+   "agent": "cc-obnjplaekhdp:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-obnjplaekhdp",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Done.",
+    "chars": 5,
+    "to": "program"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-obnjplaekhdp.1.0"
+  },
+  {
+   "id": "cc-mmamghonihbm.9.0",
+   "kind": "message",
+   "at": "2024-06-11T16:31:00.000Z",
+   "t": 1718123460000,
+   "timeFrom": "record",
+   "source": "cc-mmamghonihbm",
+   "session": "cc-mmamghonihbm",
+   "agent": "cc-mmamghonihbm:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-mmamghonihbm",
+     "line": 9
+    }
+   ],
+   "facts": {
+    "text": "Batch started.",
+    "chars": 14,
+    "to": "person"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-mmamghonihbm.8.0"
+  },
+  {
+   "id": "cc-mpgnnkololdg.2.0",
+   "kind": "message",
+   "at": "2024-06-11T16:31:00.000Z",
+   "t": 1718123460000,
+   "timeFrom": "record",
+   "source": "cc-mpgnnkololdg",
+   "session": "cc-mpgnnkololdg",
+   "agent": "cc-mpgnnkololdg:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-mpgnnkololdg",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Done.",
+    "chars": 5,
+    "to": "program"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-mpgnnkololdg.1.0"
+  },
+  {
+   "id": "cx-fnpbacbpbcgb.1.0",
+   "kind": "session",
+   "at": "2024-06-11T16:40:00.000Z",
+   "t": 1718124000000,
+   "timeFrom": "record",
+   "source": "cx-fnpbacbpbcgb",
+   "session": "cx-fnpbacbpbcgb",
+   "agent": "cx-fnpbacbpbcgb:main",
+   "actor": "harness",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cx-fnpbacbpbcgb",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "tool": "codex",
+    "started": "exec",
+    "surface": "exec",
+    "agentPath": null,
+    "nickname": null,
+    "branch": null,
+    "headAtStart": null,
+    "cliVersion": "0.1.0"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": null
+  },
+  {
+   "id": "cx-fnpbacbpbcgb.2.0",
+   "kind": "delegation-received",
+   "at": "2024-06-11T16:40:01.000Z",
+   "t": 1718124001000,
+   "timeFrom": "record",
+   "source": "cx-fnpbacbpbcgb",
+   "session": "cx-fnpbacbpbcgb",
+   "agent": "cx-fnpbacbpbcgb:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cx-fnpbacbpbcgb",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "from": "codex-exec",
+    "text": "Count the TODO comments in src."
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cx-fnpbacbpbcgb.2.0"
+  },
+  {
+   "id": "cx-fnpbacbpbcgb.3.0",
+   "kind": "message",
+   "at": "2024-06-11T16:40:20.000Z",
+   "t": 1718124020000,
+   "timeFrom": "record",
+   "source": "cx-fnpbacbpbcgb",
+   "session": "cx-fnpbacbpbcgb",
+   "agent": "cx-fnpbacbpbcgb:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cx-fnpbacbpbcgb",
+     "line": 3
+    }
+   ],
+   "facts": {
+    "text": "There are 4.",
+    "chars": 12,
+    "to": "codex-exec"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cx-fnpbacbpbcgb.2.0"
+  }
+ ],
+ "api": {
+  "sessions": {
+   "total": {
+    "value": 17,
+    "evidence": "derived"
+   },
+   "days": [
+    {
+     "day": "2024-06-11",
+     "evidence": "derived",
+     "count": {
+      "value": 17,
+      "evidence": "derived"
+     },
+     "rows": [
+      {
+       "session": "cx-fnpbacbpbcgb",
+       "thread": "th-figgmpkfpi",
+       "tool": "codex",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "headless run, Jun 11, 4:40 PM",
+       "firstAt": "2024-06-11T16:40:00.000Z",
+       "lastAt": "2024-06-11T16:40:20.000Z",
+       "startedBy": {
+        "text": "started by codex exec, no prompt",
+        "evidence": "recorded"
+       },
+       "evidence": "recorded",
+       "length": {
+        "value": 20000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 0,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-mpgnnkololdg",
+       "thread": "th-mfjcnfpdmi",
+       "tool": "claude-code",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "program run, Jun 11, 4:30 PM: “Check the second half of the batch.”",
+       "firstAt": "2024-06-11T16:30:40.000Z",
+       "lastAt": "2024-06-11T16:31:00.000Z",
+       "startedBy": {
+        "text": "started by a program",
+        "evidence": "recorded"
+       },
+       "evidence": "recorded",
+       "length": {
+        "value": 20000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 0,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-obnjplaekhdp",
+       "thread": "th-hpbeglfapa",
+       "tool": "claude-code",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "program run, Jun 11, 4:30 PM: “Check the first half of the batch.”",
+       "firstAt": "2024-06-11T16:30:20.000Z",
+       "lastAt": "2024-06-11T16:30:40.000Z",
+       "startedBy": {
+        "text": "started by a program",
+        "evidence": "recorded"
+       },
+       "evidence": "recorded",
+       "length": {
+        "value": 20000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 0,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-bbnocplkofoh",
+       "thread": "th-gpdhpaapnk",
+       "tool": "claude-code",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "untitled, Jun 11, 4:20 PM: “Tidy the README.”",
+       "firstAt": "2024-06-11T16:20:40.000Z",
+       "lastAt": "2024-06-11T16:21:00.000Z",
+       "startedBy": null,
+       "evidence": "recorded",
+       "length": {
+        "value": 20000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 1,
+        "evidence": "inferred"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-ofajhjfnmidm",
+       "thread": "th-angjihblch",
+       "tool": "claude-code",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "untitled, Jun 11, 4:20 PM: “start the legacy run”",
+       "firstAt": "2024-06-11T16:20:00.000Z",
+       "lastAt": "2024-06-11T16:20:30.000Z",
+       "startedBy": null,
+       "evidence": "recorded",
+       "length": {
+        "value": 30000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 1,
+        "evidence": "inferred"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-ipjmpemnfhbm",
+       "thread": "th-gponekfhjf",
+       "tool": "claude-code",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "/review, Jun 11, 4:10 PM",
+       "firstAt": "2024-06-11T16:10:35.000Z",
+       "lastAt": "2024-06-11T16:10:55.000Z",
+       "startedBy": {
+        "text": "started by a program: /review",
+        "evidence": "recorded"
+       },
+       "evidence": "recorded",
+       "length": {
+        "value": 20000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 0,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cx-kefgnigpkamf",
+       "thread": "th-pnkngifmld",
+       "tool": "codex",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "untitled, Jun 11, 4:09 PM: “Start a review run from here.”",
+       "firstAt": "2024-06-11T16:09:50.000Z",
+       "lastAt": "2024-06-11T16:11:00.000Z",
+       "startedBy": null,
+       "evidence": "recorded",
+       "length": {
+        "value": 70000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 1,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cx-hooendkmikpp",
+       "thread": "th-djnloklpji",
+       "tool": "codex",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "headless run, Jun 11, 4:00 PM",
+       "firstAt": "2024-06-11T16:00:04.000Z",
+       "lastAt": "2024-06-11T16:00:30.000Z",
+       "startedBy": {
+        "text": "started by codex exec, no prompt",
+        "evidence": "recorded"
+       },
+       "evidence": "recorded",
+       "length": {
+        "value": 26000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 0,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-nkiojlkooilm",
+       "thread": "th-ckadagnkgf",
+       "tool": "claude-code",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "program run, Jun 11, 3:50 PM: “Review the last turn again.”",
+       "firstAt": "2024-06-11T15:50:10.000Z",
+       "lastAt": "2024-06-11T15:50:30.000Z",
+       "startedBy": {
+        "text": "started by a program",
+        "evidence": "recorded"
+       },
+       "evidence": "recorded",
+       "length": {
+        "value": 20000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 0,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-cgkbabcdlhfj",
+       "thread": "th-fpinbnnboh",
+       "tool": "claude-code",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "program run, Jun 11, 3:40 PM: “Review the last turn for anything left unfinished.”",
+       "firstAt": "2024-06-11T15:40:12.000Z",
+       "lastAt": "2024-06-11T15:40:32.000Z",
+       "startedBy": {
+        "text": "started by a program",
+        "evidence": "recorded"
+       },
+       "evidence": "recorded",
+       "length": {
+        "value": 20000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 0,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-mcmjfaabfdba",
+       "thread": "th-jinmmmdljm",
+       "tool": "claude-code",
+       "repo": "other-project",
+       "group": "configured",
+       "title": null,
+       "label": "program run, Jun 11, 3:30 PM: “Check the other project's build.”",
+       "firstAt": "2024-06-11T15:30:20.000Z",
+       "lastAt": "2024-06-11T15:30:40.000Z",
+       "startedBy": {
+        "text": "started by a program",
+        "evidence": "recorded"
+       },
+       "evidence": "recorded",
+       "length": {
+        "value": 20000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 0,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-djaphnlfofgd",
+       "thread": "th-odebebglbk",
+       "tool": "claude-code",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "program run, Jun 11, 3:21 PM: “Rename the config loader and update its tests.”",
+       "firstAt": "2024-06-11T15:21:00.000Z",
+       "lastAt": "2024-06-11T15:21:20.000Z",
+       "startedBy": {
+        "text": "started by a program",
+        "evidence": "recorded"
+       },
+       "evidence": "recorded",
+       "length": {
+        "value": 20000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 0,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-mmamghonihbm",
+       "thread": "th-diabeoeekn",
+       "tool": "claude-code",
+       "repo": "your-project",
+       "group": "configured",
+       "title": "Night checks",
+       "firstAt": "2024-06-11T15:19:48.000Z",
+       "lastAt": "2024-06-11T16:31:00.000Z",
+       "startedBy": null,
+       "evidence": "recorded",
+       "length": {
+        "value": 4272000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 3,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-obhjppecibfh",
+       "thread": "th-diniodcjoc",
+       "tool": "claude-code",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "program run, Jun 11, 3:10 PM: “Plan: tidy the changelog headings and fix the…”",
+       "firstAt": "2024-06-11T15:10:30.000Z",
+       "lastAt": "2024-06-11T15:10:50.000Z",
+       "startedBy": {
+        "text": "started by a program",
+        "evidence": "recorded"
+       },
+       "evidence": "recorded",
+       "length": {
+        "value": 20000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 0,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-fkbimgepjlhn",
+       "thread": "th-oophelepfb",
+       "tool": "claude-code",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "program run, Jun 11, 3:05 PM: “Summarize the open issues in the tracker and…”",
+       "firstAt": "2024-06-11T15:05:02.000Z",
+       "lastAt": "2024-06-11T15:05:22.000Z",
+       "startedBy": {
+        "text": "started by a program",
+        "evidence": "recorded"
+       },
+       "evidence": "recorded",
+       "length": {
+        "value": 20000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 0,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-gldhbddkmdae",
+       "thread": "th-hdccmjpbfj",
+       "tool": "claude-code",
+       "repo": "your-project",
+       "group": "configured",
+       "title": null,
+       "label": "/review, Jun 11, 3:01 PM",
+       "firstAt": "2024-06-11T15:01:03.000Z",
+       "lastAt": "2024-06-11T15:01:23.000Z",
+       "startedBy": {
+        "text": "started by a program: /review",
+        "evidence": "recorded"
+       },
+       "evidence": "recorded",
+       "length": {
+        "value": 20000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 0,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      },
+      {
+       "session": "cc-cokbkckkbbal",
+       "thread": "th-egakhdcimp",
+       "tool": "claude-code",
+       "repo": "your-project",
+       "group": "configured",
+       "title": "Start the review runs",
+       "firstAt": "2024-06-11T15:00:00.000Z",
+       "lastAt": "2024-06-11T16:01:00.000Z",
+       "startedBy": null,
+       "evidence": "recorded",
+       "length": {
+        "value": 3660000,
+        "evidence": "derived"
+       },
+       "prompts": {
+        "value": 1,
+        "evidence": "derived"
+       },
+       "problems": {
+        "value": 0,
+        "evidence": "derived"
+       }
+      }
+     ],
+     "more": {
+      "value": 12,
+      "evidence": "derived"
+     }
+    }
+   ],
+   "older": null,
+   "perDay": 5,
+   "page": 20,
+   "timezone": "UTC",
+   "problemsNote": null,
+   "evidenceKey": {
+    "recorded": "A log line or git says so directly.",
+    "derived": "Computed only from recorded facts, such as a count or the time between two lines.",
+    "inferred": "A named rule's best reading of the records. It can be wrong, and the rule is named.",
+    "missing": "Evidence I'd expect is absent, such as a call with no recorded result.",
+    "ambiguous": "The records fit more than one way, such as a pull request number two repositories share."
+   },
+   "empty": null,
+   "view": {
+    "asked": "redacted",
+    "shown": "redacted",
+    "note": null,
+    "privateState": "idle",
+    "window": {
+     "from": "2024-06-10",
+     "to": "2024-06-16",
+     "timezone": "UTC"
+    },
+    "demo": null
+   }
+  },
+  "home": {
+   "window": {
+    "from": "2024-06-10",
+    "to": "2024-06-16",
+    "timezone": "UTC",
+    "startAt": "2024-06-10T00:00:00.000Z",
+    "endAt": "2024-06-17T00:00:00.000Z",
+    "startT": 1717977600000,
+    "endT": 1718582400000
+   },
+   "coverage": {
+    "sessionsRead": {
+     "value": 17,
+     "evidence": "derived"
+    },
+    "configured": {
+     "value": 17,
+     "evidence": "derived"
+    },
+    "display": {
+     "value": 0,
+     "evidence": "derived",
+     "note": "display-only repositories: never read by git"
+    },
+    "outside": {
+     "value": 0,
+     "evidence": "derived",
+     "note": "folders outside your config"
+    },
+    "excludedFromLookups": {
+     "value": 0,
+     "evidence": "derived",
+     "note": "display-only and outside sessions are left out of lookups and goals; search everywhere includes them"
+    },
+    "filesUnnamed": {
+     "value": 0,
+     "evidence": "derived",
+     "note": "the engine keeps a fingerprint of each file path, never the path, so a file is found by typing its path"
+    },
+    "text": "These lookups cover your configured repositories between 2024-06-10 and 2024-06-16. They leave out 0 display-only and 0 outside sessions; search everywhere, below, includes them."
+   },
+   "goals": [],
+   "goalList": {
+    "given": false,
+    "note": "No goal list was given. A goal list is a JSON file of your goals and the changes made to them: { \"goals\": [{ \"id\": \"g-1\", \"title\": \"Ship the parser\" }], \"events\": [] }. Name it with --goals <file>, or set \"goalsFile\" in your config. Search and replay work without one."
+   },
+   "recent": [
+    {
+     "session": "cx-fnpbacbpbcgb",
+     "thread": "th-figgmpkfpi",
+     "tool": "codex",
+     "repo": "your-project",
+     "group": "configured",
+     "title": null,
+     "label": "headless run, Jun 11, 4:40 PM",
+     "firstAt": "2024-06-11T16:40:00.000Z",
+     "lastAt": "2024-06-11T16:40:20.000Z",
+     "startedBy": {
+      "text": "started by codex exec, no prompt",
+      "evidence": "recorded"
+     },
+     "evidence": "recorded",
+     "prompts": {
+      "value": 0,
+      "evidence": "derived"
+     },
+     "goals": []
+    },
+    {
+     "session": "cc-mmamghonihbm",
+     "thread": "th-diabeoeekn",
+     "tool": "claude-code",
+     "repo": "your-project",
+     "group": "configured",
+     "title": "Night checks",
+     "firstAt": "2024-06-11T15:19:48.000Z",
+     "lastAt": "2024-06-11T16:31:00.000Z",
+     "startedBy": null,
+     "evidence": "recorded",
+     "prompts": {
+      "value": 3,
+      "evidence": "derived"
+     },
+     "goals": []
+    },
+    {
+     "session": "cc-mpgnnkololdg",
+     "thread": "th-mfjcnfpdmi",
+     "tool": "claude-code",
+     "repo": "your-project",
+     "group": "configured",
+     "title": null,
+     "label": "program run, Jun 11, 4:30 PM: “Check the second half of the batch.”",
+     "firstAt": "2024-06-11T16:30:40.000Z",
+     "lastAt": "2024-06-11T16:31:00.000Z",
+     "startedBy": {
+      "text": "started by a program",
+      "evidence": "recorded"
+     },
+     "evidence": "recorded",
+     "prompts": {
+      "value": 0,
+      "evidence": "derived"
+     },
+     "goals": []
+    },
+    {
+     "session": "cc-obnjplaekhdp",
+     "thread": "th-hpbeglfapa",
+     "tool": "claude-code",
+     "repo": "your-project",
+     "group": "configured",
+     "title": null,
+     "label": "program run, Jun 11, 4:30 PM: “Check the first half of the batch.”",
+     "firstAt": "2024-06-11T16:30:20.000Z",
+     "lastAt": "2024-06-11T16:30:40.000Z",
+     "startedBy": {
+      "text": "started by a program",
+      "evidence": "recorded"
+     },
+     "evidence": "recorded",
+     "prompts": {
+      "value": 0,
+      "evidence": "derived"
+     },
+     "goals": []
+    },
+    {
+     "session": "cc-bbnocplkofoh",
+     "thread": "th-gpdhpaapnk",
+     "tool": "claude-code",
+     "repo": "your-project",
+     "group": "configured",
+     "title": null,
+     "label": "untitled, Jun 11, 4:20 PM: “Tidy the README.”",
+     "firstAt": "2024-06-11T16:20:40.000Z",
+     "lastAt": "2024-06-11T16:21:00.000Z",
+     "startedBy": null,
+     "evidence": "recorded",
+     "prompts": {
+      "value": 1,
+      "evidence": "inferred"
+     },
+     "goals": []
+    },
+    {
+     "session": "cc-ofajhjfnmidm",
+     "thread": "th-angjihblch",
+     "tool": "claude-code",
+     "repo": "your-project",
+     "group": "configured",
+     "title": null,
+     "label": "untitled, Jun 11, 4:20 PM: “start the legacy run”",
+     "firstAt": "2024-06-11T16:20:00.000Z",
+     "lastAt": "2024-06-11T16:20:30.000Z",
+     "startedBy": null,
+     "evidence": "recorded",
+     "prompts": {
+      "value": 1,
+      "evidence": "inferred"
+     },
+     "goals": []
+    },
+    {
+     "session": "cx-kefgnigpkamf",
+     "thread": "th-pnkngifmld",
+     "tool": "codex",
+     "repo": "your-project",
+     "group": "configured",
+     "title": null,
+     "label": "untitled, Jun 11, 4:09 PM: “Start a review run from here.”",
+     "firstAt": "2024-06-11T16:09:50.000Z",
+     "lastAt": "2024-06-11T16:11:00.000Z",
+     "startedBy": null,
+     "evidence": "recorded",
+     "prompts": {
+      "value": 1,
+      "evidence": "derived"
+     },
+     "goals": []
+    },
+    {
+     "session": "cc-cokbkckkbbal",
+     "thread": "th-egakhdcimp",
+     "tool": "claude-code",
+     "repo": "your-project",
+     "group": "configured",
+     "title": "Start the review runs",
+     "firstAt": "2024-06-11T15:00:00.000Z",
+     "lastAt": "2024-06-11T16:01:00.000Z",
+     "startedBy": null,
+     "evidence": "recorded",
+     "prompts": {
+      "value": 1,
+      "evidence": "derived"
+     },
+     "goals": []
+    },
+    {
+     "session": "cx-hooendkmikpp",
+     "thread": "th-djnloklpji",
+     "tool": "codex",
+     "repo": "your-project",
+     "group": "configured",
+     "title": null,
+     "label": "headless run, Jun 11, 4:00 PM",
+     "firstAt": "2024-06-11T16:00:04.000Z",
+     "lastAt": "2024-06-11T16:00:30.000Z",
+     "startedBy": {
+      "text": "started by codex exec, no prompt",
+      "evidence": "recorded"
+     },
+     "evidence": "recorded",
+     "prompts": {
+      "value": 0,
+      "evidence": "derived"
+     },
+     "goals": []
+    },
+    {
+     "session": "cc-nkiojlkooilm",
+     "thread": "th-ckadagnkgf",
+     "tool": "claude-code",
+     "repo": "your-project",
+     "group": "configured",
+     "title": null,
+     "label": "program run, Jun 11, 3:50 PM: “Review the last turn again.”",
+     "firstAt": "2024-06-11T15:50:10.000Z",
+     "lastAt": "2024-06-11T15:50:30.000Z",
+     "startedBy": {
+      "text": "started by a program",
+      "evidence": "recorded"
+     },
+     "evidence": "recorded",
+     "prompts": {
+      "value": 0,
+      "evidence": "derived"
+     },
+     "goals": []
+    },
+    {
+     "session": "cc-cgkbabcdlhfj",
+     "thread": "th-fpinbnnboh",
+     "tool": "claude-code",
+     "repo": "your-project",
+     "group": "configured",
+     "title": null,
+     "label": "program run, Jun 11, 3:40 PM: “Review the last turn for anything left unfinished.”",
+     "firstAt": "2024-06-11T15:40:12.000Z",
+     "lastAt": "2024-06-11T15:40:32.000Z",
+     "startedBy": {
+      "text": "started by a program",
+      "evidence": "recorded"
+     },
+     "evidence": "recorded",
+     "prompts": {
+      "value": 0,
+      "evidence": "derived"
+     },
+     "goals": []
+    },
+    {
+     "session": "cc-mcmjfaabfdba",
+     "thread": "th-jinmmmdljm",
+     "tool": "claude-code",
+     "repo": "other-project",
+     "group": "configured",
+     "title": null,
+     "label": "program run, Jun 11, 3:30 PM: “Check the other project's build.”",
+     "firstAt": "2024-06-11T15:30:20.000Z",
+     "lastAt": "2024-06-11T15:30:40.000Z",
+     "startedBy": {
+      "text": "started by a program",
+      "evidence": "recorded"
+     },
+     "evidence": "recorded",
+     "prompts": {
+      "value": 0,
+      "evidence": "derived"
+     },
+     "goals": []
+    }
+   ],
+   "try": [],
+   "empty": null,
+   "evidenceKey": {
+    "recorded": "A log line or git says so directly.",
+    "derived": "Computed only from recorded facts, such as a count or the time between two lines.",
+    "inferred": "A named rule's best reading of the records. It can be wrong, and the rule is named.",
+    "missing": "Evidence I'd expect is absent, such as a call with no recorded result.",
+    "ambiguous": "The records fit more than one way, such as a pull request number two repositories share."
+   },
+   "rules": {
+    "view.shared-words": "A prompt shares some of the words you typed. The score counts how many of your words appear in it as whole words; sharing words doesn't mean it was about the same thing.",
+    "view.similar-prompt": "Two prompts share a large part of their words (the shared words divided by all the words either uses). Similar wording doesn't mean similar work."
+   },
+   "view": {
+    "asked": "redacted",
+    "shown": "redacted",
+    "note": null,
+    "privateState": "idle",
+    "window": {
+     "from": "2024-06-10",
+     "to": "2024-06-16",
+     "timezone": "UTC"
+    },
+    "demo": null
+   }
+  },
+  "replays": {
+   "cc-cokbkckkbbal": {
+    "window": {
+     "from": "2024-06-10",
+     "to": "2024-06-16",
+     "timezone": "UTC",
+     "startAt": "2024-06-10T00:00:00.000Z",
+     "endAt": "2024-06-17T00:00:00.000Z",
+     "startT": 1717977600000,
+     "endT": 1718582400000
+    },
+    "timezone": "UTC",
+    "focus": "cc-cokbkckkbbal",
+    "thread": {
+     "id": "th-egakhdcimp",
+     "title": "Start the review runs",
+     "firstAt": "2024-06-11T15:00:00.000Z",
+     "lastAt": "2024-06-11T16:01:00.000Z",
+     "metrics": {
+      "prompts": {
+       "value": 1,
+       "evidence": "recorded"
+      },
+      "corrections": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "prompt.correction"
+      },
+      "approvals": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "prompt.approval"
+      },
+      "decisions": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "interrupts": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "actions": {
+       "value": 2,
+       "evidence": "recorded"
+      },
+      "actionsWithoutRecordedResult": {
+       "value": 0,
+       "evidence": "missing"
+      },
+      "delegations": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "agentsStartedByARecordedCall": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "agentsWithoutARecordedStart": {
+       "value": 0,
+       "evidence": "missing",
+       "note": "an inline sub-agent from an older log may stand for several"
+      },
+      "edits": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "filesEdited": {
+       "value": 0,
+       "evidence": "derived"
+      },
+      "testRuns": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "shell.test",
+       "note": "runs that were rejected, refused, or interrupted are not counted"
+      },
+      "testRunsAllPassed": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "shell.test"
+      },
+      "testRunsWithFailures": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "shell.test",
+       "note": "the summary shows a failed test, or a test file or suite that failed to load"
+      },
+      "testRunsUnclear": {
+       "value": 0,
+       "evidence": "missing",
+       "note": "the summary shows no failure, but the command failed or its success was not recorded; the record does not say which part, if any, failed"
+      },
+      "testRunsWithoutSummary": {
+       "value": 0,
+       "evidence": "missing"
+      },
+      "reviews": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "review.delegation | review.skill"
+      },
+      "eventsInPrivateSessions": {
+       "value": 0,
+       "evidence": "recorded",
+       "note": "kind, time, and step category only; content not read"
+      },
+      "guards": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "errors": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "commitsFoundInGit": {
+       "value": 0,
+       "evidence": "recorded",
+       "by": "git",
+       "note": "whoever authored them, including commits later replaced by an amend or a rebase (see onDefaultBranch)"
+      },
+      "commitsByConfiguredIdentity": {
+       "value": 0,
+       "evidence": "recorded",
+       "by": "git",
+       "note": "including commits later replaced by an amend or a rebase (see onDefaultBranch)"
+      },
+      "prsLanded": {
+       "value": 0,
+       "evidence": "inferred",
+       "by": "git",
+       "rule": "git.pr-number-from-subject"
+      },
+      "quietIntervals": {
+       "value": 2,
+       "evidence": "derived"
+      }
+     },
+     "outcomes": [],
+     "missing": [],
+     "links": [],
+     "related": {
+      "handoffs": [],
+      "sessionsSharingAPullRequest": []
+     }
+    },
+    "session": {
+     "key": "cc-cokbkckkbbal",
+     "title": "Start the review runs",
+     "turns": [
+      {
+       "id": "cc-cokbkckkbbal.2.0",
+       "agent": "cc-cokbkckkbbal:main",
+       "startAt": "2024-06-11T15:00:00.000Z",
+       "lastRecordAt": "2024-06-11T16:01:00.000Z",
+       "opener": {
+        "kind": "prompt",
+        "text": "prompt \"Start the review runs.\""
+       },
+       "events": 4,
+       "actions": 2,
+       "stopRecorded": false,
+       "missing": []
+      }
+     ]
+    },
+    "sessions": [
+     {
+      "key": "cc-cokbkckkbbal",
+      "tool": "claude-code",
+      "repo": "your-project",
+      "group": "configured",
+      "title": "Start the review runs",
+      "firstAt": "2024-06-11T15:00:00.000Z",
+      "lastAt": "2024-06-11T16:01:00.000Z",
+      "endState": "last-record-is-message",
+      "missing": []
+     }
+    ],
+    "agents": [
+     {
+      "key": "cc-cokbkckkbbal:main",
+      "session": "cc-cokbkckkbbal",
+      "kind": "main",
+      "type": null,
+      "description": null,
+      "parentAgent": null,
+      "spawnedBy": null,
+      "spawnAt": null,
+      "firstAt": "2024-06-11T15:00:00.000Z",
+      "lastAt": "2024-06-11T16:01:00.000Z",
+      "completion": null,
+      "missing": []
+     }
+    ],
+    "events": [
+     {
+      "id": "cc-cokbkckkbbal.2.0",
+      "t": 1718118000000,
+      "at": "2024-06-11T15:00:00.000Z",
+      "endT": null,
+      "endAt": null,
+      "kind": "prompt",
+      "group": null,
+      "cat": null,
+      "actor": "person",
+      "who": {
+       "label": "You",
+       "evidence": "recorded",
+       "rule": null
+      },
+      "agent": "cc-cokbkckkbbal:main",
+      "session": "cc-cokbkckkbbal",
+      "turn": "cc-cokbkckkbbal.2.0",
+      "tool": null,
+      "result": null,
+      "outcome": null,
+      "text": "prompt \"Start the review runs.\"",
+      "ev": "recorded",
+      "inferred": [],
+      "missing": [],
+      "testRun": null,
+      "tests": null,
+      "patch": null,
+      "spanMs": null,
+      "harnessMs": null,
+      "timeFrom": "record",
+      "clock": null,
+      "timeNote": null,
+      "facts": {
+       "text": "Start the review runs.",
+       "chars": 22,
+       "origin": "human",
+       "index": 1
+      },
+      "derived": {},
+      "source": "cc-cokbkckkbbal"
+     },
+     {
+      "id": "cc-cokbkckkbbal.3.0",
+      "t": 1718118120000,
+      "at": "2024-06-11T15:02:00.000Z",
+      "endT": 1718118120000,
+      "endAt": "2024-06-11T15:02:00.000Z",
+      "kind": "action",
+      "group": "run",
+      "cat": "shell",
+      "actor": "agent",
+      "who": {
+       "label": "the main agent",
+       "evidence": "recorded",
+       "rule": null
+      },
+      "agent": "cc-cokbkckkbbal:main",
+      "session": "cc-cokbkckkbbal",
+      "turn": "cc-cokbkckkbbal.2.0",
+      "tool": "Bash",
+      "result": "ok",
+      "outcome": null,
+      "text": "Bash (shell) claude -p --resume [redacted:secret] \"And run the tests.\" -> ok",
+      "ev": "recorded",
+      "inferred": [],
+      "missing": [],
+      "testRun": null,
+      "tests": null,
+      "patch": null,
+      "spanMs": 0,
+      "harnessMs": null,
+      "timeFrom": "record",
+      "clock": null,
+      "timeNote": null,
+      "facts": {
+       "tool": "Bash",
+       "category": "shell",
+       "command": "claude -p --resume [redacted:secret] \"And run the tests.\"",
+       "description": null,
+       "result": "ok"
+      },
+      "derived": {
+       "recordedSpanMs": 0
+      },
+      "source": "cc-cokbkckkbbal"
+     },
+     {
+      "id": "cc-cokbkckkbbal.quiet.cc-cokbkckkbbal.3.0",
+      "t": 1718118120000,
+      "at": "2024-06-11T15:02:00.000Z",
+      "endT": 1718119800000,
+      "endAt": "2024-06-11T15:30:00.000Z",
+      "kind": "quiet",
+      "group": null,
+      "cat": null,
+      "actor": "none",
+      "who": {
+       "label": null,
+       "evidence": "recorded",
+       "rule": null
+      },
+      "agent": null,
+      "session": "cc-cokbkckkbbal",
+      "turn": null,
+      "tool": null,
+      "result": null,
+      "outcome": null,
+      "text": "no records in this session for 28 min",
+      "ev": "derived",
+      "inferred": [],
+      "missing": [],
+      "testRun": null,
+      "tests": null,
+      "patch": null,
+      "spanMs": 1680000,
+      "harnessMs": null,
+      "timeFrom": "record",
+      "clock": null,
+      "timeNote": null,
+      "facts": {
+       "from": "2024-06-11T15:02:00.000Z",
+       "to": "2024-06-11T15:30:00.000Z"
+      },
+      "derived": {
+       "ms": 1680000
+      },
+      "source": "cc-cokbkckkbbal"
+     },
+     {
+      "id": "cc-cokbkckkbbal.5.0",
+      "t": 1718119800000,
+      "at": "2024-06-11T15:30:00.000Z",
+      "endT": 1718119800000,
+      "endAt": "2024-06-11T15:30:00.000Z",
+      "kind": "action",
+      "group": "run",
+      "cat": "shell",
+      "actor": "agent",
+      "who": {
+       "label": "the main agent",
+       "evidence": "recorded",
+       "rule": null
+      },
+      "agent": "cc-cokbkckkbbal:main",
+      "session": "cc-cokbkckkbbal",
+      "turn": "cc-cokbkckkbbal.2.0",
+      "tool": "Bash",
+      "result": "ok",
+      "outcome": null,
+      "text": "Bash (shell) claude -p < far.md -> ok",
+      "ev": "recorded",
+      "inferred": [],
+      "missing": [],
+      "testRun": null,
+      "tests": null,
+      "patch": null,
+      "spanMs": 0,
+      "harnessMs": null,
+      "timeFrom": "record",
+      "clock": null,
+      "timeNote": null,
+      "facts": {
+       "tool": "Bash",
+       "category": "shell",
+       "command": "claude -p < far.md",
+       "description": null,
+       "result": "ok"
+      },
+      "derived": {
+       "recordedSpanMs": 0
+      },
+      "source": "cc-cokbkckkbbal"
+     },
+     {
+      "id": "cc-cokbkckkbbal.quiet.cc-cokbkckkbbal.5.0",
+      "t": 1718119800000,
+      "at": "2024-06-11T15:30:00.000Z",
+      "endT": 1718121660000,
+      "endAt": "2024-06-11T16:01:00.000Z",
+      "kind": "quiet",
+      "group": null,
+      "cat": null,
+      "actor": "none",
+      "who": {
+       "label": null,
+       "evidence": "recorded",
+       "rule": null
+      },
+      "agent": null,
+      "session": "cc-cokbkckkbbal",
+      "turn": null,
+      "tool": null,
+      "result": null,
+      "outcome": null,
+      "text": "no records in this session for 31 min",
+      "ev": "derived",
+      "inferred": [],
+      "missing": [],
+      "testRun": null,
+      "tests": null,
+      "patch": null,
+      "spanMs": 1860000,
+      "harnessMs": null,
+      "timeFrom": "record",
+      "clock": null,
+      "timeNote": null,
+      "facts": {
+       "from": "2024-06-11T15:30:00.000Z",
+       "to": "2024-06-11T16:01:00.000Z"
+      },
+      "derived": {
+       "ms": 1860000
+      },
+      "source": "cc-cokbkckkbbal"
+     },
+     {
+      "id": "cc-cokbkckkbbal.7.0",
+      "t": 1718121660000,
+      "at": "2024-06-11T16:01:00.000Z",
+      "endT": null,
+      "endAt": null,
+      "kind": "message",
+      "group": null,
+      "cat": null,
+      "actor": "agent",
+      "who": {
+       "label": "the main agent",
+       "evidence": "recorded",
+       "rule": null
+      },
+      "agent": "cc-cokbkckkbbal:main",
+      "session": "cc-cokbkckkbbal",
+      "turn": "cc-cokbkckkbbal.2.0",
+      "tool": null,
+      "result": null,
+      "outcome": null,
+      "text": "message to the person \"Started them.\"",
+      "ev": "recorded",
+      "inferred": [],
+      "missing": [],
+      "testRun": null,
+      "tests": null,
+      "patch": null,
+      "spanMs": null,
+      "harnessMs": null,
+      "timeFrom": "record",
+      "clock": null,
+      "timeNote": null,
+      "facts": {
+       "text": "Started them.",
+       "chars": 13,
+       "to": "person"
+      },
+      "derived": {},
+      "source": "cc-cokbkckkbbal"
+     }
+    ],
+    "frames": [
+     {
+      "t": 1718118000000,
+      "prompts": 1,
+      "actions": 0,
+      "edits": 0,
+      "testRuns": 0,
+      "testsPassed": 0,
+      "testsFailed": 0,
+      "testsNoSummary": 0,
+      "testsUnclear": 0,
+      "delegations": 0,
+      "interrupts": 0,
+      "guards": 0,
+      "prsLanded": 0,
+      "commits": 0,
+      "filesEdited": 0,
+      "awaiting": [],
+      "agentsOpen": [],
+      "queued": [],
+      "quiet": false,
+      "evidence": {
+       "prompts": "recorded",
+       "actions": "recorded",
+       "edits": "recorded",
+       "testRuns": "inferred",
+       "testsPassed": "inferred",
+       "testsFailed": "inferred",
+       "testsNoSummary": "missing",
+       "testsUnclear": "missing",
+       "delegations": "recorded",
+       "interrupts": "recorded",
+       "guards": "recorded",
+       "prsLanded": "inferred",
+       "commits": "recorded",
+       "filesEdited": "derived"
+      }
+     },
+     {
+      "t": 1718118120000,
+      "prompts": 1,
+      "actions": 1,
+      "edits": 0,
+      "testRuns": 0,
+      "testsPassed": 0,
+      "testsFailed": 0,
+      "testsNoSummary": 0,
+      "testsUnclear": 0,
+      "delegations": 0,
+      "interrupts": 0,
+      "guards": 0,
+      "prsLanded": 0,
+      "commits": 0,
+      "filesEdited": 0,
+      "awaiting": [],
+      "agentsOpen": [],
+      "queued": [],
+      "quiet": true,
+      "evidence": {
+       "prompts": "recorded",
+       "actions": "recorded",
+       "edits": "recorded",
+       "testRuns": "inferred",
+       "testsPassed": "inferred",
+       "testsFailed": "inferred",
+       "testsNoSummary": "missing",
+       "testsUnclear": "missing",
+       "delegations": "recorded",
+       "interrupts": "recorded",
+       "guards": "recorded",
+       "prsLanded": "inferred",
+       "commits": "recorded",
+       "filesEdited": "derived"
+      }
+     },
+     {
+      "t": 1718119800000,
+      "prompts": 1,
+      "actions": 2,
+      "edits": 0,
+      "testRuns": 0,
+      "testsPassed": 0,
+      "testsFailed": 0,
+      "testsNoSummary": 0,
+      "testsUnclear": 0,
+      "delegations": 0,
+      "interrupts": 0,
+      "guards": 0,
+      "prsLanded": 0,
+      "commits": 0,
+      "filesEdited": 0,
+      "awaiting": [],
+      "agentsOpen": [],
+      "queued": [],
+      "quiet": true,
+      "evidence": {
+       "prompts": "recorded",
+       "actions": "recorded",
+       "edits": "recorded",
+       "testRuns": "inferred",
+       "testsPassed": "inferred",
+       "testsFailed": "inferred",
+       "testsNoSummary": "missing",
+       "testsUnclear": "missing",
+       "delegations": "recorded",
+       "interrupts": "recorded",
+       "guards": "recorded",
+       "prsLanded": "inferred",
+       "commits": "recorded",
+       "filesEdited": "derived"
+      }
+     },
+     {
+      "t": 1718121660000,
+      "prompts": 1,
+      "actions": 2,
+      "edits": 0,
+      "testRuns": 0,
+      "testsPassed": 0,
+      "testsFailed": 0,
+      "testsNoSummary": 0,
+      "testsUnclear": 0,
+      "delegations": 0,
+      "interrupts": 0,
+      "guards": 0,
+      "prsLanded": 0,
+      "commits": 0,
+      "filesEdited": 0,
+      "awaiting": [],
+      "agentsOpen": [],
+      "queued": [],
+      "quiet": false,
+      "evidence": {
+       "prompts": "recorded",
+       "actions": "recorded",
+       "edits": "recorded",
+       "testRuns": "inferred",
+       "testsPassed": "inferred",
+       "testsFailed": "inferred",
+       "testsNoSummary": "missing",
+       "testsUnclear": "missing",
+       "delegations": "recorded",
+       "interrupts": "recorded",
+       "guards": "recorded",
+       "prsLanded": "inferred",
+       "commits": "recorded",
+       "filesEdited": "derived"
+      }
+     }
+    ],
+    "rules": {
+     "prompt.authorship.no-origin": "An older record with no origin field; its text does not look like harness scaffolding, so it is read as typed by a person.",
+     "prompt.authorship.unknown-origin": "A record whose origin field names a kind this engine does not recognize; its text does not look like harness scaffolding or a relayed message, so it is read as typed by a person.",
+     "prompt.authorship.exec-session": "A prompt in a non-interactive Codex exec session; a script or a person may have written it.",
+     "prompt.correction": "The person's message opens with a redirect (\"no\", \"wait\", \"actually\", \"stop\", \"revert\", \"undo\", \"hold on\", \"instead\", \"that's wrong\", \"that's not\", \"don't\") or says \"instead of\", \"revert\", \"roll back\", \"undo that\", \"that's wrong\", or \"not what I\" (the patterns the weekly digest already uses).",
+     "prompt.approval": "A short message (at most 160 characters) that opens with go, yes, approve, approved, lgtm, ship it, merge, proceed, or do it.",
+     "prompt.resume": "A short message asking the agent to continue, resume, or pick up where it stopped.",
+     "prompt.question": "The person's message contains a question mark at the end of a sentence.",
+     "shell.test": "The command line runs a known test runner (node --test, npm test, jest, vitest, pytest, go test, cargo test, mocha).",
+     "shell.revert": "The command line discards or reverses work: git revert, git reset --hard, git checkout --, git restore, git stash drop.",
+     "shell.git-commit-output": "A commit id read from the summary line a successful git commit printed, or, when a quiet commit (-q) printed none, from the first commit a git log or show joined to it by && printed (HEAD, the commit just made), provided nothing before the commit in that line prints output. Used only when the harness recorded no commit itself.",
+     "shell.gh-pr-output": "A pull request named by the URL a gh pr create command printed, used only when the harness recorded no pull request itself.",
+     "git.pr-number-from-subject": "Git has no record of pull requests: a pull request counts as landed when a default-branch commit by a configured identity names it in its own subject (\"Merge pull request #N\" or a trailing \"(#N)\"), or reached the default branch in a merge whose subject names it (the merge's author is not checked). The earliest landing is cited; within one landing, a commit whose own subject names it is preferred.",
+     "review.delegation": "A delegated task whose description or agent type names a review, audit, verification, or fact-check.",
+     "review.skill": "An invoked skill whose name names a review.",
+     "handoff.chip-start": "A session whose first typed prompt is exactly the prompt of a task suggestion an earlier session made.",
+     "canonical.earliest-ending-copy": "When one record appears in several session files, the copy in the file whose last record is earliest is treated as the original.",
+     "updates.position": "A thinking block with text, the last in its model response and right before a tool call, on a model whose docs say progress updates sit there (Claude Opus 5.5 or Fable 5.1); read as a progress update by its position, so it could be a reasoning summary.",
+     "view.shared-words": "A prompt shares some of the words you typed. The score counts how many of your words appear in it as whole words; sharing words doesn't mean it was about the same thing.",
+     "view.similar-prompt": "Two prompts share a large part of their words (the shared words divided by all the words either uses). Similar wording doesn't mean similar work."
+    },
+    "coverage": {
+     "claude-code": {
+      "user:prompt": {
+       "count": 6,
+       "handling": "event: prompt"
+      },
+      "assistant:text": {
+       "count": 15,
+       "handling": "event: message"
+      },
+      "user:program-instruction": {
+       "count": 8,
+       "handling": "event: delegation-received (sent by a program)"
+      },
+      "custom-title": {
+       "count": 2,
+       "handling": "fact: session title"
+      },
+      "assistant:tool_use": {
+       "count": 3,
+       "handling": "event: action"
+      },
+      "user:tool_result": {
+       "count": 3,
+       "handling": "event: completes the matching action"
+      },
+      "user:slash-command-program": {
+       "count": 2,
+       "handling": "event: command (sent by a program)"
+      },
+      "attachment:hook_success": {
+       "count": 1,
+       "handling": "event: hook"
+      },
+      "system:stop_hook_summary": {
+       "count": 1,
+       "handling": "event: turn-end (stop hooks ran)"
+      }
+     },
+     "codex": {
+      "session_meta:": {
+       "count": 3,
+       "handling": "event: session (what started this thread)"
+      },
+      "response_item:message:user": {
+       "count": 3,
+       "handling": "event: delegation-received (a codex exec run)"
+      },
+      "response_item:message:assistant": {
+       "count": 3,
+       "handling": "event: message"
+      }
+     }
+    },
+    "contextCalls": {
+     "threshold": null,
+     "agents": []
+    },
+    "view": {
+     "asked": "redacted",
+     "shown": "redacted",
+     "note": null,
+     "privateState": "idle",
+     "window": {
+      "from": "2024-06-10",
+      "to": "2024-06-16",
+      "timezone": "UTC"
+     },
+     "demo": null
+    }
+   },
+   "cc-gldhbddkmdae": {
+    "window": {
+     "from": "2024-06-10",
+     "to": "2024-06-16",
+     "timezone": "UTC",
+     "startAt": "2024-06-10T00:00:00.000Z",
+     "endAt": "2024-06-17T00:00:00.000Z",
+     "startT": 1717977600000,
+     "endT": 1718582400000
+    },
+    "timezone": "UTC",
+    "focus": "cc-gldhbddkmdae",
+    "thread": {
+     "id": "th-hdccmjpbfj",
+     "title": null,
+     "firstAt": "2024-06-11T15:01:03.000Z",
+     "lastAt": "2024-06-11T15:01:23.000Z",
+     "metrics": {
+      "prompts": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "corrections": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "prompt.correction"
+      },
+      "approvals": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "prompt.approval"
+      },
+      "decisions": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "interrupts": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "actions": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "actionsWithoutRecordedResult": {
+       "value": 0,
+       "evidence": "missing"
+      },
+      "delegations": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "agentsStartedByARecordedCall": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "agentsWithoutARecordedStart": {
+       "value": 0,
+       "evidence": "missing",
+       "note": "an inline sub-agent from an older log may stand for several"
+      },
+      "edits": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "filesEdited": {
+       "value": 0,
+       "evidence": "derived"
+      },
+      "testRuns": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "shell.test",
+       "note": "runs that were rejected, refused, or interrupted are not counted"
+      },
+      "testRunsAllPassed": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "shell.test"
+      },
+      "testRunsWithFailures": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "shell.test",
+       "note": "the summary shows a failed test, or a test file or suite that failed to load"
+      },
+      "testRunsUnclear": {
+       "value": 0,
+       "evidence": "missing",
+       "note": "the summary shows no failure, but the command failed or its success was not recorded; the record does not say which part, if any, failed"
+      },
+      "testRunsWithoutSummary": {
+       "value": 0,
+       "evidence": "missing"
+      },
+      "reviews": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "review.delegation | review.skill"
+      },
+      "eventsInPrivateSessions": {
+       "value": 0,
+       "evidence": "recorded",
+       "note": "kind, time, and step category only; content not read"
+      },
+      "guards": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "errors": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "commitsFoundInGit": {
+       "value": 0,
+       "evidence": "recorded",
+       "by": "git",
+       "note": "whoever authored them, including commits later replaced by an amend or a rebase (see onDefaultBranch)"
+      },
+      "commitsByConfiguredIdentity": {
+       "value": 0,
+       "evidence": "recorded",
+       "by": "git",
+       "note": "including commits later replaced by an amend or a rebase (see onDefaultBranch)"
+      },
+      "prsLanded": {
+       "value": 0,
+       "evidence": "inferred",
+       "by": "git",
+       "rule": "git.pr-number-from-subject"
+      },
+      "quietIntervals": {
+       "value": 0,
+       "evidence": "derived"
+      }
+     },
+     "outcomes": [],
+     "missing": [],
+     "links": [],
+     "related": {
+      "handoffs": [],
+      "sessionsSharingAPullRequest": []
+     }
+    },
+    "session": {
+     "key": "cc-gldhbddkmdae",
+     "title": null,
+     "turns": [
+      {
+       "id": "cc-gldhbddkmdae.1.0",
+       "agent": "cc-gldhbddkmdae:main",
+       "startAt": "2024-06-11T15:01:03.000Z",
+       "lastRecordAt": "2024-06-11T15:01:23.000Z",
+       "opener": {
+        "kind": "command",
+        "text": "slash command sent by a program /review"
+       },
+       "events": 2,
+       "actions": 0,
+       "stopRecorded": false,
+       "missing": []
+      }
+     ]
+    },
+    "sessions": [
+     {
+      "key": "cc-gldhbddkmdae",
+      "tool": "claude-code",
+      "repo": "your-project",
+      "group": "configured",
+      "title": null,
+      "firstAt": "2024-06-11T15:01:03.000Z",
+      "lastAt": "2024-06-11T15:01:23.000Z",
+      "endState": "last-record-is-message",
+      "missing": []
+     }
+    ],
+    "agents": [
+     {
+      "key": "cc-gldhbddkmdae:main",
+      "session": "cc-gldhbddkmdae",
+      "kind": "main",
+      "type": null,
+      "description": null,
+      "parentAgent": null,
+      "spawnedBy": null,
+      "spawnAt": null,
+      "firstAt": "2024-06-11T15:01:03.000Z",
+      "lastAt": "2024-06-11T15:01:23.000Z",
+      "completion": null,
+      "missing": []
+     }
+    ],
+    "events": [
+     {
+      "id": "cc-gldhbddkmdae.1.0",
+      "t": 1718118063000,
+      "at": "2024-06-11T15:01:03.000Z",
+      "endT": null,
+      "endAt": null,
+      "kind": "command",
+      "group": null,
+      "cat": null,
+      "actor": "program",
+      "who": {
+       "label": "a program",
+       "evidence": "recorded",
+       "rule": null
+      },
+      "agent": "cc-gldhbddkmdae:main",
+      "session": "cc-gldhbddkmdae",
+      "turn": "cc-gldhbddkmdae.1.0",
+      "tool": null,
+      "result": null,
+      "outcome": null,
+      "text": "slash command sent by a program /review",
+      "ev": "recorded",
+      "inferred": [],
+      "missing": [],
+      "testRun": null,
+      "tests": null,
+      "patch": null,
+      "spanMs": null,
+      "harnessMs": null,
+      "timeFrom": "record",
+      "clock": null,
+      "timeNote": null,
+      "facts": {
+       "name": "/review",
+       "args": "the changes since Monday",
+       "from": "program"
+      },
+      "derived": {},
+      "source": "cc-gldhbddkmdae"
+     },
+     {
+      "id": "cc-gldhbddkmdae.2.0",
+      "t": 1718118083000,
+      "at": "2024-06-11T15:01:23.000Z",
+      "endT": null,
+      "endAt": null,
+      "kind": "message",
+      "group": null,
+      "cat": null,
+      "actor": "agent",
+      "who": {
+       "label": "the main agent",
+       "evidence": "recorded",
+       "rule": null
+      },
+      "agent": "cc-gldhbddkmdae:main",
+      "session": "cc-gldhbddkmdae",
+      "turn": "cc-gldhbddkmdae.1.0",
+      "tool": null,
+      "result": null,
+      "outcome": null,
+      "text": "reply to the program that sent the turn \"Done.\"",
+      "ev": "recorded",
+      "inferred": [],
+      "missing": [],
+      "testRun": null,
+      "tests": null,
+      "patch": null,
+      "spanMs": null,
+      "harnessMs": null,
+      "timeFrom": "record",
+      "clock": null,
+      "timeNote": null,
+      "facts": {
+       "text": "Done.",
+       "chars": 5,
+       "to": "program"
+      },
+      "derived": {},
+      "source": "cc-gldhbddkmdae"
+     }
+    ],
+    "frames": [
+     {
+      "t": 1718118063000,
+      "prompts": 0,
+      "actions": 0,
+      "edits": 0,
+      "testRuns": 0,
+      "testsPassed": 0,
+      "testsFailed": 0,
+      "testsNoSummary": 0,
+      "testsUnclear": 0,
+      "delegations": 0,
+      "interrupts": 0,
+      "guards": 0,
+      "prsLanded": 0,
+      "commits": 0,
+      "filesEdited": 0,
+      "awaiting": [],
+      "agentsOpen": [],
+      "queued": [],
+      "quiet": false,
+      "evidence": {
+       "prompts": "recorded",
+       "actions": "recorded",
+       "edits": "recorded",
+       "testRuns": "inferred",
+       "testsPassed": "inferred",
+       "testsFailed": "inferred",
+       "testsNoSummary": "missing",
+       "testsUnclear": "missing",
+       "delegations": "recorded",
+       "interrupts": "recorded",
+       "guards": "recorded",
+       "prsLanded": "inferred",
+       "commits": "recorded",
+       "filesEdited": "derived"
+      }
+     },
+     {
+      "t": 1718118083000,
+      "prompts": 0,
+      "actions": 0,
+      "edits": 0,
+      "testRuns": 0,
+      "testsPassed": 0,
+      "testsFailed": 0,
+      "testsNoSummary": 0,
+      "testsUnclear": 0,
+      "delegations": 0,
+      "interrupts": 0,
+      "guards": 0,
+      "prsLanded": 0,
+      "commits": 0,
+      "filesEdited": 0,
+      "awaiting": [],
+      "agentsOpen": [],
+      "queued": [],
+      "quiet": false,
+      "evidence": {
+       "prompts": "recorded",
+       "actions": "recorded",
+       "edits": "recorded",
+       "testRuns": "inferred",
+       "testsPassed": "inferred",
+       "testsFailed": "inferred",
+       "testsNoSummary": "missing",
+       "testsUnclear": "missing",
+       "delegations": "recorded",
+       "interrupts": "recorded",
+       "guards": "recorded",
+       "prsLanded": "inferred",
+       "commits": "recorded",
+       "filesEdited": "derived"
+      }
+     }
+    ],
+    "rules": {
+     "prompt.authorship.no-origin": "An older record with no origin field; its text does not look like harness scaffolding, so it is read as typed by a person.",
+     "prompt.authorship.unknown-origin": "A record whose origin field names a kind this engine does not recognize; its text does not look like harness scaffolding or a relayed message, so it is read as typed by a person.",
+     "prompt.authorship.exec-session": "A prompt in a non-interactive Codex exec session; a script or a person may have written it.",
+     "prompt.correction": "The person's message opens with a redirect (\"no\", \"wait\", \"actually\", \"stop\", \"revert\", \"undo\", \"hold on\", \"instead\", \"that's wrong\", \"that's not\", \"don't\") or says \"instead of\", \"revert\", \"roll back\", \"undo that\", \"that's wrong\", or \"not what I\" (the patterns the weekly digest already uses).",
+     "prompt.approval": "A short message (at most 160 characters) that opens with go, yes, approve, approved, lgtm, ship it, merge, proceed, or do it.",
+     "prompt.resume": "A short message asking the agent to continue, resume, or pick up where it stopped.",
+     "prompt.question": "The person's message contains a question mark at the end of a sentence.",
+     "shell.test": "The command line runs a known test runner (node --test, npm test, jest, vitest, pytest, go test, cargo test, mocha).",
+     "shell.revert": "The command line discards or reverses work: git revert, git reset --hard, git checkout --, git restore, git stash drop.",
+     "shell.git-commit-output": "A commit id read from the summary line a successful git commit printed, or, when a quiet commit (-q) printed none, from the first commit a git log or show joined to it by && printed (HEAD, the commit just made), provided nothing before the commit in that line prints output. Used only when the harness recorded no commit itself.",
+     "shell.gh-pr-output": "A pull request named by the URL a gh pr create command printed, used only when the harness recorded no pull request itself.",
+     "git.pr-number-from-subject": "Git has no record of pull requests: a pull request counts as landed when a default-branch commit by a configured identity names it in its own subject (\"Merge pull request #N\" or a trailing \"(#N)\"), or reached the default branch in a merge whose subject names it (the merge's author is not checked). The earliest landing is cited; within one landing, a commit whose own subject names it is preferred.",
+     "review.delegation": "A delegated task whose description or agent type names a review, audit, verification, or fact-check.",
+     "review.skill": "An invoked skill whose name names a review.",
+     "handoff.chip-start": "A session whose first typed prompt is exactly the prompt of a task suggestion an earlier session made.",
+     "canonical.earliest-ending-copy": "When one record appears in several session files, the copy in the file whose last record is earliest is treated as the original.",
+     "updates.position": "A thinking block with text, the last in its model response and right before a tool call, on a model whose docs say progress updates sit there (Claude Opus 5.5 or Fable 5.1); read as a progress update by its position, so it could be a reasoning summary.",
+     "view.shared-words": "A prompt shares some of the words you typed. The score counts how many of your words appear in it as whole words; sharing words doesn't mean it was about the same thing.",
+     "view.similar-prompt": "Two prompts share a large part of their words (the shared words divided by all the words either uses). Similar wording doesn't mean similar work."
+    },
+    "coverage": {
+     "claude-code": {
+      "user:prompt": {
+       "count": 6,
+       "handling": "event: prompt"
+      },
+      "assistant:text": {
+       "count": 15,
+       "handling": "event: message"
+      },
+      "user:program-instruction": {
+       "count": 8,
+       "handling": "event: delegation-received (sent by a program)"
+      },
+      "custom-title": {
+       "count": 2,
+       "handling": "fact: session title"
+      },
+      "assistant:tool_use": {
+       "count": 3,
+       "handling": "event: action"
+      },
+      "user:tool_result": {
+       "count": 3,
+       "handling": "event: completes the matching action"
+      },
+      "user:slash-command-program": {
+       "count": 2,
+       "handling": "event: command (sent by a program)"
+      },
+      "attachment:hook_success": {
+       "count": 1,
+       "handling": "event: hook"
+      },
+      "system:stop_hook_summary": {
+       "count": 1,
+       "handling": "event: turn-end (stop hooks ran)"
+      }
+     },
+     "codex": {
+      "session_meta:": {
+       "count": 3,
+       "handling": "event: session (what started this thread)"
+      },
+      "response_item:message:user": {
+       "count": 3,
+       "handling": "event: delegation-received (a codex exec run)"
+      },
+      "response_item:message:assistant": {
+       "count": 3,
+       "handling": "event: message"
+      }
+     }
+    },
+    "contextCalls": {
+     "threshold": null,
+     "agents": []
+    },
+    "labels": {
+     "cc-gldhbddkmdae": "/review, Jun 11, 3:01 PM"
+    },
+    "view": {
+     "asked": "redacted",
+     "shown": "redacted",
+     "note": null,
+     "privateState": "idle",
+     "window": {
+      "from": "2024-06-10",
+      "to": "2024-06-16",
+      "timezone": "UTC"
+     },
+     "demo": null
+    }
+   },
+   "cx-fnpbacbpbcgb": {
+    "window": {
+     "from": "2024-06-10",
+     "to": "2024-06-16",
+     "timezone": "UTC",
+     "startAt": "2024-06-10T00:00:00.000Z",
+     "endAt": "2024-06-17T00:00:00.000Z",
+     "startT": 1717977600000,
+     "endT": 1718582400000
+    },
+    "timezone": "UTC",
+    "focus": "cx-fnpbacbpbcgb",
+    "thread": {
+     "id": "th-figgmpkfpi",
+     "title": null,
+     "firstAt": "2024-06-11T16:40:00.000Z",
+     "lastAt": "2024-06-11T16:40:20.000Z",
+     "metrics": {
+      "prompts": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "corrections": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "prompt.correction"
+      },
+      "approvals": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "prompt.approval"
+      },
+      "decisions": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "interrupts": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "actions": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "actionsWithoutRecordedResult": {
+       "value": 0,
+       "evidence": "missing"
+      },
+      "delegations": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "agentsStartedByARecordedCall": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "agentsWithoutARecordedStart": {
+       "value": 0,
+       "evidence": "missing",
+       "note": "an inline sub-agent from an older log may stand for several"
+      },
+      "edits": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "filesEdited": {
+       "value": 0,
+       "evidence": "derived"
+      },
+      "testRuns": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "shell.test",
+       "note": "runs that were rejected, refused, or interrupted are not counted"
+      },
+      "testRunsAllPassed": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "shell.test"
+      },
+      "testRunsWithFailures": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "shell.test",
+       "note": "the summary shows a failed test, or a test file or suite that failed to load"
+      },
+      "testRunsUnclear": {
+       "value": 0,
+       "evidence": "missing",
+       "note": "the summary shows no failure, but the command failed or its success was not recorded; the record does not say which part, if any, failed"
+      },
+      "testRunsWithoutSummary": {
+       "value": 0,
+       "evidence": "missing"
+      },
+      "reviews": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "review.delegation | review.skill"
+      },
+      "eventsInPrivateSessions": {
+       "value": 0,
+       "evidence": "recorded",
+       "note": "kind, time, and step category only; content not read"
+      },
+      "guards": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "errors": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "commitsFoundInGit": {
+       "value": 0,
+       "evidence": "recorded",
+       "by": "git",
+       "note": "whoever authored them, including commits later replaced by an amend or a rebase (see onDefaultBranch)"
+      },
+      "commitsByConfiguredIdentity": {
+       "value": 0,
+       "evidence": "recorded",
+       "by": "git",
+       "note": "including commits later replaced by an amend or a rebase (see onDefaultBranch)"
+      },
+      "prsLanded": {
+       "value": 0,
+       "evidence": "inferred",
+       "by": "git",
+       "rule": "git.pr-number-from-subject"
+      },
+      "quietIntervals": {
+       "value": 0,
+       "evidence": "derived"
+      }
+     },
+     "outcomes": [],
+     "missing": [],
+     "links": [],
+     "related": {
+      "handoffs": [],
+      "sessionsSharingAPullRequest": []
+     }
+    },
+    "session": {
+     "key": "cx-fnpbacbpbcgb",
+     "title": null,
+     "turns": [
+      {
+       "id": "cx-fnpbacbpbcgb.2.0",
+       "agent": "cx-fnpbacbpbcgb:main",
+       "startAt": "2024-06-11T16:40:01.000Z",
+       "lastRecordAt": "2024-06-11T16:40:20.000Z",
+       "opener": {
+        "kind": "delegation-received",
+        "text": "started by codex exec with instructions \"Count the TODO comments in src.\""
+       },
+       "events": 2,
+       "actions": 0,
+       "stopRecorded": false,
+       "missing": []
+      }
+     ]
+    },
+    "sessions": [
+     {
+      "key": "cx-fnpbacbpbcgb",
+      "tool": "codex",
+      "repo": "your-project",
+      "group": "configured",
+      "title": null,
+      "firstAt": "2024-06-11T16:40:00.000Z",
+      "lastAt": "2024-06-11T16:40:20.000Z",
+      "endState": "last-record-is-message",
+      "missing": []
+     }
+    ],
+    "agents": [
+     {
+      "key": "cx-fnpbacbpbcgb:main",
+      "session": "cx-fnpbacbpbcgb",
+      "kind": "main",
+      "type": null,
+      "description": null,
+      "parentAgent": null,
+      "spawnedBy": null,
+      "spawnAt": null,
+      "firstAt": "2024-06-11T16:40:00.000Z",
+      "lastAt": "2024-06-11T16:40:20.000Z",
+      "completion": null,
+      "missing": []
+     }
+    ],
+    "events": [
+     {
+      "id": "cx-fnpbacbpbcgb.1.0",
+      "t": 1718124000000,
+      "at": "2024-06-11T16:40:00.000Z",
+      "endT": null,
+      "endAt": null,
+      "kind": "session",
+      "group": null,
+      "cat": null,
+      "actor": "harness",
+      "who": {
+       "label": "the harness",
+       "evidence": "recorded",
+       "rule": null
+      },
+      "agent": "cx-fnpbacbpbcgb:main",
+      "session": "cx-fnpbacbpbcgb",
+      "turn": null,
+      "tool": "codex",
+      "result": null,
+      "outcome": null,
+      "text": "thread started (exec)",
+      "ev": "recorded",
+      "inferred": [],
+      "missing": [],
+      "testRun": null,
+      "tests": null,
+      "patch": null,
+      "spanMs": null,
+      "harnessMs": null,
+      "timeFrom": "record",
+      "clock": null,
+      "timeNote": null,
+      "facts": {
+       "tool": "codex",
+       "started": "exec",
+       "surface": "exec",
+       "agentPath": null,
+       "nickname": null,
+       "branch": null,
+       "headAtStart": null,
+       "cliVersion": "0.1.0"
+      },
+      "derived": {},
+      "source": "cx-fnpbacbpbcgb"
+     },
+     {
+      "id": "cx-fnpbacbpbcgb.2.0",
+      "t": 1718124001000,
+      "at": "2024-06-11T16:40:01.000Z",
+      "endT": null,
+      "endAt": null,
+      "kind": "delegation-received",
+      "group": null,
+      "cat": null,
+      "actor": "agent",
+      "who": {
+       "label": "the main agent",
+       "evidence": "recorded",
+       "rule": null
+      },
+      "agent": "cx-fnpbacbpbcgb:main",
+      "session": "cx-fnpbacbpbcgb",
+      "turn": "cx-fnpbacbpbcgb.2.0",
+      "tool": null,
+      "result": null,
+      "outcome": null,
+      "text": "started by codex exec with instructions \"Count the TODO comments in src.\"",
+      "ev": "recorded",
+      "inferred": [],
+      "missing": [],
+      "testRun": null,
+      "tests": null,
+      "patch": null,
+      "spanMs": null,
+      "harnessMs": null,
+      "timeFrom": "record",
+      "clock": null,
+      "timeNote": null,
+      "facts": {
+       "from": "codex-exec",
+       "text": "Count the TODO comments in src."
+      },
+      "derived": {},
+      "source": "cx-fnpbacbpbcgb"
+     },
+     {
+      "id": "cx-fnpbacbpbcgb.3.0",
+      "t": 1718124020000,
+      "at": "2024-06-11T16:40:20.000Z",
+      "endT": null,
+      "endAt": null,
+      "kind": "message",
+      "group": null,
+      "cat": null,
+      "actor": "agent",
+      "who": {
+       "label": "the main agent",
+       "evidence": "recorded",
+       "rule": null
+      },
+      "agent": "cx-fnpbacbpbcgb:main",
+      "session": "cx-fnpbacbpbcgb",
+      "turn": "cx-fnpbacbpbcgb.2.0",
+      "tool": null,
+      "result": null,
+      "outcome": null,
+      "text": "reply to whatever ran codex exec \"There are 4.\"",
+      "ev": "recorded",
+      "inferred": [],
+      "missing": [],
+      "testRun": null,
+      "tests": null,
+      "patch": null,
+      "spanMs": null,
+      "harnessMs": null,
+      "timeFrom": "record",
+      "clock": null,
+      "timeNote": null,
+      "facts": {
+       "text": "There are 4.",
+       "chars": 12,
+       "to": "codex-exec"
+      },
+      "derived": {},
+      "source": "cx-fnpbacbpbcgb"
+     }
+    ],
+    "frames": [
+     {
+      "t": 1718124000000,
+      "prompts": 0,
+      "actions": 0,
+      "edits": 0,
+      "testRuns": 0,
+      "testsPassed": 0,
+      "testsFailed": 0,
+      "testsNoSummary": 0,
+      "testsUnclear": 0,
+      "delegations": 0,
+      "interrupts": 0,
+      "guards": 0,
+      "prsLanded": 0,
+      "commits": 0,
+      "filesEdited": 0,
+      "awaiting": [],
+      "agentsOpen": [],
+      "queued": [],
+      "quiet": false,
+      "evidence": {
+       "prompts": "recorded",
+       "actions": "recorded",
+       "edits": "recorded",
+       "testRuns": "inferred",
+       "testsPassed": "inferred",
+       "testsFailed": "inferred",
+       "testsNoSummary": "missing",
+       "testsUnclear": "missing",
+       "delegations": "recorded",
+       "interrupts": "recorded",
+       "guards": "recorded",
+       "prsLanded": "inferred",
+       "commits": "recorded",
+       "filesEdited": "derived"
+      }
+     },
+     {
+      "t": 1718124001000,
+      "prompts": 0,
+      "actions": 0,
+      "edits": 0,
+      "testRuns": 0,
+      "testsPassed": 0,
+      "testsFailed": 0,
+      "testsNoSummary": 0,
+      "testsUnclear": 0,
+      "delegations": 0,
+      "interrupts": 0,
+      "guards": 0,
+      "prsLanded": 0,
+      "commits": 0,
+      "filesEdited": 0,
+      "awaiting": [],
+      "agentsOpen": [],
+      "queued": [],
+      "quiet": false,
+      "evidence": {
+       "prompts": "recorded",
+       "actions": "recorded",
+       "edits": "recorded",
+       "testRuns": "inferred",
+       "testsPassed": "inferred",
+       "testsFailed": "inferred",
+       "testsNoSummary": "missing",
+       "testsUnclear": "missing",
+       "delegations": "recorded",
+       "interrupts": "recorded",
+       "guards": "recorded",
+       "prsLanded": "inferred",
+       "commits": "recorded",
+       "filesEdited": "derived"
+      }
+     },
+     {
+      "t": 1718124020000,
+      "prompts": 0,
+      "actions": 0,
+      "edits": 0,
+      "testRuns": 0,
+      "testsPassed": 0,
+      "testsFailed": 0,
+      "testsNoSummary": 0,
+      "testsUnclear": 0,
+      "delegations": 0,
+      "interrupts": 0,
+      "guards": 0,
+      "prsLanded": 0,
+      "commits": 0,
+      "filesEdited": 0,
+      "awaiting": [],
+      "agentsOpen": [],
+      "queued": [],
+      "quiet": false,
+      "evidence": {
+       "prompts": "recorded",
+       "actions": "recorded",
+       "edits": "recorded",
+       "testRuns": "inferred",
+       "testsPassed": "inferred",
+       "testsFailed": "inferred",
+       "testsNoSummary": "missing",
+       "testsUnclear": "missing",
+       "delegations": "recorded",
+       "interrupts": "recorded",
+       "guards": "recorded",
+       "prsLanded": "inferred",
+       "commits": "recorded",
+       "filesEdited": "derived"
+      }
+     }
+    ],
+    "rules": {
+     "prompt.authorship.no-origin": "An older record with no origin field; its text does not look like harness scaffolding, so it is read as typed by a person.",
+     "prompt.authorship.unknown-origin": "A record whose origin field names a kind this engine does not recognize; its text does not look like harness scaffolding or a relayed message, so it is read as typed by a person.",
+     "prompt.authorship.exec-session": "A prompt in a non-interactive Codex exec session; a script or a person may have written it.",
+     "prompt.correction": "The person's message opens with a redirect (\"no\", \"wait\", \"actually\", \"stop\", \"revert\", \"undo\", \"hold on\", \"instead\", \"that's wrong\", \"that's not\", \"don't\") or says \"instead of\", \"revert\", \"roll back\", \"undo that\", \"that's wrong\", or \"not what I\" (the patterns the weekly digest already uses).",
+     "prompt.approval": "A short message (at most 160 characters) that opens with go, yes, approve, approved, lgtm, ship it, merge, proceed, or do it.",
+     "prompt.resume": "A short message asking the agent to continue, resume, or pick up where it stopped.",
+     "prompt.question": "The person's message contains a question mark at the end of a sentence.",
+     "shell.test": "The command line runs a known test runner (node --test, npm test, jest, vitest, pytest, go test, cargo test, mocha).",
+     "shell.revert": "The command line discards or reverses work: git revert, git reset --hard, git checkout --, git restore, git stash drop.",
+     "shell.git-commit-output": "A commit id read from the summary line a successful git commit printed, or, when a quiet commit (-q) printed none, from the first commit a git log or show joined to it by && printed (HEAD, the commit just made), provided nothing before the commit in that line prints output. Used only when the harness recorded no commit itself.",
+     "shell.gh-pr-output": "A pull request named by the URL a gh pr create command printed, used only when the harness recorded no pull request itself.",
+     "git.pr-number-from-subject": "Git has no record of pull requests: a pull request counts as landed when a default-branch commit by a configured identity names it in its own subject (\"Merge pull request #N\" or a trailing \"(#N)\"), or reached the default branch in a merge whose subject names it (the merge's author is not checked). The earliest landing is cited; within one landing, a commit whose own subject names it is preferred.",
+     "review.delegation": "A delegated task whose description or agent type names a review, audit, verification, or fact-check.",
+     "review.skill": "An invoked skill whose name names a review.",
+     "handoff.chip-start": "A session whose first typed prompt is exactly the prompt of a task suggestion an earlier session made.",
+     "canonical.earliest-ending-copy": "When one record appears in several session files, the copy in the file whose last record is earliest is treated as the original.",
+     "updates.position": "A thinking block with text, the last in its model response and right before a tool call, on a model whose docs say progress updates sit there (Claude Opus 5.5 or Fable 5.1); read as a progress update by its position, so it could be a reasoning summary.",
+     "view.shared-words": "A prompt shares some of the words you typed. The score counts how many of your words appear in it as whole words; sharing words doesn't mean it was about the same thing.",
+     "view.similar-prompt": "Two prompts share a large part of their words (the shared words divided by all the words either uses). Similar wording doesn't mean similar work."
+    },
+    "coverage": {
+     "claude-code": {
+      "user:prompt": {
+       "count": 6,
+       "handling": "event: prompt"
+      },
+      "assistant:text": {
+       "count": 15,
+       "handling": "event: message"
+      },
+      "user:program-instruction": {
+       "count": 8,
+       "handling": "event: delegation-received (sent by a program)"
+      },
+      "custom-title": {
+       "count": 2,
+       "handling": "fact: session title"
+      },
+      "assistant:tool_use": {
+       "count": 3,
+       "handling": "event: action"
+      },
+      "user:tool_result": {
+       "count": 3,
+       "handling": "event: completes the matching action"
+      },
+      "user:slash-command-program": {
+       "count": 2,
+       "handling": "event: command (sent by a program)"
+      },
+      "attachment:hook_success": {
+       "count": 1,
+       "handling": "event: hook"
+      },
+      "system:stop_hook_summary": {
+       "count": 1,
+       "handling": "event: turn-end (stop hooks ran)"
+      }
+     },
+     "codex": {
+      "session_meta:": {
+       "count": 3,
+       "handling": "event: session (what started this thread)"
+      },
+      "response_item:message:user": {
+       "count": 3,
+       "handling": "event: delegation-received (a codex exec run)"
+      },
+      "response_item:message:assistant": {
+       "count": 3,
+       "handling": "event: message"
+      }
+     }
+    },
+    "contextCalls": {
+     "threshold": null,
+     "agents": []
+    },
+    "labels": {
+     "cx-fnpbacbpbcgb": "headless run, Jun 11, 4:40 PM"
+    },
+    "view": {
+     "asked": "redacted",
+     "shown": "redacted",
+     "note": null,
+     "privateState": "idle",
+     "window": {
+      "from": "2024-06-10",
+      "to": "2024-06-16",
+      "timezone": "UTC"
+     },
+     "demo": null
+    }
+   },
+   "cc-bbnocplkofoh": {
+    "window": {
+     "from": "2024-06-10",
+     "to": "2024-06-16",
+     "timezone": "UTC",
+     "startAt": "2024-06-10T00:00:00.000Z",
+     "endAt": "2024-06-17T00:00:00.000Z",
+     "startT": 1717977600000,
+     "endT": 1718582400000
+    },
+    "timezone": "UTC",
+    "focus": "cc-bbnocplkofoh",
+    "thread": {
+     "id": "th-gpdhpaapnk",
+     "title": null,
+     "firstAt": "2024-06-11T16:20:40.000Z",
+     "lastAt": "2024-06-11T16:21:00.000Z",
+     "metrics": {
+      "prompts": {
+       "value": 1,
+       "evidence": "inferred",
+       "rule": "prompt.authorship.no-origin",
+       "promptsWithInferredAuthor": 1
+      },
+      "corrections": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "prompt.correction"
+      },
+      "approvals": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "prompt.approval"
+      },
+      "decisions": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "interrupts": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "actions": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "actionsWithoutRecordedResult": {
+       "value": 0,
+       "evidence": "missing"
+      },
+      "delegations": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "agentsStartedByARecordedCall": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "agentsWithoutARecordedStart": {
+       "value": 0,
+       "evidence": "missing",
+       "note": "an inline sub-agent from an older log may stand for several"
+      },
+      "edits": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "filesEdited": {
+       "value": 0,
+       "evidence": "derived"
+      },
+      "testRuns": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "shell.test",
+       "note": "runs that were rejected, refused, or interrupted are not counted"
+      },
+      "testRunsAllPassed": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "shell.test"
+      },
+      "testRunsWithFailures": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "shell.test",
+       "note": "the summary shows a failed test, or a test file or suite that failed to load"
+      },
+      "testRunsUnclear": {
+       "value": 0,
+       "evidence": "missing",
+       "note": "the summary shows no failure, but the command failed or its success was not recorded; the record does not say which part, if any, failed"
+      },
+      "testRunsWithoutSummary": {
+       "value": 0,
+       "evidence": "missing"
+      },
+      "reviews": {
+       "value": 0,
+       "evidence": "inferred",
+       "rule": "review.delegation | review.skill"
+      },
+      "eventsInPrivateSessions": {
+       "value": 0,
+       "evidence": "recorded",
+       "note": "kind, time, and step category only; content not read"
+      },
+      "guards": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "errors": {
+       "value": 0,
+       "evidence": "recorded"
+      },
+      "commitsFoundInGit": {
+       "value": 0,
+       "evidence": "recorded",
+       "by": "git",
+       "note": "whoever authored them, including commits later replaced by an amend or a rebase (see onDefaultBranch)"
+      },
+      "commitsByConfiguredIdentity": {
+       "value": 0,
+       "evidence": "recorded",
+       "by": "git",
+       "note": "including commits later replaced by an amend or a rebase (see onDefaultBranch)"
+      },
+      "prsLanded": {
+       "value": 0,
+       "evidence": "inferred",
+       "by": "git",
+       "rule": "git.pr-number-from-subject"
+      },
+      "quietIntervals": {
+       "value": 0,
+       "evidence": "derived"
+      }
+     },
+     "outcomes": [],
+     "missing": [],
+     "links": [],
+     "related": {
+      "handoffs": [],
+      "sessionsSharingAPullRequest": []
+     }
+    },
+    "session": {
+     "key": "cc-bbnocplkofoh",
+     "title": null,
+     "turns": [
+      {
+       "id": "cc-bbnocplkofoh.1.0",
+       "agent": "cc-bbnocplkofoh:main",
+       "startAt": "2024-06-11T16:20:40.000Z",
+       "lastRecordAt": "2024-06-11T16:21:00.000Z",
+       "opener": {
+        "kind": "prompt",
+        "text": "prompt \"Tidy the README.\""
+       },
+       "events": 2,
+       "actions": 0,
+       "stopRecorded": false,
+       "missing": []
+      }
+     ]
+    },
+    "sessions": [
+     {
+      "key": "cc-bbnocplkofoh",
+      "tool": "claude-code",
+      "repo": "your-project",
+      "group": "configured",
+      "title": null,
+      "firstAt": "2024-06-11T16:20:40.000Z",
+      "lastAt": "2024-06-11T16:21:00.000Z",
+      "endState": "last-record-is-message",
+      "missing": []
+     }
+    ],
+    "agents": [
+     {
+      "key": "cc-bbnocplkofoh:main",
+      "session": "cc-bbnocplkofoh",
+      "kind": "main",
+      "type": null,
+      "description": null,
+      "parentAgent": null,
+      "spawnedBy": null,
+      "spawnAt": null,
+      "firstAt": "2024-06-11T16:20:40.000Z",
+      "lastAt": "2024-06-11T16:21:00.000Z",
+      "completion": null,
+      "missing": []
+     }
+    ],
+    "events": [
+     {
+      "id": "cc-bbnocplkofoh.1.0",
+      "t": 1718122840000,
+      "at": "2024-06-11T16:20:40.000Z",
+      "endT": null,
+      "endAt": null,
+      "kind": "prompt",
+      "group": null,
+      "cat": null,
+      "actor": "person",
+      "who": {
+       "label": "You",
+       "evidence": "inferred",
+       "rule": "prompt.authorship.no-origin"
+      },
+      "agent": "cc-bbnocplkofoh:main",
+      "session": "cc-bbnocplkofoh",
+      "turn": "cc-bbnocplkofoh.1.0",
+      "tool": null,
+      "result": null,
+      "outcome": null,
+      "text": "prompt \"Tidy the README.\"",
+      "ev": "recorded",
+      "inferred": [
+       {
+        "key": "authorship",
+        "value": "person",
+        "rule": "prompt.authorship.no-origin",
+        "text": "An older record with no origin field; its text does not look like harness scaffolding, so it is read as typed by a person."
+       }
+      ],
+      "missing": [],
+      "testRun": null,
+      "tests": null,
+      "patch": null,
+      "spanMs": null,
+      "harnessMs": null,
+      "timeFrom": "record",
+      "clock": null,
+      "timeNote": null,
+      "facts": {
+       "text": "Tidy the README.",
+       "chars": 16,
+       "origin": null,
+       "index": 1
+      },
+      "derived": {},
+      "source": "cc-bbnocplkofoh"
+     },
+     {
+      "id": "cc-bbnocplkofoh.2.0",
+      "t": 1718122860000,
+      "at": "2024-06-11T16:21:00.000Z",
+      "endT": null,
+      "endAt": null,
+      "kind": "message",
+      "group": null,
+      "cat": null,
+      "actor": "agent",
+      "who": {
+       "label": "the main agent",
+       "evidence": "recorded",
+       "rule": null
+      },
+      "agent": "cc-bbnocplkofoh:main",
+      "session": "cc-bbnocplkofoh",
+      "turn": "cc-bbnocplkofoh.1.0",
+      "tool": null,
+      "result": null,
+      "outcome": null,
+      "text": "message to the person \"Tidied it.\"",
+      "ev": "recorded",
+      "inferred": [],
+      "missing": [],
+      "testRun": null,
+      "tests": null,
+      "patch": null,
+      "spanMs": null,
+      "harnessMs": null,
+      "timeFrom": "record",
+      "clock": null,
+      "timeNote": null,
+      "facts": {
+       "text": "Tidied it.",
+       "chars": 10,
+       "to": "person"
+      },
+      "derived": {},
+      "source": "cc-bbnocplkofoh"
+     }
+    ],
+    "frames": [
+     {
+      "t": 1718122840000,
+      "prompts": 1,
+      "actions": 0,
+      "edits": 0,
+      "testRuns": 0,
+      "testsPassed": 0,
+      "testsFailed": 0,
+      "testsNoSummary": 0,
+      "testsUnclear": 0,
+      "delegations": 0,
+      "interrupts": 0,
+      "guards": 0,
+      "prsLanded": 0,
+      "commits": 0,
+      "filesEdited": 0,
+      "awaiting": [],
+      "agentsOpen": [],
+      "queued": [],
+      "quiet": false,
+      "evidence": {
+       "prompts": "inferred",
+       "actions": "recorded",
+       "edits": "recorded",
+       "testRuns": "inferred",
+       "testsPassed": "inferred",
+       "testsFailed": "inferred",
+       "testsNoSummary": "missing",
+       "testsUnclear": "missing",
+       "delegations": "recorded",
+       "interrupts": "recorded",
+       "guards": "recorded",
+       "prsLanded": "inferred",
+       "commits": "recorded",
+       "filesEdited": "derived"
+      }
+     },
+     {
+      "t": 1718122860000,
+      "prompts": 1,
+      "actions": 0,
+      "edits": 0,
+      "testRuns": 0,
+      "testsPassed": 0,
+      "testsFailed": 0,
+      "testsNoSummary": 0,
+      "testsUnclear": 0,
+      "delegations": 0,
+      "interrupts": 0,
+      "guards": 0,
+      "prsLanded": 0,
+      "commits": 0,
+      "filesEdited": 0,
+      "awaiting": [],
+      "agentsOpen": [],
+      "queued": [],
+      "quiet": false,
+      "evidence": {
+       "prompts": "inferred",
+       "actions": "recorded",
+       "edits": "recorded",
+       "testRuns": "inferred",
+       "testsPassed": "inferred",
+       "testsFailed": "inferred",
+       "testsNoSummary": "missing",
+       "testsUnclear": "missing",
+       "delegations": "recorded",
+       "interrupts": "recorded",
+       "guards": "recorded",
+       "prsLanded": "inferred",
+       "commits": "recorded",
+       "filesEdited": "derived"
+      }
+     }
+    ],
+    "rules": {
+     "prompt.authorship.no-origin": "An older record with no origin field; its text does not look like harness scaffolding, so it is read as typed by a person.",
+     "prompt.authorship.unknown-origin": "A record whose origin field names a kind this engine does not recognize; its text does not look like harness scaffolding or a relayed message, so it is read as typed by a person.",
+     "prompt.authorship.exec-session": "A prompt in a non-interactive Codex exec session; a script or a person may have written it.",
+     "prompt.correction": "The person's message opens with a redirect (\"no\", \"wait\", \"actually\", \"stop\", \"revert\", \"undo\", \"hold on\", \"instead\", \"that's wrong\", \"that's not\", \"don't\") or says \"instead of\", \"revert\", \"roll back\", \"undo that\", \"that's wrong\", or \"not what I\" (the patterns the weekly digest already uses).",
+     "prompt.approval": "A short message (at most 160 characters) that opens with go, yes, approve, approved, lgtm, ship it, merge, proceed, or do it.",
+     "prompt.resume": "A short message asking the agent to continue, resume, or pick up where it stopped.",
+     "prompt.question": "The person's message contains a question mark at the end of a sentence.",
+     "shell.test": "The command line runs a known test runner (node --test, npm test, jest, vitest, pytest, go test, cargo test, mocha).",
+     "shell.revert": "The command line discards or reverses work: git revert, git reset --hard, git checkout --, git restore, git stash drop.",
+     "shell.git-commit-output": "A commit id read from the summary line a successful git commit printed, or, when a quiet commit (-q) printed none, from the first commit a git log or show joined to it by && printed (HEAD, the commit just made), provided nothing before the commit in that line prints output. Used only when the harness recorded no commit itself.",
+     "shell.gh-pr-output": "A pull request named by the URL a gh pr create command printed, used only when the harness recorded no pull request itself.",
+     "git.pr-number-from-subject": "Git has no record of pull requests: a pull request counts as landed when a default-branch commit by a configured identity names it in its own subject (\"Merge pull request #N\" or a trailing \"(#N)\"), or reached the default branch in a merge whose subject names it (the merge's author is not checked). The earliest landing is cited; within one landing, a commit whose own subject names it is preferred.",
+     "review.delegation": "A delegated task whose description or agent type names a review, audit, verification, or fact-check.",
+     "review.skill": "An invoked skill whose name names a review.",
+     "handoff.chip-start": "A session whose first typed prompt is exactly the prompt of a task suggestion an earlier session made.",
+     "canonical.earliest-ending-copy": "When one record appears in several session files, the copy in the file whose last record is earliest is treated as the original.",
+     "updates.position": "A thinking block with text, the last in its model response and right before a tool call, on a model whose docs say progress updates sit there (Claude Opus 5.5 or Fable 5.1); read as a progress update by its position, so it could be a reasoning summary.",
+     "view.shared-words": "A prompt shares some of the words you typed. The score counts how many of your words appear in it as whole words; sharing words doesn't mean it was about the same thing.",
+     "view.similar-prompt": "Two prompts share a large part of their words (the shared words divided by all the words either uses). Similar wording doesn't mean similar work."
+    },
+    "coverage": {
+     "claude-code": {
+      "user:prompt": {
+       "count": 6,
+       "handling": "event: prompt"
+      },
+      "assistant:text": {
+       "count": 15,
+       "handling": "event: message"
+      },
+      "user:program-instruction": {
+       "count": 8,
+       "handling": "event: delegation-received (sent by a program)"
+      },
+      "custom-title": {
+       "count": 2,
+       "handling": "fact: session title"
+      },
+      "assistant:tool_use": {
+       "count": 3,
+       "handling": "event: action"
+      },
+      "user:tool_result": {
+       "count": 3,
+       "handling": "event: completes the matching action"
+      },
+      "user:slash-command-program": {
+       "count": 2,
+       "handling": "event: command (sent by a program)"
+      },
+      "attachment:hook_success": {
+       "count": 1,
+       "handling": "event: hook"
+      },
+      "system:stop_hook_summary": {
+       "count": 1,
+       "handling": "event: turn-end (stop hooks ran)"
+      }
+     },
+     "codex": {
+      "session_meta:": {
+       "count": 3,
+       "handling": "event: session (what started this thread)"
+      },
+      "response_item:message:user": {
+       "count": 3,
+       "handling": "event: delegation-received (a codex exec run)"
+      },
+      "response_item:message:assistant": {
+       "count": 3,
+       "handling": "event: message"
+      }
+     }
+    },
+    "contextCalls": {
+     "threshold": null,
+     "agents": []
+    },
+    "labels": {
+     "cc-bbnocplkofoh": "untitled, Jun 11, 4:20 PM: “Tidy the README.”"
+    },
+    "view": {
+     "asked": "redacted",
+     "shown": "redacted",
+     "note": null,
+     "privateState": "idle",
+     "window": {
+      "from": "2024-06-10",
+      "to": "2024-06-16",
+      "timezone": "UTC"
+     },
+     "demo": null
+    }
+   }
+  }
+ }
+}
