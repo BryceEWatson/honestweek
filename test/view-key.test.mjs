@@ -7,8 +7,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import '../lib/view/assets/key.js';
+import { markOtherSite } from '../lib/view/server.mjs';
 
-const { createKeyClient, NOTICE, KEY_SLOT, SWITCH_SLOT } = globalThis.HWKey;
+const { HWKey } = globalThis;
+const { createKeyClient, NOTICE, KEY_SLOT, SWITCH_SLOT } = HWKey;
 const KEY = 'k'.repeat(43);
 const OLD_KEY = 'o'.repeat(43);
 const CODE = 'one-time-code-1234';
@@ -62,7 +64,7 @@ function server({ key = KEY, codes = [CODE], status = () => ({ state: 'ready' })
   };
   return { fetch, calls, data: () => calls.filter((c) => c.url !== '/api/claim') };
 }
-function tab({ hash = '', store = storage(), BroadcastChannel = null, fetch, clock = {} } = {}) {
+function tab({ hash = '', store = storage(), BroadcastChannel = null, fetch, clock = {}, document = null } = {}) {
   const location = { hash, pathname: '/search.html', search: '' };
   const history = {
     state: null,
@@ -74,7 +76,7 @@ function tab({ hash = '', store = storage(), BroadcastChannel = null, fetch, clo
       location.search = u.search;
     },
   };
-  const client = createKeyClient({ fetch, sessionStorage: store, BroadcastChannel, location, history, askMs: 60, sleep: (ms) => new Promise((r) => setTimeout(r, Math.min(ms, 5))), ...clock });
+  const client = createKeyClient({ fetch, sessionStorage: store, BroadcastChannel, location, history, document, askMs: 60, sleep: (ms) => new Promise((r) => setTimeout(r, Math.min(ms, 5))), ...clock });
   return { client, location, history, store };
 }
 
@@ -123,7 +125,9 @@ test('key: with no code, no saved key and no other tab, the page says so and ask
   assert.equal(r.ok, false);
   assert.equal(r.reason, 'no-key');
   assert.equal(s.calls.length, 0, 'not one request reached the server');
-  assert.match(NOTICE['no-key'], /Open the address the command printed, or press Enter in the terminal/);
+  // The notice says exactly what to do: press Enter where the command runs and open the new address.
+  assert.match(NOTICE['no-key'], /In the terminal where honestweek view runs, press Enter, then open the new address it prints./);
+  assert.match(NOTICE.stale, /press Enter, then open the new address it prints./);
   lone.client.close();
 });
 
@@ -285,4 +289,51 @@ test('key: while a status answer is slow, the wait count goes on from the last a
   assert.equal((await waiting).ok, true);
   assert.deepEqual(seen, ['redacted 7 Reading 7 days of logs.', 'redacted 10 Reading 7 days of logs.', 'redacted 11 Reading 7 days of logs.'], 'one line per new second, never the same second twice');
   assert.equal(ticks[0], null, 'the count stops once the wait ends');
+});
+
+// ---- a page another website opened -------------------------------------------------------
+
+/** A page's document, enough for key.js's one lookup: a meta tag with the attributes asked for. */
+function pageDocument(html) {
+  return {
+    querySelector(sel) {
+      const want = [...sel.matchAll(/\[([a-z-]+)="([^"]*)"\]/g)];
+      if (!sel.startsWith('meta') || !want.length) return null;
+      for (const m of html.matchAll(/<meta\b[^>]*>/g)) if (want.every(([, k, v]) => m[0].includes(`${k}="${v}"`))) return { tag: m[0] };
+      return null;
+    },
+  };
+}
+
+test('key: a page the server marks as reached from another site never asks this run\'s other tabs for the key', async () => {
+  const s = server({ codes: [CODE, 'second-code-5678'] });
+  const BroadcastChannel = channelHub();
+  const first = tab({ hash: `#c=${CODE}`, fetch: s.fetch, BroadcastChannel });
+  assert.equal(await first.client.init(), 'ready');
+  const heard = [];
+  const listener = new BroadcastChannel(HWKey.CHANNEL);
+  listener.onmessage = (ev) => heard.push(ev.data.type);
+  const marked = pageDocument(markOtherSite(Buffer.from('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<title>Problems</title>\n</head><body></body></html>')).toString('utf8'));
+  // A tab another site opened has no code and an empty storage: it gets nothing.
+  const opened = tab({ fetch: s.fetch, BroadcastChannel, document: marked });
+  assert.equal(await opened.client.init(), 'no-key');
+  assert.equal(opened.client.key, null);
+  assert.equal(opened.store.getItem(KEY_SLOT), null);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(heard, [], 'not one ask went out on the channel');
+  await assert.rejects(opened.client.api('home'), (err) => err.code === 'no-key');
+  assert.equal(s.data().length, 0, 'no data request reached the server');
+  // The same page with the address's code works, and so does its own reload from storage.
+  const fromOpener = tab({ hash: '#c=second-code-5678', fetch: s.fetch, BroadcastChannel, document: marked });
+  assert.equal(await fromOpener.client.init(), 'ready');
+  const reload = tab({ store: fromOpener.store, fetch: s.fetch, BroadcastChannel, document: marked });
+  assert.equal(await reload.client.init(), 'ready');
+  assert.deepEqual(heard, [], 'still no ask');
+  // An unmarked page, the kind the app's own links open, still asks and gets the key.
+  const linked = tab({ fetch: s.fetch, BroadcastChannel, document: pageDocument('<head><meta charset="utf-8"></head>') });
+  assert.equal(await linked.client.init(), 'ready');
+  assert.equal(heard.filter((t) => t === 'ask').length, 1, 'only the unmarked page asked');
+  assert.ok(heard.includes('key'));
+  for (const t of [first, opened, fromOpener, reload, linked]) t.client.close();
+  listener.close();
 });

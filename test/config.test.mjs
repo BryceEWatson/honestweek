@@ -297,3 +297,10 @@ test('goalsFile must be a non-empty string', () => {
     assert.throws(() => normalizeConfig({ ...minimalValid(), goalsFile: bad }), /"goalsFile" must be a non-empty string/);
   }
 });
+
+test('longSessionTokens is optional, kept when it is a whole number in range, and refused otherwise', () => {
+  const raw = (more) => ({ identity: { authorEmails: ['you@example.com'] }, repos: [{ path: '/path/to/your/repo', label: 'your-project', role: 'featured' }], ...more });
+  assert.equal('longSessionTokens' in normalizeConfig(raw({}), { configDir: '/path/to' }), false);
+  assert.equal(normalizeConfig(raw({ longSessionTokens: 150_000 }), { configDir: '/path/to' }).longSessionTokens, 150_000);
+  for (const bad of [0, 9_999, 10_000_001, 1.5, '150000', null]) assert.throws(() => normalizeConfig(raw({ longSessionTokens: bad }), { configDir: '/path/to' }), /"longSessionTokens" must be a whole number from 10000 to 10000000/, String(bad));
+});

@@ -20,13 +20,13 @@ const SELFTEST = join(HERE, '..', 'lib', 'view', 'selftest');
 const PAGES = ['search.html', 'goal.html', 'replay.html', 'problems.html'];
 // The scripts each page loads after the shared ones, in order. prefs.js comes first of all, in
 // the head, so a stored light/dark choice is on the page before anything is drawn.
-const PAGE_SCRIPTS = { 'search.html': ['search.js'], 'goal.html': ['strip.js', 'goal.js'], 'replay.html': ['facts.js', 'replay-model.js', 'replay.js'], 'problems.html': ['insights.js', 'facts.js', 'problems.js'] };
+const PAGE_SCRIPTS = { 'search.html': ['search.js'], 'goal.html': ['strip.js', 'goal.js'], 'replay.html': ['facts.js', 'replay-model.js', 'sessions.js', 'replay.js'], 'problems.html': ['insights.js', 'facts.js', 'problems.js'] };
 const IN_HEAD = /<head>[^]*<script src="prefs\.js"><\/script>\s*<link rel="stylesheet" href="common\.css">[^]*<\/head>/;
 // The package author's name, read from package.json so this test doesn't spell out a real name.
 const OWNER_WORDS = String(JSON.parse(readFileSync(join(HERE, '..', 'package.json'), 'utf8')).author ?? '')
   .split(/\s+/)
   .filter((w) => /^[A-Za-z]{3,}$/.test(w));
-const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js', 'replay-model.js', 'problems.js', 'insights.js', 'facts.js', 'prefs.js', 'strip.js'];
+const SCRIPTS = ['evidence.js', 'key.js', 'private-text.js', 'common.js', 'search.js', 'goal.js', 'replay.js', 'replay-model.js', 'problems.js', 'insights.js', 'facts.js', 'prefs.js', 'strip.js', 'sessions.js'];
 const files = () => [...readdirSync(ASSETS).map((f) => ({ name: f, path: join(ASSETS, f) })), ...readdirSync(SELFTEST).map((f) => ({ name: `selftest/${f}`, path: join(SELFTEST, f) }))].map((f) => ({ ...f, text: readFileSync(f.path, 'utf8') }));
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
 
@@ -246,6 +246,24 @@ test("the pages say a prompt from a non-interactive run is a person's or a scrip
   const typed = HW.who({ id: 'cc-abcdefghijkl.1.0', kind: 'prompt', actor: 'person', inferred: [] });
   assert.equal(typed.short, 'You');
   assert.equal(typed.level, 'recorded');
+});
+
+test("the pages put a program's command and instructions in the agent's lane, never yours", () => {
+  const sandbox = { window: { HWE: { chips: () => '' }, HWP: {} }, document: { getElementById: () => null } };
+  runInNewContext(readFileSync(join(ASSETS, 'common.js'), 'utf8'), sandbox);
+  const HW = sandbox.window.HW;
+  const agent = 'cc-abcdefghijkl:main';
+  const sent = [{ kind: 'command', facts: { name: '/review', from: 'program' } }, { kind: 'delegation-received', facts: { from: 'program' } }, { kind: 'agent-message', facts: { from: 'program', direction: 'inbound' } }];
+  for (const e of sent.map((x, i) => ({ id: `cc-abcdefghijkl.${i}.0`, actor: 'program', agent, inferred: [], ...x }))) {
+    assert.deepEqual([HW.who(e).short, HW.who(e).level], ['A program', 'recorded'], e.kind);
+    assert.equal(HW.laneOf(e), agent, e.kind);
+  }
+  // The same command typed by you stays in your lane.
+  assert.equal(HW.laneOf({ id: 'cc-abcdefghijkl.9.0', kind: 'command', actor: 'person', agent, inferred: [] }), 'person');
+  // Replay's show-or-hide list counts a program's turns apart from your slash commands.
+  const replay = readFileSync(join(ASSETS, 'replay.js'), 'utf8');
+  assert.match(replay, /p\.e\.actor === 'program' \? 'kind:program'/);
+  assert.match(replay, /\['kind:program', 'Sent by a program/);
 });
 
 test("a goal's session count on a page is no stronger than its weakest session", () => {
@@ -515,9 +533,196 @@ test("Replay's story never hides a failed test run in a group, and every grouped
   const replay = readFileSync(join(ASSETS, 'replay.js'), 'utf8');
   // A failed run stands alone, the way a step with a finding does.
   assert.match(replay, /const standsAlone = \(e\) => F\.flags\.has\(e\.id\) \|\| RM\.isLongWait\(e\) \|\| !!resultOf\(e\)\?\.fail;/);
-  // An opened group's rows show each step's result and how it's known.
-  assert.match(replay, /<\/code>\$\{kidRes\(e\)\} \$\{sym\(e\.ev\)\}<\/button><\/li>/);
+  // An opened group's rows show each step's result and how it's known (in the problem focus's
+  // list, "See in the whole session" follows the row's button).
+  assert.match(replay, /<\/code>\$\{kidRes\(e\)\} \$\{sym\(e\.ev\)\}<\/button>\$\{wholeLink\(e\)\}<\/li>/);
   // The count worth a look carries its weakest mark and says how many of them are only possible.
   assert.match(replay, /worth a look \$\{sym\(window\.HWE\.weakest\(c\.levels\)\)\}/);
   assert.match(replay, /\$\{c\.possible\} of them possible/);
+});
+
+test('a page with no working key offers no link back into the pages, since each would only lead to the same notice', () => {
+  const common = readFileSync(join(ASSETS, 'common.js'), 'utf8');
+  assert.doesNotMatch(common, /Back to search/);
+  // Every key notice (no key, a refused key, a stopped server) is drawn keyless; other errors keep a link home.
+  const calls = [...common.matchAll(/fatal\(noticeHtml\([^)]*\)([^;]*);/g)].map((m) => m[1]);
+  assert.ok(calls.length >= 4 && calls.every((rest) => /\{ keyless: true \}/.test(rest)), 'every key notice is keyless');
+  assert.match(common, /keyless \? '' : ' <p><a href="problems\.html">Back to Problems<\/a><\/p>'/);
+});
+
+test('the goals page says goal discovery is coming, beside its title, on the page and not in a script', () => {
+  const html = readFileSync(join(ASSETS, 'goal.html'), 'utf8');
+  assert.match(html, /<div class="pagehead">\s*<h1 class="ph-title">[^]*?<\/h1>\s*<span class="tag" id="soon">Coming soon: Goal discovery<\/span>/);
+});
+
+test("Settings reads the long-session limit as typed: empty is off, 150k and 150,000 are numbers, the rest goes to the server", () => {
+  const js = readFileSync(join(ASSETS, 'settings.js'), 'utf8');
+  const src = /function tokensOf\(text\) \{[^]*?\n {2}\}/.exec(js)?.[0];
+  assert.ok(src, 'settings.js: tokensOf');
+  const tokensOf = runInNewContext(`(${src})`);
+  assert.equal(tokensOf(''), null);
+  assert.equal(tokensOf('   '), null);
+  for (const t of ['150000', '150,000', '150k', '150K', ' 150_000 ']) assert.equal(tokensOf(t), 150000, t);
+  // The page shows a saved limit as 150,000, so saving another field sends the same number back.
+  assert.equal(tokensOf((150000).toLocaleString('en-US')), 150000);
+  for (const t of ['lots', '1.5e5', '-5']) assert.equal(tokensOf(t), t, t);
+});
+
+test("Replay's story draws a few prompt cards around the selected step, never a long session whole", () => {
+  const js = readFileSync(join(ASSETS, 'replay.js'), 'utf8');
+  const consts = js.match(/ {2}const CARDS_ALL = [^]*?let storyWin = null;[^\n]*\n/)[0];
+  const fn = js.match(/ {2}function windowFor\(c\) \{[^]*?\n {2}\}/)[0];
+  const box = {};
+  runInNewContext(`let story;\n${consts}${fn}\nthis.win = (n, c, prev = null) => { story = { cards: new Array(n).fill(0) }; storyWin = prev; return windowFor(c); };`, box);
+  const w = (n, c, prev) => ({ ...box.win(n, c, prev) });
+  assert.deepEqual(w(5, 2), { from: 0, to: 4 }, 'a few prompts: all of them');
+  assert.deepEqual(w(72, 0), { from: 0, to: 1 });
+  assert.deepEqual(w(72, 71), { from: 70, to: 71 });
+  assert.deepEqual(w(72, 30), { from: 29, to: 31 }, 'one card on each side');
+  assert.deepEqual(w(72, undefined), { from: 70, to: 71 }, 'no selection: the latest');
+  assert.deepEqual(w(72, 33, { from: 29, to: 37 }), { from: 29, to: 37 }, 'cards the reader asked for stay while the selection is among them');
+  assert.deepEqual(w(72, 50, { from: 29, to: 37 }), { from: 49, to: 51 }, 'a selection elsewhere moves the window');
+  // A long card draws its first rows and asks before the rest; the selected row is always drawn.
+  assert.match(js, /const cut = c\.rows\.length > ROWS_ALL && !openCards\.has\(i\);/);
+  assert.match(js, /if \(!row && at && storyWin && !focusList\(\)\) \{/);
+});
+
+test('Replay names what came just before the selected step: its lane\'s step before, or the call that started a helper', () => {
+  const js = readFileSync(join(ASSETS, 'replay.js'), 'utf8');
+  const prior = js.match(/ {2}function priorOf\(e\) \{[^]*?\n {2}\}/)[0];
+  const starter = js.match(/ {2}const starterOf = \(agent\) => \{[^]*?\n {2}\};/)[0];
+  const ev = (id, agent, t) => ({ id, agent, t });
+  const call = ev('call', 'main', 5);
+  const steps = [ev('p', 'main', 1), call, ev('i', 'helper', 6), ev('a', 'helper', 8), ev('m', 'main', 9), ev('b', 'helper', 10)];
+  const HW = { data: { byId: new Map([...steps, call].map((s) => [s.id, s])), agentByKey: new Map([['helper', { spawnedBy: 'call' }], ['lonely', { spawnedBy: null }]]) } };
+  const box = { steps, HW };
+  runInNewContext(`${starter}\n${prior}\nthis.prior = (id) => { const e = HW.data.byId.get(id) ?? { id, agent: id.split(':')[0], t: 99 }; const p = priorOf(e); return p ? [p.step.id, p.how].join(' ') : null; };`, box);
+  assert.equal(box.prior('b'), 'a before', "the step before in the helper's own lane, past the parent's step between");
+  assert.equal(box.prior('a'), 'i before', "the helper's opening record");
+  assert.equal(box.prior('i'), 'call started', 'its first record: the call that started it');
+  assert.equal(box.prior('p'), null, 'the first step of the main lane has nothing before it');
+  assert.equal(box.prior('lonely:x'), null, 'a helper the logs never say started has none');
+  // Clicking one widens the zoom just enough to hold it, and ◀ Step goes on past a focus's first step.
+  assert.match(js, /if \(s\.t < view\[0\] \|\| s\.t > view\[1\]\) \{/);
+  assert.match(js, /const e = dir < 0 && Z && list === navSteps \? HW\.data\.byId\.get\(selId\) : null;/);
+  assert.match(readFileSync(join(ASSETS, 'replay.html'), 'utf8'), /<span class="rp-now-before" id="nowBefore"><\/span>/);
+});
+
+// ---- Replay's starting list ------------------------------------------------------------------
+
+/** A stand-in for anything the pages touch that these tests don't read: every property and call
+ *  gives it back, so a script runs to the part under test. */
+const ANY = new Proxy(function () {}, { get: (t, k) => (k === Symbol.toPrimitive ? () => '' : k === Symbol.iterator ? [][Symbol.iterator] : k === 'then' ? undefined : ANY), apply: () => ANY, construct: () => ANY, set: () => true });
+
+/** The replay page's scripts run at `href` with a stand-in document: evidence.js, common.js,
+ *  sessions.js and replay.js as replay.html loads them. `answers(route, q)` answers HW.load; the
+ *  page's elements by id are plain objects, kept in `els`. */
+function replayPage(href, answers = () => ({})) {
+  const url = new URL(href, 'http://127.0.0.1:1/');
+  const els = new Map();
+  const el = (id) => {
+    if (!els.has(id)) els.set(id, { id, innerHTML: '', textContent: '', hidden: false, dataset: {}, removed: false, listeners: [], remove() { this.removed = true; }, addEventListener(type, fn) { this.listeners.push([type, fn]); }, querySelector: () => null, querySelectorAll: () => [], classList: ANY, setAttribute() {}, closest: () => null, insertAdjacentHTML() {} });
+    return els.get(id);
+  };
+  const document = new Proxy({ getElementById: el, querySelector: (sel) => (sel === '[data-fatal]' ? el('fatal') : ANY), querySelectorAll: () => [], body: { dataset: {} }, readyState: 'complete', addEventListener() {}, createElement: () => ANY, documentElement: ANY }, { get: (t, k) => (k in t ? t[k] : ANY) });
+  const box = { document, location: { href: url.href, pathname: url.pathname, search: url.search, hash: url.hash }, history: ANY, URLSearchParams, CSS: { escape: (s) => s }, setTimeout, clearTimeout, setInterval, clearInterval, requestAnimationFrame: () => 0, matchMedia: () => ANY, getComputedStyle: () => ANY, ResizeObserver: function () { return ANY; }, navigator: ANY, console };
+  box.window = box;
+  box.HWP = ANY;
+  box.addEventListener = () => {};
+  for (const f of ['evidence.js', 'common.js', 'sessions.js']) runInNewContext(readFileSync(join(ASSETS, f), 'utf8'), box);
+  const calls = { load: [], shown: 0, run: null };
+  box.HW.load = async (route, q = {}) => {
+    calls.load.push([route, { ...q }]);
+    return answers(route, q);
+  };
+  box.HW.start = (fn) => {
+    calls.run = fn;
+  };
+  const show = box.HWSessions.show;
+  box.HWSessions = { show: () => ((calls.shown += 1), show()) };
+  runInNewContext(readFileSync(join(ASSETS, 'replay.js'), 'utf8'), box);
+  return { box, els, calls };
+}
+
+test("Replay with nothing chosen opens the list of the window's sessions; a chosen thread or session, or an old #thread address, opens its replay", async () => {
+  const stop = () => {
+    throw Object.assign(new Error('the test stops here'), { code: 'stop' });
+  };
+  for (const href of ['replay.html', 'replay.html#', 'replay.html#not-an-id', 'replay.html?session=../x']) {
+    const p = replayPage(href, (route) => (route === 'sessions' ? { days: [], empty: 'Nothing here.' } : stop()));
+    await p.calls.run();
+    assert.equal(p.calls.shown, 1, `${href}: the list`);
+    assert.deepEqual(p.calls.load, [['sessions', {}]], `${href}: asks only for the list, never the most recent thread`);
+  }
+  const opened = {
+    'replay.html#th-abcd': { thread: 'th-abcd' },
+    'replay.html#th-abcd~zoom~pf-abcdabcdabcd': { thread: 'th-abcd' },
+    'replay.html#th-abcd~cc-abcd.1.0': { thread: 'th-abcd' },
+    'replay.html?session=cc-abcdabcd': { session: 'cc-abcdabcd' },
+    'replay.html?session=cc-abcdabcd#th-abcd': { thread: 'th-abcd' },
+  };
+  for (const [href, q] of Object.entries(opened)) {
+    const p = replayPage(href, stop);
+    await assert.rejects(p.calls.run(), /the test stops here/);
+    assert.equal(p.calls.shown, 0, `${href}: no list`);
+    assert.deepEqual(p.calls.load, [['replay', q]], `${href}: loads its replay directly`);
+  }
+  // Every replay has the way back, in the page head and in a problem's focus.
+  const html = readFileSync(join(ASSETS, 'replay.html'), 'utf8');
+  assert.match(html, /<p class="rp-meta"><a class="rp-back" id="allSessions" href="replay\.html">← All sessions<\/a>/);
+  assert.match(readFileSync(join(ASSETS, 'replay.js'), 'utf8'), /<a class="fall" href="replay\.html">All sessions<\/a><button type="button" class="fleave"/);
+  // Find's Recent card links to the whole list, and stays five rows long.
+  const search = readFileSync(join(ASSETS, 'search.js'), 'utf8');
+  assert.match(search, /<a href="replay\.html" id="allSessions">All sessions<\/a>/);
+  assert.match(search, /const SHOW_RECENT = 5;/);
+});
+
+test('the sessions list draws each day with a few rows, says when a session is display-only or outside, and offers a page more at a time', async () => {
+  const row = (session, extra = {}) => ({ session, thread: 'th-abcd', tool: 'claude-code', repo: 'your-project', group: 'configured', title: `Title ${session}`, firstAt: '2025-03-15T14:20:05.000Z', lastAt: '2025-03-15T14:47:48.000Z', startedBy: null, evidence: 'recorded', length: { value: 1663000, evidence: 'derived' }, prompts: { value: 3, evidence: 'derived' }, problems: { value: 2, evidence: 'inferred' }, ...extra });
+  const list = {
+    timezone: 'UTC',
+    total: { value: 30, evidence: 'derived' },
+    page: 20,
+    days: [
+      { day: '2025-03-15', evidence: 'derived', count: { value: 27, evidence: 'derived' }, more: { value: 25, evidence: 'derived' }, rows: [row('cc-aaaa'), row('cc-bbbb', { group: 'display', repo: 'your-site', problems: null, title: 'Draft a post about [redacted:term]' })] },
+      { day: '2025-03-14', evidence: 'derived', count: { value: 3, evidence: 'derived' }, more: { value: 0, evidence: 'derived' }, rows: [row('cx-cccc', { tool: 'codex', group: 'outside', repo: null, problems: null, prompts: { value: 0, evidence: 'derived' }, startedBy: { text: 'started by codex exec, no prompt', evidence: 'recorded' } })] },
+    ],
+    older: { before: '2025-03-14', days: { value: 2, evidence: 'derived' } },
+  };
+  const p = replayPage('replay.html', (route) => (route === 'sessions' ? list : {}));
+  await p.calls.run();
+  const content = p.els.get('content').innerHTML;
+  assert.equal(p.els.get('title').textContent, 'Sessions');
+  assert.ok(p.els.get('allSessions').removed, 'the list has no link to itself');
+  assert.match(content, /<h2 id="day-2025-03-15">Sat, Mar 15<\/h2>/);
+  assert.match(content, /<a class="t" href="replay\.html\?session=cc-aaaa#th-abcd">Title cc-aaaa<\/a>/);
+  assert.match(content, /2:20 PM[^]*28 min[^]*Claude Code · your-project · 3 prompts[^]*<a href="problems\.html\?session=cc-aaaa">2 problems worth a look<\/a>/);
+  assert.match(content, /Draft a post about \[redacted:term\][^]*your-site · display-only repo/, 'a display-only session says so, as Find does');
+  assert.match(content, /Codex · outside your config · started by codex exec, no prompt/, 'an outside session says so; no prompt says what opened it');
+  assert.equal((content.match(/worth a look/g) ?? []).length, 1, 'no count for a session the checks never read');
+  assert.match(content, /<button type="button" class="linklike" data-more="2025-03-15" data-shown="2">Show 20 more<\/button>/, 'a page more, never the whole rest');
+  assert.doesNotMatch(content, /data-more="2025-03-14"/, 'a day all shown offers nothing more');
+  assert.match(content, /data-older="2025-03-14">Show earlier days \(2 more days\)<\/button>/);
+  // Ids only, never a title, in every address the list builds.
+  for (const m of content.matchAll(/href="([^"]+)"/g)) assert.match(m[1], /^(replay|problems)\.html(\?session=[a-z]{2,4}-[a-p]+)?(#th-[a-p]+)?$/, m[1]);
+  // An empty window: the page says so and points to search, as Replay always has.
+  const none = replayPage('replay.html', () => ({ days: [], empty: 'Nothing.' }));
+  await none.calls.run();
+  assert.match(none.els.get('content').innerHTML, /data-fatal="1">Nothing [^]*<a href="search\.html">Search<\/a> for a session to replay/);
+  assert.equal(none.els.get('fatal').dataset.fatal, 'no-thread');
+  assert.ok(none.els.get('allSessions').removed, 'an empty list has no link to itself either');
+});
+
+test('the sessions list names the year on each day when the window spans more than one calendar year', async () => {
+  const day = (d) => ({ day: d, evidence: 'derived', count: { value: 1, evidence: 'derived' }, more: { value: 0, evidence: 'derived' }, rows: [] });
+  const draw = async (extra) => {
+    const p = replayPage('replay.html', (route) => (route === 'sessions' ? { timezone: 'UTC', total: { value: 2, evidence: 'derived' }, page: 20, days: [day('2026-01-05'), day('2025-01-06')], older: null, ...extra } : {}));
+    await p.calls.run();
+    return p.els.get('content').innerHTML;
+  };
+  const spanning = await draw({ spansYears: true });
+  assert.match(spanning, /<h2 id="day-2026-01-05">Mon, Jan 5, 2026<\/h2>/);
+  assert.match(spanning, /<h2 id="day-2025-01-06">Mon, Jan 6, 2025<\/h2>/);
+  // Without the flag, as before: no year.
+  assert.match(await draw({}), /<h2 id="day-2026-01-05">Mon, Jan 5<\/h2>/);
 });

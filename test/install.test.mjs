@@ -57,16 +57,21 @@ test('README documents the plugin-marketplace install route (in-app and terminal
   assert.match(README, /claude plugin marketplace add BryceEWatson\/honestweek/);
 });
 
-test('README documents the no-publish npx-from-GitHub install', () => {
-  assert.match(README, /npx github:BryceEWatson\/honestweek/);
+test('README leads with "npx honestweek" from npm, and no longer says it is unpublished', () => {
+  const first = README.indexOf('npx honestweek');
+  const github = README.indexOf('npx github:BryceEWatson/honestweek');
+  assert.ok(first !== -1 && first < github, 'npx honestweek comes before the npx-from-GitHub form');
+  assert.match(README, /npm install -g honestweek\b/);
+  assert.doesNotMatch(README, /Nothing is on npm yet|isn't on npm yet|Once it's published to npm/);
 });
 
-test('README does not advertise a bare "npx honestweek" as if it works today', () => {
-  // npx honestweek may be mentioned, but only flagged as future / not-yet-published
-  const idx = README.indexOf('npx honestweek');
-  if (idx !== -1) {
-    const around = README.slice(Math.max(0, idx - 140), idx + 80);
-    assert.match(around, /not yet|once .*publish|planned/i, 'npx honestweek must be marked future / not-yet-published');
+test('README keeps npx-from-GitHub, only as the way to run unreleased code', () => {
+  const re = /npx github:BryceEWatson\/honestweek/g;
+  const hits = [...README.matchAll(re)];
+  assert.ok(hits.length >= 1, 'the npx-from-GitHub form is still documented');
+  for (const hit of hits) {
+    const around = README.slice(Math.max(0, hit.index - 200), hit.index);
+    assert.match(around, /unreleased code/, 'npx-from-GitHub is introduced as running unreleased code');
   }
 });
 

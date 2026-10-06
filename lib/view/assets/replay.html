@@ -21,10 +21,15 @@
 <div class="demo" id="demo" hidden></div>
 <p class="statusline" id="status" role="status" hidden></p>
 <div class="pagehead rp-head">
-  <p class="rp-meta"><span class="rp-tool" id="tool" hidden></span><span id="meta"></span></p>
+  <p class="rp-meta"><a class="rp-back" id="allSessions" href="replay.html">← All sessions</a><span class="rp-tool" id="tool" hidden></span><span id="meta"></span><span id="startedBy" hidden></span></p>
   <h1 class="ph-title" id="title"></h1>
 </div>
 <div class="rp" id="content">
+  <section class="focus" id="focus" aria-label="This problem" hidden>
+    <div class="fhead" id="focusHead"></div>
+    <section class="fcard fwhat" id="focusWhat" aria-labelledby="focusCaption" tabindex="-1"></section>
+    <section class="fcard fdraw" id="focusDraw" aria-labelledby="focusDrawH"></section>
+  </section>
   <section class="tlcard rp-tl" id="timeline" aria-label="Timeline" tabindex="-1">
     <div class="rp-bar">
       <span class="rp-sum" id="pSummary">Checking for problems…</span>
@@ -39,7 +44,7 @@
     <div class="zoombar" id="zoombar" hidden></div>
     <div class="zoombar zfind" id="zoomFinding" role="region" aria-label="Zoomed to a finding's steps" tabindex="-1" hidden></div>
     <p class="warn" id="undrawn" hidden></p>
-    <div class="rp-now" id="now"><strong class="readout" id="readout"></strong><span class="rp-now-lane" id="nowLane"></span><span class="rp-now-text" id="nowText"></span><span class="rp-now-span" id="nowSpan"></span><span id="nowFlag"></span><span class="rp-gap"></span><button type="button" class="linklike rp-jump" id="toStory">↓ In the steps</button></div>
+    <div class="rp-now" id="now"><strong class="readout" id="readout"></strong><span class="rp-now-lane" id="nowLane"></span><span class="rp-now-text" id="nowText"></span><span class="rp-now-span" id="nowSpan"></span><span id="nowFlag"></span><span class="rp-now-before" id="nowBefore"></span><span class="rp-gap"></span><button type="button" class="linklike rp-jump" id="toStory">↓ In the steps</button></div>
     <svg id="chart" class="chart" role="group" aria-label="Every recorded step by agent and tool over time; a long stretch with no new step is squeezed into a narrow break labelled by what filled it. Each step is a button; the list after the chart reads them in order."></svg>
     <div class="rp-scrub" id="scrub"><input type="range" id="slider" min="0" max="1000" value="0" aria-label="Time in the session"></div>
     <div class="player rp-player">
@@ -64,6 +69,7 @@
   <ol class="sr" id="chartSteps"></ol>
   <div class="rp-below">
     <section class="rp-story" id="story" aria-label="What happened, step by step">
+      <div class="fsteps-head" id="focusStepsHead" hidden></div>
       <div class="rp-mode"><div class="rp-seg" role="group" aria-label="How much to show"><button type="button" id="modeMatters" aria-pressed="true">What matters</button><button type="button" id="modeAll" aria-pressed="false">Every step</button></div><span class="rp-mode-note" id="modeNote">Repeated steps are grouped.</span></div>
       <div id="storyBody"></div>
     </section>
@@ -110,6 +116,7 @@
 <script src="common.js"></script>
 <script src="facts.js"></script>
 <script src="replay-model.js"></script>
+<script src="sessions.js"></script>
 <script src="replay.js"></script>
 </body>
 </html>

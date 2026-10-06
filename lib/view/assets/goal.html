@@ -21,14 +21,15 @@
 <p class="statusline" id="status" role="status" hidden></p>
 <div class="pagehead">
   <h1 class="ph-title"><span class="ph-big">Replay by goal</span> <span class="ph-sub">one goal's sessions in this window, on one clock</span></h1>
+  <span class="tag" id="soon">Coming soon: Goal discovery</span>
   <span id="wlBadge"></span>
 </div>
 <div class="wrap" id="content">
   <div class="chartcol">
     <div class="goalbar">
       <label for="goal" class="kbd">Goal</label>
-      <select id="goal"></select>
-      <span class="meta" id="goalMeta"></span>
+      <select id="goal"><option value="">Checking…</option></select>
+      <span class="meta" id="goalMeta"><span class="spin" aria-hidden="true"></span>Checking…</span>
     </div>
     <div class="tlcard">
       <div class="toolbar" role="group" aria-label="What the timeline shows">

@@ -1,0 +1,522 @@
+{
+ "events": [
+  {
+   "id": "cc-ondgkgpknccf.1.0",
+   "kind": "prompt",
+   "at": "2024-06-11T16:00:00.000Z",
+   "t": 1718121600000,
+   "timeFrom": "record",
+   "source": "cc-ondgkgpknccf",
+   "session": "cc-ondgkgpknccf",
+   "agent": "cc-ondgkgpknccf:main",
+   "actor": "person",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-ondgkgpknccf",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "text": "fix the flaky test",
+    "chars": 18,
+    "origin": null,
+    "index": 1
+   },
+   "derived": {},
+   "inferred": [
+    {
+     "key": "authorship",
+     "value": "person",
+     "rule": "prompt.authorship.no-origin"
+    }
+   ],
+   "missing": [],
+   "turn": "cc-ondgkgpknccf.1.0"
+  },
+  {
+   "id": "cc-ondgkgpknccf.2.0",
+   "kind": "message",
+   "at": "2024-06-11T16:01:00.000Z",
+   "t": 1718121660000,
+   "timeFrom": "record",
+   "source": "cc-ondgkgpknccf",
+   "session": "cc-ondgkgpknccf",
+   "agent": "cc-ondgkgpknccf:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-ondgkgpknccf",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Fixed it.",
+    "chars": 9,
+    "to": "person"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-ondgkgpknccf.1.0"
+  },
+  {
+   "id": "cc-ondgkgpknccf.3.0",
+   "kind": "prompt",
+   "at": "2024-06-11T16:02:00.000Z",
+   "t": 1718121720000,
+   "timeFrom": "record",
+   "source": "cc-ondgkgpknccf",
+   "session": "cc-ondgkgpknccf",
+   "agent": "cc-ondgkgpknccf:main",
+   "actor": "person",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-ondgkgpknccf",
+     "line": 3
+    }
+   ],
+   "facts": {
+    "text": "and the docs too",
+    "chars": 16,
+    "origin": "human",
+    "index": 2
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-ondgkgpknccf.3.0"
+  },
+  {
+   "id": "cc-ondgkgpknccf.4.0",
+   "kind": "command",
+   "at": "2024-06-11T16:03:00.000Z",
+   "t": 1718121780000,
+   "timeFrom": "record",
+   "source": "cc-ondgkgpknccf",
+   "session": "cc-ondgkgpknccf",
+   "agent": "cc-ondgkgpknccf:main",
+   "actor": "person",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-ondgkgpknccf",
+     "line": 4
+    }
+   ],
+   "facts": {
+    "name": "/review",
+    "args": "the docs"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-ondgkgpknccf.4.0"
+  },
+  {
+   "id": "cc-ondgkgpknccf.5.0",
+   "kind": "agent-message",
+   "at": "2024-06-11T16:04:00.000Z",
+   "t": 1718121840000,
+   "timeFrom": "record",
+   "source": "cc-ondgkgpknccf",
+   "session": "cc-ondgkgpknccf",
+   "agent": "cc-ondgkgpknccf:main",
+   "actor": "peer",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-ondgkgpknccf",
+     "line": 5
+    }
+   ],
+   "facts": {
+    "direction": "inbound",
+    "from": "peer",
+    "name": "helper",
+    "text": "the docs folder moved"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-ondgkgpknccf.5.0"
+  },
+  {
+   "id": "cc-ondgkgpknccf.6.0",
+   "kind": "notification",
+   "at": "2024-06-11T16:05:00.000Z",
+   "t": 1718121900000,
+   "timeFrom": "record",
+   "source": "cc-ondgkgpknccf",
+   "session": "cc-ondgkgpknccf",
+   "agent": "cc-ondgkgpknccf:main",
+   "actor": "harness",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-ondgkgpknccf",
+     "line": 6
+    }
+   ],
+   "facts": {
+    "status": "completed",
+    "summary": "Background build finished",
+    "delivery": "turn"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [
+    "reported-task"
+   ],
+   "turn": "cc-ondgkgpknccf.6.0"
+  },
+  {
+   "id": "cc-ondgkgpknccf.7.0",
+   "kind": "message",
+   "at": "2024-06-11T16:06:00.000Z",
+   "t": 1718121960000,
+   "timeFrom": "record",
+   "source": "cc-ondgkgpknccf",
+   "session": "cc-ondgkgpknccf",
+   "agent": "cc-ondgkgpknccf:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-ondgkgpknccf",
+     "line": 7
+    }
+   ],
+   "facts": {
+    "text": "Updated the docs.",
+    "chars": 17,
+    "to": "person"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-ondgkgpknccf.6.0"
+  },
+  {
+   "id": "cc-hfkilbpeekda.1.0",
+   "kind": "command",
+   "at": "2024-06-11T16:10:00.000Z",
+   "t": 1718122200000,
+   "timeFrom": "record",
+   "source": "cc-hfkilbpeekda",
+   "session": "cc-hfkilbpeekda",
+   "agent": "cc-hfkilbpeekda:main",
+   "actor": "person",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-hfkilbpeekda",
+     "line": 1
+    }
+   ],
+   "facts": {
+    "name": "/deploy",
+    "args": "production"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-hfkilbpeekda.1.0"
+  },
+  {
+   "id": "cc-hfkilbpeekda.2.0",
+   "kind": "message",
+   "at": "2024-06-11T16:11:00.000Z",
+   "t": 1718122260000,
+   "timeFrom": "record",
+   "source": "cc-hfkilbpeekda",
+   "session": "cc-hfkilbpeekda",
+   "agent": "cc-hfkilbpeekda:main",
+   "actor": "agent",
+   "evidence": "recorded",
+   "refs": [
+    {
+     "src": "cc-hfkilbpeekda",
+     "line": 2
+    }
+   ],
+   "facts": {
+    "text": "Deployed.",
+    "chars": 9,
+    "to": "person"
+   },
+   "derived": {},
+   "inferred": [],
+   "missing": [],
+   "turn": "cc-hfkilbpeekda.1.0"
+  }
+ ],
+ "sessions": [
+  {
+   "key": "cc-ondgkgpknccf",
+   "endState": "last-record-is-message",
+   "firstAt": "2024-06-11T16:00:00.000Z",
+   "lastAt": "2024-06-11T16:06:00.000Z",
+   "tool": "claude-code",
+   "agents": [
+    "cc-ondgkgpknccf:main"
+   ],
+   "title": null
+  },
+  {
+   "key": "cc-hfkilbpeekda",
+   "endState": "last-record-is-message",
+   "firstAt": "2024-06-11T16:10:00.000Z",
+   "lastAt": "2024-06-11T16:11:00.000Z",
+   "tool": "claude-code",
+   "agents": [
+    "cc-hfkilbpeekda:main"
+   ],
+   "title": null
+  }
+ ],
+ "metrics": [
+  {
+   "prompts": {
+    "value": 2,
+    "evidence": "inferred",
+    "rule": "prompt.authorship.no-origin",
+    "promptsWithInferredAuthor": 1
+   },
+   "corrections": {
+    "value": 0,
+    "evidence": "inferred",
+    "rule": "prompt.correction"
+   },
+   "approvals": {
+    "value": 0,
+    "evidence": "inferred",
+    "rule": "prompt.approval"
+   },
+   "decisions": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "interrupts": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "actions": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "actionsWithoutRecordedResult": {
+    "value": 0,
+    "evidence": "missing"
+   },
+   "delegations": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "agentsStartedByARecordedCall": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "agentsWithoutARecordedStart": {
+    "value": 0,
+    "evidence": "missing",
+    "note": "an inline sub-agent from an older log may stand for several"
+   },
+   "edits": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "filesEdited": {
+    "value": 0,
+    "evidence": "derived"
+   },
+   "testRuns": {
+    "value": 0,
+    "evidence": "inferred",
+    "rule": "shell.test",
+    "note": "runs that were rejected, refused, or interrupted are not counted"
+   },
+   "testRunsAllPassed": {
+    "value": 0,
+    "evidence": "inferred",
+    "rule": "shell.test"
+   },
+   "testRunsWithFailures": {
+    "value": 0,
+    "evidence": "inferred",
+    "rule": "shell.test",
+    "note": "the summary shows a failed test, or a test file or suite that failed to load"
+   },
+   "testRunsUnclear": {
+    "value": 0,
+    "evidence": "missing",
+    "note": "the summary shows no failure, but the command failed or its success was not recorded; the record does not say which part, if any, failed"
+   },
+   "testRunsWithoutSummary": {
+    "value": 0,
+    "evidence": "missing"
+   },
+   "reviews": {
+    "value": 0,
+    "evidence": "inferred",
+    "rule": "review.delegation | review.skill"
+   },
+   "eventsInPrivateSessions": {
+    "value": 0,
+    "evidence": "recorded",
+    "note": "kind, time, and step category only; content not read"
+   },
+   "guards": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "errors": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "commitsFoundInGit": {
+    "value": 0,
+    "evidence": "recorded",
+    "by": "git",
+    "note": "whoever authored them, including commits later replaced by an amend or a rebase (see onDefaultBranch)"
+   },
+   "commitsByConfiguredIdentity": {
+    "value": 0,
+    "evidence": "recorded",
+    "by": "git",
+    "note": "including commits later replaced by an amend or a rebase (see onDefaultBranch)"
+   },
+   "prsLanded": {
+    "value": 0,
+    "evidence": "inferred",
+    "by": "git",
+    "rule": "git.pr-number-from-subject"
+   },
+   "quietIntervals": {
+    "value": 0,
+    "evidence": "derived"
+   }
+  },
+  {
+   "prompts": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "corrections": {
+    "value": 0,
+    "evidence": "inferred",
+    "rule": "prompt.correction"
+   },
+   "approvals": {
+    "value": 0,
+    "evidence": "inferred",
+    "rule": "prompt.approval"
+   },
+   "decisions": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "interrupts": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "actions": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "actionsWithoutRecordedResult": {
+    "value": 0,
+    "evidence": "missing"
+   },
+   "delegations": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "agentsStartedByARecordedCall": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "agentsWithoutARecordedStart": {
+    "value": 0,
+    "evidence": "missing",
+    "note": "an inline sub-agent from an older log may stand for several"
+   },
+   "edits": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "filesEdited": {
+    "value": 0,
+    "evidence": "derived"
+   },
+   "testRuns": {
+    "value": 0,
+    "evidence": "inferred",
+    "rule": "shell.test",
+    "note": "runs that were rejected, refused, or interrupted are not counted"
+   },
+   "testRunsAllPassed": {
+    "value": 0,
+    "evidence": "inferred",
+    "rule": "shell.test"
+   },
+   "testRunsWithFailures": {
+    "value": 0,
+    "evidence": "inferred",
+    "rule": "shell.test",
+    "note": "the summary shows a failed test, or a test file or suite that failed to load"
+   },
+   "testRunsUnclear": {
+    "value": 0,
+    "evidence": "missing",
+    "note": "the summary shows no failure, but the command failed or its success was not recorded; the record does not say which part, if any, failed"
+   },
+   "testRunsWithoutSummary": {
+    "value": 0,
+    "evidence": "missing"
+   },
+   "reviews": {
+    "value": 0,
+    "evidence": "inferred",
+    "rule": "review.delegation | review.skill"
+   },
+   "eventsInPrivateSessions": {
+    "value": 0,
+    "evidence": "recorded",
+    "note": "kind, time, and step category only; content not read"
+   },
+   "guards": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "errors": {
+    "value": 0,
+    "evidence": "recorded"
+   },
+   "commitsFoundInGit": {
+    "value": 0,
+    "evidence": "recorded",
+    "by": "git",
+    "note": "whoever authored them, including commits later replaced by an amend or a rebase (see onDefaultBranch)"
+   },
+   "commitsByConfiguredIdentity": {
+    "value": 0,
+    "evidence": "recorded",
+    "by": "git",
+    "note": "including commits later replaced by an amend or a rebase (see onDefaultBranch)"
+   },
+   "prsLanded": {
+    "value": 0,
+    "evidence": "inferred",
+    "by": "git",
+    "rule": "git.pr-number-from-subject"
+   },
+   "quietIntervals": {
+    "value": 0,
+    "evidence": "derived"
+   }
+  }
+ ]
+}

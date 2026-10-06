@@ -3191,7 +3191,7 @@
    "check": "needless-check-in",
    "severity": "note",
    "verdictEvidence": "inferred",
-   "rule": "problems.ends-in-question, prompt.approval",
+   "rule": "problems.ends-in-question, problems.names-blocker, prompt.approval",
    "session": "cx-dcdhdmbloibb",
    "event": "cx-dcdhdmbloibb.24.0",
    "related": "cx-dcdhdmbloibb.30.0",
@@ -3199,7 +3199,7 @@
    "at": "2025-03-12T15:11:12.005Z",
    "note": "This turn ended on a question, and the next prompt, 5 min later, was a bare go-ahead. A question isn't always needless, and a gap isn't proof you were being waited on.",
    "pattern": "needless-check-in",
-   "checkTitle": "A turn that ended on a question answered with a bare go-ahead"
+   "checkTitle": "A turn that ended on a question, an offer or options, answered with a bare go-ahead"
   },
   {
    "p": "secret-exposure",

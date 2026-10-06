@@ -114,10 +114,43 @@ test('every pattern with a check has a short, safe test prompt; patterns without
   for (const id of ['destructive-command', 'bypassing-safeguards']) assert.match(catalog.patterns.find((p) => p.id === id).testPrompt, /^In a new empty folder/, id);
 });
 
+test('every test prompt says what it costs and what to look for, and a change made for it says how to undo it', () => {
+  const catalog = loadCatalog();
+  const line = (t, what) => {
+    assert.equal(typeof t, 'string', what);
+    assert.ok(t.length >= 10 && t.length <= 400, `${what}: short (${t.length} characters)`);
+    assert.doesNotMatch(t, /—/, `${what}: no em dash`);
+    assert.deepEqual(secretShapes(t), {}, `${what}: nothing secret-shaped`);
+  };
+  let withSetup = 0;
+  for (const p of catalog.patterns) {
+    if (!p.testPrompt) {
+      for (const k of ['testSetup', 'testCost', 'testCostWhy', 'testExpect']) assert.equal(p[k], undefined, `${p.id}: no prompt, so no ${k}`);
+      continue;
+    }
+    assert.ok(['low', 'medium', 'high'].includes(p.testCost), `${p.id}: testCost is low, medium or high`);
+    line(p.testCostWhy, `${p.id}: the cost's reason`);
+    // What the fix working looks like, what failing looks like, where to look, and what Replay shows.
+    assert.deepEqual(Object.keys(p.testExpect ?? {}).sort(), ['fails', 'look', 'replay', 'works'], `${p.id}: testExpect`);
+    for (const [k, t] of Object.entries(p.testExpect)) line(t, `${p.id}: testExpect.${k}`);
+    assert.match(p.testExpect.replay, /Replay|honestweek/, `${p.id}: says what honestweek shows for the test session`);
+    if (p.testSetup === undefined) continue;
+    withSetup += 1;
+    assert.deepEqual(Object.keys(p.testSetup).sort(), ['do', 'undo'], `${p.id}: a change and how to undo it`);
+    line(p.testSetup.do, `${p.id}: the change`);
+    line(p.testSetup.undo, `${p.id}: the undo`);
+  }
+  assert.ok(withSetup >= 1, 'at least one test makes a temporary change');
+  // The long-session test lowers the threshold its hook names, and puts it back.
+  const bloat = catalog.patterns.find((p) => p.id === 'context-bloat');
+  for (const t of [DRAFTS['context-bloat'].text, DRAFTS['context-bloat'].codex.text, bloat.testSetup.do, bloat.testSetup.undo]) assert.match(t, /150,000/);
+  assert.equal(bloat.testCost, 'low', 'the lowered threshold makes the long-session test cheap');
+});
+
 // ---- Copy ------------------------------------------------------------------------------------
 test('Copy copies the fix and the prompt exactly as the server sent them, and never a redacted one', () => {
   const js = readFileSync(join(ASSETS_DIR, 'problems.js'), 'utf8');
-  assert.match(js, /const copySource = \(p, what\) => \(what === 'fix' \? p\.draft\?\.text : what === 'codex' \? codexText\(p\) : p\.testPrompt\) \?\? null;/);
+  assert.match(js, /const copySource = \(p, what\) => \(what === 'fix' \? p\.draft\?\.text : what === 'codex' \? codexText\(p\) : p\.testPrompt && p\.testTag \? `\$\{p\.testPrompt\} \$\{p\.testTag\}` : p\.testPrompt\) \?\? null;/);
   // The click copies copySource's text, never the page's markup.
   assert.match(js, /const text = p \? copySource\(p, cb\.dataset\.copy\) : null;\s+if \(text\) copyText\(text, cb,/);
   // Clipboard first (no permission prompt for a click on this page), then the copy command, then selecting the text.
@@ -205,7 +238,7 @@ const answer = () => {
     groups: [{ id: 'process', name: 'Process', description: 'How the work goes.' }], priorityRule: null, statusCounts,
     coverage: { sessions: { value: 3, evidence: 'derived' }, tokens: { value: 1000, evidence: 'recorded' }, usageRecorded: true, toolCalls: { value: 9 }, modelCalls: { value: 9 } },
     rules: [], checks: [], patterns, focus: null,
-    sessions: { [S.cc]: { title: 'Fix the parser', thread: TH.cc, tool: 'claude-code' }, [S.cx]: { title: 'Widen the table', thread: TH.cx, tool: 'codex' }, [S.unknown]: { title: 'Something else', thread: TH.unknown, tool: null } },
+    sessions: { [S.cc]: { title: 'Fix the parser', thread: TH.cc, tool: 'claude-code', repo: 'your-project' }, [S.cx]: { title: 'Widen the table', thread: TH.cx, tool: 'codex', repo: 'a-shared-repo' }, [S.unknown]: { title: 'Something else', thread: TH.unknown, tool: null } },
   };
 };
 const TREND = { earlier: { from: '2025-03-03', to: '2025-03-09', days: 7, sessions: 0 }, trend: [] };
@@ -244,6 +277,9 @@ test('each finding row names its agent from its session, its time, its session, 
     const agents = [...r.matchAll(/<span class="agent">([^<]+)<\/span>/g)].map((m) => m[1]);
     // The agent's name comes only from the session the answer names; an unknown one gets none.
     assert.deepEqual(agents, tool ? [AGENT_NAME[tool]] : [], session);
+    // So does the repository it worked in; a session the answer gives none for shows none.
+    const repos = [...r.matchAll(/<span class="repotag"[^>]*>([^<]+)<\/span>/g)].map((m) => m[1]);
+    assert.deepEqual(repos, D.sessions[session].repo ? [D.sessions[session].repo] : [], session);
     assert.match(r, /<time datetime="[^"]+">/);
     assert.ok(r.includes(D.sessions[session].title), 'the session');
     assert.match(r, /<a class="see" href="replay\.html\?session=[^"]+~zoom~pf-[a-p]{12}" data-zoomlink[^>]*>See the steps/);
@@ -341,6 +377,38 @@ test('#<pattern id> opens one problem: when, what happened in order, Replay, the
   assert.match(clear('detail').innerHTML, /Stop it happening again/);
 });
 
+test('Check the fix works shows the setup, the prompt, a high-cost warning and what to look for, in that order, one line each', async () => {
+  const D = answer();
+  const p = D.patterns.find((x) => x.id === 'claim-contradicts-evidence');
+  Object.assign(p, {
+    testSetup: { do: 'Lower the threshold to 5,000.', undo: 'Put 150,000 back.' },
+    testCost: 'high',
+    testCostWhy: 'It reads a big file on purpose.',
+    testExpect: { works: 'The hook says so.', fails: 'Nothing happens.', look: 'The conversation.', replay: 'Open it in Replay: not found.' },
+  });
+  const { el } = await drawProblems(D, { hash: '#claim-contradicts-evidence' });
+  const box = blocks(el('detail').innerHTML, 'section', 'pd-try')[0];
+  const at = (s) => box.indexOf(s);
+  for (const s of ['class="trystep"', 'data-copytext="try"', 'class="trycost"', 'class="tryexpect"']) assert.ok(at(s) > 0, s);
+  assert.ok(at('class="trystep"') < at('data-copytext="try"') && at('data-copytext="try"') < at('class="trycost"') && at('class="trycost"') < at('class="tryexpect"'), 'setup, prompt, warning, then what you should see');
+  assert.match(box, /<p class="trystep"><b>First:<\/b> Lower the threshold to 5,000\. <b>After:<\/b> Put 150,000 back\.<\/p>/);
+  // The warning on its line, its reason behind a "?".
+  assert.match(box, /<div class="trycost"><span class="tag costly">High token use<\/span> <details class="fwhy"><summary title="Why it uses many tokens" aria-label="Why it uses many tokens">\?<\/summary><div><p>It reads a big file on purpose\.<\/p><\/div><\/details><\/div>/);
+  // What you should see on one line; the rest behind its "?".
+  const expect = box.slice(box.indexOf('<div class="tryexpect"'));
+  assert.equal(words(expect.split('<details')[0]), 'What you should see: The hook says so.');
+  assert.match(expect, /<summary title="More on what to look for"[^>]*>\?<\/summary><div><p><b>If it didn't work:<\/b> Nothing happens\.<\/p><p><b>Where to look:<\/b> The conversation\.<\/p><p><b>In Replay:<\/b> Open it in Replay: not found\.<\/p><\/div>/);
+  // A cheap prompt with no setup draws neither the setup line nor the warning; nor does an answer without the fields.
+  Object.assign(p, { testSetup: null, testCost: 'low' });
+  const { el: low } = await drawProblems(D, { hash: '#claim-contradicts-evidence' });
+  const lowBox = blocks(low('detail').innerHTML, 'section', 'pd-try')[0];
+  assert.doesNotMatch(lowBox, /trystep|trycost|High token use/);
+  assert.match(lowBox, /What you should see:/);
+  Object.assign(p, { testCost: undefined, testCostWhy: undefined, testExpect: undefined });
+  const { el: bare } = await drawProblems(D, { hash: '#claim-contradicts-evidence' });
+  assert.doesNotMatch(blocks(bare('detail').innerHTML, 'section', 'pd-try')[0], /trystep|trycost|tryexpect/);
+});
+
 test('#checked opens "What was checked"; the controls that left the first screen are all there', async () => {
   const html = readFileSync(join(ASSETS_DIR, 'problems.html'), 'utf8');
   const landing = html.slice(html.indexOf('id="landing"'), html.indexOf('id="detail"'));
@@ -390,4 +458,85 @@ test('"Show all" counts only the rows in view: routine notes join the count once
   el('content').fire('change', { target: { checked: true, matches: (s) => s === '[data-routine-all]' } });
   assert.match(card(), /Show all 5 listed/);
   assert.equal(el('cards').classList.contains('show-routine'), true);
+});
+
+test("every card links to where the problem comes from: its published sources by kind, opening the problem's page", async () => {
+  const D = answer();
+  const { el } = await drawProblems(D);
+  const html = `${el('cards').innerHTML}${el('possible').innerHTML}`;
+  const card = (id) => blocks(html, 'article', 'pc').find((c) => c.includes(`data-pattern="${id}"`));
+  for (const p of D.patterns.filter((x) => x.status === 'found')) {
+    assert.match(card(p.id), new RegExp(`<a class="pc-src" href="#${p.id}" data-sources="${p.id}">Sources: 1 vendor doc</a>`), p.id);
+  }
+  // On the problem's page the same sources sit in the closed fold, under a heading the link opens.
+  const { el: d } = await drawProblems(D, { hash: '#context-bloat' });
+  assert.match(d('detail').innerHTML, /<h3 id="src-context-bloat" tabindex="-1">Sources<\/h3>/);
+});
+
+test('Check the fix works: the prompt carries its tag, and the tests found for this version read as one line, each a link to its session', async () => {
+  const D = answer();
+  const p = D.patterns.find((x) => x.id === 'claim-contradicts-evidence');
+  const t = (session, thread, n, fired, problem, version = 'ab12') => ({ version, session, thread, event: `${session}.${n}.0`, at: `2025-03-1${n}T10:00:00.000Z`, tool: session.startsWith('cx') ? 'codex' : 'claude-code', fired, problem });
+  Object.assign(p, {
+    fixVersion: 'ab12',
+    testTag: '[honestweek check: claim-contradicts-evidence ab12]',
+    fixTests: [
+      t(S.cc, TH.cc, 1, { state: 'fired', level: 'recorded' }, { state: 'not-seen', level: 'inferred' }, '9f9f'),
+      t(S.cc, TH.cc, 2, { state: 'fired', level: 'recorded' }, { state: 'not-seen', level: 'inferred' }),
+      t(S.cx, TH.cx, 3, { state: 'fired', level: 'recorded' }, { state: 'not-seen', level: 'inferred' }),
+    ],
+  });
+  const { el } = await drawProblems(D, { hash: '#claim-contradicts-evidence' });
+  const box = blocks(el('detail').innerHTML, 'section', 'pd-try')[0];
+  // The tag shows in grey after the prompt, so what you see is what you copy.
+  assert.match(box, /data-copytext="try">In a new empty folder, try the thing\. <span class="trytag">\[honestweek check: claim-contradicts-evidence ab12\]<\/span><\/code>/);
+  assert.match(box, /<summary title="About the tag" aria-label="About the tag">\?<\/summary>/);
+  // Two tests of this version, one of an earlier one: the line counts only this version's.
+  const line = blocks(box, 'div', 'trytrack')[0];
+  assert.match(words(line), /^Tested 2 times: fired both times, problem not seen\. Test 1 Test 2 \?/);
+  assert.ok(line.includes(`<a href="replay.html?session=${S.cc}#${TH.cc}~${S.cc}.2.0">Test 1</a>`), line);
+  assert.ok(line.includes(`<a href="replay.html?session=${S.cx}#${TH.cx}~${S.cx}.3.0">Test 2</a>`), line);
+  assert.match(words(line), /Earlier versions of this fix: tested once\./);
+  assert.match(words(line), /Not seeing the problem on a test is a hint, not proof\./);
+  assert.doesNotMatch(line, /\bfixed\b/i, 'never says fixed');
+  // Mixed answers and a log that can't tell.
+  p.fixTests = [t(S.cc, TH.cc, 2, { state: 'none', level: 'inferred' }, { state: 'seen', level: 'derived', count: 1 }), t(S.cx, TH.cx, 3, { state: 'fired', level: 'recorded' }, { state: 'unknown', level: 'missing', why: 'running' })];
+  const again = blocks(blocks((await drawProblems(D, { hash: '#claim-contradicts-evidence' })).el('detail').innerHTML, 'section', 'pd-try')[0], 'div', 'trytrack')[0];
+  assert.match(words(again), /^Tested 2 times: fired 1 of 2 times, problem seen once\./);
+  p.fixTests = [t(S.cc, TH.cc, 2, { state: 'loaded', level: 'recorded' }, { state: 'unknown', level: 'missing', why: 'too-short' })];
+  const one = blocks(blocks((await drawProblems(D, { hash: '#claim-contradicts-evidence' })).el('detail').innerHTML, 'section', 'pd-try')[0], 'div', 'trytrack')[0];
+  assert.match(words(one), /^Tested once: in its instructions, a test this short can't show it\. Open the test/);
+  // No test yet: no line.
+  p.fixTests = [];
+  assert.equal(blocks(blocks((await drawProblems(D, { hash: '#claim-contradicts-evidence' })).el('detail').innerHTML, 'section', 'pd-try')[0], 'div', 'trytrack').length, 0);
+  // Copy prompt copies the prompt with its tag.
+  const js = readFileSync(join(ASSETS_DIR, 'problems.js'), 'utf8');
+  assert.match(js, /p\.testPrompt && p\.testTag \? `\$\{p\.testPrompt\} \$\{p\.testTag\}` : p\.testPrompt/);
+});
+
+test("the header's Problems count is the headline's problems to fix, by the same rule", async () => {
+  const common = readFileSync(join(ASSETS_DIR, 'common.js'), 'utf8');
+  const box = {};
+  runInNewContext(`${common.match(/ {2}function toFix\(p, tier\) \{[^]*?\n {2}\}/)[0]}\nthis.toFix = toFix;`, box);
+  const D = answer();
+  const { el } = await drawProblems(D);
+  const head = el('headline').textContent;
+  const n = Number(/^(\d+) problems? to fix/.exec(head)?.[1] ?? 0);
+  assert.ok(n > 0, head);
+  assert.equal(D.patterns.filter((p) => box.toFix(p, p.priority?.tier ?? null)).length, n, head);
+  // Low, dismissed, possible-only and not-found patterns aren't counted.
+  assert.equal(box.toFix({ status: 'found', sure: { look: 1 }, possible: { look: 0 } }, 'low'), false);
+  assert.equal(box.toFix({ status: 'found', sure: { look: 1 }, possible: { look: 0 } }, 'dismissed'), false);
+  assert.equal(box.toFix({ status: 'found', sure: { look: 0 }, possible: { look: 2 } }, 'high'), false);
+  assert.equal(box.toFix({ status: 'clear', sure: { look: 0 }, possible: { look: 0 } }, 'high'), false);
+  assert.match(common, /el\.title = n \? `\$\{plural\(n, 'problem'\)\} to fix in this window` : '';/);
+});
+
+test('a fix\'s test line says "not seen" only for the tests that could tell', async () => {
+  const D = answer();
+  const p = D.patterns.find((x) => x.id === 'claim-contradicts-evidence');
+  const t = (session, thread, n, problem) => ({ version: 'ab12', session, thread, event: `${session}.${n}.0`, at: `2025-03-1${n}T10:00:00.000Z`, tool: 'claude-code', fired: { state: 'fired', level: 'recorded' }, problem });
+  Object.assign(p, { fixVersion: 'ab12', testTag: '[honestweek check: claim-contradicts-evidence ab12]', fixTests: [t(S.cc, TH.cc, 1, { state: 'not-seen', level: 'inferred' }), t(S.cx, TH.cx, 2, { state: 'unknown', level: 'missing', why: 'running' })] });
+  const line = blocks(blocks((await drawProblems(D, { hash: '#claim-contradicts-evidence' })).el('detail').innerHTML, 'section', 'pd-try')[0], 'div', 'trytrack')[0];
+  assert.match(words(line), /^Tested 2 times: fired both times, problem not seen in 1 of 2\./);
 });

@@ -75,7 +75,7 @@ test('lib/replay, its harness, fixtures and doc are clean-room', () => {
 
 // The demo week is invented end to end, so the same fence holds over it.
 test('the demo week, its test and its doc are clean-room', () => {
-  const files = [...allFiles(join(ROOT, 'lib', 'demo')), join(ROOT, 'tools', 'demo-week.mjs'), join(HERE, 'demo-week.test.mjs'), join(ROOT, 'docs', 'demo-week.md')];
+  const files = [...allFiles(join(ROOT, 'lib', 'demo')), join(ROOT, 'tools', 'demo-week.mjs'), join(HERE, 'demo-week.test.mjs'), join(HERE, 'demo-repo.test.mjs'), join(ROOT, 'docs', 'demo-week.md')];
   assert.ok(files.length >= 4, 'expected the demo week builder to be present');
   assertCleanRoom(files, 'demo week');
 });
@@ -107,4 +107,11 @@ test('lib/problems, its catalog and its tests are clean-room', () => {
   const files = [...allFiles(join(HERE, '..', 'lib', 'problems')), ...tests];
   assert.ok(files.length >= 1, 'expected the problem checks to be present');
   assertCleanRoom(files, 'lib/problems');
+});
+
+// The sources index the catalog writes, the tool that writes it, and its test: the same fence.
+test('the sources index, its tool and its test are clean-room', () => {
+  const files = [join(ROOT, 'docs', 'sources.md'), join(ROOT, 'tools', 'sources-index.mjs'), join(HERE, 'sources-index.test.mjs')];
+  for (const f of files) assert.ok(existsSync(f), `${relative(ROOT, f)} is present`);
+  assertCleanRoom(files, 'sources index');
 });

@@ -15,6 +15,7 @@
 .pfilter .chips { margin-top: 8px; }
 .psec .filternote { padding: 0; }
 .gempty { padding: 0; }
+.pfootline:empty, .pfilter[hidden] { display: none; }
 
 /* A pattern's card: tier, title, its key numbers, its findings as rows, its fix. */
 .pcards { display: flex; flex-direction: column; gap: 12px; }
@@ -30,7 +31,9 @@
 .ptrend { white-space: nowrap; }
 .pc-head .ptrend { font-size: 14px; color: var(--muted); }
 .pc-other { font-size: 13px; }
+.pc-src { font-size: 14px; white-space: nowrap; }
 .cov { font-size: 12px; line-height: 18px; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+.repotag { font-size: 12px; font-weight: 600; line-height: 18px; color: var(--ink); white-space: nowrap; overflow-wrap: anywhere; }
 .agent { font-size: 12px; font-weight: 600; line-height: 18px; padding: 1px 8px; border-radius: 6px; background: var(--fix-wash); color: var(--accent-ink); white-space: nowrap; }
 
 .frows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line-soft); border-radius: 10px; }
@@ -113,7 +116,8 @@ details.restlist > summary { padding: 8px 0; font-size: 15px; font-weight: 600; 
 .pd-pri h2 { flex: 0 0 auto; }
 .whensub { margin: 6px 0 0; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .whenmore { min-height: 44px; padding: 10px 14px; text-align: left; font-weight: 600; color: var(--accent); background: transparent; border: 1px dashed var(--field); border-radius: 10px; }
-.pd-moment { flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.pd-main { flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+.pd-moment { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .pd-momenthead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .pd-momenthead h2 { flex: 1 1 200px; margin: 0; font-size: 17px; }
 .pd-meta { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 13px; color: var(--muted); }
@@ -146,6 +150,11 @@ details.restlist > summary { padding: 8px 0; font-size: 15px; font-weight: 600; 
 .otherways > summary { color: var(--accent); font-weight: 600; cursor: pointer; }
 .pd-try > p { font-size: 14px; color: var(--ink-2); }
 .tryrow { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
+.trytag { color: var(--muted); }
+.pd-try .trytrack { margin: 0; font-size: 14px; color: var(--ink); }
+.pd-try .trytrack a { margin-right: 6px; }
+.pd-try .trystep, .pd-try .trycost, .pd-try .tryexpect { font-size: 14px; color: var(--ink); }
+.tag.costly { color: var(--critical); background: var(--high-wash); }
 .trytext { flex: 1 1 420px; padding: 12px 14px; font-family: var(--mono); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); background: var(--subtle); border: 1px solid var(--line); border-radius: 10px; }
 .pd-pri { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
 .pd-pri .pwhy { flex: 1 1 320px; font-size: 14px; }

@@ -41,9 +41,9 @@ const body = async (q) => {
 const whole = await body();
 const allFindings = (b) => b.patterns.flatMap((p) => p.findings ?? []);
 
-test('the whole page: forty-one patterns with the fields the page reads, and the checks, coverage and rule', () => {
+test('the whole page: forty-two patterns with the fields the page reads, and the checks, coverage and rule', () => {
   for (const k of ['window', 'catalog', 'groups', 'priorityRule', 'statusCounts', 'coverage', 'rules', 'checks', 'patterns', 'sessions', 'focus', 'view']) assert.ok(k in whole, k);
-  assert.equal(whole.patterns.length, 41);
+  assert.equal(whole.patterns.length, 42);
   assert.equal(whole.focus, null);
   for (const p of whole.patterns) {
     for (const k of ['id', 'name', 'group', 'looksLike', 'whyItMatters', 'strength', 'strengthReason', 'sourceKinds', 'sources', 'detection', 'mitigation', 'related', 'status', 'measures', 'count', 'look', 'notesFound', 'tokens', 'priority', 'draft', 'findings', 'findingsListed']) assert.ok(k in p, `${p.id}.${k}`);
@@ -89,7 +89,7 @@ test('one session, the strip for a thread and for a goal, each clean of leaks', 
   assert.ok(allFindings(one).every((x) => x.session === f.session), 'only that session');
   const strip = await body({ thread: f.thread });
   assert.ok(strip.findings.some((x) => x.event === f.event));
-  assert.deepEqual(strip.catalogIds.length, 41, 'every catalog id, so overrides for other patterns stay');
+  assert.deepEqual(strip.catalogIds.length, 42, 'every catalog id, so overrides for other patterns stay');
   assert.ok(strip.patterns.every((p) => strip.findings.some((x) => x.pattern === p.id)));
   for (const p of strip.patterns) for (const k of ['id', 'name', 'group', 'status', 'priority', 'fix']) assert.ok(k in p, `strip pattern.${k}`);
   const goal = await body({ goal: goalKey(w.goalRecord.goals[0].id) });
@@ -100,12 +100,12 @@ test('one session, the strip for a thread and for a goal, each clean of leaks', 
 test('the summary every header reads: each pattern\'s tier and counts, no findings, clean of leaks', async () => {
   const sum = await body({ summary: '1' });
   assert.equal(sum.summary, true);
-  assert.equal(sum.patterns.length, 41);
-  assert.equal(sum.catalogIds.length, 41, 'every catalog id, so "My priority" for any pattern stays');
+  assert.equal(sum.patterns.length, 42);
+  assert.equal(sum.catalogIds.length, 42, 'every catalog id, so "My priority" for any pattern stays');
   for (const p of sum.patterns) {
-    assert.deepEqual(Object.keys(p).sort(), ['count', 'countEvidence', 'fix', 'group', 'id', 'look', 'lookSessions', 'name', 'notesFound', 'priority', 'status', 'strength', 'tokens']);
+    assert.deepEqual(Object.keys(p).sort(), ['count', 'countEvidence', 'fix', 'group', 'id', 'look', 'lookSessions', 'name', 'notesFound', 'possible', 'priority', 'status', 'strength', 'sure', 'tokens']);
     const full = whole.patterns.find((x) => x.id === p.id);
-    for (const k of ['name', 'status', 'priority', 'count', 'look', 'notesFound', 'countEvidence']) assert.deepEqual(p[k], full[k], `${p.id}.${k} matches the whole page`);
+    for (const k of ['name', 'status', 'priority', 'count', 'look', 'notesFound', 'countEvidence', 'sure', 'possible']) assert.deepEqual(p[k], full[k], `${p.id}.${k} matches the whole page`);
     // The sessions with a finding worth a look, worked out from the same findings.
     const sessions = new Set((full.findings ?? []).filter((f) => f.severity === 'look').map((f) => f.session));
     if (full.findingsListed === (full.findings ?? []).length) assert.equal(p.lookSessions, sessions.size, `${p.id}.lookSessions`);
@@ -117,7 +117,7 @@ test('the summary every header reads: each pattern\'s tier and counts, no findin
   for (const word of PRIVATE_WORDS) assert.ok(!t.includes(word), `no "${word}"`);
   // The pages read the names the summary carries.
   const common = page('common.js');
-  for (const name of ["load('problems', { summary: 1 })", "p.status === 'found'", 'p?.priority?.tier']) assert.ok(common.includes(name), `common.js reads ${name}`);
+  for (const name of ["load('problems', { summary: 1 })", "p.status !== 'found'", 'p?.priority?.tier', 'p.sure?.look', 'p.possible?.look']) assert.ok(common.includes(name), `common.js reads ${name}`);
   const search = page('search.js');
   for (const name of ['p.lookSessions', 'p.countEvidence', 'p.tokens?.tokens', 'a.coverage?.tokens']) assert.ok(search.includes(name), `search.js reads ${name}`);
 });
@@ -148,6 +148,15 @@ test('redactAnswer keeps ids, times and dates by key and shape, and redacts ever
   const out = redactAnswer({ session: 'cc-abcd', event: 'cc-abcd.12.0', at: '2025-03-10T09:00:00.000Z', from: '2025-03-10', note: 'Northwind', title: 'cc-abcd Northwind', events: ['cc-abcd.1.0'], timezone: 'America/Los_Angeles', id: 'Northwind report' }, red);
   assert.deepEqual(out, { session: 'cc-abcd', event: 'cc-abcd.12.0', at: '2025-03-10T09:00:00.000Z', from: '2025-03-10', note: '[redacted:term]', title: 'cc-abcd [redacted:term]', events: ['cc-abcd.1.0'], timezone: 'America/Los_Angeles', id: '[redacted:term] report' });
   assert.deepEqual(splitUrl('https://example.com/a/b?c=1#d'), ['https://example.com', '/a', '/b', '?c=1', '#d']);
+});
+
+test("a session's repository label with a private word in it goes out hidden, even in an id's shape", () => {
+  // The sessions map as the route sends it: the label is text from the config, never an id, so
+  // the full redactor runs on it even when it looks like one.
+  const full = createRedactor(w.config).redact;
+  const out = redactAnswer({ 'cc-abcd': { title: null, thread: 'cc-abcd', tool: 'codex', repo: `${PRIVATE_WORDS[0]}-site` } }, full);
+  assert.ok(!out['cc-abcd'].repo.includes(PRIVATE_WORDS[0]), out['cc-abcd'].repo);
+  assert.match(out['cc-abcd'].repo, /\[redacted:/);
 });
 
 test("every rule a check or a finding names is defined in the answer, the engine's included", () => {
@@ -316,6 +325,9 @@ test("each pattern's fix is the catalog's draft, word for word, and its test pro
     assert.deepEqual(p.draft, DRAFTS[p.id] ?? null, `${p.id}: the draft the Copy button copies`);
     const cat = loadCatalog().patterns.find((x) => x.id === p.id);
     assert.equal(p.testPrompt, PATTERN_CHECKS[p.id] ? cat.testPrompt : null, `${p.id}: its test prompt`);
+    // What the test costs and what to look for ride with the prompt, and only with it.
+    for (const k of ['testSetup', 'testCost', 'testCostWhy', 'testExpect']) assert.deepEqual(p[k], p.testPrompt ? cat[k] ?? null : null, `${p.id}: its ${k}`);
+    if (p.testPrompt) assert.ok(p.testCost && p.testExpect, `${p.id}: a cost and what to look for`);
   }
 });
 
@@ -374,10 +386,11 @@ test('a private word that is a coverage status leaves the status whole, and the 
   await own.stop?.();
 });
 
-test('the Problems answer is otherwise unchanged: coverage, the Codex form and the headline are the only new fields', () => {
+test('the Problems answer is otherwise unchanged: coverage, the Codex form, the headline and the test prompt\'s cost, setup and what to look for are the only new fields', () => {
   const BEFORE = ['claim', 'count', 'countEvidence', 'derivedFound', 'detection', 'draft', 'findings', 'findingsListed', 'group', 'id', 'look', 'looksLike', 'measures', 'mitigation', 'name', 'notRun', 'notesFound', 'possible', 'priority', 'related', 'sourceKinds', 'sources', 'status', 'strength', 'strengthReason', 'sure', 'testPrompt', 'tokens', 'whyItMatters'];
+  const NEW = new Set(['coverage', 'headline', 'testSetup', 'testCost', 'testCostWhy', 'testExpect', 'fixVersion', 'testTag', 'fixTests']);
   for (const p of whole.patterns) {
-    assert.deepEqual(Object.keys(p).filter((k) => k !== 'coverage' && k !== 'headline').sort(), BEFORE, p.id);
+    assert.deepEqual(Object.keys(p).filter((k) => !NEW.has(k)).sort(), BEFORE, p.id);
     if (p.draft) assert.deepEqual(Object.keys(p.draft).filter((k) => k !== 'codex').sort(), ['kind', 'text', 'title', 'where'], p.id);
   }
 });
@@ -412,6 +425,25 @@ test("the page draws this week's answer: every found pattern on the landing by i
     const name = AGENT[whole.sessions[s]?.tool];
     if (name) assert.ok(r.includes(`<span class="agent">${name}</span>`), `${s}: ${name}`);
     else assert.doesNotMatch(r, /class="agent"/);
+  }
+  // Every session behind a finding names its configured repository, and the row shows it.
+  const keys = [...new Set(found.flatMap((p) => p.findings.map((f) => f.session)).filter(Boolean))];
+  assert.ok(keys.length > 0 && keys.every((k) => typeof whole.sessions[k]?.repo === 'string' && whole.sessions[k].repo.length > 0), 'each session carries its repository');
+  for (const r of rows) {
+    const s = r.match(/data-session="([^"]*)"/)[1];
+    assert.ok(r.includes(`<span class="repotag" title="Repository">${whole.sessions[s].repo}</span>`), `${s}: its repository`);
+  }
+  // Each pattern lists its most recent findings first: within the sure ones and within the
+  // possible ones, worth a look before routine, each newest first.
+  const SURE = ['recorded', 'derived'];
+  for (const p of found) {
+    for (const group of [p.findings.filter((f) => SURE.includes(f.verdictEvidence)), p.findings.filter((f) => !SURE.includes(f.verdictEvidence))]) {
+      for (let i = 1; i < group.length; i++) {
+        const [a, b] = [group[i - 1], group[i]];
+        if (a.severity !== b.severity) assert.equal(a.severity, 'look', `${p.id}: worth a look before routine`);
+        else assert.ok(String(a.at ?? '') >= String(b.at ?? ''), `${p.id}: newest first`);
+      }
+    }
   }
   // The drawn landing holds no private word and no secret.
   const shown = words(landing);
@@ -462,4 +494,40 @@ test('the trend answers for every pattern, reads the earlier window once, and sa
     assert.equal(row.possible.now.value, p.possible.look, p.id);
   }
   assert.equal(leaks.redacted(t).total, 0);
+});
+
+test('each check card links the published sources behind what it measures, and says where its numbers and rules come from', async () => {
+  const { el } = await drawProblems(whole, { hash: '#checked' });
+  const html = el('checks').innerHTML;
+  const card = (id) => {
+    const at = html.indexOf(`id="check-${id}"`);
+    assert.ok(at >= 0, `the ${id} card is drawn`);
+    const end = html.indexOf('<details class="pcheck"', at + 1);
+    return html.slice(at, end > 0 ? end : undefined);
+  };
+  for (const c of whole.checks) {
+    const one = card(c.id);
+    // Beside each pattern it measures: that pattern's sources, opening its page at them.
+    const measures = one.match(/<p><b>Measures\.<\/b>(.*?)<\/p>/s)?.[1] ?? '';
+    for (const id of c.patterns.filter((p) => whole.patterns.find((x) => x.id === p)?.sources.length)) {
+      assert.match(measures, new RegExp(`<a class="pc-src" href="#${id}" data-sources="${id}">Sources: [^<]+</a>`), `${c.id} links ${id}'s sources`);
+    }
+    // Where its numbers come from: one line, each number behind its "?".
+    if (c.numbers.length) {
+      assert.match(one, /<p><b>Its numbers\.<\/b> /, c.id);
+      for (const n of c.numbers) assert.ok(words(one).includes(n.says), `${c.id}: ${n.says}`);
+    } else assert.doesNotMatch(one, /Its numbers\./, c.id);
+  }
+  // The cache lifetimes come from the prompt-caching docs; the rest of that card's numbers are honestweek's own.
+  const cache = words(card('cache-misses'));
+  assert.match(cache, /Its numbers\. One comes from How Claude Code uses prompt caching ?; the rest are honestweek's own choices, not taken from a published source\./);
+  assert.match(card('cache-misses'), /<li>5 minutes or 1 hour, how long Claude Code caches: <a href="https:\/\/code\.claude\.com\/docs\/en\/prompt-caching" rel="noreferrer noopener" target="_blank">How Claude Code uses prompt caching<\/a><\/li>/);
+  assert.match(words(card('action-loop')), /Its numbers\. Each is honestweek's own choice, not taken from a published source\./);
+  // The rules: a source beside one that rests on it, one line for honestweek's own.
+  assert.match(card('long-sessions'), /<dd>A model call&#39;s recorded token counts[^<]*For Claude Code, from <a href="https:\/\/code\.claude\.com\/docs\/en\/statusline"[^>]*>Customize your status line<\/a>; the rest is honestweek's own\.<\/dd>/);
+  // A source that sets only part of a rule says which part; the rest is honestweek's own.
+  assert.match(card('secret-in-log'), /<dd>A thinking block[^<]*For Claude Opus 5\.5, from <a href="https:\/\/platform\.claude\.com\/docs\/en\/build-with-claude\/prompt-engineering\/prompting-claude-opus-5-5"[^>]*>Prompting Claude Opus 5\.5<\/a>; the rest is honestweek's own\.<\/dd>/);
+  assert.match(words(card('re-reads')), /It is honestweek's own rule, not taken from a published source\./);
+  assert.match(words(card('needless-check-in')), /Each is honestweek's own rule, not taken from a published source\./);
+  for (const r of whole.rules) assert.ok(r.source === null || (r.source && typeof r.source.title === 'string'), `${r.id} is marked`);
 });

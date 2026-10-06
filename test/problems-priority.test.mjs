@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { classifyAgentText, classifyPrompt, checkClass, endsWithQuestion, errorClass, errorLine, riskyKinds, secretShapes, statusOfShell, testEditCounts } from '../lib/problems/classify.mjs';
+import { bareGoAhead, classifyAgentText, classifyPrompt, checkClass, endsOnOptions, endsWithQuestion, errorClass, errorLine, namesBlocker, offersToCarryOn, riskyKinds, secretShapes, statusOfShell, testEditCounts } from '../lib/problems/classify.mjs';
 import { loadCatalog, PATTERN_CHECKS, priorityOf, PRIORITY, PRIORITY_RULE } from '../lib/problems/index.mjs';
 import { CHECKS, fmt } from '../lib/problems/checks.mjs';
 import { THRESHOLDS } from '../lib/problems/context.mjs';
@@ -47,7 +47,7 @@ test('the rule is stated in the words the page shows, with three tiers and a lin
 test('the catalog, the map and the drafts agree: every mapped pattern and check exists, every pattern has a draft', () => {
   const catalog = loadCatalog();
   const ids = new Set(catalog.patterns.map((p) => p.id));
-  assert.equal(catalog.patterns.length, 41);
+  assert.equal(catalog.patterns.length, 42);
   const checkIds = new Set(CHECKS.map((c) => c.id));
   for (const [pattern, measures] of Object.entries(PATTERN_CHECKS)) {
     assert.ok(ids.has(pattern), pattern);
@@ -99,6 +99,37 @@ test('classifiers: a completion claim and its negated partner', () => {
   assert.equal(classifyAgentText('That failure is pre-existing.').dismisses, true);
   assert.equal(endsWithQuestion('Plan ready.\nShall I go ahead?'), true);
   assert.equal(endsWithQuestion('Done.\nNothing else to do.'), false);
+});
+
+test('classifiers: how a turn ends, an offer, a list of options, a blocker and a bare go-ahead, each with a partner', () => {
+  assert.equal(offersToCarryOn("I'll move the other two call sites next unless you'd rather I didn't."), true);
+  assert.equal(offersToCarryOn("Updated the parser.\nLet me know if you'd prefer I stop here; otherwise I'll start on the writer."), true);
+  assert.equal(offersToCarryOn('Unless I hear otherwise, I will merge it after lunch.'), true);
+  assert.equal(offersToCarryOn("The writer is next. If you'd like me to take it on, say the word."), true);
+  assert.equal(offersToCarryOn('Updated the parser and its tests.'), false);
+  // Only the closing lines count: an offer early in a long message isn't how the turn ends.
+  assert.equal(offersToCarryOn("Unless you'd rather I didn't, I'll merge it.\nThe parser is updated.\nAll 12 tests pass."), false);
+
+  assert.equal(endsOnOptions('Two options for the old name:\n- keep it as an alias\n- drop it'), true);
+  assert.equal(endsOnOptions('Done with the parser.\n1. Option A: ship it now\n2. Option B: wait for the review'), true);
+  assert.equal(endsOnOptions('Which would you prefer?\n- a flag\n- a config key\nI lean towards the flag.'), true);
+  assert.equal(endsOnOptions('Changed:\n- src/a.js\n- src/b.js'), false, 'a summary list');
+  assert.equal(endsOnOptions('Two options:\n- only one item'), false);
+  assert.equal(endsOnOptions('Two options:\n- keep it\n- drop it\nI went with dropping it, since nothing reads the old name and the tests show it.\nAll 12 tests pass.'), false, 'the list is no longer how it ends');
+
+  assert.equal(namesBlocker('The deploy failed with a permission error.'), true);
+  assert.equal(namesBlocker('I need your API key to go on.'), true);
+  assert.equal(namesBlocker('This is waiting on CI.'), true);
+  assert.equal(namesBlocker("Only you can approve the release, so I've stopped there."), true);
+  assert.equal(namesBlocker('All 12 tests pass, 0 failed, and nothing is blocking the merge.'), false);
+  assert.equal(namesBlocker("I'll update the docs next unless you'd rather I didn't."), false);
+
+  assert.equal(bareGoAhead('yes'), true);
+  assert.equal(bareGoAhead('Go ahead.'), true);
+  assert.equal(bareGoAhead('ok, sounds good!'), true);
+  assert.equal(bareGoAhead('go with option B'), false);
+  assert.equal(bareGoAhead('yes, and add tests for it'), false);
+  assert.equal(bareGoAhead(''), false);
 });
 
 test('classifiers: a question-only prompt and a request worded as a question', () => {
@@ -174,14 +205,22 @@ test('the stated rule and the checks state the numbers the code applies', () => 
   const how = (id) => { const c = CHECKS.find((x) => x.id === id); return `${c.title} ${c.how}`; };
   const relation = (id) => PATTERN_CHECKS[id].map((m) => m.relation).join(' ');
   const minutes = (ms) => `${ms / 60_000} minutes`;
-  assert.ok(how('long-sessions').includes(fmt(THRESHOLDS.longCtx)));
-  assert.ok(relation('context-bloat').includes(fmt(THRESHOLDS.longCtx)) && relation('context-bloat').includes(`${THRESHOLDS.longAfterCalls} or more calls`));
+  // The long-session limit is the person's own, set in Settings: no number is stated for it.
+  assert.ok(how('long-sessions').includes('the long-session limit you set in Settings') && !how('long-sessions').includes(fmt(THRESHOLDS.longCtx)));
+  assert.ok(relation('context-bloat').includes('your long-session limit') && relation('context-bloat').includes(`${THRESHOLDS.longAfterCalls} or more calls`));
+  assert.equal(THRESHOLDS.cacheMissShare, 0.5);
+  assert.ok(how('cache-misses').includes(`${fmt(THRESHOLDS.cacheMissMin)} tokens or more`) && how('cache-misses').includes('less than half'));
+  assert.ok(relation('cache-miss').includes(`${fmt(THRESHOLDS.cacheMissMin)} tokens or more`));
   assert.ok(relation('repeated-file-reads').includes(`${THRESHOLDS.rereadMin} or more times`));
   assert.ok(relation('action-loop').includes(`${THRESHOLDS.loopMin} or more identical calls`));
   assert.ok(relation('busy-polling').includes(`${THRESHOLDS.pollMin} or more times, each within ${minutes(THRESHOLDS.pollGapMs)}`));
   assert.ok(relation('repeated-tool-error').includes(`${THRESHOLDS.errorRunMin} or more times`));
   assert.ok(relation('oversized-tool-output').includes(`${fmt(THRESHOLDS.bigAdd)} tokens or more`));
   assert.ok(relation('subagent-overuse').includes(`${THRESHOLDS.smallSubagentCalls} or fewer tool calls`));
+  const n = (x) => x.toLocaleString('en-US');
+  for (const words of [`${THRESHOLDS.outputRatio} times or more`, `${n(THRESHOLDS.outputMin)} output tokens or more per tool call`, `${THRESHOLDS.outputBaseline} or more such calls`, `${n(THRESHOLDS.outputWrittenMax)} characters`]) assert.ok(how('output-per-call').includes(words), words);
+  assert.ok(relation('overthinking').includes(`${THRESHOLDS.outputRatio} times or more`) && relation('overthinking').includes(`${n(THRESHOLDS.outputMin)} tokens or more`));
+  assert.ok(how('needless-check-in').includes(`${THRESHOLDS.waitLookMs / 60_000} minutes or more`));
 });
 
 test('risky commands: only a git command that runs with the flag counts, never a mention in quoted text', () => {

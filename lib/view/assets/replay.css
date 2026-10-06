@@ -6,6 +6,16 @@
 .rp-head h1 { font-size: 26px; line-height: 1.2; }
 .rp-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; font-size: 14px; color: var(--muted); }
 .rp-tool { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: var(--fix-wash); color: var(--accent-ink); }
+.rp-back { color: var(--accent); text-decoration: none; }
+.rp-back:hover { text-decoration: underline; }
+
+/* ---- the sessions list (replay.html with nothing chosen; sessions.js) ---------------------- */
+.sl { max-width: 880px; width: 100%; display: flex; flex-direction: column; gap: 14px; overflow-wrap: anywhere; }
+.sl-day .hcard-head h2 { font-size: 15px; }
+.sl-day .hcard-list > li.row:first-child { border-top: 0; }
+.sl-err { font-size: 13px; font-weight: 400; color: var(--high); }
+.sl-older { font-size: 14px; font-weight: 500; }
+.sl-older .linklike { text-decoration: none; }
 
 /* ---- the layout --------------------------------------------------------------------------- */
 .rp { max-width: 1320px; margin: 0 auto; padding: 0 24px 48px; display: flex; flex-direction: column; gap: 18px; }
@@ -28,6 +38,10 @@
 .rp-now { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 8px 12px; border-radius: 8px; background: var(--accent-wash); font-size: 14px; min-height: 22px; min-width: 0; }
 .rp-now .readout { font-family: var(--font); font-size: 14px; font-weight: 700; color: var(--accent-ink); white-space: nowrap; }
 .rp-now-lane { color: var(--muted); white-space: nowrap; }
+/* What led to the selected step, on its own line of the bar: one short, clickable line. */
+.rp-now-before { flex: 1 1 100%; order: 5; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.rp-now-before:empty { display: none; }
+.rp-now-before .linklike { font-size: 13px; }
 .rp-now-text { min-width: 0; flex: 1 1 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
 .rp-now-span { color: var(--muted); white-space: nowrap; font-size: 13px; }
 .rp-jump { font-weight: 600; text-decoration: none; white-space: nowrap; }
@@ -59,6 +73,13 @@
 .ring.t-medium { stroke: var(--medium); }
 .ring.t-low { stroke: var(--muted); }
 .selhalo { fill: var(--accent-wash); stroke: var(--accent); stroke-width: 1.5; pointer-events: none; }
+/* A zoomed finding's scope: its stretch shaded with a line at its start, its gap hatched, the
+   steps it names beside its own outlined, and a repeat's numbers. */
+.zstretch { fill: var(--accent-wash); opacity: 0.7; }
+.zstart { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 3; }
+.zgap { opacity: 0.35; }
+.zctx { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 3 2; pointer-events: none; }
+.znum { font-size: 10px; font-weight: 700; fill: var(--accent-ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; pointer-events: none; }
 .failtest { fill: var(--high); }
 /* A step the agent waited on: a bar to scale, lightly filled, with a solid start. */
 .wait { fill-opacity: 0.16; stroke-width: 1.5; }
@@ -112,6 +133,9 @@
 .rp-mode-note { font-size: 13px; color: var(--muted); }
 #storyBody { display: flex; flex-direction: column; gap: 14px; }
 .sgap { text-align: center; font-size: 13px; color: var(--muted); padding: 2px 0; }
+/* The rest of a long story, drawn on request: cards on either side, and a long card's other rows. */
+.smorecards { display: block; width: 100%; margin: 8px 0; }
+.srow.smore { display: block; padding: 6px 0 6px 12px; }
 .rcard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .shead { width: 100%; display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 14px 16px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--accent-wash); color: var(--ink); min-height: 0; font-size: 15px; }
 .shead:hover { background: var(--accent-wash); color: var(--ink); }
@@ -173,6 +197,80 @@
 .kid .totl { margin: 2px 0 2px 6px; }
 .kid .schips { margin: 2px 0 2px 6px; }
 
+/* ---- the problem focus: what happened, the cause drawn, the lanes and steps involved ---------- */
+body[data-focus="1"] .rp-head, body[data-focus="1"] #pSummary, body[data-focus="1"] #zoombar { display: none; }
+body[data-focus="1"]:not([data-wide="1"]) .rp-mode { display: none; }
+.focus { display: flex; flex-direction: column; gap: 16px; padding-top: 18px; }
+.fhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.fhead .fback { font-weight: 600; text-decoration: none; color: var(--accent); }
+.fhead .fname { font-weight: 600; }
+.fhead .fall { font-size: 14px; color: var(--accent); text-decoration: none; }
+.fhead .fall:hover { text-decoration: underline; }
+.fhead .fwhere { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.fhead .fleave { font-weight: 600; color: var(--accent); background: var(--surface); border-color: var(--field); min-height: 40px; padding: 8px 12px; }
+.fcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 22px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.fcard:focus { outline: none; }
+.fcard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fcard h2 { margin: 0; font-size: 17px; }
+.fwhat .fk { margin: 0; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.fwhat .fcap { margin: 0; font-size: 24px; line-height: 1.25; font-weight: 600; }
+.fwhat .fcap .chip { font-size: 15px; font-weight: 400; color: var(--muted); vertical-align: middle; }
+.ffacts { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.ffacts li { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; padding: 6px 10px; border-radius: 8px; background: var(--subtle); border: 1px solid var(--line); }
+.ffacts li .chip { color: var(--muted); }
+.fcause { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; padding: 12px 14px; border-radius: 10px; background: var(--high-soft); border: 1px solid var(--high-line); min-width: 0; }
+.fcause-k { font-size: 13px; font-weight: 700; color: var(--high); white-space: nowrap; }
+.fcause-at { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.fcause-step { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 4px; align-items: stretch; text-align: left; background: transparent; border: 0; padding: 0; min-height: 0; color: var(--ink); font-size: 14px; }
+.fcause-step:hover { background: transparent; color: var(--ink); }
+.fcause-step:hover .fcause-title { text-decoration: underline; }
+.fcause-title { font-weight: 600; }
+.fcause-near { font-size: 12px; color: var(--muted); }
+.fcode { display: block; font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; white-space: pre-wrap; max-height: 7.5em; overflow: hidden; color: var(--ink); }
+.fquote { display: block; font-size: 14px; overflow-wrap: anywhere; }
+.fbtns { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
+.fbtn { display: inline-flex; align-items: center; font-weight: 600; font-size: 14px; text-decoration: none; padding: 10px 16px; min-height: 40px; border-radius: 8px; border: 1px solid var(--field); background: var(--surface); color: var(--ink); }
+.fbtn.fix { background: var(--accent); border-color: var(--accent); color: var(--on-fill); }
+.fbtn.fix:hover { background: var(--accent-ink); border-color: var(--accent-ink); color: var(--on-fill); }
+/* The cause, drawn: the context per model call, or the steps as a short row of cards. */
+.fctx-svg { display: block; width: 100%; overflow: visible; }
+.cbar { fill: var(--field); }
+.cbar.after { fill: var(--high-line); }
+.cbar.cross { fill: var(--high); }
+.cline { stroke: var(--high); stroke-width: 2; stroke-dasharray: 6 4; }
+.caxis { stroke: var(--line); }
+.clabel { font-size: 12px; fill: var(--muted); }
+.clabel.hot { fill: var(--high); font-weight: 700; }
+.clabel.cmark { paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
+.fseq { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+.fstep { flex: 1 1 200px; min-width: 0; display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--subtle); }
+.fstep.ring { border: 2px solid var(--high); background: var(--high-soft); }
+.fstep.ctx { border: 1px dashed var(--accent); }
+.fstep.fgap { flex-direction: column; gap: 4px; border-style: dashed; background: transparent; }
+.fstep.fend, .fstep.fmore { align-items: center; gap: 6px; background: transparent; color: var(--muted); }
+.fstep-btn { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; align-items: stretch; text-align: left; background: transparent; border: 0; padding: 0; min-height: 0; color: var(--ink); font-size: 14px; }
+.fstep-btn:hover { background: transparent; color: var(--ink); }
+.fstep-btn:hover strong { text-decoration: underline; }
+.fstep .fat { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.fstep .fev { font-size: 12px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+.fstep .sres { align-self: flex-start; }
+.fstep.ring .sres.fail { background: var(--surface); }
+.fnum { flex: none; min-width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--high); color: var(--on-fill); font-size: 12px; font-weight: 700; }
+.frep .fstep { flex-basis: 160px; }
+.ftag { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--accent-wash); color: var(--accent-ink); border: 1px dashed var(--accent-line); }
+/* The chart's line in the focus, and its Other activity row, faint. */
+.zfind .zon { color: var(--ink); font-weight: 600; }
+.row-label.helpers.other { fill: var(--muted); font-weight: 400; }
+/* The steps list in the focus: the problem's own steps marked, each with "See in the whole session". */
+.fsteps-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.fsteps-head h2 { margin: 0; font-size: 17px; }
+.fsteps-head .fwide { font-weight: 600; text-decoration: none; min-height: 32px; }
+.srow.hot { background: var(--high-soft); box-shadow: inset 3px 0 0 var(--high); }
+.srow.hot.is-sel { background: var(--accent-wash); box-shadow: inset 3px 0 0 var(--accent); }
+.fwhole { align-self: flex-start; font-size: 13px; font-weight: 600; color: var(--accent); text-decoration: none; }
+.fwhole:hover { text-decoration: underline; }
+.kid .fwhole { display: inline-block; margin: 0 0 2px 6px; }
+
 /* ---- the selected step ------------------------------------------------------------------- */
 .rp-panel { display: flex; flex-direction: column; gap: 10px; padding: 18px; }
 .rp-panel .sel-k { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 0; }
@@ -202,4 +300,7 @@
   .srow { padding: 10px 12px; gap: 8px; }
   .srow > .stime, .shead .stime { min-width: 0; }
   .rp-player .controls button { padding: 4px 8px; }
+  .fcard { padding: 14px 16px; }
+  .fwhat .fcap { font-size: 20px; }
+  .fstep, .frep .fstep { flex-basis: 100%; }
 }

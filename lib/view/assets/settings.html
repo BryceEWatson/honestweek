@@ -76,9 +76,13 @@
     <section class="setup-part" aria-labelledby="insH">
       <h2 id="insH"><label><input type="checkbox" id="insights" autocomplete="off"> Include /insights</label> <span id="insHelp"></span></h2>
     </section>
+    <section class="setup-part" aria-labelledby="longH">
+      <h2 id="longH"><label for="longLimit">Long-session limit</label> <span id="longHelp"></span></h2>
+      <input class="setup-input" id="longLimit" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="Off">
+    </section>
     <div class="setup-inline setup-actions">
       <button type="button" class="btn" id="previewBtn">Review changes</button>
-      <button type="button" class="btn primary" id="saveBtn" disabled>Save</button>
+      <button type="button" class="btn primary" id="saveBtn">Save</button>
     </div>
     <p class="fine warnline" id="problem" role="alert" hidden></p>
     <ul class="fine changes" id="changes" hidden></ul>
