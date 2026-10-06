@@ -9,11 +9,18 @@
 // A source is known by its address. The page groups sources by kind, sorts each group by title
 // and lists the problems that cite each one by headline, so the same catalog always writes the
 // same page, whatever order its patterns and sources are in. It reads one local file and writes
-// one; it makes no network call.
+// one; it makes no network call. Under a source a check takes a number or a rule from, it says
+// which (lib/problems/context.mjs NUMBERS, and the rules' sources beside the rules).
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { CHECKS } from '../lib/problems/checks.mjs';
+import { RULE_SOURCES } from '../lib/problems/classify.mjs';
+import { NUMBERS } from '../lib/problems/context.mjs';
+import { RULE_SOURCES as ENGINE_RULE_SOURCES } from '../lib/replay/classify.mjs';
+import { LAUNCH_RULE_SOURCES } from '../lib/replay/launch.mjs';
 
 const CATALOG_FILE = fileURLToPath(new URL('../lib/problems/catalog.json', import.meta.url));
 export const INDEX_FILE = fileURLToPath(new URL('../docs/sources.md', import.meta.url));
@@ -63,6 +70,23 @@ export function collectSources(catalog) {
     .sort(order);
 }
 
+/**
+ * What the checks take from each source, by its address: each number a check uses whose source
+ * it is, with the checks that use it, and each rule that rests on it. Everything else a check
+ * uses is honestweek's own choice.
+ */
+export function takenFrom() {
+  const out = new Map();
+  const add = (url, what) => out.set(url, [...(out.get(url) ?? []), what]);
+  for (const [key, n] of Object.entries(NUMBERS)) {
+    if (!n.source) continue;
+    const by = CHECKS.filter((c) => c.numbers?.includes(key)).map((c) => c.id);
+    add(n.source, `${n.says}${by.length ? ` (${by.join(', ')})` : ''}`);
+  }
+  for (const [id, url] of [...Object.entries(RULE_SOURCES), ...ENGINE_RULE_SOURCES, ...LAUNCH_RULE_SOURCES]) if (url) add(url, `the ${id} rule`);
+  return out;
+}
+
 /** Text that Markdown would otherwise read as formatting or a link. */
 export function escapeMarkdown(text) {
   return String(text).replace(/[\\`*_[\]<>|]/g, (c) => `\\${c}`);
@@ -78,7 +102,7 @@ function groupOf(kind) {
 }
 
 /** The whole page, as the tool writes it. */
-export function renderSourcesIndex(catalog) {
+export function renderSourcesIndex(catalog, taken = takenFrom()) {
   const sources = collectSources(catalog);
   const problems = (catalog?.patterns ?? []).length;
   const checked = [...(catalog?.checkedOn ?? [])].sort(byText);
@@ -90,6 +114,8 @@ export function renderSourcesIndex(catalog) {
     `This page lists every published source behind honestweek's ${problems} known problems, each one once: vendor docs, bug reports, research papers and a few others. Each entry gives the source's title, linked to where it's published, its date, and the problems that cite it, so you can check the evidence for any problem in one place. I generate it from the problem catalog, so it changes only when the catalog does.`,
     '',
     `${sources.length} sources.${checked.length ? ` The catalog was checked on ${checked.join(' and ')}.` : ''}`,
+    '',
+    "Each number and rule the checks use is honestweek's own choice, not taken from a published source, unless the entry for a source here says a check takes it from there.",
   ];
   for (const g of KIND_GROUPS) {
     const inGroup = sources.filter((s) => groupOf(s.kind) === g);
@@ -98,6 +124,7 @@ export function renderSourcesIndex(catalog) {
     for (const s of inGroup) {
       lines.push(`- [${escapeMarkdown(s.title)}](${linkTarget(s.url)}) (${escapeMarkdown(s.date)})`);
       lines.push(`  Cited by: ${s.problems.map(escapeMarkdown).join('; ')}.`);
+      if (taken.has(s.url)) lines.push(`  A check takes from it: ${taken.get(s.url).map(escapeMarkdown).join('; ')}.`);
     }
   }
   lines.push(

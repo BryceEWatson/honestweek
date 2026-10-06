@@ -6,6 +6,8 @@ This page lists every published source behind honestweek's 42 known problems, ea
 
 210 sources. The catalog was checked on 2026-10-03 and 2026-10-05.
 
+Each number and rule the checks use is honestweek's own choice, not taken from a published source, unless the entry for a source here says a check takes it from there.
+
 ## Vendor docs (55)
 
 - [Addendum to GPT-5.2 System Card: GPT-5.2-Codex (section 4.2, avoid data-destructive actions)](https://cdn.openai.com/pdf/ac7c37ae-7f4c-4442-b741-2eabdeaf77e0/oai_5_2_Codex.pdf) (2025-12)
@@ -40,6 +42,7 @@ This page lists every published source behind honestweek's 42 known problems, ea
   Cited by: Instruction files grew too long to follow.
 - [Customize your status line](https://code.claude.com/docs/en/statusline) (undated page, fetched 2026-10-05)
   Cited by: Sessions ran long past where a fresh start would help.
+  A check takes from it: the usage.call rule.
 - [Don't Build Multi-Agents](https://cognition.com/blog/dont-build-multi-agents) (2025-06-12)
   Cited by: Guessed instead of asking; Lost or ignored what a helper found.
 - [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) (2025-09-29)
@@ -58,6 +61,7 @@ This page lists every published source behind honestweek's 42 known problems, ea
   Cited by: Broke a rule it was given; Called a failed run a pass, or its failures unrelated; Filled the context with huge command output; Hit the same tool error again and again; Installed a package it shouldn't have; Left scratch files or debug edits behind; Ran a command that can't be undone; Read the same file again when it hadn't changed; Removed or skipped tests, or narrowed the test command; Repeated the same step without getting further; Said it was done without running a check; Sessions ran long past where a fresh start would help; Stopped before the work was finished; Waited by sleeping and checking again and again; Went around a hook, a check or a refusal.
 - [How Claude Code uses prompt caching](https://code.claude.com/docs/en/prompt-caching) (undated page, fetched 2026-10-05)
   Cited by: Re-sent a cached conversation at the full rate.
+  A check takes from it: 5 minutes or 1 hour, how long Claude Code caches (cache-misses).
 - [How Claude remembers your project](https://code.claude.com/docs/en/memory) (undated page, fetched 2026-10-03)
   Cited by: Broke a rule it was given; Forgot earlier work after the context was summarized; Instruction files grew too long to follow.
 - [How we built Claude Code auto mode: a safer way to skip permissions](https://www.anthropic.com/engineering/claude-code-auto-mode) (2026-03-25)
@@ -86,6 +90,7 @@ This page lists every published source behind honestweek's 42 known problems, ea
   Cited by: Did more than you asked for; Hid what it needed from you in a long report; Kept deliberating when one step would settle it; Left placeholders in and called the work finished; Said it did something the log doesn't show; Started helpers the work didn't need.
 - [Prompting Claude Opus 5.5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5) (undated page, fetched 2026-10-05)
   Cited by: Followed instructions planted in what it read; Instruction files grew too long to follow; Kept deliberating when one step would settle it; Lost or ignored what a helper found; Read far more than the task needed; Said it did something the log doesn't show; Stopped before the work was finished; Stopped to ask permission it didn't need.
+  A check takes from it: the updates.position rule.
 - [Prompting Claude Sonnet 5.5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5) (undated page, fetched 2026-10-03)
   Cited by: Did more than you asked for; Hit the same tool error again and again; Installed a package it shouldn't have; Kept deliberating when one step would settle it; Left scratch files or debug edits behind; Said it was done without running a check; Started helpers the work didn't need; Stopped to ask permission it didn't need.
 - [Rethinking skills and prompts for GPT-6 Astra](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra) (2026-09-11)
