@@ -82,6 +82,7 @@ This is the first version on npm. 0.1.0 was released on GitHub, but its npm publ
 - `preview` refuses a request that names another host, as `view` already did, so a website that points its own name at your machine can't read your built summary through your browser while `preview` runs.
 - A `view` page that another website opened no longer gets this run's key from your other open `view` tabs. That website still couldn't read the page, but the key belongs only to tabs you opened. Tabs opened from `view`'s own pages share it as before.
 - Setup's and Settings' goal-list check no longer quotes the start of the file it was pointed at, or says whether a path is a folder. It says the file isn't a goal list, or that there's no file there.
+- `view`'s server enforces three rules itself instead of trusting the page: Run /insights and Run with Codex refuse to start while Include /insights is off, an address printed in the terminal stops working after 15 minutes (the file that opens your browser still lasts two minutes), and `claude` gets only the environment variables it needs to sign in, as `codex` already did. (#124)
 - Every answer from `view` and `preview` carries the same security headers, its errors included, and `view` also tells the browser to keep its pages and files out of other sites' pages and windows.
 - Fixes from a security review of what honestweek writes:
   - Keys in written data, like a chart's repo labels, a project's stats and a tool's name in the draft, go through the redactor like values do. Two keys that redact to the same text are merged. `validate` now checks every field of an item that reaches the output, such as `project` and `title`, for a listed term.
@@ -93,7 +94,7 @@ This is the first version on npm. 0.1.0 was released on GitHub, but its npm publ
   - `build` stops with exit 2 when the items file's week isn't given as plain `YYYY-MM-DD` dates, since the archive names its file after the week.
   - `discover` doesn't check tracked files when it runs from anywhere inside a display-only repository, not just its top folder.
   - Settings says so when your config is tracked by git, instead of claiming `.gitignore` hides it, and reads a later `!` line in `.gitignore`.
-  - On Linux and macOS, a private store is created readable only by you, and a rewrite keeps the permissions you set. Output files keep the system default.
+  - On Linux and macOS, a private store is created readable only by you, and a rewrite keeps the permissions you set. Output files and a new `.gitignore` keep the system default.
   - `preview` allows only honestweek's own page scripts, by hash, and forbids forms and a changed base address. The goals page links a report whose file name isn't plain as a relative, encoded path. `view` escapes a few more values it shows.
   - `view --demo` removes its own demo folders older than a day when it starts, leaving any whose run is still going, so a stopped demo doesn't leave them behind.
 
