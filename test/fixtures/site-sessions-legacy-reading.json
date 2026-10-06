@@ -1,0 +1,174 @@
+{
+  "legacyLogs": {
+    "metric": "interactive-sessions",
+    "provenance": "session-derived",
+    "windowDays": 7,
+    "weekStart": "2024-06-10",
+    "weekEnd": "2024-06-16",
+    "max": 2,
+    "total": 6,
+    "days": [
+      {
+        "date": "2024-06-10",
+        "weekday": "mon",
+        "isWeekend": false,
+        "isToday": false,
+        "total": 0,
+        "byProject": {}
+      },
+      {
+        "date": "2024-06-11",
+        "weekday": "tue",
+        "isWeekend": false,
+        "isToday": false,
+        "total": 0,
+        "byProject": {}
+      },
+      {
+        "date": "2024-06-12",
+        "weekday": "wed",
+        "isWeekend": false,
+        "isToday": false,
+        "total": 2,
+        "byProject": {
+          "alpha": 1,
+          "beta": 1
+        }
+      },
+      {
+        "date": "2024-06-13",
+        "weekday": "thu",
+        "isWeekend": false,
+        "isToday": false,
+        "total": 1,
+        "byProject": {
+          "other": 1
+        }
+      },
+      {
+        "date": "2024-06-14",
+        "weekday": "fri",
+        "isWeekend": false,
+        "isToday": false,
+        "total": 2,
+        "byProject": {
+          "beta": 1,
+          "alpha": 1
+        }
+      },
+      {
+        "date": "2024-06-15",
+        "weekday": "sat",
+        "isWeekend": true,
+        "isToday": false,
+        "total": 0,
+        "byProject": {}
+      },
+      {
+        "date": "2024-06-16",
+        "weekday": "sun",
+        "isWeekend": true,
+        "isToday": false,
+        "total": 1,
+        "byProject": {
+          "beta": 1
+        }
+      }
+    ],
+    "projectTotals": {
+      "alpha": 2,
+      "beta": 3,
+      "other": 1
+    },
+    "interactiveTotal": 6,
+    "automatedExcluded": 4,
+    "filesFound": 15,
+    "filesScanned": 14,
+    "undetermined": 2,
+    "duplicatesSkipped": 1
+  },
+  "markedLogs": {
+    "metric": "interactive-sessions",
+    "provenance": "session-derived",
+    "windowDays": 7,
+    "weekStart": "2024-06-10",
+    "weekEnd": "2024-06-16",
+    "max": 7,
+    "total": 10,
+    "days": [
+      {
+        "date": "2024-06-10",
+        "weekday": "mon",
+        "isWeekend": false,
+        "isToday": false,
+        "total": 0,
+        "byProject": {}
+      },
+      {
+        "date": "2024-06-11",
+        "weekday": "tue",
+        "isWeekend": false,
+        "isToday": false,
+        "total": 7,
+        "byProject": {
+          "alpha": 6,
+          "beta": 1
+        }
+      },
+      {
+        "date": "2024-06-12",
+        "weekday": "wed",
+        "isWeekend": false,
+        "isToday": false,
+        "total": 2,
+        "byProject": {
+          "beta": 2
+        }
+      },
+      {
+        "date": "2024-06-13",
+        "weekday": "thu",
+        "isWeekend": false,
+        "isToday": false,
+        "total": 0,
+        "byProject": {}
+      },
+      {
+        "date": "2024-06-14",
+        "weekday": "fri",
+        "isWeekend": false,
+        "isToday": false,
+        "total": 1,
+        "byProject": {
+          "alpha": 1
+        }
+      },
+      {
+        "date": "2024-06-15",
+        "weekday": "sat",
+        "isWeekend": true,
+        "isToday": false,
+        "total": 0,
+        "byProject": {}
+      },
+      {
+        "date": "2024-06-16",
+        "weekday": "sun",
+        "isWeekend": true,
+        "isToday": false,
+        "total": 0,
+        "byProject": {}
+      }
+    ],
+    "projectTotals": {
+      "alpha": 7,
+      "beta": 3
+    },
+    "interactiveTotal": 10,
+    "automatedExcluded": 0,
+    "filesFound": 11,
+    "filesScanned": 11,
+    "undetermined": 0,
+    "duplicatesSkipped": 1
+  }
+}

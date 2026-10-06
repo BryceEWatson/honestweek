@@ -189,6 +189,20 @@ from the shared `week-grid.mjs`, so a chart day and a session day never disagree
   It is `verifiedNumbers`-eligible because it is reproducible from the inputs, not
   because it is an exact measure. Clean-room: project labels come from
   `config.repos` (cwd-match), never a hardcoded allowlist.
+  **Who sent the first turn (on unless `output.skipProgramSessions` is false).** Current Claude
+  Code marks each user record with `turnOrigin` (`human` when it came from the person's own session, typed or pasted,
+  `sdk` when a program sent it: a script, the Agent SDK, a headless `claude -p` run, or
+  another session) and sometimes an `origin` object. By default, a session whose
+  first user record names anyone but the person counts only from the first later record
+  marked `human`, dated and deduped by that turn; with no such record in the head it
+  goes to `automatedExcluded`. An unmarked record after a program's turn is a tool
+  result or harness context, so it never stands in for a turn from the person. Logs without either field
+  count byte for byte as before either way, and with the switch set to false every log
+  does (`test/site-sessions-turn-origin.test.mjs`). A published count changes from 0.2.0
+  wherever logs record `turnOrigin`. A target that re-counts sessions with its own copy of
+  these rules, to check this count, should apply the same rule as the honestweek it loads:
+  `READS_TURN_SENDER`, exported from `lib/site/sessions.mjs`, is `true` in a honestweek
+  that reads the sender, and absent in an older one.
 - `deriveProjectStats`: per-project `{ entries, statusCounts, daysActive }` over the
   in-week items. `daysActive` is `max(commit-active days, session-active days,
   ENTRY-active days)`. The entry-active floor is the **cross-cwd reconciliation**: the
