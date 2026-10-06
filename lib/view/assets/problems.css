@@ -15,6 +15,7 @@
 .pfilter .chips { margin-top: 8px; }
 .psec .filternote { padding: 0; }
 .gempty { padding: 0; }
+.pfootline:empty, .pfilter[hidden] { display: none; }
 
 /* A pattern's card: tier, title, its key numbers, its findings as rows, its fix. */
 .pcards { display: flex; flex-direction: column; gap: 12px; }

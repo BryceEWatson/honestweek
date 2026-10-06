@@ -206,6 +206,10 @@ summary { cursor: pointer; }
 .quietnote { margin: 0; padding: 7px max(24px, calc((100% - 1240px) / 2 + 24px)); background: var(--subtle); border-bottom: 1px solid var(--line); font-size: 13px; color: var(--ink-2); }
 /* Build progress, or a note the reader must act on (a failed private build, no key, a stopped run). */
 .statusline { margin: 0; padding: 8px max(24px, calc((100% - 1240px) / 2 + 24px)); font-size: 14px; color: var(--ink-2); background: var(--surface); border-bottom: 1px solid var(--line); }
+.quietnote.bad { color: var(--critical); }
+/* What a section shows while it's still being checked: never an empty heading. */
+.checking { margin: 0; font-size: 14px; color: var(--muted); }
+.loadsecs { color: var(--muted); font-variant-numeric: tabular-nums; }
 .statusline.bad { color: var(--critical); font-weight: 600; background: var(--high-wash); border-bottom-color: var(--high-line); }
 .quiet { max-width: 1240px; margin: 8px auto 0; padding: 18px 24px 32px; font-size: 13px; color: var(--muted); }
 .quiet-line { margin: 0; padding-top: 14px; border-top: 1px solid var(--line); }

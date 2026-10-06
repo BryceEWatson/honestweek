@@ -189,7 +189,7 @@ test('a wrong goal list file gets a message that names the problem', async () =>
   writeFileSync(join(dir, 'registry.json'), JSON.stringify({ objectives: { 'obj-1': { publicLabel: 'Ship it' } }, projectToObjective: {} }));
   writeFileSync(join(dir, 'broken.json'), '{ not json');
   writeFileSync(join(dir, 'list.json'), JSON.stringify([{ id: 'g-1' }]));
-  for (const [file, message] of [['registry.json', /goals page's list.*honestweek build.*goal list/], ['broken.json', /isn't valid JSON/], ['list.json', /isn't a goal list: a goal record must be an object with a "goals" list/], ['missing.json', /no goal list at/]]) {
+  for (const [file, message] of [['registry.json', /goals page's list.*honestweek build.*goal list/], ['broken.json', /broken\.json isn't a goal list \(not valid JSON\)\./], ['list.json', /isn't a goal list: a goal record must be an object with a "goals" list/], ['missing.json', /no goal list at/]]) {
     const r = await view(['--goals', join(dir, file), '--from', WEEK.from, '--to', WEEK.to]);
     assert.equal(r.code, 1, file);
     assert.match(r.err(), message, file);

@@ -204,12 +204,12 @@ test('renderPage escapes the title', () => {
 // --- browserOpenCommand (pure, per platform) --------------------------------
 
 test('browserOpenCommand picks the right opener per platform, incl. WSL', () => {
-  assert.deepEqual(browserOpenCommand('win32', 'http://127.0.0.1:9/'), { cmd: 'cmd', args: ['/c', 'start', '', 'http://127.0.0.1:9/'] });
+  assert.deepEqual(browserOpenCommand('win32', 'http://127.0.0.1:9/', { env: { SystemRoot: 'C:\\Windows' } }), { cmd: 'C:\\Windows\\System32\\rundll32.exe', args: ['url.dll,FileProtocolHandler', 'http://127.0.0.1:9/'] });
   assert.deepEqual(browserOpenCommand('darwin', 'http://127.0.0.1:9/'), { cmd: 'open', args: ['http://127.0.0.1:9/'] });
   assert.deepEqual(browserOpenCommand('linux', 'http://127.0.0.1:9/'), { cmd: 'xdg-open', args: ['http://127.0.0.1:9/'] });
-  assert.deepEqual(browserOpenCommand('linux', 'http://127.0.0.1:9/', { isWsl: true }), { cmd: 'cmd.exe', args: ['/c', 'start', '', 'http://127.0.0.1:9/'] });
-  // the win32 'start' empty-title placeholder must be present (URL with & gotcha)
-  assert.equal(browserOpenCommand('win32', 'http://127.0.0.1:9/?a=1&b=2').args[2], '');
+  assert.deepEqual(browserOpenCommand('linux', 'http://127.0.0.1:9/', { isWsl: true }), { cmd: 'rundll32.exe', args: ['url.dll,FileProtocolHandler', 'http://127.0.0.1:9/'] });
+  // A URL with & reaches the opener whole, as one argument, with no shell to split it.
+  assert.equal(browserOpenCommand('win32', 'http://127.0.0.1:9/?a=1&b=2').args[1], 'http://127.0.0.1:9/?a=1&b=2');
 });
 
 // --- startServer: loopback bind, correct headers, 404 -----------------------
@@ -264,6 +264,42 @@ test('startServer refuses a request that names another host, as a DNS-rebinding 
       assert.equal(res.status, 200, `Host ${name} is answered`);
       assert.match(res.body, /private week/);
     }
+  } finally {
+    await handle.close();
+  }
+});
+
+test('startServer sends its 403, 404 and 405 answers with the same security headers as the page', async () => {
+  const csp = "default-src 'none'; style-src 'unsafe-inline'";
+  const handle = await startServer({ port: 0, html: '<p>private week</p>', csp });
+  const ask = ({ method = 'GET', path = '/', hostHeader = `127.0.0.1:${handle.port}` }) =>
+    new Promise((resolve, reject) => {
+      http
+        .request({ host: '127.0.0.1', port: handle.port, method, path, headers: { Host: hostHeader } }, (res) => {
+          let body = '';
+          res.setEncoding('utf8');
+          res.on('data', (c) => (body += c));
+          res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body }));
+        })
+        .on('error', reject)
+        .end();
+    });
+  try {
+    for (const [what, opts, status] of [
+      ['the page', {}, 200],
+      ['another host', { hostHeader: `attacker.example:${handle.port}` }, 403],
+      ['another path', { path: '/nope' }, 404],
+      ['a write', { method: 'POST' }, 405],
+    ]) {
+      const res = await ask(opts);
+      assert.equal(res.status, status, what);
+      assert.equal(res.headers['content-security-policy'], csp, what);
+      assert.equal(res.headers['x-content-type-options'], 'nosniff', what);
+      assert.equal(res.headers['cache-control'], 'no-store', what);
+      assert.equal(res.headers['referrer-policy'], 'no-referrer', what);
+      if (status !== 200) assert.doesNotMatch(res.body, /private week/, what);
+    }
+    assert.equal((await ask({ method: 'POST' })).headers.allow, 'GET, HEAD');
   } finally {
     await handle.close();
   }
