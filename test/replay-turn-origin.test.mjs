@@ -157,3 +157,68 @@ test("a program's slash command opens a turn for the Problems checks, as a codex
   // A command you typed opens no turn there, as before.
   assert.equal(c.turnsOf(w.key.typedCommand).length, 0);
 });
+
+/** Reads made-up Claude Code records, one session, straight through the parser. */
+async function parseRecords(name, records) {
+  const file = join(root, `${name}.jsonl`);
+  const at = (s) => `2024-06-11T10:00:${String(s).padStart(2, '0')}.000Z`;
+  let n = 0;
+  const lines = records.map(([type, t, extra]) => JSON.stringify({ parentUuid: null, isSidechain: false, userType: 'external', cwd: '/path/to/your/repo', sessionId: name, version: '2.1.0', type, uuid: `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`, timestamp: at(t), ...extra }));
+  writeFileSync(file, `${lines.join('\n')}\n`);
+  const source = { key: `cc-${name}`, sessionKey: `cc-${name}`, file, role: 'session', tool: 'claude-code' };
+  return parseClaudeSource(source, { redact: (x) => x, cwd: '/path/to/your/repo', agentKey: `cc-${name}:main`, sidechainAgentKey: `cc-${name}:sidechain` });
+}
+const said = (id, text) => ['assistant', 0, { message: { id, type: 'message', role: 'assistant', model: 'model-a', content: [{ type: 'text', text }] } }];
+const timed = (rec, t) => [rec[0], t, rec[2]];
+
+test("a background task's notice in a run a program started keeps the program as the turn's party", async () => {
+  // The shape of a headless review run: a program's first turn, a background task, its notice
+  // delivered as a turn of its own, and the agent's report after it.
+  const out = await parseRecords('program-notice', [
+    ['user', 0, { turnOrigin: 'sdk', message: { role: 'user', content: 'Review the changes on this branch.' } }],
+    timed(said('m1', 'Started the tests in the background.'), 1),
+    ['user', 2, { turnOrigin: 'task_notification', origin: { kind: 'task-notification' }, message: { role: 'user', content: '<task-notification>\n<status>completed</status>\n<summary>Tests finished</summary>\n</task-notification>' } }],
+    timed(said('m2', 'The tests pass; the review is clean.'), 3),
+  ]);
+  assert.deepEqual(out.events.filter((e) => ['delegation-received', 'notification'].includes(e.kind)).map((e) => e.kind), ['delegation-received', 'notification']);
+  assert.deepEqual(out.events.filter((e) => e.kind === 'message').map((e) => e.facts.to), ['program', 'program']);
+  // In a person's session the reply after a notice is still to the person.
+  const mine = await parseRecords('person-notice', [
+    ['user', 0, { turnOrigin: 'human', origin: { kind: 'human' }, message: { role: 'user', content: 'Run the tests in the background.' } }],
+    ['user', 2, { turnOrigin: 'task_notification', origin: { kind: 'task-notification' }, message: { role: 'user', content: '<task-notification>\n<status>completed</status>\n</task-notification>' } }],
+    timed(said('m2', 'They pass.'), 3),
+  ]);
+  assert.deepEqual(mine.events.filter((e) => e.kind === 'message').map((e) => e.facts.to), ['person']);
+});
+
+test("a message a program sent while the agent was busy is queued as the program's, not the person's", async () => {
+  const body = 'Also check the changelog.';
+  const out = await parseRecords('program-queued', [
+    ['user', 0, { turnOrigin: 'sdk', message: { role: 'user', content: 'Review the changes on this branch.' } }],
+    ['queue-operation', 1, { operation: 'enqueue', content: body }],
+    timed(said('m1', 'Reviewed the code.'), 2),
+    ['queue-operation', 3, { operation: 'dequeue' }],
+    ['user', 3, { turnOrigin: 'sdk', message: { role: 'user', content: body } }],
+    timed(said('m2', 'The changelog is current.'), 4),
+  ]);
+  const queued = out.events.filter((e) => e.kind === 'queue');
+  assert.deepEqual(queued.map((e) => [e.facts.state, e.actor]), [['delivered', 'program'], ['delivered', 'harness']]);
+  const msg = out.events.find((e) => e.kind === 'agent-message');
+  assert.deepEqual([msg.actor, msg.facts.from, msg.facts.queuedAt], ['program', 'program', '2024-06-11T10:00:01.000Z']);
+  assert.equal(out.events.filter((e) => e.kind === 'prompt').length, 0);
+  assert.deepEqual(out.events.filter((e) => e.kind === 'message').map((e) => e.facts.to), ['program', 'program']);
+});
+
+test('an empty record with turnOrigin "human" and no origin object is a person\'s notice, as one with the origin object is', async () => {
+  // The harness writes a record with no text for an action a person took (starting a suggested
+  // task, say). With only turnOrigin to say who, it reads as the origin object's version does;
+  // an empty record that says neither stays ignored, as before turnOrigin was read.
+  const out = await parseRecords('empty-human', [
+    ['user', 0, { turnOrigin: 'human', message: { role: 'user', content: '' } }],
+    ['user', 1, { turnOrigin: 'human', origin: { kind: 'human' }, message: { role: 'user', content: '' } }],
+    ['user', 2, { message: { role: 'user', content: '' } }],
+    ['user', 3, { turnOrigin: 'sdk', message: { role: 'user', content: '' } }],
+  ]);
+  assert.deepEqual(out.events.filter((e) => e.kind !== 'session').map((e) => [e.kind, e.actor, e.facts.origin]), [['notice', 'person', 'human'], ['notice', 'person', 'human']]);
+  assert.equal(out.coverage.get('user:empty')?.count, 2);
+});

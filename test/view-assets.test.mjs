@@ -712,3 +712,17 @@ test('the sessions list draws each day with a few rows, says when a session is d
   assert.equal(none.els.get('fatal').dataset.fatal, 'no-thread');
   assert.ok(none.els.get('allSessions').removed, 'an empty list has no link to itself either');
 });
+
+test('the sessions list names the year on each day when the window spans more than one calendar year', async () => {
+  const day = (d) => ({ day: d, evidence: 'derived', count: { value: 1, evidence: 'derived' }, more: { value: 0, evidence: 'derived' }, rows: [] });
+  const draw = async (extra) => {
+    const p = replayPage('replay.html', (route) => (route === 'sessions' ? { timezone: 'UTC', total: { value: 2, evidence: 'derived' }, page: 20, days: [day('2026-01-05'), day('2025-01-06')], older: null, ...extra } : {}));
+    await p.calls.run();
+    return p.els.get('content').innerHTML;
+  };
+  const spanning = await draw({ spansYears: true });
+  assert.match(spanning, /<h2 id="day-2026-01-05">Mon, Jan 5, 2026<\/h2>/);
+  assert.match(spanning, /<h2 id="day-2025-01-06">Mon, Jan 6, 2025<\/h2>/);
+  // Without the flag, as before: no year.
+  assert.match(await draw({}), /<h2 id="day-2026-01-05">Mon, Jan 5<\/h2>/);
+});
