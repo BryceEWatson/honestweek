@@ -1,13 +1,17 @@
 // Atomic writes keep private files private on POSIX: a new file is created 0600, and a rewrite
 // keeps the file's own mode (a user's chmod 600, or anything else) instead of resetting it.
+// Files the user commits or publishes (an output page, a .gitignore) get the system default.
 // Windows doesn't use POSIX mode bits, so the mode checks skip there; the content checks run
 // everywhere.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chmodSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { chmodSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { atomicWriteJson, atomicWriteText } from '../lib/atomic-json.mjs';
+import { ensureGitignore, writeInitFiles } from '../lib/init.mjs';
+import { runDiscover } from '../lib/discover.mjs';
+import { runHarvest } from '../lib/harvest.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const posixOnly = { skip: process.platform === 'win32' ? 'POSIX mode bits only' : false };
@@ -66,4 +70,60 @@ test('an output file the user will publish gets the system default mode when new
   chmodSync(file, 0o600);
   atomicWriteText(file, 'two\n', undefined, { newMode: null });
   assert.equal(modeOf(file).toString(8), '600');
+});
+
+test('a new .gitignore gets the system default mode, not owner-only, and an existing one keeps its own', posixOnly, (t) => {
+  const dir = scratch(t);
+  const file = join(dir, '.gitignore');
+  const old = process.umask(0o022);
+  try {
+    assert.equal(ensureGitignore(dir, 'honestweek.draft.json'), true);
+  } finally {
+    process.umask(old);
+  }
+  assert.equal(modeOf(file).toString(8), '644');
+  chmodSync(file, 0o640);
+  assert.equal(ensureGitignore(dir, 'honestweek.history.json'), true);
+  assert.equal(modeOf(file).toString(8), '640');
+  assert.equal(readFileSync(file, 'utf8'), 'honestweek.draft.json\nhonestweek.history.json\n');
+});
+
+/** Runs `fn` with a umask that would otherwise let everyone read a new file. */
+async function underUmask022(fn) {
+  const old = process.umask(0o022);
+  try {
+    return await fn();
+  } finally {
+    process.umask(old);
+  }
+}
+
+const quietIo = { out: () => {}, err: () => {}, exit: (c) => c };
+const config = (redaction = { codenames: [], names: [], terms: [] }) => ({
+  identity: { authorEmails: ['you@example.com'] },
+  week: { startsOn: 'monday', timezone: 'UTC' },
+  repos: [{ path: '.', label: 'here', role: 'featured' }],
+  redaction,
+  output: { mode: 'digest', file: 'out.md' },
+});
+
+test('a new config is owner-only, while the example config and .gitignore keep the default', posixOnly, async (t) => {
+  const dir = scratch(t);
+  await underUmask022(() => writeInitFiles(dir, config({ codenames: [], names: ['Jane Doe'], terms: [] })));
+  assert.equal(modeOf(join(dir, 'honestweek.config.json')).toString(8), '600');
+  assert.equal(modeOf(join(dir, 'honestweek.config.example.json')).toString(8), '644');
+  assert.equal(modeOf(join(dir, '.gitignore')).toString(8), '644');
+  chmodSync(join(dir, 'honestweek.config.json'), 0o640);
+  await underUmask022(() => writeInitFiles(dir, config(), { force: true }));
+  assert.equal(modeOf(join(dir, 'honestweek.config.json')).toString(8), '640', '--force keeps the mode the config has');
+});
+
+test('a new session draft and a new harvest list are owner-only', posixOnly, async (t) => {
+  const dir = scratch(t);
+  writeFileSync(join(dir, 'honestweek.config.json'), JSON.stringify(config()));
+  const now = new Date('2024-06-19T12:00:00Z');
+  await underUmask022(() => runDiscover({ cwd: dir, now, io: quietIo, adapter: async () => [], gitWindow: () => [] }));
+  assert.equal(modeOf(join(dir, 'honestweek.draft.json')).toString(8), '600');
+  await underUmask022(() => runHarvest({ cwd: dir, now, io: quietIo }));
+  assert.equal(modeOf(join(dir, 'honestweek.harvest.json')).toString(8), '600');
 });

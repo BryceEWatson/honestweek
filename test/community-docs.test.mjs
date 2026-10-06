@@ -119,3 +119,17 @@ test('CI runs on Linux, Windows and macOS and installs nothing', () => {
     assert.doesNotMatch(wf, /npm (install|ci)\b|npm i\b/, 'a workflow installs packages');
   }
 });
+
+test('every action a workflow uses is pinned to a full commit id', () => {
+  for (const name of ['ci.yml', 'release.yml']) {
+    const uses = read(`.github/workflows/${name}`).split(/\r?\n/).filter((l) => /^\s*-?\s*uses:/.test(l));
+    assert.ok(uses.length > 0, `${name} uses actions`);
+    for (const line of uses) assert.match(line, /uses: [\w.-]+\/[\w.-]+@[0-9a-f]{40} # v\d/, `${name}: ${line.trim()}`);
+  }
+});
+
+test('a newer commit cancels a pull request\'s CI run, and a push to main is never cancelled', () => {
+  const ci = read('.github/workflows/ci.yml');
+  assert.match(ci, /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/);
+  assert.match(ci, /group: .*github\.event\.pull_request\.number.*github\.run_id/, 'pushes each get their own group, so none waits behind or replaces another');
+});
