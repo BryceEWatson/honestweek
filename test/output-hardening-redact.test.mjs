@@ -47,6 +47,17 @@ test('a long run of digits and commas is scanned in linear time, by the redactor
   assert.equal(r.redact('paid 1,250.50 USD today'), 'paid [redacted:account] today');
 });
 
+test('a long run of URL-encoded slashes with no user folder after it is scanned in linear time', () => {
+  for (const sep of ['%2F', '%5C']) {
+    const build = (scale) => `${sep.repeat(Math.round(50000 * scale))}Users`;
+    const r = full();
+    assertGrowsInStep(`redact ${sep}`, build, (s) => r.redact(s));
+    assertGrowsInStep(`redactWithAudit ${sep}`, build, (s) => redactWithAudit(s, {}));
+  }
+  // A path after a run of separators is still hidden whole.
+  assert.equal(full().redact('see %2F%2F%2FUsers%2Fjdoe%2Frepo now'), 'see [redacted:path] now');
+});
+
 test('the term fast path stays on when the text holds a dotted capital I, a long s or a Kelvin sign', () => {
   const terms = Array.from({ length: 100 }, (_, i) => `Wexlor${String.fromCharCode(97 + (i % 26))}${i}`);
   const r = full(terms);

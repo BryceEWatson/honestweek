@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { sweepStaleDemoDirs, DEMO_DIR_PREFIX } from '../lib/demo/week.mjs';
+import { markDemoOwner, sweepStaleDemoDirs, DEMO_DIR_PREFIX } from '../lib/demo/week.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -77,4 +77,26 @@ test('the demo sweep removes only old folders named the way mkdtemp names demo f
 test('the demo sweep ignores a missing temp folder', () => {
   const tmp = makeTempDir('hw-sweep-');
   assert.deepEqual(sweepStaleDemoDirs(join(tmp, 'missing'), Date.now()), []);
+});
+
+test('the demo sweep leaves an old demo folder whose recorded owner is still running', () => {
+  const tmp = makeTempDir('hw-sweep-');
+  const now = Date.now();
+  const live = join(tmp, `${DEMO_DIR_PREFIX}LiVe01`);
+  const dead = join(tmp, `${DEMO_DIR_PREFIX}DeAd01`);
+  const unmarked = join(tmp, `${DEMO_DIR_PREFIX}NoMrk1`);
+  for (const d of [live, dead, unmarked]) mkdirSync(d);
+  markDemoOwner(live, 1111);
+  markDemoOwner(dead, 2222);
+  for (const d of [live, dead, unmarked]) age(d, now, 3 * DAY);
+  const removed = sweepStaleDemoDirs(tmp, now, (pid) => pid === 1111);
+  assert.equal(existsSync(live), true, 'a folder whose owner is running is left, however old');
+  assert.deepEqual(removed.sort(), [dead, unmarked].sort(), 'a gone owner or no owner record: removed');
+  // With the real check, this process counts as running.
+  const mine = join(tmp, `${DEMO_DIR_PREFIX}MiNe01`);
+  mkdirSync(mine);
+  markDemoOwner(mine);
+  age(mine, now, 3 * DAY);
+  assert.ok(!sweepStaleDemoDirs(tmp, now).includes(mine), 'this running process keeps its folder');
+  assert.equal(existsSync(mine), true);
 });

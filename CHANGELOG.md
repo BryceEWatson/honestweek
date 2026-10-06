@@ -91,7 +91,7 @@ This is the first version on npm. 0.1.0 was released on GitHub, but its npm publ
   - Settings says so when your config is tracked by git, instead of claiming `.gitignore` hides it, and reads a later `!` line in `.gitignore`.
   - On Linux and macOS, a private store is created readable only by you, and a rewrite keeps the permissions you set. Output files keep the system default.
   - `preview` allows only honestweek's own page scripts, by hash, and forbids forms and a changed base address. The goals page links a report whose file name isn't plain as a relative, encoded path. `view` escapes a few more values it shows.
-  - `view --demo` removes its own demo folders older than a day when it starts, so a stopped demo doesn't leave them behind.
+  - `view --demo` removes its own demo folders older than a day when it starts, leaving any whose run is still going, so a stopped demo doesn't leave them behind.
 
 ## 0.1.0 (14 August 2026)
 

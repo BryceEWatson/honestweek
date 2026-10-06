@@ -142,3 +142,25 @@ test('a config inside a display-only repository is never checked with git', asyn
   assert.deepEqual(seen.filter((c) => c.includes('ls-files')), [], 'no ls-files run at all');
   assert.deepEqual(seen.filter((c) => c.includes(norm(work))), [], 'no git command names the folder');
 });
+
+test('the "adds it to .gitignore" note follows what Save will do, not whether the words are new', async (t) => {
+  // Words already listed, and a later ! line un-ignores the config: Save adds the line, so the note says so.
+  const work = setup(t);
+  const gi = join(work, '.gitignore');
+  const first = createSettings({ cwd: work });
+  assert.equal(answer(await first.save(withWord(first))).status, 200);
+  writeFileSync(gi, `${CONFIG}\n!${CONFIG}\n`);
+  const s = createSettings({ cwd: work });
+  const i = s.info();
+  const body = JSON.stringify({ version: i.version, history: i.history, repos: i.repos.map((r) => ({ index: r.index, role: r.role })), authorEmails: i.authorEmails, names: i.names, terms: 'secretword, otherword', goalsFile: i.goalsFile });
+  const r = answer(await s.preview(body));
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.ok(r.json.notes.some((n) => n.startsWith('Saving also adds')), JSON.stringify(r.json.notes));
+  // New words, but a pattern already ignores the config: Save adds nothing, so there's no note.
+  const other = setup(t);
+  writeFileSync(join(other, '.gitignore'), '*.json\n');
+  const s2 = createSettings({ cwd: other });
+  const r2 = answer(await s2.preview(withWord(s2)));
+  assert.equal(r2.status, 200, JSON.stringify(r2.json));
+  assert.ok(!r2.json.notes.some((n) => n.startsWith('Saving also adds')), JSON.stringify(r2.json.notes));
+});
