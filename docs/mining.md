@@ -269,12 +269,12 @@ the agent takes it in mid-turn, a `queued_command` note. The miner counts it onc
 copy it keeps is the delivery, because the delivery says who sent the turn and sits where
 the agent read it. The queue record has only the earlier time, which the first-prompt
 probe still uses. A delivery matches a queued turn by the same text, or by that text with
-lines added after it. Another session's message can arrive wrapped around the text it
-queued, and that clears the queued copy too. A queued turn nothing delivers (the session
+lines added after it. Another session's message can arrive with lines wrapped around the
+text it queued, and that clears the queued copy too. A queued turn nothing delivers (the session
 ended first) still counts once, at its queue record. Before this, on the reference machine
-for sessions started 30 September to 6 October 2026, 355 queued turns counted twice and
-154 queued messages from other sessions counted as the person's: the miner read 1,460
-human turns where it now reads 951, and 19 of 221 sessions moved on the effort score.
+for sessions started 30 September to 6 October 2026, 358 queued turns counted twice and
+70 wrapped messages from other sessions counted as the person's: the miner read 1,393
+human turns where it now reads 965, and 14 of 223 sessions moved on the effort score.
 
 **The same session written more than once.** Deduplicated on when the first human turn
 happened and what it said. Measured on the reference machine at 7.8% of keyed Claude Code

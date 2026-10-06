@@ -55,8 +55,8 @@ test('mine: a queued turn and its delivery are one human turn, and only the pers
     'also check the timeout path',
     'one more thing before you stop',
   ]);
-  // The code before this change read 13 here: each delivered turn twice, and the queue
-  // records of the other session's two messages as the person's.
+  // The code before this change read 12 here: each delivered turn twice, and the queue
+  // record of the other session's wrapped message as the person's.
   assert.equal(extractFeatures(events, { cwd: '/work/your-project' }).humanTurns, 7);
 });
 
@@ -79,6 +79,11 @@ test('mine: a delivery delivers a queued turn only by its exact text or the text
     enqueue('yes'), absorbed('yes'), note('yes', 'human'), say('Done again.'),
   ]);
   assert.deepEqual(humans(twice), ['yes', 'yes'], 'the same text queued twice is two turns');
+  const quoted = await read([
+    enqueue('yes'), user('A message from another session:\nthe reviewer says yes to it', ORIGINS.peer),
+    note('yes', 'human'), say('Done.'),
+  ]);
+  assert.deepEqual(humans(quoted), ['yes'], 'another session\'s message clears a queued text only when it holds it on lines of its own');
 });
 
 test('mine: a log without sender marks counts a queued turn and its delivery once', async () => {
