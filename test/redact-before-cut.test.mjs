@@ -610,6 +610,7 @@ const ALLOWED = [
   ['classify.mjs', "t.split('=')[0]", "an environment variable's name, read by a rule"],
   ['goals.mjs', 'rest.split(/\\r?\\n/)[0]', 'the raw first line ids are matched on, never shown'],
   ['lookup.mjs', ".split(/[\\\\/]/).pop()", "a repository's name, matched on, never shown"],
+  ['launch.mjs', 'whole.slice(0, HEAD)', "a run's opening, matched against a launch command in memory, never shown"],
   ['outcomes.mjs', 'found.sha.slice(0, 12)', 'a commit id'],
   ['outcomes.mjs', 'sha: landed.sha.slice(0, 12)', 'a commit id'],
   ['outcomes.mjs', 'value: landed.sha.slice(0, 12)', 'a commit id'],
