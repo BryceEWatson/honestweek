@@ -312,6 +312,9 @@ test("partialState: the rest's days, how far and how long, a window cut to fit, 
   // Cut to fit memory: the rest reads from where the cut starts.
   const cut = partialState({ from: WEEK.from, to: WEEK.to, progress: () => null, failed: () => null, start: () => '2025-03-13', startedAt: () => null }, { from: WEEK.to });
   assert.deepEqual([cut.rest, cut.read, cut.total, cut.elapsedMs], [{ from: '2025-03-13', to: '2025-03-15' }, null, null, null]);
+  // Cut to just the shown day: the rest never claims the days the cut dropped.
+  const one = partialState({ from: WEEK.from, to: WEEK.to, progress: () => null, failed: () => null, start: () => WEEK.to }, { from: WEEK.to });
+  assert.deepEqual(one.rest, { from: WEEK.to, to: WEEK.to });
   const two = partialState({ from: WEEK.from, to: WEEK.to, progress: () => null, failed: () => 'no room' }, { from: '2025-03-15' });
   assert.deepEqual([two.rest, two.failed], [{ from: WEEK.from, to: '2025-03-14' }, 'no room']);
   assert.equal(PRIVATE_WORDS_SHORT.split(' ').length <= 10, true, 'the private-words line is short');
