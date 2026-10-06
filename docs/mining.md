@@ -256,11 +256,25 @@ marks as sent by anyone but the person (its `turnOrigin` is `sdk` for a program,
 a headless `claude -p` run or another session through one, or names a background task or
 another session). A queue record carries no such mark, so each queued turn is matched, in
 order, to the record that delivers the same text (the user record, or a `queued_command`
-attachment when it arrives mid-turn) and dropped when that one is marked as someone else's.
+attachment when it arrives mid-turn), and it counts only when that one is the person's (see
+the next paragraph).
 A session with none of the person's turns has no first prompt and isn't a candidate. When
 the first 64 KB can't settle it in a log that marks senders (only someone else's turns so
 far, or a first queued turn whose delivery lies further on), the probe reads on to 256 KB
 and then 1 MB, as it does for Codex. Logs from before the mark read as they always have.
+
+**One turn, two records.** A turn typed while the agent is busy is logged twice: a queue
+record when it's typed, then the record that delivers it, which is a user record or, when
+the agent takes it in mid-turn, a `queued_command` note. The miner counts it once, and the
+copy it keeps is the delivery, because the delivery says who sent the turn and sits where
+the agent read it. The queue record has only the earlier time, which the first-prompt
+probe still uses. A delivery matches a queued turn by the same text, or by that text with
+lines added after it. Another session's message can arrive with lines wrapped around the
+text it queued, and that clears the queued copy too. A queued turn nothing delivers (the session
+ended first) still counts once, at its queue record. Before this, on the reference machine
+for sessions started 30 September to 6 October 2026, 358 queued turns counted twice and
+70 wrapped messages from other sessions counted as the person's: the miner read 1,393
+human turns where it now reads 965, and 14 of 223 sessions moved on the effort score.
 
 **The same session written more than once.** Deduplicated on when the first human turn
 happened and what it said. Measured on the reference machine at 7.8% of keyed Claude Code
