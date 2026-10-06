@@ -5,10 +5,11 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { buildWorkHistory } from '../lib/replay/index.mjs';
+import { parseClaudeSource } from '../lib/replay/claude.mjs';
 import { describe } from '../lib/replay/views.mjs';
 import { isExecInstruction, isPersonPrompt } from '../lib/problems/context.mjs';
 import { runProblems } from '../lib/problems/index.mjs';
@@ -120,4 +121,25 @@ test("word search reads a program's turn as nobody's words", async () => {
   assert.ok(texts.includes('Yes, go ahead.'), 'the go-ahead a person typed is found');
   assert.equal(texts.filter((t) => t === 'Yes, go ahead.').length, 1, "the program's go-ahead is not");
   assert.ok(!texts.some((t) => /^Background command/.test(t)), 'a notice is not');
+});
+
+test('an older log whose first prompt was typed mid-turn joins no hand-off, as before', async () => {
+  // A command opens it, a message typed while the agent was busy is prompt 1, and the next
+  // prompt is prompt 2: the first-prompt join stays empty, as it was before turnOrigin was read.
+  const file = join(root, 'midturn.jsonl');
+  const at = (s) => `2024-06-11T09:00:${String(s).padStart(2, '0')}.000Z`;
+  const rec = (type, extra, t, n) => JSON.stringify({ parentUuid: null, isSidechain: false, userType: 'external', cwd: '/path/to/your/repo', sessionId: 'midturn', type, uuid: `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`, timestamp: at(t), ...extra });
+  const say = (t, n) => rec('assistant', { message: { id: `msg_${n}`, type: 'message', role: 'assistant', model: 'model-a', content: [{ type: 'text', text: 'Working on it.' }] } }, t, n);
+  writeFileSync(file, `${[
+    rec('user', { message: { role: 'user', content: '<command-name>/review</command-name>' } }, 0, 1),
+    say(1, 2),
+    rec('attachment', { attachment: { type: 'queued_command', prompt: 'also check the docs' } }, 2, 3),
+    say(3, 4),
+    rec('user', { message: { role: 'user', content: 'Now open the pull request.' } }, 4, 5),
+  ].join('\n')}\n`);
+  const source = { key: 'cc-midturn', sessionKey: 'cc-midturn', file, role: 'session', tool: 'claude-code' };
+  const out = await parseClaudeSource(source, { redact: (x) => x, cwd: '/path/to/your/repo', agentKey: 'cc-midturn:main', sidechainAgentKey: 'cc-midturn:sidechain' });
+  assert.deepEqual(out.events.filter((e) => e.kind === 'prompt').map((e) => e.facts.index), [1, 2]);
+  assert.equal(out.joins.firstPromptDigest, null);
+  assert.equal(out.joins.firstPromptEvent, null);
 });
