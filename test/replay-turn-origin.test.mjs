@@ -60,6 +60,11 @@ test('turnOrigin "sdk": a program sent it, so it is never a prompt and never the
   const cmd = turns(w.key.programCommand);
   assert.deepEqual(cmd.map((e) => [e.kind, e.actor, e.facts.from, e.facts.name]), [['command', 'program', 'program', '/review']]);
   assert.match(describe(cmd[0]), /^slash command sent by a program \/review/);
+  // The agent's replies in a turn a program opened go to the program, not to the person.
+  const replies = (key) => of(key, 'message').map((e) => e.facts.to);
+  assert.deepEqual([replies(w.key.programText), replies(w.key.programCommand)], [['program', 'program'], ['program']]);
+  assert.match(describe(of(w.key.programCommand, 'message')[0]), /^reply to the program that sent the turn "Nothing uncommitted/);
+  assert.deepEqual(replies(w.key.typedCheckIn), ['person', 'person']);
 });
 
 test('turnOrigin "task_notification" is a notice, and a value this engine does not know keeps the unknown-origin rule', () => {
