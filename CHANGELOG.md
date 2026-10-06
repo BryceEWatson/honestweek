@@ -79,6 +79,19 @@ This is the first version on npm. 0.1.0 was released on GitHub, but its npm publ
 - Two rare redactor gaps are closed: text glued after a header's placeholder (`Authorization=[redacted:secret]'…`) is hidden, and text the redactor used to change on a second pass, like JSON-escaped keys nested in each other, is settled on the first, so fewer digest items are held back. (#105)
 - `init`, Setup and Settings refuse a display-only folder inside a repository git reads, and a read repository inside a display-only folder, since git reading the outer one would read the other too. Folders are compared by their real paths, so a link can't hide it. (#105)
 - `preview` refuses a request that names another host, as `view` already did, so a website that points its own name at your machine can't read your built summary through your browser while `preview` runs.
+- Fixes from a security review of what honestweek writes:
+  - Keys in written data, like a chart's repo labels, a project's stats and a tool's name in the draft, go through the redactor like values do. Two keys that redact to the same text are merged. `validate` now checks every field of an item that reaches the output, such as `project` and `title`, for a listed term.
+  - The goals page redacts archived weeks again with your current config, so a word you list after a week was archived doesn't show.
+  - A page title made from a summary is cut after redaction, so a secret or a private word across the cut can't show its start.
+  - The redactor hides more: a value after `=>`, a bare hex key of 32 to 39 characters (only commit ids of 7 to 12 or exactly 40 hex characters are kept), an email address with an encoded `@`, `ConvertTo-SecureString -AsPlainText` and piped SecureString literals, ODBC `PWD=`, XML elements named for a secret, user names in Claude Code's encoded folder names and in URL-encoded paths, a listed term in either Unicode spelling, and GitLab `glpat-` tokens.
+  - Two inputs no longer slow the redactor down: a long run of digits and commas, and text holding a dotted capital I, a long s or a Kelvin sign alongside many listed terms.
+  - The Markdown outputs (digest, post, report, changelog) keep each item on one line and escape the characters that would make a link, an image, raw HTML, emphasis or a code span. Ordinary text without those characters reads as before. The changelog output keeps a `$&` or similar in item text as written. `validate` rejects item text that runs over more than one line.
+  - `build` stops with exit 2 when the items file's week isn't given as plain `YYYY-MM-DD` dates, since the archive names its file after the week.
+  - `discover` doesn't check tracked files when it runs from anywhere inside a display-only repository, not just its top folder.
+  - Settings says so when your config is tracked by git, instead of claiming `.gitignore` hides it, and reads a later `!` line in `.gitignore`.
+  - On Linux and macOS, a private store is created readable only by you, and a rewrite keeps the permissions you set. Output files keep the system default.
+  - `preview` allows only honestweek's own page scripts, by hash, and forbids forms and a changed base address. The goals page links a report whose file name isn't plain as a relative, encoded path. `view` escapes a few more values it shows.
+  - `view --demo` removes its own demo folders older than a day when it starts, so a stopped demo doesn't leave them behind.
 
 ## 0.1.0 (14 August 2026)
 
