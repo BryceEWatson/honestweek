@@ -1,10 +1,10 @@
 // The site's session count can read who sent a session's first turn. Current Claude Code marks
 // each user record with `turnOrigin` ("human" when it came from the person's own session, typed or pasted, "sdk" when a program
 // sent it, other values for a task's notice or another session) and sometimes an `origin`
-// object. With `output.skipProgramSessions` on, a session someone else opened counts only from
-// the first later turn marked as the person's. A published weekly number depends on this count,
-// so the switch is off by default, and the reading before it existed is pinned byte for byte:
-// with the switch off for every log, and with it on for logs that carry neither field.
+// object. Unless the config sets `output.skipProgramSessions` to false, a session someone else
+// opened counts only from the first later turn marked as the person's. A published weekly number
+// depends on this count, so the reading before this rule existed is pinned byte for byte: with
+// the switch set to false for every log, and by default for logs that carry neither field.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,6 +20,7 @@ const BEFORE = JSON.parse(readFileSync(new URL('./fixtures/site-sessions-legacy-
 const serialize = (v) => JSON.stringify(v, null, 2);
 
 const ON = { ...siteConfig(), output: { mode: 'site', skipProgramSessions: true } };
+const OFF = { ...siteConfig(), output: { mode: 'site', skipProgramSessions: false } };
 const derive = (root, config = siteConfig()) => deriveSessions({ config, weekStart: WEEK_START, weekEnd: WEEK_END, now: NOW, projectsRoot: root });
 
 function withLogs(logs, fn) {
@@ -32,17 +33,16 @@ function withLogs(logs, fn) {
   }
 }
 
-test('switch off: every log, marked or not, counts byte for byte as before', () => {
-  withLogs(LEGACY_LOGS, (root) => assert.equal(serialize(derive(root)), serialize(BEFORE.legacyLogs)));
-  withLogs(MARKED_LOGS, (root) => assert.equal(serialize(derive(root)), serialize(BEFORE.markedLogs)));
-  withLogs(MARKED_LOGS, (root) => {
-    const off = { ...siteConfig(), output: { mode: 'site', skipProgramSessions: false } };
-    assert.equal(serialize(derive(root, off)), serialize(BEFORE.markedLogs), 'false is the same as leaving it out');
-  });
+test('set to false: every log, marked or not, counts byte for byte as before', () => {
+  withLogs(LEGACY_LOGS, (root) => assert.equal(serialize(derive(root, OFF)), serialize(BEFORE.legacyLogs)));
+  withLogs(MARKED_LOGS, (root) => assert.equal(serialize(derive(root, OFF)), serialize(BEFORE.markedLogs)));
 });
 
-test('switch on: logs without turnOrigin or origin still count byte for byte as before', () => {
-  withLogs(LEGACY_LOGS, (root) => assert.equal(serialize(derive(root, ON)), serialize(BEFORE.legacyLogs)));
+test('by default: logs without turnOrigin or origin count byte for byte as before', () => {
+  withLogs(LEGACY_LOGS, (root) => {
+    assert.equal(serialize(derive(root)), serialize(BEFORE.legacyLogs));
+    assert.equal(serialize(derive(root, ON)), serialize(BEFORE.legacyLogs), 'true is the default');
+  });
 });
 
 test('the pins cover the cases a first-turn change could move', () => {
@@ -58,9 +58,11 @@ test('the pins cover the cases a first-turn change could move', () => {
   });
 });
 
-test('switch on: a session someone else opened counts only from a turn marked as the person\'s', () => {
+test('by default: a session someone else opened counts only from a turn marked as the person\'s', () => {
   withLogs(MARKED_LOGS, (root) => {
-    const s = derive(root, ON);
+    const s = derive(root);
+    assert.equal(serialize(derive(root, ON)), serialize(s), 'true is the default');
+    assert.notEqual(serialize(s), serialize(BEFORE.markedLogs), 'logs that record who sent a turn count differently than before');
     assert.equal(s.total, 3, 'm01 and m02 are the person\'s; m09 opened by a program, with a turn from the person later');
     assert.equal(s.automatedExcluded, 7, 'm03 to m08 have no turn of the person\'s; m11\'s turn is a probe');
     assert.equal(s.duplicatesSkipped, 1, 'm10 resumes m09 and dedupes on the person\'s turn');
@@ -71,9 +73,9 @@ test('switch on: a session someone else opened counts only from a turn marked as
   });
 });
 
-test('switch on, legacy and marked logs together: each set counts as it does alone', () => {
+test('by default, legacy and marked logs together: each set counts as it does alone', () => {
   withLogs([...LEGACY_LOGS, ...MARKED_LOGS], (root) => {
-    const s = derive(root, ON);
+    const s = derive(root);
     assert.equal(s.total, BEFORE.legacyLogs.total + 3);
     assert.equal(s.automatedExcluded, BEFORE.legacyLogs.automatedExcluded + 7);
     assert.equal(s.duplicatesSkipped, BEFORE.legacyLogs.duplicatesSkipped + 1);
@@ -105,7 +107,7 @@ test('firstUserMessage: the person\'s first marked turn, or byOther when the hea
   });
 });
 
-test('config: output.skipProgramSessions is a boolean, and the parsed config only carries it when on', () => {
+test('config: output.skipProgramSessions is a boolean, and the parsed config only carries it when false', () => {
   const dir = makeTempDir('hw-site-origin-cfg-');
   try {
     const load = (output) => {
@@ -114,14 +116,14 @@ test('config: output.skipProgramSessions is a boolean, and the parsed config onl
       return loadConfig(file).output;
     };
     assert.equal('skipProgramSessions' in load({}), false, 'absent: the parsed config is unchanged');
-    assert.equal('skipProgramSessions' in load({ skipProgramSessions: false }), false, 'off reads as absent');
-    assert.equal(load({ skipProgramSessions: true }).skipProgramSessions, true);
+    assert.equal('skipProgramSessions' in load({ skipProgramSessions: true }), false, 'on is the default, so it reads as absent');
+    assert.equal(load({ skipProgramSessions: false }).skipProgramSessions, false);
     assert.throws(() => load({ skipProgramSessions: 'yes' }), /skipProgramSessions/);
   } finally {
     removeTempDir(dir);
   }
 });
 
-test('the count says it can read who sent a turn, for a site that keeps its own copy of the rule', () => {
+test('the count says it reads who sent a turn, for a site that keeps its own copy of the rule', () => {
   assert.equal(READS_TURN_SENDER, true);
 });
