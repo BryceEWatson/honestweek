@@ -495,3 +495,39 @@ test('the trend answers for every pattern, reads the earlier window once, and sa
   }
   assert.equal(leaks.redacted(t).total, 0);
 });
+
+test('each check card links the published sources behind what it measures, and says where its numbers and rules come from', async () => {
+  const { el } = await drawProblems(whole, { hash: '#checked' });
+  const html = el('checks').innerHTML;
+  const card = (id) => {
+    const at = html.indexOf(`id="check-${id}"`);
+    assert.ok(at >= 0, `the ${id} card is drawn`);
+    const end = html.indexOf('<details class="pcheck"', at + 1);
+    return html.slice(at, end > 0 ? end : undefined);
+  };
+  for (const c of whole.checks) {
+    const one = card(c.id);
+    // Beside each pattern it measures: that pattern's sources, opening its page at them.
+    const measures = one.match(/<p><b>Measures\.<\/b>(.*?)<\/p>/s)?.[1] ?? '';
+    for (const id of c.patterns.filter((p) => whole.patterns.find((x) => x.id === p)?.sources.length)) {
+      assert.match(measures, new RegExp(`<a class="pc-src" href="#${id}" data-sources="${id}">Sources: [^<]+</a>`), `${c.id} links ${id}'s sources`);
+    }
+    // Where its numbers come from: one line, each number behind its "?".
+    if (c.numbers.length) {
+      assert.match(one, /<p><b>Its numbers\.<\/b> /, c.id);
+      for (const n of c.numbers) assert.ok(words(one).includes(n.says), `${c.id}: ${n.says}`);
+    } else assert.doesNotMatch(one, /Its numbers\./, c.id);
+  }
+  // The cache lifetimes come from the prompt-caching docs; the rest of that card's numbers are honestweek's own.
+  const cache = words(card('cache-misses'));
+  assert.match(cache, /Its numbers\. One comes from How Claude Code uses prompt caching ?; the rest are honestweek's own choices, not taken from a published source\./);
+  assert.match(card('cache-misses'), /<li>5 minutes or 1 hour, how long Claude Code caches: <a href="https:\/\/code\.claude\.com\/docs\/en\/prompt-caching" rel="noreferrer noopener" target="_blank">How Claude Code uses prompt caching<\/a><\/li>/);
+  assert.match(words(card('action-loop')), /Its numbers\. Each is honestweek's own choice, not taken from a published source\./);
+  // The rules: a source beside one that rests on it, one line for honestweek's own.
+  assert.match(card('long-sessions'), /<dd>A model call&#39;s recorded token counts[^<]*For Claude Code, from <a href="https:\/\/code\.claude\.com\/docs\/en\/statusline"[^>]*>Customize your status line<\/a>; the rest is honestweek's own\.<\/dd>/);
+  // A source that sets only part of a rule says which part; the rest is honestweek's own.
+  assert.match(card('secret-in-log'), /<dd>A thinking block[^<]*For Claude Opus 5\.5, from <a href="https:\/\/platform\.claude\.com\/docs\/en\/build-with-claude\/prompt-engineering\/prompting-claude-opus-5-5"[^>]*>Prompting Claude Opus 5\.5<\/a>; the rest is honestweek's own\.<\/dd>/);
+  assert.match(words(card('re-reads')), /It is honestweek's own rule, not taken from a published source\./);
+  assert.match(words(card('needless-check-in')), /Each is honestweek's own rule, not taken from a published source\./);
+  for (const r of whole.rules) assert.ok(r.source === null || (r.source && typeof r.source.title === 'string'), `${r.id} is marked`);
+});
