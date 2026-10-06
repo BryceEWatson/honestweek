@@ -2,7 +2,8 @@
 // Claude Code session is not the person's, in every reader outside the work-history engine:
 // the digest adapter (interactive sessions, steers, redirects), the prompts scan and its
 // store, the digest's evidence scan, and the miner (first prompt, human events). Logs from
-// before `turnOrigin` read byte for byte as they did before this change.
+// before `turnOrigin` read byte for byte as they did before this change, except one
+// deliberate later change: mine counts a queued turn and its delivery once.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -51,11 +52,19 @@ test('sentByOther: only a record naming someone other than the person is someone
   assert.equal(sentByOther(null), false);
 });
 
-test('logs without turnOrigin read byte for byte as before, in every reader', async () => {
+test('logs without turnOrigin read byte for byte as before, in every reader, but a queued turn counts once in mine', async () => {
   await withRoot(async (root) => {
     writeLegacyCorpus(root);
     const got = `${JSON.stringify(await readAll(root), null, 2)}\n`;
-    assert.equal(got, readFileSync(LEGACY, 'utf8'));
+    // The pinned reading is the old code's. Its one deliberate change since: legacy-work's
+    // first prompt is queued and then delivered with a second line, which mine read as two
+    // human events. Now the delivery is the one that counts.
+    const before = JSON.parse(readFileSync(LEGACY, 'utf8'));
+    const events = before.mine['legacy-work'].stream.events;
+    assert.deepEqual(events.slice(0, 2).map((e) => e.kind), ['human', 'human']);
+    assert.ok(events[1].text.startsWith(`${events[0].text}\n`), 'the second is the delivery of the first');
+    events.splice(0, 1);
+    assert.equal(got, `${JSON.stringify(before, null, 2)}\n`);
   });
 });
 
@@ -178,7 +187,7 @@ test('mine: a program\'s turn is never the first prompt or a human event, even w
 
     const { events } = await streamSession('claude-code', sessionFile(root, 'queued'));
     const human = events.filter((e) => e.kind === 'human').map((e) => e.text);
-    assert.deepEqual(human, [personText, personText], 'the person\'s queue record and its delivery, as before; none of the program\'s');
+    assert.deepEqual(human, [personText], 'the person\'s turn once, though queued and delivered; none of the program\'s');
     const sdk = await streamSession('claude-code', sessionFile(root, 'only-sdk'));
     assert.equal(sdk.events.filter((e) => e.kind === 'human').length, 0);
   });
