@@ -40,7 +40,7 @@ When a test needs a folder on disk, make it with `makeTempDir(prefix)` from `tes
 
 ## Writing
 
-Public text (the README, `SKILL.md`, `--help`, docs) is written in plain first person with contractions, states the point first, and defines a term the first time it's used. No em dashes, no marketing tone.
+Public text (the README, `SKILL.md` and its `flows/` files, `--help`, docs) is written in plain first person with contractions, states the point first, and defines a term the first time it's used. No em dashes, no marketing tone.
 
 Pull request bodies open with an **In plain terms** section of two to four sentences that someone who doesn't read code can follow, then **What you're deciding**: what merging changes and what it doesn't touch. File paths, commit ids, flags and line references go at the bottom under **Implementation detail**. The pull request template sets this up for you. Issues open with **In plain terms** too; the issue templates ask for the rest.
 
@@ -55,7 +55,7 @@ Pull request bodies open with an **In plain terms** section of two to four sente
 
 honestweek's npm package is `honestweek`, and the first version on npm is 0.2.0. It has no dependencies, so installing it fetches honestweek's own files and nothing else, and a pull request that adds a dependency won't be merged.
 
-The `files` list in `package.json` decides what ships: the CLI in `bin/`, everything in `lib/`, `SKILL.md`, the example config and the plugin manifests. Tests, fixtures, docs and tools stay in the repository. `test/package-contents.test.mjs` pins that list. If you add a file the tool reads while it runs, put it under `lib/`: every file git tracks there ships, and the test checks it does.
+The `files` list in `package.json` decides what ships: the CLI in `bin/`, everything in `lib/`, `SKILL.md` and its `flows/` folder, the example config and the plugin manifests. Tests, fixtures, docs and tools stay in the repository. `test/package-contents.test.mjs` pins that list. If you add a file the tool reads while it runs, put it under `lib/`: every file git tracks there ships, and the test checks it does.
 
 I cut releases myself. A release pull request bumps the version, then I publish to npm, tag the commit and write the GitHub release. [`docs/releasing.md`](docs/releasing.md) has the exact steps, and [`CHANGELOG.md`](CHANGELOG.md) lists what changed in each version.
 

@@ -18,7 +18,8 @@ const CATALOG = JSON.parse(read('lib/problems/catalog.json'));
 const PKG = JSON.parse(read('package.json'));
 
 const DOCS = readdirSync(join(ROOT, 'docs')).filter((f) => f.endsWith('.md')).map((f) => `docs/${f}`);
-const PUBLIC = ['README.md', 'SKILL.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CODE_OF_CONDUCT.md', ...DOCS];
+const FLOWS = readdirSync(join(ROOT, 'flows')).filter((f) => f.endsWith('.md')).map((f) => `flows/${f}`);
+const PUBLIC = ['README.md', 'SKILL.md', ...FLOWS, 'CHANGELOG.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CODE_OF_CONDUCT.md', ...DOCS];
 const DASH = /[\u2014\u2013]| -- /;
 
 /** The lines of a Markdown file outside fenced code blocks, with their line numbers. */
@@ -144,7 +145,7 @@ test('the catalog counts the docs state match the catalog and the checks', () =>
   const onBoth = checked.filter((p) => p.coverage.claudeCode.status === 'runs' && p.coverage.codex.status === 'runs').length;
   const changelog = read('CHANGELOG.md');
   const current = changelog.slice(changelog.indexOf(`## ${PKG.version} `), changelog.indexOf('\n## ', changelog.indexOf(`## ${PKG.version} `) + 1));
-  const sources = [...['README.md', 'SKILL.md', ...DOCS].map((f) => [f, read(f)]), ['CHANGELOG.md', current]];
+  const sources = [...['README.md', 'SKILL.md', ...FLOWS, ...DOCS].map((f) => [f, read(f)]), ['CHANGELOG.md', current]];
   const wrong = [];
   let seen = 0;
   const expect = (f, what, stated, actual) => {

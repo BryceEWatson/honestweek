@@ -111,4 +111,4 @@ Nothing. honestweek has no telemetry and makes no network calls. Its two local s
 - `mine`'s printed lines: `lib/mine.mjs`.
 - Run /insights: `lib/view/insights.mjs` (`CLAUDE_ENV`, `CLAUDE_PREFIXES`). Run with Codex: `lib/view/codex-judge.mjs`, whose fixed arguments are `CODEX_ARGS` and whose text is built by `sessionText`; which sessions it judges is `judgedSessions` in `lib/view/data.mjs`. The confirm boxes: `lib/view/assets/insights.js`.
 - Which config a command reads, and its stderr line: `findConfig` and `configLine` in `lib/config-lookup.mjs`.
-- The skill's steps: `SKILL.md`.
+- The skill's rules and its flows: `SKILL.md`, and the weekly steps in `flows/weekly.md`.

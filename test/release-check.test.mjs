@@ -10,7 +10,7 @@ import { ROOT, scanSince, smoke, unexpectedFiles } from '../tools/release-check.
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 test('the packed file list allows only what a release ships, and no image', () => {
-  const shipped = ['package.json', 'README.md', 'LICENSE', 'SKILL.md', 'honestweek.config.example.json', '.claude-plugin/plugin.json', '.claude-plugin/marketplace.json', 'bin/honestweek.mjs', 'lib/view/assets/app.js'];
+  const shipped = ['package.json', 'README.md', 'LICENSE', 'SKILL.md', 'flows/weekly.md', 'honestweek.config.example.json', '.claude-plugin/plugin.json', '.claude-plugin/marketplace.json', 'bin/honestweek.mjs', 'lib/view/assets/app.js'];
   assert.deepEqual(unexpectedFiles(shipped), []);
   const stray = ['test/redact.test.mjs', 'docs/releasing.md', 'tools/release-check.mjs', '.github/workflows/ci.yml', '.claude/notes.md', 'honestweek.config.json', 'lib/view/assets/shot.png', 'honestweek-0.2.0.tgz'];
   assert.deepEqual(unexpectedFiles([...shipped, ...stray]), stray);
