@@ -1,6 +1,6 @@
 ---
 name: honestweek
-description: Turn a completed week of your AI coding sessions into an honest, git-verified, private-by-default work summary. Run /honestweek to scaffold config, discover the week's sessions into a redacted digest, distil it into reviewable work items with a status badge and receipt, build it with verify-or-abort, and review the draft before you publish it yourself. Automatic session-derived digest items carry receipts without claiming work status. honestweek never auto-publishes.
+description: Turn a completed week of your AI coding sessions into an honest, git-verified, private-by-default work summary. Use it when the user types /honestweek or explicitly asks for a weekly summary, weekly update or work report ("write up my week", "draft my weekly update"), not for a question about today's commits or for finding a session. It discovers the week's sessions into a redacted digest, distils it into reviewable work items with a status badge and receipt, builds them with verify-or-abort, and leaves a draft the user reviews and publishes themselves. With no config it stops and asks before writing one. Automatic session-derived digest items carry receipts without claiming work status. honestweek never auto-publishes.
 ---
 
 # honestweek, in its own repository (Codex)

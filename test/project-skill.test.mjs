@@ -16,10 +16,10 @@ const rootSkill = readFileSync(join(root, 'SKILL.md'), 'utf8');
 const field = (text, name) => new RegExp(`^${name}: (.*)$`, 'm').exec(text)?.[1];
 const DIR = '${CLAUDE_SKILL_DIR}';
 
-test('the project skill names honestweek, only a person can start it, and its description matches the root skill', () => {
+test('the project skill names honestweek, starts the way the root skill does, and its description matches it', () => {
   assert.ok(project.startsWith('---\n'));
   assert.equal(field(project, 'name'), 'honestweek');
-  assert.equal(field(project, 'disable-model-invocation'), 'true');
+  assert.equal(field(project, 'disable-model-invocation'), field(rootSkill, 'disable-model-invocation'));
   assert.equal(field(project, 'description'), field(rootSkill, 'description'));
 });
 
