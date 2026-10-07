@@ -13,6 +13,7 @@ import { assessPublicRendition, createRedactor, createSecretsOnlyRedactor, redac
 import { validateObjectives } from '../lib/goals.mjs';
 import { REDACTION_SOURCES, alignRedacted, emailSpans, hideSourceFields, laterFieldSpans, sourceFieldSpans } from '../lib/redaction-patterns.mjs';
 import { keyedSecrets } from '../lib/view/leaks.mjs';
+import { assertGrowsInStep } from './helpers/grows-in-step.mjs';
 
 const H = 'hunter2';
 // Random numbers from SHA-256 in counter mode: each seed is its own stream, unlike a linear
@@ -30,56 +31,15 @@ const stream = (seed) => {
 };
 const T = 'abcdefgh12345678';
 
-// The long-input speed tests check that the time a redactor takes grows in step with the
-// input's length, not that one run beats a clock: GitHub's runners are shared, and the slowest
-// case here (the audit on `note: "see api.key=x …`) takes about 270 ms on a developer machine
-// and once took just over a second there. An input is built at a quarter of its length and at
-// full length (about 200,000 characters). Time in step with length makes the full run about 4
-// times the quarter one; time that grows with the square of the length, as in the slowdowns
-// fixed before (`x='a='x='a='…`), makes it about 16 times. Measured on Node 18, 22 and 24, no
-// case went past 7.2, and past 6 only where the full run took under 20 ms.
-// - QUARTER_RUNS: the quarter run is the best of three, so a pause in it can't hide a slowdown.
-// - FULL_RUNS: the full run is tried again, up to three times, only while it looks too slow.
-// - MAX_GROWTH: 10 sits between 4 and 16, with room for timer and garbage-collection noise.
-// - FLOOR_MS: under 50 ms the ratio is mostly noise, and nothing that fast is a real slowdown.
-// - CEILING_MS: the growth check can't see a change that stays linear but costs more per
-//   character, so the full run, best of three, must also finish in CEILING_MS. The slowest case
-//   takes 212 to 271 ms here and its worst single run on GitHub was just over 1,000 ms, so a
-//   healthy build has about twice that worst run in hand, and three tries. A redactor ten times
-//   slower per character takes over 2 s here and about 10 s on GitHub, so it fails.
-const QUARTER_RUNS = 3;
-const FULL_RUNS = 3;
-const MAX_GROWTH = 10;
-const FLOOR_MS = 50;
+// The long-input speed tests use test/helpers/grows-in-step.mjs: the time a redactor takes must
+// grow in step with the input's length, not with its square. The slowest case here (the audit on
+// `note: "see api.key=x …`) takes about 270 ms on a developer machine; CEILING_MS, the most its
+// fastest full run may take, has about twice its worst single run on GitHub in hand, and a
+// redactor ten times slower per character takes over 2 s here and about 10 s on GitHub, so it fails.
 const CEILING_MS = 2000;
 /** A long input of `count` copies of `unit` between `prefix` and `suffix`, at `scale` of its
  *  full length. */
 const longInput = ([prefix, unit, count, suffix], scale = 1) => prefix + unit.repeat(Math.round(count * scale)) + suffix;
-/** Asserts that `run` on `build(1)` takes time in step with its length, against `build(0.25)`,
- *  and finishes within CEILING_MS, and returns what the last full run returned. */
-const assertGrowsInStep = (label, build, run) => {
-  const timed = (input) => {
-    const started = performance.now();
-    const out = run(input);
-    return [performance.now() - started, out];
-  };
-  const quarter = build(0.25);
-  let quarterMs = Infinity;
-  for (let i = 0; i < QUARTER_RUNS; i += 1) quarterMs = Math.min(quarterMs, timed(quarter)[0]);
-  const full = build(1);
-  let fullMs = Infinity;
-  let out;
-  for (let i = 0; i < FULL_RUNS; i += 1) {
-    const [ms, result] = timed(full);
-    fullMs = Math.min(fullMs, ms);
-    out = result;
-    if (fullMs < CEILING_MS && (fullMs < FLOOR_MS || fullMs / quarterMs < MAX_GROWTH)) break;
-  }
-  const said = `${label}: ${fullMs.toFixed(1)} ms at full length, ${quarterMs.toFixed(1)} ms at a quarter`;
-  assert.ok(fullMs < CEILING_MS, `${said}, over the ${CEILING_MS} ms limit`);
-  assert.ok(fullMs < FLOOR_MS || fullMs / quarterMs < MAX_GROWTH, `${said}, ${(fullMs / quarterMs).toFixed(1)} times as long`);
-  return out;
-};
 
 // [input, the secret that must go, the published output]
 const FORMS = [
@@ -794,7 +754,7 @@ test('Java properties, dotted keys and unclosed quotes stay fast on 200,000-char
     const input = longInput(shape);
     assert.ok(input.length >= 200000, `${input.length} characters`);
     for (const [name, run] of [['published', (s) => createRedactor().redact(s)], ['secrets-only', (s) => createSecretsOnlyRedactor().redact(s)], ['audit', (s) => redactWithAudit(s, {})]]) {
-      assertGrowsInStep(`${name} on ${input.length} characters starting ${JSON.stringify(input.slice(0, 20))}`, (scale) => longInput(shape, scale), run);
+      assertGrowsInStep(`${name} on ${input.length} characters starting ${JSON.stringify(input.slice(0, 20))}`, (scale) => longInput(shape, scale), run, { ceilingMs: CEILING_MS });
     }
   }
 });
@@ -995,7 +955,7 @@ test('the published redactor and the audit stay fast on long adversarial inputs'
   for (const shape of shapes) {
     const input = longInput(shape);
     for (const [name, run] of [['redact', (s) => createRedactor().redact(s)], ['audit', (s) => redactWithAudit(s, {})]]) {
-      const out = assertGrowsInStep(`${name} on ${input.length} characters starting ${JSON.stringify(input.slice(0, 20))}`, (scale) => longInput(shape, scale), run);
+      const out = assertGrowsInStep(`${name} on ${input.length} characters starting ${JSON.stringify(input.slice(0, 20))}`, (scale) => longInput(shape, scale), run, { ceilingMs: CEILING_MS });
       if (input.endsWith(' token: abc')) assert.ok(!(out.text ?? out).includes('token: abc'), `${name} hides the token after the run`);
     }
   }
@@ -1003,7 +963,7 @@ test('the published redactor and the audit stay fast on long adversarial inputs'
   // check that it is only placeholders once backtracked exponentially here.
   const record = (scale) => ({ token: longInput(['', '[redacted:secret]          ', 4000, 'x'], scale), list: [{ password: longInput(['', '[redacted:secret] ', 5000, 'y'], scale) }] });
   for (const [name, r] of [['published', createRedactor()], ['secrets-only', createSecretsOnlyRedactor()]]) {
-    const out = assertGrowsInStep(`${name} deepRedact`, record, (v) => r.deepRedact(v));
+    const out = assertGrowsInStep(`${name} deepRedact`, record, (v) => r.deepRedact(v), { ceilingMs: CEILING_MS });
     assert.deepEqual(out, { token: '[redacted:secret]', list: [{ password: '[redacted:secret]' }] });
   }
 });
