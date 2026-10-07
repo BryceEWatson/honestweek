@@ -11,7 +11,7 @@ import { basename, join } from 'node:path';
 
 import { buildConfig, checkNestedRoles, existingDisplayRepos, findRepos, inferIdentity, runInit, writeInitFiles } from '../lib/init.mjs';
 import { createSetup } from '../lib/view/setup.mjs';
-import { createSettings } from '../lib/view/settings.mjs';
+import { configTracked, createSettings } from '../lib/view/settings.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'you@example.com';
@@ -271,7 +271,31 @@ test('init asks the global git config for my email, not the folder it runs in, w
     const tool = repo(join(t.root, 'area', 'tool'));
     writeFileSync(join(tool, 'honestweek.config.json'), JSON.stringify({ repos: [{ path: '..', role: 'display' }] }));
     assert.equal(usesGlobal(tool), true);
+    // A plain subfolder of a checkout that holds one: git run there reads the whole checkout.
+    const pkgs = repo(join(t.root, 'pkgs'));
+    const sub = folder(join(pkgs, 'sub'));
+    folder(join(pkgs, 'notes'));
+    writeFileSync(join(sub, 'honestweek.config.json'), JSON.stringify({ repos: [{ path: '../notes', role: 'display' }] }));
+    assert.equal(usesGlobal(sub), true);
   } finally {
     removeTempDir(t.root);
+  }
+});
+
+test('Settings never asks git whether the config is tracked where its checkout holds a display-only folder', () => {
+  const root = makeTempDir('hw-nested-tracked-');
+  try {
+    const pkgs = repo(join(root, 'pkgs'));
+    const sub = folder(join(pkgs, 'sub'));
+    folder(join(pkgs, 'notes'));
+    const config = join(sub, 'honestweek.config.json');
+    // The failing-path partner: with no display-only folder listed, git is asked and says tracked.
+    writeFileSync(config, JSON.stringify({ repos: [] }));
+    git(pkgs, ['add', join('sub', 'honestweek.config.json')]);
+    assert.equal(configTracked(sub), true);
+    writeFileSync(config, JSON.stringify({ repos: [{ path: '../notes', role: 'display' }] }));
+    assert.equal(configTracked(sub), false);
+  } finally {
+    removeTempDir(root);
   }
 });
