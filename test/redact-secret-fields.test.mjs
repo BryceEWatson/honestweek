@@ -750,11 +750,16 @@ test('Java properties, dotted keys and unclosed quotes stay fast on 200,000-char
     ['', 'api_key=token: [redacted:secret] ', 6100, ''],
     ['api_key=token: v ', 'and v ', 34000, ''],
   ];
+  const runs = [['published', (s) => createRedactor().redact(s)], ['secrets-only', (s) => createSecretsOnlyRedactor().redact(s)], ['audit', (s) => redactWithAudit(s, {})]];
+  // Every redactor runs on every shape once at a twentieth of its length (about 10,000
+  // characters) first, so what each one runs is compiled before anything is timed and the timed
+  // calls skip their own warm-up runs.
+  for (const shape of shapes) for (const [, run] of runs) run(longInput(shape, 0.05));
   for (const shape of shapes) {
     const input = longInput(shape);
     assert.ok(input.length >= 200000, `${input.length} characters`);
-    for (const [name, run] of [['published', (s) => createRedactor().redact(s)], ['secrets-only', (s) => createSecretsOnlyRedactor().redact(s)], ['audit', (s) => redactWithAudit(s, {})]]) {
-      assertGrowsInStep(`${name} on ${input.length} characters starting ${JSON.stringify(input.slice(0, 20))}`, (scale) => longInput(shape, scale), run, { ceilingMs: CEILING_MS });
+    for (const [name, run] of runs) {
+      assertGrowsInStep(`${name} on ${input.length} characters starting ${JSON.stringify(input.slice(0, 20))}`, (scale) => longInput(shape, scale), run, { ceilingMs: CEILING_MS, warmups: 0 });
     }
   }
 });
@@ -952,10 +957,13 @@ test('the published redactor and the audit stay fast on long adversarial inputs'
     ['bearer ', '.', 100000, 'x'], ['basic ', 'Aa-', 33000, ''], ['', 'basic validation ', 6000, ''], ['', '**Auth:** ', 10000, ''], ['token: ', '[redacted:secret]          ', 4000, 'x'], ['ConvertTo-SecureString "', 'a', 100000, ''], ['redis://:', 'a@', 50000, ''], ['', 'x.', 50000, '@'],
     // A long run of the Private-Use character the scrubbers' tokens are made of.
     ['', String.fromCharCode(0xe000), 100000, ' token: abc'], ['', '--password 20240101x ', 5000, '']];
+  const runs = [['redact', (s) => createRedactor().redact(s)], ['audit', (s) => redactWithAudit(s, {})]];
+  // A first run of each at a twentieth of its length, as in the test above.
+  for (const shape of shapes) for (const [, run] of runs) run(longInput(shape, 0.05));
   for (const shape of shapes) {
     const input = longInput(shape);
-    for (const [name, run] of [['redact', (s) => createRedactor().redact(s)], ['audit', (s) => redactWithAudit(s, {})]]) {
-      const out = assertGrowsInStep(`${name} on ${input.length} characters starting ${JSON.stringify(input.slice(0, 20))}`, (scale) => longInput(shape, scale), run, { ceilingMs: CEILING_MS });
+    for (const [name, run] of runs) {
+      const out = assertGrowsInStep(`${name} on ${input.length} characters starting ${JSON.stringify(input.slice(0, 20))}`, (scale) => longInput(shape, scale), run, { ceilingMs: CEILING_MS, warmups: 0 });
       if (input.endsWith(' token: abc')) assert.ok(!(out.text ?? out).includes('token: abc'), `${name} hides the token after the run`);
     }
   }

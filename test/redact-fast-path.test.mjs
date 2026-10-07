@@ -371,14 +371,32 @@ function sameText(now, was, what) {
   assert.fail(`${what} differs at ${i}: new ${JSON.stringify(now.slice(i - 40, i + 80))} old ${JSON.stringify(was.slice(i - 40, i + 80))}`);
 }
 
+/** The events record() is checked on: every event whose id repeats, the first and last event
+ *  of each kind, and every 20th. */
+function lookupSample(events) {
+  const seen = new Map();
+  for (const e of events) seen.set(e.id, (seen.get(e.id) ?? 0) + 1);
+  const picked = new Set();
+  const lastOfKind = new Map();
+  events.forEach((e, i) => {
+    if (seen.get(e.id) > 1 || i % 20 === 0 || !lastOfKind.has(e.kind)) picked.add(e);
+    lastOfKind.set(e.kind, e);
+  });
+  for (const e of lastOfKind.values()) picked.add(e);
+  return events.filter((e) => picked.has(e));
+}
+
 /** Builds the history with the new and old libraries, and checks record() against a scan. */
 async function sameHistory(options, what) {
   const old = await oldLib();
   const now = await buildWorkHistory(options);
   const was = await old.buildWorkHistory(options);
   sameText(JSON.stringify(now), JSON.stringify(was), what);
-  // record(id) finds the first event with that id, as a scan from the front did.
-  for (const e of now.events) {
+  // record(id) finds the first event with that id, as a scan from the front did. Each call
+  // reads its records back from disk, and doing that for every event took most of this test's
+  // time, so it's checked on a sample that keeps every event whose id repeats, the case the
+  // rule is about. The comparison above still covers every event.
+  for (const e of lookupSample(now.events)) {
     const first = now.events.find((x) => x.id === e.id);
     assert.deepEqual(now.record(e.id), first.refs.map((ref) => now.record(ref)[0]), `${what}: record(${e.id})`);
   }

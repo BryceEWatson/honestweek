@@ -21,6 +21,11 @@ test('time that grows with the square of the input fails, however the rounds fal
   assert.throws(() => assertGrowsInStep('square', (scale) => Math.round(10_000 * scale), (n) => spin(n * n), { ceilingMs: 60_000 }), /times as long/);
 });
 
+test('without warm-up runs, time in step still passes and time that grows with the square still fails', () => {
+  assertGrowsInStep('linear', (scale) => Math.round(3e7 * scale), (n) => spin(n), { ceilingMs: 60_000, warmups: 0 });
+  assert.throws(() => assertGrowsInStep('square', (scale) => Math.round(10_000 * scale), (n) => spin(n * n), { ceilingMs: 60_000, warmups: 0 }), /times as long/);
+});
+
 test('a full run over the ceiling fails even when it grows in step', () => {
   assert.throws(() => assertGrowsInStep('slow', (scale) => Math.round(1e7 * scale), (n) => spin(n), { ceilingMs: 1 }), /over the 1 ms limit/);
 });
