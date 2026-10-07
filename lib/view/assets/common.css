@@ -732,6 +732,8 @@ details.legendbox > summary, details.catalog > summary { color: var(--ink-2); }
 .setup { max-width: 760px; margin: 0 auto; padding: 24px 24px 8px; }
 .setup h1 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
 .setup .lead { color: var(--ink-2); margin: 0 0 20px; }
+/* A folder path has no spaces to break at, so it breaks anywhere rather than run off a phone. */
+.setup .fine { overflow-wrap: anywhere; }
 .setup-part { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; margin: 0 0 16px; }
 .setup-part h2 { font-size: 16px; font-weight: 600; margin: 0 0 8px; }
 .setup-part .fine { font-size: 13px; color: var(--ink-2); margin: 6px 0; }
