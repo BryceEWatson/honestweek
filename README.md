@@ -178,7 +178,7 @@ The CLI surface is eleven subcommands: `init`, `discover`, `prompts`, `digest`, 
 
 ## Finding and replaying your work in the browser (`view`)
 
-`honestweek view` opens a page on your own machine. It starts on the Problems page, which shows where your sessions went wrong. From there you can find the sessions and goals behind a pull request, a commit, a file, a branch or some words, see which sessions worked toward each goal, and replay any session step by step. It reads your config and the last 7 days of your Claude Code and Codex logs, serves the page on `127.0.0.1`, and opens your browser. It publishes nothing, and you have full control over what it keeps. It saves only what you choose to save, like your config when you press Save and the redacted answers from Run with Codex when you run it, in your own folder where you can read or delete it.
+`honestweek view` opens a page on your own machine. It starts on the Problems page, which shows where your sessions went wrong. From there you can find the sessions and goals behind a pull request, a commit, a file, a branch or some words, see which sessions worked toward each goal, and replay any session step by step. It reads your config and the last 7 days of your Claude Code and Codex logs, serves the page on `127.0.0.1`, and opens your browser. It publishes nothing, and you have full control over what it keeps. It keeps only what you choose to save, like your config when you press Save and the redacted answers from Run with Codex when you run it, in your own folder where you can read or delete it.
 
 ```bash
 honestweek view                  # the last 7 days of your logs
@@ -223,7 +223,7 @@ Name it with `--goals <file>`, or once with `goalsFile` in the config. It's a di
 - *The two run buttons.* The server, not just the page, refuses Run /insights and Run with Codex while Include /insights is off. Each program gets only the environment variables it needs to start and sign in, so other tools' tokens in your environment don't reach it.
 - *Redacted unless you ask.* The page shows redacted text. Its **Show private text** switch shows names, client words and folders on your own screen; keys, tokens and passwords stay hidden either way. The switch starts off every run and changes only text, never which sessions link to which or which goals they join. That version is built in memory the first time you turn it on, and it's never written to disk.
 - *Display-only and outside sessions.* With the switch off, a session from a display-only repository or a folder outside your config never shows a private word, and it never joins a lookup or a goal. Git is never run against a display-only repository.
-- *You control what's saved.* The page's address holds only made-up ids, never what you typed or a goal's name, because the browser keeps addresses in its history. It reads your logs into memory and saves only what you choose. Here's everything it writes:
+- *You control what's saved.* The page's address holds only made-up ids, never what you typed or a goal's name, because the browser keeps addresses in its history. It reads your logs into memory and keeps only what you choose to save. Here's everything it writes, including two short-lived files it deletes itself:
   - the config, when you save Setup or Settings, or flip Include /insights;
   - the example config beside it, when that's missing;
   - `.gitignore` lines for honestweek's private files;
@@ -255,7 +255,7 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    honestweek init --yes
    ```
    `--yes` leaves an existing `honestweek.config.json` untouched; add `--force` to overwrite it.
-2. **`discover`** → scans the **last completed week's** sessions **and session-end handoffs** (the `.claude/handoffs/*.md` notes) from your allowlisted repos. It reads handoffs only for `featured` and `reference` repos, and never reads `display` repos. It writes the **redacted** result to `honestweek.draft.json`, which is gitignored. From each handoff it adds a bounded amount of extra material: its tagged claims, reversals and cited commits. It's deterministic, with no model call.
+2. **`discover`** → scans the **last completed week's** sessions **and session-end handoffs** (the `.claude/handoffs/*.md` notes) from your allowlisted repos. It reads handoffs only for `featured` and `reference` repos, and never reads one from a `display` repo. It writes the **redacted** result to `honestweek.draft.json`, which is gitignored. From each handoff it adds a bounded amount of extra material: its tagged claims, reversals and cited commits. It's deterministic, with no model call.
    ```bash
    honestweek discover          # or: discover --week 2024-W23
    ```
@@ -591,7 +591,7 @@ Your `honestweek.config.json` mirrors `honestweek.config.example.json`. Whether 
 - **Only your own allowlisted repos are read.** `git` runs only against the repositories in your `repos` list, with two exceptions. The setup scans that suggest what to list (`init`, and Setup and Settings in `view`) look in the folder you run them in and the folders next to it. And `discover` and Settings check that the draft file and the config aren't tracked in the folder you run them in. Weekly reports use only sessions from those repos; `mine` reads every session in your logs, as [SECURITY.md](SECURITY.md) explains.
 - **`display`-role repos are summarized generically and NEVER git-read.** There is no code path that runs `git` against a `display` repo.
 - **Output stays local until you publish it.** honestweek writes local files only.
-- **No telemetry, no network egress.** honestweek makes no network call. The one exception is yours to start: with Include /insights on, Run /insights and Run with Codex run your own `claude` or `codex`, which send your sessions to Claude or OpenAI after asking. The optional `preview` server is loopback-only (`127.0.0.1`): it serves your already-built output with no key, so any program or account on your machine can read it while it runs, and nothing leaves your machine. The `view` page is loopback-only too, answers only the page it opened, and saves only what you choose; see [What `view` keeps private](#what-view-keeps-private).
+- **No telemetry, no network egress.** honestweek makes no network call. The one exception is yours to start: with Include /insights on, Run /insights and Run with Codex run your own `claude` or `codex`, which send your sessions to Claude or OpenAI after asking. The optional `preview` server is loopback-only (`127.0.0.1`): it serves your already-built output with no key, so any program or account on your machine can read it while it runs, and nothing leaves your machine. The `view` page is loopback-only too, answers only the page it opened, and keeps only what you choose to save; see [What `view` keeps private](#what-view-keeps-private).
 - **Nothing is auto-published.** honestweek produces a draft; *you* are the publisher.
 
 ### What the scrubber catches, and what it doesn't
