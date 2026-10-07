@@ -20,6 +20,12 @@ test('the contract skill carries SKILL.md\'s contract word for word', () => {
   const section = SKILL_MD.slice(SKILL_MD.indexOf('## Distillation contract'), SKILL_MD.indexOf('## Safety invariants')).trimEnd();
   assert.ok(section.length > 1000, 'found the contract section in SKILL.md');
   assert.ok(CONTRACT_SKILL.includes(section), 'the contract skill holds the same text as SKILL.md');
+  // Nothing added around it either: after its own heading and one opening paragraph, the skill is the section.
+  const body = CONTRACT_SKILL.slice(CONTRACT_SKILL.indexOf('\n---\n', 4) + 5).trimStart().trimEnd();
+  const [heading, intro, ...rest] = body.split('\n\n');
+  assert.equal(heading, '# The honestweek distillation contract');
+  assert.match(intro, /^These are the rules the honestweek skill gives Claude/);
+  assert.equal(rest.join('\n\n'), section, 'the rest of the contract skill is exactly the section');
 });
 
 test('the contract skill loads on honestweek.items.json, for the model only', () => {

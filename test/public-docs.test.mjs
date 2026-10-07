@@ -19,7 +19,7 @@ const PKG = JSON.parse(read('package.json'));
 
 const DOCS = readdirSync(join(ROOT, 'docs')).filter((f) => f.endsWith('.md')).map((f) => `docs/${f}`);
 const FLOWS = readdirSync(join(ROOT, 'flows')).filter((f) => f.endsWith('.md')).map((f) => `flows/${f}`);
-const PUBLIC = ['README.md', 'SKILL.md', ...FLOWS, 'skills/honestweek-contract/SKILL.md', 'agents/honestweek-distiller.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CODE_OF_CONDUCT.md', ...DOCS];
+const PUBLIC = ['README.md', 'SKILL.md', ...FLOWS, ...readdirSync(join(ROOT, 'skills')).map((d) => `skills/${d}/SKILL.md`), ...readdirSync(join(ROOT, 'agents')).filter((f) => f.endsWith('.md')).map((f) => `agents/${f}`), 'CHANGELOG.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CODE_OF_CONDUCT.md', ...DOCS];
 const DASH = /[\u2014\u2013]| -- /;
 
 /** The lines of a Markdown file outside fenced code blocks, with their line numbers. */

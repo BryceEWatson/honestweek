@@ -31,7 +31,7 @@ Below, `X.Y.Z` stands for the new version number, like `0.2.1`.
 
 On a branch from `main` named `feature/release-X.Y.Z`. Changes meant for the release go into this branch as their own pull requests, each with its own review and CI.
 
-1. Set the version to `X.Y.Z` in `package.json` and in `.claude-plugin/plugin.json`. A test checks the two match. `.claude-plugin/marketplace.json` has no version of its own.
+1. Set the version to `X.Y.Z` in `package.json` and in `.claude-plugin/plugin.json`. A test checks the two match. `.claude-plugin/marketplace.json` has no version of its own. `plugin.json` lists `./skills/honestweek-contract`, which the npm package leaves out on purpose: the plugin installs from the repository, which has it, and the package isn't a plugin.
 2. In `CHANGELOG.md`, rename the unreleased section to `## X.Y.Z (<date>)` and check that every merged pull request is in it.
 3. Rewrite the release notes block at the end of this file for `X.Y.Z`: what's new, in plain words, with every count true to the code. The tests pin several counts.
 4. Check the README still says how to install and run this version, and what it needs (Node and git versions).
