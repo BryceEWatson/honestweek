@@ -110,8 +110,9 @@ Usage:
   honestweek status [--json] [--config <file>]
 
 Says which config it found and where, the last completed week, whether the
-draft, the items and the built output exist and which week each covers,
-whether the items pass validate's item gate, and the next step as a command.
+draft and the items exist and which week each covers, whether the items pass
+validate's item gate, whether the output is built and when, and the next step
+as a command.
 It writes nothing, runs no git, and always exits 0: a missing or broken file is
 a line in the report. It prints names, weeks, counts and states, never an
 item's text or anything from a session. The weekly skill loads it first.
