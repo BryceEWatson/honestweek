@@ -118,3 +118,12 @@ test('the front matter names the flows as arguments and pre-approves only honest
   assert.equal(/^allowed-tools: (.*)$/m.exec(fm)?.[1], 'Bash(node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" *)');
   assert.match(SKILL_MD, /\$ARGUMENTS/, 'the flows section reads the arguments');
 });
+
+// Issue 183: the skill opens knowing where the week stands, from `honestweek status` run as it
+// loads, and a host that doesn't run that line (Codex) is told to run it first.
+test('SKILL.md loads honestweek status as it starts, with a fallback for hosts that do not run it', () => {
+  assert.ok(SKILL_MD.includes('!`node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" status`'), 'the status line runs the bundled CLI');
+  assert.ok(SKILL_MD.indexOf('honestweek.mjs" status`') < SKILL_MD.indexOf('## Flows'), 'status comes before the flows');
+  assert.match(SKILL_MD, /shows that command instead of a report[\s\S]*?run it yourself before anything else/);
+  assert.match(SKILL_MD, /start from the step its `next:` line names, not from `init`/);
+});
