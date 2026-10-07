@@ -46,9 +46,18 @@ test('SKILL.md invokes the bundled CLI by a skill-anchored absolute path, not a 
   assert.match(SKILL, /CLAUDE_SKILL_DIR/, 'documents the skill-dir substitution');
 });
 
-test('SKILL.md is manual-invoke only (disable-model-invocation)', () => {
+// Issue 185: agents and scheduled tasks may start the weekly skill, behind two guards: its
+// description asks for an explicit request, and with no config it stops and asks before init.
+test('SKILL.md can be started by an agent, but only on an explicit ask, and stops before writing a config', () => {
   const fm = SKILL.match(/^---\n([\s\S]*?)\n---/)[1];
-  assert.match(fm, /^disable-model-invocation:\s*true\s*$/m);
+  assert.doesNotMatch(fm, /^disable-model-invocation:/m, 'no manual-only flag');
+  const description = /^description: (.*)$/m.exec(fm)[1];
+  assert.match(description, /explicitly asks for a weekly summary/);
+  assert.match(description, /not for a question about today's commits or for finding a session/);
+  assert.match(description, /With no config it stops and asks before writing one\./);
+  const init = SKILL.slice(SKILL.indexOf('1. **`init`**'), SKILL.indexOf('2. **`discover`**'));
+  assert.ok(init.includes('stop and ask') && init.indexOf('stop and ask') < init.indexOf('init --yes'), 'the config check comes before init runs');
+  assert.match(init, /Run it only after they say yes\./);
 });
 
 test('README documents the plugin-marketplace install route (in-app and terminal)', () => {
