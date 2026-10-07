@@ -11,10 +11,11 @@
 // moment that slows one full run can't make the ratio look like a slowdown, because the next
 // round measures both again. It stops as soon as the check passes, after at most ROUNDS rounds.
 //
-// - MAX_GROWTH: 12 sits between 4 and 16. On 6 October 2026 three cases on GitHub's Linux
-//   runners (Node 18 and 20) measured 10.2 to 10.7 when the full runs were tried only after the
-//   quarter ones, against 4.4 to 7.6 on a developer machine; 12 keeps those passing while time
-//   that grows with the square still fails.
+// - MAX_GROWTH: 12 sits between 4 and 16. On 6 October 2026 eight CI runs on GitHub's Linux
+//   runners (Node 18 and 20) failed the old limit of 10, measuring 10.0 to 12.2, when the full
+//   runs were tried only after the quarter ones, against 4.4 to 7.6 on a developer machine.
+//   Alternating the runs is meant to bring those down; 12 adds room on top, while time that grows
+//   with the square still fails.
 // - FLOOR_MS: under 50 ms the ratio is mostly noise, and nothing that fast is a real slowdown.
 // - The ceiling (each caller's own): the growth check can't see a change that stays linear but
 //   costs more per character, so the fastest full run must also finish within it.
