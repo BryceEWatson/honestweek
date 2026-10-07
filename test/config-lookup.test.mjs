@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 import { commandConfig, configLine, findConfig, setConfigLookup, takeConfigFlag, userConfigPath } from '../lib/config-lookup.mjs';
 import { createSetup } from '../lib/view/setup.mjs';
+import { createSettings } from '../lib/view/settings.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -326,4 +327,59 @@ test('Setup refuses the user-level choice when this run would never read that fi
   assert.equal(r.status, 400);
   assert.equal(r.body.field, 'saveTo');
   assert.deepEqual(readdirSync(start), []);
+});
+
+// ---- display-only folders across configs (AGENTS.md invariant 4) ------------------------------
+
+/** A folder of two git repositories side by side, and a config marking one of them display-only. */
+function besideAClientRepo(name) {
+  const root = folder(name);
+  const work = join(root, 'your-project');
+  const client = join(root, 'a-client-repo');
+  for (const dir of [work, client]) {
+    mkdirSync(dir);
+    git(dir, ['init', '-q']);
+    writeFileSync(join(dir, 'a.txt'), 'a');
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-q', '-m', 'first']);
+  }
+  const marking = { ...CONFIG, repos: [{ path: client, label: 'a-private-project', role: 'display' }] };
+  return { root, work, client, marking };
+}
+
+test('plain init keeps the display-only folders of the user-level config every command here reads', () => {
+  const home = folder('home');
+  const { work, client, marking } = besideAClientRepo('init-around');
+  mkdirSync(join(home, '.honestweek'));
+  writeFileSync(join(home, '.honestweek', 'honestweek.config.json'), `${JSON.stringify(marking, null, 2)}\n`);
+  const r = cli(['init', '--yes'], { cwd: work, home });
+  assert.equal(r.code, 0, r.err);
+  const written = JSON.parse(readFileSync(join(work, 'honestweek.config.json'), 'utf8'));
+  const entry = written.repos.find((x) => resolve(x.path).toLowerCase() === resolve(client).toLowerCase());
+  assert.equal(entry?.role, 'display', JSON.stringify(written.repos));
+});
+
+test('plain init runs git nowhere when the user-level config can\'t be read', () => {
+  const home = folder('home');
+  const { work } = besideAClientRepo('init-unreadable');
+  mkdirSync(join(home, '.honestweek'));
+  writeFileSync(join(home, '.honestweek', 'honestweek.config.json'), '{ not json');
+  const r = cli(['init', '--yes'], { cwd: work, home });
+  assert.equal(r.code, 1);
+  assert.match(r.err, /can't be read \(not valid JSON\)/);
+  assert.ok(!existsSync(join(work, 'honestweek.config.json')));
+});
+
+test('Settings, editing a config in another folder, never asks git about a folder the config where view started marks display-only', () => {
+  const { work, client, marking } = besideAClientRepo('settings-around');
+  writeFileSync(join(work, 'honestweek.config.json'), `${JSON.stringify(marking, null, 2)}\n`);
+  const elsewhere = configIn('settings-elsewhere');
+  const asked = [];
+  const spy = (path) => { asked.push(resolve(path).toLowerCase()); return null; };
+  const s = createSettings({ cwd: work, configDir: () => dirname(elsewhere), hasCommits: spy, lastCommitAt: spy });
+  const f = s.found();
+  assert.equal(f.editable, true, f.note);
+  assert.ok(!asked.includes(resolve(client).toLowerCase()), asked.join(', '));
+  assert.ok(!f.repos.some((x) => resolve(x.path).toLowerCase() === resolve(client).toLowerCase()));
+  assert.match(createSettings({ cwd: work, configDir: () => folder('settings-empty') }).info().note, /There's no honestweek\.config\.json in .*settings-empty/);
 });
