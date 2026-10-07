@@ -144,6 +144,10 @@ git clone https://github.com/BryceEWatson/honestweek ~/.claude/skills/honestweek
 
 Either way, when you run `/honestweek`, the skill runs its bundled CLI by an **absolute path inside the skill's own folder** (`${CLAUDE_SKILL_DIR}/bin/honestweek.mjs`). That's why the commands work from *your own* project directory.
 
+### In a clone of this repository
+
+Working inside a clone of honestweek itself, `/honestweek` is already there with nothing to install: the repository carries a project skill in `.claude/skills/honestweek/` that points Claude at the root `SKILL.md` and the repository's own `bin/honestweek.mjs`. It only applies inside this repository; for your other projects, use the plugin or the plain skill above.
+
 ### As a standalone CLI
 
 Run it from npm with `npx`. No install, no clone (zero dependencies, so it's quick):
