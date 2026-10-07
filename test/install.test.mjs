@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CONFIG_ENV, CONFIG_FILE, USER_DIR } from '../lib/config-lookup.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -58,6 +59,14 @@ test('SKILL.md can be started by an agent, but only on an explicit ask, and stop
   const init = SKILL.slice(SKILL.indexOf('1. **`init`**'), SKILL.indexOf('2. **`discover`**'));
   assert.ok(init.includes('stop and ask') && init.indexOf('stop and ask') < init.indexOf('init --yes'), 'the config check comes before init runs');
   assert.match(init, /Run it only after they say yes\./);
+  // The check runs in the order lib/config-lookup.mjs uses: this folder, then HONESTWEEK_CONFIG
+  // (a missing file there stops it), then the user-level file. A config found anywhere skips init,
+  // which would otherwise write a second config in this folder that hides it.
+  const order = [`(a) \`${CONFIG_FILE}\``, `(b) else, if the \`${CONFIG_ENV}\``, `(c) else \`~/${USER_DIR}/${CONFIG_FILE}\``].map((s) => init.indexOf(s));
+  assert.ok(order.every((i) => i > 0) && order[0] < order[1] && order[1] < order[2], 'the three places, in the lookup order');
+  assert.match(init, /if that file isn't there, tell the user and stop without looking further/);
+  assert.match(init, /finds a config, skip `init` and go to `discover`/);
+  assert.match(init, /If none of them exists, don't run `init` yet/);
 });
 
 test('README documents the plugin-marketplace install route (in-app and terminal)', () => {
