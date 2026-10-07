@@ -43,6 +43,21 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node-version }}
+      # An experiment for issue 143: Windows Defender scans the files the tests write and the git
+      # and node processes they start. Leaving the checkout and the temp folders out of its scans
+      # shows how much of the Windows job that costs. This changes a security setting, on
+      # GitHub's throwaway runner only.
+      - name: Leave the checkout and temp folders out of Defender's scans
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          try {
+            Get-MpComputerStatus | Select-Object AMRunningMode, RealTimeProtectionEnabled | Format-List
+            Add-MpPreference -ExclusionPath @($env:GITHUB_WORKSPACE, $env:RUNNER_TEMP, (Get-Item $env:TEMP).FullName)
+            (Get-MpPreference).ExclusionPath
+          } catch {
+            Write-Output "::warning::Defender's settings couldn't be read or changed: $_"
+          }
       # Zero runtime dependencies: there is nothing to install.
       - name: Run the test suite
         run: node --test
