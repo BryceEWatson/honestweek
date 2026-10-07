@@ -2,6 +2,7 @@
 name: honestweek-distiller
 description: Writes honestweek.items.json from honestweek's redacted weekly draft (honestweek.draft.json) under the distillation contract. The honestweek weekly skill hands its DISTIL step to this agent. It has file tools only, no shell and no web.
 tools: Read, Write, Edit
+omitClaudeMd: true
 skills:
   - honestweek:honestweek-contract
 ---

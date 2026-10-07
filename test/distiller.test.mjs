@@ -43,6 +43,9 @@ test('the distiller has file tools only and preloads the contract', () => {
   const fm = frontMatter(DISTILLER);
   assert.equal(field(fm, 'name'), 'honestweek-distiller');
   assert.equal(field(fm, 'tools'), 'Read, Write, Edit', 'no shell, no web, nothing else');
+  // No CLAUDE.md instructions either, so a project's rules can't compete with the contract
+  // (Codex on #196; measured 7 Oct 2026 with a marker instruction: seen without it, not with it).
+  assert.equal(field(fm, 'omitClaudeMd'), 'true');
   // The plugin-qualified name: with the bare name the distiller went looking for the contract's
   // file instead (measured 7 Oct 2026, Claude Code 2.1.292).
   assert.match(fm, /^skills:\n {2}- honestweek:honestweek-contract$/m);
