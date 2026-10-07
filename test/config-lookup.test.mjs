@@ -419,3 +419,15 @@ test('a printed next command repeats --config as it was given', () => {
   assert.deepEqual(configAgain('honestweek.config.json'), ['--config', 'honestweek.config.json']);
   assert.deepEqual(configAgain('my folder/honestweek.config.json'), ['--config', '"my folder/honestweek.config.json"']);
 });
+
+test('build writes its output beside the config it read, not in the folder it ran in', () => {
+  const home = folder('home');
+  const user = userConfigUnder(home);
+  const items = [{ text: 'Your project gained a readme.', repo: 'your-project', status: 'in progress', receipt: { sessionId: 'abc12345' } }];
+  writeFileSync(join(dirname(user), 'honestweek.items.json'), `${JSON.stringify(items, null, 2)}\n`);
+  const unrelated = folder('unrelated');
+  const r = cli(['build'], { cwd: unrelated, home });
+  assert.equal(r.code, 0, r.err);
+  assert.ok(existsSync(join(dirname(user), 'honestweek.digest.md')), 'the output sits beside the config');
+  assert.deepEqual(readdirSync(unrelated), [], 'nothing is written in the folder build ran in');
+});
