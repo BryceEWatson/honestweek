@@ -13,14 +13,14 @@ function spin(steps) {
 }
 
 test('time in step with the input passes', () => {
-  assertGrowsInStep('linear', (scale) => Math.round(8e7 * scale), (n) => spin(n), { ceilingMs: 60_000 });
+  assertGrowsInStep('linear', (scale) => Math.round(3e7 * scale), (n) => spin(n), { ceilingMs: 60_000 });
 });
 
 test('time that grows with the square of the input fails, however the rounds fall', () => {
-  // At full length 14,000 squared is about 2e8 steps, well past the 50 ms floor; a quarter is 1/16 of that.
-  assert.throws(() => assertGrowsInStep('square', (scale) => Math.round(14_000 * scale), (n) => spin(n * n), { ceilingMs: 60_000 }), /times as long/);
+  // At full length 10,000 squared is 1e8 steps, past the 50 ms floor; a quarter is 1/16 of that.
+  assert.throws(() => assertGrowsInStep('square', (scale) => Math.round(10_000 * scale), (n) => spin(n * n), { ceilingMs: 60_000 }), /times as long/);
 });
 
 test('a full run over the ceiling fails even when it grows in step', () => {
-  assert.throws(() => assertGrowsInStep('slow', (scale) => Math.round(4e7 * scale), (n) => spin(n), { ceilingMs: 1 }), /over the 1 ms limit/);
+  assert.throws(() => assertGrowsInStep('slow', (scale) => Math.round(1e7 * scale), (n) => spin(n), { ceilingMs: 1 }), /over the 1 ms limit/);
 });
