@@ -117,4 +117,5 @@ test('the front matter names the flows as arguments and pre-approves only honest
   // The rule names the exact script, so no node option (such as -e) can ride along on it.
   assert.equal(/^allowed-tools: (.*)$/m.exec(fm)?.[1], 'Bash(node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" *)');
   assert.match(SKILL_MD, /\$ARGUMENTS/, 'the flows section reads the arguments');
+  assert.match(SKILL_MD, /If it's empty, or shows a dollar sign and a word instead, nothing was passed/, 'no flow word falls back to what the user asked for');
 });

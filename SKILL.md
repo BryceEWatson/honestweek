@@ -55,7 +55,7 @@ This skill's folder is `${CLAUDE_SKILL_DIR}`. The flow files below are plain fil
 
 ## Flows
 
-The text after the skill's name, if any, is `$ARGUMENTS`. Its first word picks the flow. If that shows a dollar sign and a word instead, nothing was passed: pick the flow from what the user asked for, and with no clear ask run the weekly flow. Before you run any of a flow's commands, read its file in full from the `flows/` folder beside this `SKILL.md`.
+The text after the skill's name, if any, is `$ARGUMENTS`. Its first word picks the flow. If it's empty, or shows a dollar sign and a word instead, nothing was passed: pick the flow from what the user asked for, and with no clear ask run the weekly flow. Before you run any of a flow's commands, read its file in full from the `flows/` folder beside this `SKILL.md`.
 
 | Flow | When | Read |
 | --- | --- | --- |

@@ -31,6 +31,13 @@ test('it points at the root SKILL.md and the root CLI, and both paths resolve fr
   assert.doesNotMatch(project, /—|–/, 'no em or en dashes');
 });
 
+test('it names the same flows as the root, sends Claude to flows/, and pre-approves only the root CLI', () => {
+  assert.equal(field(project, 'argument-hint'), field(rootSkill, 'argument-hint'));
+  assert.equal(field(project, 'allowed-tools'), `Bash(node "${DIR}/../../../bin/honestweek.mjs" *)`);
+  assert.ok(project.includes(`${DIR}/../../../flows/`));
+  assert.match(project, /\$ARGUMENTS/);
+});
+
 test('git tracks the project skill though the rest of .claude stays ignored', () => {
   const ignored = (p) => {
     try {
