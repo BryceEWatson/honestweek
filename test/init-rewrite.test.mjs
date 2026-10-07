@@ -121,9 +121,12 @@ test('init says when the old config cannot be read, so nothing from it is kept',
   try {
     const project = repo(join(root, 'project'));
     writeFileSync(join(project, 'honestweek.config.json'), '{ "redaction": { "names": ["Dana Doe"], } }');
+    const left = terminal();
+    assert.equal(await runInit({ cwd: project, argv: ['--yes'], io: left, inferEmail: () => ME }), 0, left.stderr);
+    assert.doesNotMatch(left.stdout, /can't be read/, 'a run that leaves the config alone says nothing about keeping');
     const io = terminal();
     assert.equal(await runInit({ cwd: project, argv: ['--yes', '--force'], io, inferEmail: () => ME }), 0, io.stderr);
-    assert.match(io.stdout, /honestweek\.config\.json is there but can't be read as JSON, so nothing from it is kept: no private words and no display-only folders\.\n/);
+    assert.match(io.stdout, /honestweek\.config\.json is there but can't be read as JSON, so a rewrite keeps nothing from it: no private words and no display-only folders\.\n/);
     assert.ok(!io.stdout.includes('Dana Doe'));
   } finally {
     removeTempDir(root);
