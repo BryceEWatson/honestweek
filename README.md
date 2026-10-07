@@ -284,10 +284,10 @@ The weekly flow above answers "what did I ship". `mine` answers a different ques
 Not every hard hour is worth writing up. When your own code breaks and you fix your own
 code, nobody else can use that. But when a tool *you did not write* fails in your
 environment and you work out why, someone else will hit the same wall and paste the same
-error into a search box. That second kind is rare, it is already sitting in your session
-logs, and it is almost never written down.
+error into a search box. That second kind is rare. It's already sitting in your session
+logs, and it's almost never written down.
 
-`mine` finds those, ranks them, and, with `--draft`, writes one up.
+`mine` finds those and ranks them. With `--draft`, it also writes one up.
 
 ```bash
 honestweek mine              # report what is undecided
@@ -296,21 +296,21 @@ honestweek mine --draft      # and write the top one up as a post
 
 **What it reads.** Claude Code (`~/.claude/projects`), Codex (`~/.codex/sessions`) and
 Cowork session logs. Pick with `--corpus claude-code,codex,cowork`. A name outside that
-list is an error (exit 1), not an empty scan: a typo must never read as a quiet week.
+list stops with an error (exit 1) instead of scanning nothing, because a typo must never read as a quiet week.
 
 **How it decides.** A session is a candidate only when all three hold:
 
 | Requirement | Why |
 | --- | --- |
-| A quotable error from software you did not write | It is what a stranger types into a search box. Errors from your own compiler, test runner or git are excluded. |
+| A quotable error from software you didn't write | It's what a stranger types into a search box. It leaves out errors from your own compiler, test runner or git. |
 | Diagnosis outside your working tree | Probing the machine, reading another program's install directory, or researching a third party's known behaviour. |
 | Evidence it was resolved | An unresolved failure is a bug report, not a guide. |
 
-A session that edited your repo far more than it investigated anything else is rejected
-however good it looks otherwise. That is ordinary work.
+`mine` rejects a session that edited your repo far more than it investigated anything else,
+however good it looks otherwise. That's ordinary work.
 
 **The ledger.** Findings land in `honestweek.findings.json` with a status. The number
-that matters is the **backlog**: findings you have not yet accepted or declined:
+that matters is the **backlog**, the findings you haven't accepted or declined yet:
 
 ```text
 ERROR SIGNAL — backlog 3 undecided; oldest waiting 12 day(s).
@@ -324,15 +324,15 @@ honestweek mine --decide "<finding key>=published"   # or =declined
 ```
 
 **Drafts are honest by construction.** A draft asserts nothing about today. Its
-last-verified field is emitted **empty**, its publication date is left blank, and it
+last-verified field is **empty**, its publication date is blank, and it
 carries a checklist where every item starts `UNVERIFIED`, plus a "What I could not
-check" section. Two things a session log can never establish are always listed there:
+check" section. That section always lists two things a session log can never establish:
 whether anyone actually searches for this, and whether the fix still works on the
 current build. `mine` never publishes anything.
 
-**When it is blind, it says so.** Every run reports files found per corpus and the
+**When it's blind, it says so.** Every run reports the files it found in each log source and the
 retention floor: the oldest session still on disk, since agents delete old logs. If a
-corpus resolves to a real directory holding zero logs, `mine` **exits `2`**: a zero from
+log source points to a real directory that holds zero logs, `mine` **exits `2`**. A zero from
 a blind sensor is not evidence of a quiet week.
 
 Configure the destination under `mine` in your config (all optional):
@@ -351,15 +351,15 @@ Configure the destination under `mine` in your config (all optional):
 }
 ```
 
-`draft.frontmatter` is your destination's schema, not honestweek's: keys it recognises
-are filled in, keys it does not are passed through empty for you. `ownRepos` stops
-issues on your own repositories counting as evidence that someone else's software broke.
+`draft.frontmatter` lists your destination's fields, not honestweek's. Keys it recognises
+get filled in, and keys it doesn't are kept, empty, for you. `ownRepos` stops
+issues on your own repositories from counting as evidence that someone else's software broke.
 honestweek reads the GitHub remote of each configured repository for this, except `display`
-repositories, which it never runs `git` against: list their `owner/name` under `ownRepos` if
+repositories, which it never runs `git` against. List their `owner/name` under `ownRepos` if
 issues there should count as yours.
 
-See [`docs/mining.md`](docs/mining.md) for the detector's signals, what is measured
-versus guessed at, and how the score bar was calibrated.
+[`docs/mining.md`](docs/mining.md) covers the detector's signals, what it measures and what it
+guesses at, and how I calibrated the score bar.
 
 ## Sample output
 
@@ -400,45 +400,45 @@ Rendered to the default `digest` output. Every line carries a status badge and a
 ## Standalone site (`page` mode)
 
 Set `"output": { "mode": "page" }` and `build` writes one self-contained, interactive
-HTML file (`honestweek.report.html` by default), a polished **standalone site** with a
-git-derived commits/day chart, collapsible per-project cards with metrics, status-badged
-items, and an expandable git receipt on each. No target project, no framework, no build
+HTML file (`honestweek.report.html` by default). It's a **standalone site** with a
+chart of commits per day from git, a collapsible card for each project with its metrics, items with
+their status badges, and an expandable git receipt on each. No target project, no framework, no build
 step, and **zero external resources** (inline CSS + JS, system fonts), so it opens
-anywhere and `preview` can serve it under a no-egress CSP:
+anywhere, and `preview` can serve it under a no-egress CSP (a browser rule that blocks loading anything from another site):
 
 ```bash
 honestweek build     # writes honestweek.report.html
 honestweek preview   # serves it on 127.0.0.1 + opens your browser
 ```
 
-Same honesty engine as every other mode: every cited commit is verify-or-abort'd, every
-number on the page is a deterministic honestweek derivation (git for commits + the chart),
-and curated prose is HTML-escaped. A per-project card's **active-days** is
-`max(commit-active days, session-active days, entry-active days)`, so a display-role /
-session-only project shows the days it genuinely had interactive sessions (counted from your
-local session logs, never authored) instead of a blank. A card's header can never report fewer
-active days than the dated rows shown beneath it, even when a session ran from one project's
-directory but was curated as another's work by content. In `site` mode the same reconciliation
-keeps the header's "sessions this week" from falling below that active-day span (a session
-happens on one day, so N active days mean at least N sessions); for a project whose sessions ran
-from more than one folder, that reconciled figure is a lower bound on its distinct session-days, not a raw
-session-log tally. Every figure is a deterministic count, never authored. (To
-instead generate INTO an existing website's data
-file (the integrated path), use `site` mode with a committed `output.adapter`; see
-`docs/site-integration.md`.)
+It runs on the same honesty engine as every other mode. Every cited commit is checked against git,
+and one that fails stops the build. honestweek works out every number on the page itself, the same
+way every time, using git for the commits and the chart. Curated prose is HTML-escaped.
+A project card's **active-days** is `max(commit-active days, session-active days, entry-active days)`:
+the largest of its days with commits, days with sessions and days with entries. So a `display`-role or
+session-only project shows the days it really had interactive sessions instead of a blank. Those
+days are counted from your local session logs, never authored. A card's header can never show fewer
+active days than the dated rows under it. That holds even when a session ran in one project's folder
+but its work was filed under another project because of its content. In `site` mode, the same
+adjustment keeps the header's "sessions this week" from falling below that number of active days.
+A session happens on one day, so N active days mean at least N sessions. For a project whose
+sessions ran from more than one folder, that adjusted figure is a lower bound on how many distinct
+days it had sessions, not a raw count of session logs. Every figure is a count, never authored.
+To write into an existing website's data file instead (the integrated path), use `site` mode with a
+committed `output.adapter`, as `docs/site-integration.md` explains.
 
 ### A goals page too (opt-in, multi-page)
 
 Drop a `honestweek.objectives.json` registry beside your config and `page` mode becomes
 **multi-page**: it emits a second self-contained page, `goals.html`, next to `report.html`
 and cross-links the two. The goals page groups your verified work **by goal** instead of by
-project: goal cards with a kind chip, a what / why / how, a per-week activity strip, status
-counts, and an expandable list of the entries behind each goal. With **no** registry, `page`
-mode stays single-page exactly as above (the goals page is purely additive).
+project. Each goal gets a card with a tag for its kind, a what / why / how, a per-week activity strip, status
+counts, and an expandable list of the entries behind it. With **no** registry, nothing changes: `page`
+mode stays single-page, exactly as above.
 
-The registry is the publish gate: only goals listed in it appear, and a work item that maps
-to no goal is omitted. It's validated fail-closed before anything is written (an invalid or
-leaky registry aborts the whole build, writing neither page).
+The registry decides which goals get published. Only goals listed in it appear, and a work item that maps
+to no goal stays off the page. honestweek checks the registry before it writes anything. An invalid
+registry, or one holding text the redactor would change, stops the whole build, and neither page is written.
 
 ```jsonc
 // honestweek.objectives.json  (opt-in; absent -> single-page)
@@ -462,11 +462,11 @@ leaky registry aborts the whole build, writing neither page).
 }
 ```
 
-A work item resolves to a goal by its own `objectiveId` (if set and in the registry), else by
-`projectToObjective[<its repo label>]`. Cross-week goal activity aggregates the current week
-plus any weeks in your local `output.archive` (so a first run shows one week, richer as weeks
-accrue). An optional `honestweek.goal-changelog.json` adds a "what changed" band for
-structural goal-set changes (a goal added / split / retired / relabeled / merged).
+A work item finds its goal by its own `objectiveId`, if it has one that's in the registry. If not, it
+uses `projectToObjective[<its repo label>]`. A goal's activity across weeks adds up the current week
+and any weeks in your local `output.archive`, so a first run shows one week, and more as weeks
+go by. An optional `honestweek.goal-changelog.json` adds a "what changed" band for
+changes to the set of goals itself: a goal added, split, retired, relabeled or merged.
 
 `preview` serves **both** pages (so the cross-links resolve), still loopback-only under the
 same no-external-egress CSP:
@@ -480,34 +480,34 @@ honestweek preview   # serves both at 127.0.0.1 (/ and /goals.html)
 
 A weekly log is for you. A client report is for the person paying for the work: what you did for them over a period you choose (a sprint, a month, the contract so far), in their words, with the evidence attached. It's one light, printable HTML file (`honestweek.client.html` by default) they can read in a browser or save as a PDF.
 
-It keeps every guarantee the weekly modes have. Every change in it names the pull requests it came from, every cited commit is verify-or-abort'd and has to be yours and on the default branch to count as merged, and a cited commit dated outside the period aborts the build. The numbers at the top (pull requests merged, commits on the main branch, days with work landed) and the activity chart are read from git, and an unreadable repo leaves them blank rather than too low. An appendix lists every pull request of yours that landed in the period, marking which ones the report describes, so nothing is quietly left out.
+It keeps every guarantee the weekly modes have. Every change in it names the pull requests it came from. Every cited commit is checked against git, and one that fails stops the build. A commit has to be yours and on the default branch to count as merged, and a cited commit dated outside the period also stops the build. The numbers at the top (pull requests merged, commits on the main branch, days with work landed) and the activity chart come from git. If a repo can't be read, they stay blank rather than show a number that's too low. An appendix lists every pull request of yours that landed in the period and marks the ones the report describes, so nothing is quietly left out.
 
 The source is what reached the default branch, not a week of session logs:
 
-1. Add a `client` block to the config (it names the client, and optionally who it's for and from, plus link prefixes so PR numbers become links), and set `"output": { "mode": "client" }`. Use a separate folder and config for each client.
+1. Add a `client` block to the config and set `"output": { "mode": "client" }`. The block names the client. It can also say who the report is for and who it's from, and give link prefixes that turn PR numbers into links. Use a separate folder and config for each client.
 2. List what landed in the period. This writes the gitignored `honestweek.history.json` and prints only counts:
    ```bash
    honestweek history --from 2026-04-01 --to 2026-06-30
    ```
-3. Distil it into `honestweek.items.json` (the skill does this): a `period` with the same dates, `content` (a `title`, a one-sentence `headline`, `summary` paragraphs, the `themes` the work falls into, and optional `next` steps, which are shown as planned and never counted), and one item per meaningful change with a `theme`, a `title` and `summary` written for the client, a status, and `commits` citing the squash-merge commits it came from. Mark the few that matter most with `"highlight": true`.
+3. Distil it into `honestweek.items.json` (the skill does this). The file holds a `period` with the same dates and a `content` block: a `title`, a one-sentence `headline`, `summary` paragraphs, the `themes` the work falls into, and optional `next` steps, which show as planned and are never counted. It also holds one item per meaningful change, each with a `theme`, a `title` and `summary` written for the client, a status, and `commits` citing the squash-merge commits it came from. Mark the few that matter most with `"highlight": true`.
 4. `validate`, `build`, and `preview` as usual. Put anything the client must never see (billing, other clients) in `redaction.terms` so `validate` stops it at the source.
 
 In a client report, `shipped` reads as **Merged**: on the main branch and checked against git. It doesn't claim the change has been released to production, and the report says so.
 
 ### Shaping it for the reader (reader profiles)
 
-Different readers want different things from the same report. An optional `honestweek.reader.json` beside the config describes the one this report is for: which sections come first, extra sections that gather the changes they care about, areas to leave out, and whether to also write a short note for wherever they read updates. It never changes a fact: every view shows the same entries, statuses and counts, an area it leaves out is counted on the page, and the full record and "how this report was made" are always there.
+Different readers want different things from the same report. An optional `honestweek.reader.json` beside the config describes the reader this report is for. It sets which sections come first, adds sections that gather the changes they care about, names areas to leave out, and says whether to also write a short note for wherever they read updates. It never changes a fact. Every view shows the same entries, statuses and counts, an area it leaves out is still counted on the page, and the full record and "how this report was made" are always there.
 
-- An extra section picks its changes either **by git**, from the issue numbers the commits' messages name (`"select": { "issues": [12, 14] }`), or **by hand**, from tags on items (`"select": { "tags": ["requested"] }`). The page says which.
+- An extra section picks its changes in one of two ways. **By git**, it uses the issue numbers named in the commit messages (`"select": { "issues": [12, 14] }`). **By hand**, it uses tags on items (`"select": { "tags": ["requested"] }`). The page says which.
 - Every section and every line of writing guidance says where it came from: `their-words`, `your-notes` (both with a `ref`), or `guess`. If everything in the file is a guess, `build` tells you the view is unconfirmed.
 - `"format": { "note": true }` also writes `<report>.note.md`: the headline, the reader's sections and what's next, in a few lines, pointing to the full report.
-- Anything a profile can't honestly do fails the build instead: redefining "done", unknown keys, a missing source, excluding an area that doesn't exist, an item tag no section picks.
+- If a profile asks for something it can't honestly do, the build fails instead. That covers redefining "done", unknown keys, a missing source, excluding an area that doesn't exist, and an item tag no section picks.
 
-Without the file, the report uses the shipped default and client layers. The design and its rules are in [docs/reader-profiles.md](docs/reader-profiles.md).
+Without the file, the report uses the default and client profiles that ship with honestweek. [docs/reader-profiles.md](docs/reader-profiles.md) has the design and its rules.
 
 ## Config reference
 
-Your `honestweek.config.json` mirrors `honestweek.config.example.json`. Whether you commit it is up to you, but its `redaction` lists are the words you want hidden, so keep a config that has them out of anything public (`init` adds it to `.gitignore` when you give it private words):
+Your `honestweek.config.json` follows the shape of `honestweek.config.example.json`. Whether you commit it is up to you. Its `redaction` lists hold the words you want hidden, though, so keep a config that has them out of anything public. `init` adds it to `.gitignore` when you give it private words. Here's what it looks like:
 
 ```jsonc
 {
@@ -533,27 +533,27 @@ Your `honestweek.config.json` mirrors `honestweek.config.example.json`. Whether 
 | `identity.authorEmails` | The emails a commit must be authored by to count as yours. `build` aborts on any cited commit not authored by one of these. |
 | `week.startsOn` | `"monday"` (the only supported value). |
 | `week.timezone` | IANA timezone used to compute the week boundary; defaults to your host zone. |
-| `repos[].path` | A repo path. `~`/`~/` expands to your home dir; relative paths resolve against the config file. Sessions are attributed to this repo from **any working tree of the same git repository**: the path itself, sub-directories, and every `git worktree`, including ones checked out at a sibling path rather than inside it. Git reads (commits, handoffs, metrics) always use this path alone, so a worktree's branch or detached `HEAD` never becomes the basis for your commit counts. A separate *clone* has its own git database and is never attributed here. |
+| `repos[].path` | A repo path. `~`/`~/` expands to your home dir, and relative paths resolve against the config file. A session counts toward this repo when it ran in **any working tree of the same git repository**: the path itself, its sub-directories, and every `git worktree`, including one checked out at a sibling path rather than inside it. Git reads (commits, handoffs, metrics) always use this path alone, so your commit counts never rest on a worktree's branch or detached `HEAD`. A separate *clone* has its own git database, so its sessions never count here. |
 | `repos[].label` | The short name items reference and outputs display. |
 | `repos[].role` | One of the three trust levels below. |
-| `redaction.codenames` / `names` / `terms` | Private tokens scrubbed from all output, in any letter case. A term is found as a word, after an underscore or a digit, or as one part of a camel-case name (`acme_report`, `AcmeReport`, `XMLAcmeThing`). A web-address or file-name part that starts with a codename or term of four or more letters is replaced whole (`www.acmehq.com`, `http://acmehq:3000`, `acmereport.pdf`); a person's name is matched that way only in a web address, so "Bill" leaves `billing.ts` alone. A word that only shares letters with a term (`academy`) is kept. Default empty (clean-room). |
-| `curation.*` | Local weekly-selection policy. Defaults target 12 items with caps of 2 prompts, 2 ideas, 3 techniques, 2 decisions, 1 reversal, and 2 next steps. The automatic floor is 2. `automaticCarryWeeks` defaults to 2 and is hard-limited to 2. `retentionWeeks` defaults to 12 and is hard-limited to 12. Explicit keeps and one-week renewals are never silently dropped, but they never bypass receipt or privacy gates. |
-| `privacy.publicRenditions.*` | Public-rendition gate. `enabled` defaults true for the local artifact, `maxAutomaticChangedPercent` defaults to and cannot exceed 20, and `neverPublicTerms` extends hard redaction. `generalizationMappings` remains empty in this slice. Ambiguous or residual high-risk material in every category stays private. |
-| `output.mode` | `post` (build-in-public update), `changelog` (in-repo `CHANGELOG.md` section), `digest` (the private, local-only weekly file; the default and trust anchor), `report` (grouped by project, each headed by its git-derived metrics; the structured weekly-work-log shape, still a local file you publish yourself), `site` (integrate the verified report into a target website's data artifact via a committed adapter (advanced; see [docs/site-integration.md](docs/site-integration.md))), or `client` (a printable report of the work done for one client over the items file's `period`; see [A report for a client](#a-report-for-a-client-client-mode)). |
+| `redaction.codenames` / `names` / `terms` | Private terms scrubbed from all output, in any letter case. honestweek finds a term as a word, after an underscore or a digit, or as one part of a camel-case name (`acme_report`, `AcmeReport`, `XMLAcmeThing`). When part of a web address or file name starts with a codename or term of four or more letters, it replaces that whole part (`www.acmehq.com`, `http://acmehq:3000`, `acmereport.pdf`). It matches a person's name that way only in a web address, so "Bill" leaves `billing.ts` alone. A word that only shares letters with a term (`academy`) is kept. All three are empty by default (clean-room). |
+| `curation.*` | How the weekly digest picks its items, on your machine. By default it aims for 12 items, with at most 2 prompts, 2 ideas, 3 techniques, 2 decisions, 1 reversal and 2 next steps. The automatic floor, the lowest score an item can have and still be picked without you keeping it, is 2. `automaticCarryWeeks` defaults to 2 and can't go above 2. `retentionWeeks` defaults to 12 and can't go above 12. Items you keep yourself and one-week renewals are never silently dropped, but they never bypass receipt or privacy gates. |
+| `privacy.publicRenditions.*` | The check that decides which redacted digest items can go public without asking you. `enabled` defaults to true for the local artifact. `maxAutomaticChangedPercent` defaults to 20 and can't go higher: if redaction changed more of an item's text than that, the item needs your approval. `neverPublicTerms` adds terms to hard redaction. `generalizationMappings` must stay empty, since this version doesn't support it yet. Anything ambiguous or still high-risk after redaction stays private, whatever its category. |
+| `output.mode` | `post` (a build-in-public update), `changelog` (a section for the repo's own `CHANGELOG.md`), `digest` (the default: a private Markdown file that stays on your machine, with every item grouped by status, each with its badge and receipt), `report` (items grouped by project, each under its metrics from git, shaped like a structured weekly work log and still a local file you publish yourself), `site` (an advanced mode that writes the verified report into a target website's data file through a committed adapter, as [docs/site-integration.md](docs/site-integration.md) explains), or `client` (a printable report of the work you did for one client over the items file's `period`, covered in [A report for a client](#a-report-for-a-client-client-mode)). |
 | `output.file` | Where the output is written. Defaults per mode when unset. (Not used by `site`, whose write path comes from the adapter.) |
-| `output.adapter` | **Required for `site` mode only**: path to the committed adapter (resolved like a repo path): a `.json` *static* field-map, or a `.mjs` *transform* (`transform(model, ctx)`) for artifacts needing grouping/sorting/joins. It maps the verified model onto the site's data artifact; the artifact's own write path lives in the adapter. |
-| `output.redact` | Default `true` (honestweek scrubs every byte). For `site` mode only, `false` delegates string redaction to the committed transform (so a target with its own redactor gets exact placeholder parity), permitted **only with a transform adapter**; verify-or-abort and the numeric fact-fence always run. See [docs/site-integration.md](docs/site-integration.md). |
-| `output.skipProgramSessions` | Default `true`. For `page` and `site` modes, the interactive-session count leaves out a Claude Code session that a program, a background task or another session opened and that has no turn from you, and counts one you sent a turn to later from your first turn, on that turn's day, the way the rest of honestweek reads a program's turns. Current Claude Code marks who sent each turn (`turnOrigin`: `human` when it came from your own session, typed or pasted); older logs don't, and count as before. Set it to `false` to count the old way. If you publish this count, it changes from 0.2.0 wherever your logs record `turnOrigin`. See [docs/site-integration.md](docs/site-integration.md). |
-| `output.archive` / `output.archiveDir` | Opt-in local weekly archive. With `archive: true`, `build` also snapshots each week to `<archiveDir>/<weekStart>.json` and maintains `<archiveDir>/index.json` (the "/log" series; default dir `honestweek.archive`). Local files only, never pushed. |
+| `output.adapter` | **Required for `site` mode only.** The path to the committed adapter, resolved like a repo path. It's either a `.json` *static* field-map or, for a data file that needs grouping, sorting or joins, a `.mjs` *transform* (`transform(model, ctx)`). It maps the verified report onto the site's data file, and it holds that file's write path too. |
+| `output.redact` | Defaults to `true`: honestweek scrubs every byte. In `site` mode only, `false` hands string redaction to the committed transform, so a site with its own redactor gets placeholders that exactly match its own. That's allowed **only with a transform adapter**. Either way, the build still verifies every cited commit or stops, and the numeric fact-fence (the check that every number in the output is one honestweek verified) always runs. See [docs/site-integration.md](docs/site-integration.md). |
+| `output.skipProgramSessions` | Defaults to `true`. In `page` and `site` modes, the interactive-session count leaves out a Claude Code session that a program, a background task or another session opened and that has no turn from you. If you sent it a turn later, it counts from your first turn, on that turn's day, the way the rest of honestweek reads a program's turns. Current Claude Code marks who sent each turn (`turnOrigin`: `human` when it came from your own session, typed or pasted). Older logs don't, so they count as before. Set it to `false` to count the old way. If you publish this count, it changes starting with 0.2.0 wherever your logs record `turnOrigin`. See [docs/site-integration.md](docs/site-integration.md). |
+| `output.archive` / `output.archiveDir` | An opt-in weekly archive on your machine. With `archive: true`, `build` also saves a snapshot of each week to `<archiveDir>/<weekStart>.json` and keeps `<archiveDir>/index.json` up to date, a local version of a "/log" series of past weekly reports. The folder defaults to `honestweek.archive`. These are local files only, never pushed. |
 | `client.name` | **Required for `client` mode.** The client or product the report covers. |
 | `client.preparedFor` / `preparedBy` / `organization` | Optional lines for the report's header: who it's for, who wrote it, and the business it comes from. |
 | `client.prLinks` | Optional map of repo label to an https prefix (`https://github.com/your-org/your-project/pull/`), so a PR number derived from a verified commit becomes a link. Every key must be a configured repo label. |
-| `voice.denyMeta` | Opt-in authored-prose honesty lint, **OFF by default**. When `true`, `build` aborts (exit 2, writes nothing) if an authored-prose field (item `title`/`summary`/`text`, or curated `content`/`projects` prose) *narrates its own withholding* ("keeping the specifics sealed", "kept generic here", "not public-facing") or *announces the page's own honesty* ("show the work honestly, receipts and retractions included", "belongs in an honest log"). That's what an honest log should show through its badges and receipts, not say about itself. It's the prose analogue of the numeric fact-fence, names each offending field plus matched phrase plus rule, and is **never** applied to verified evidence snippets/receipts (where a word like "sealed" can legitimately appear); conversely, keep authored prose out of evidence-named keys (`commits`, `receipt`, `snippet`, ...), which are treated as evidence and skipped. Absent, nothing changes. |
+| `voice.denyMeta` | An opt-in honesty check on authored prose, **OFF by default**. When `true`, `build` stops (exit 2, writes nothing) if an authored-prose field (an item's `title`/`summary`/`text`, or curated `content`/`projects` prose) *narrates what it's holding back* ("keeping the specifics sealed", "kept generic here", "not public-facing") or *announces the page's own honesty* ("show the work honestly, receipts and retractions included", "belongs in an honest log"). An honest log should show that through its badges and receipts, not say it about itself. It does for prose what the numeric fact-fence does for numbers, and it names each field it flags, the phrase it matched and the rule. It's **never** applied to verified evidence snippets or receipts, where a word like "sealed" can rightly appear. In turn, keep authored prose out of keys named for evidence (`commits`, `receipt`, `snippet`, ...), because those count as evidence and are skipped. Leave it out and nothing changes. |
 | `history` | Optional. How far back `view` reads with no `--days`, `--from` or `--to`: `{ "days": 30 }`, `{ "from": "2025-01-01" }`, a range in the past `{ "from": "2025-01-01", "to": "2025-03-31" }`, or `{ "all": true }`. The last 7 days or fewer always load whole. A longer choice loads at most the newest `historyLimitMB` of logs and says which days it loaded when that cuts it short. Leave it out for the last 7 days. Setup and Settings write it. |
-| `historyLimitMB` | Optional. The most log data, in MB, a saved `history` longer than a week loads at once, and the most the Problems page reads for the window before a longer choice (for a one-week window, the week before always loads whole): 500 unless you raise it (50 to 20000). Settings shows an estimate of the time and memory before you save a new one. |
+| `historyLimitMB` | Optional. A cap, in MB, on two reads: how much log data a saved `history` longer than a week loads at once, and how much the Problems page reads of the window just before a longer choice. It's 500 unless you raise it (50 to 20000). For a one-week window, the week before always loads whole. Settings shows an estimate of the time and memory before you save a new value. |
 | `goalsFile` | Optional. The goal list `view` reads, resolved like a repo path. Leave it out and `view` runs without goals, or pass `--goals <file>` for one run. It's not the goals page's `honestweek.objectives.json`; see [The goal list](#the-goal-list). |
-| `longSessionTokens` | Optional. How many tokens of context an agent can carry before the Problems page flags it for going on, from 10000 to 10000000, for example `150000`. Leave it out and that check is off: no vendor recommends a number. Settings sets it. |
-| `voice.denyPhrases` / `voice.allowPhrases` | Optional string lists (default empty). `denyPhrases` **extends** the built-in denylist with your own phrases (literal, case-insensitive). `allowPhrases` is the false-positive **off-ramp**: it exempts a legitimate phrase a built-in pattern would otherwise flag (surgical to the matched text), so one over-eager match doesn't force you to disable the whole lint. |
+| `longSessionTokens` | Optional. How many tokens of context an agent can carry before the Problems page flags the session as long. It takes 10000 to 10000000, for example `150000`. Leave it out and that check is off, because no vendor recommends a number. Settings sets it. |
+| `voice.denyPhrases` / `voice.allowPhrases` | Optional lists of strings, empty by default. `denyPhrases` **extends** the built-in list that `voice.denyMeta` checks with your own phrases, matched literally and in any letter case. `allowPhrases` is the **off-ramp** for a false match. It exempts a legitimate phrase a built-in pattern would otherwise flag, and only the matched text, so one over-eager match doesn't force you to turn off the whole check. |
 
 **Repo roles:**
 
@@ -566,49 +566,49 @@ Your `honestweek.config.json` mirrors `honestweek.config.example.json`. Whether 
 | File | Status |
 | --- | --- |
 | `honestweek.draft.json` | The redacted weekly digest from `discover`. **Gitignored.** An intermediate working artifact, never published. |
-| `honestweek.prompts.json` | The private, redacted Claude Code and Codex prompt inbox plus no-text deletion tombstones. **Gitignored.** Never read by a renderer. |
-| `honestweek.curated.json` | The private, redacted six-category review model from `digest prepare`. **Gitignored.** It contains exact selection and privacy decisions. A deleted current-week item leaves only a no-text tombstone. |
-| `honestweek.digest.pending.json` | A no-text transaction marker used only to recover an interrupted `digest prepare`. **Gitignored.** Other commands fail closed while it exists. |
-| `honestweek.prompt-items.json` | The public-safe lane. Version 1 is prompt-only; version 2 is the balanced digest. **Gitignored.** `validate` and `build` reconstruct it from local sources before use. |
-| `honestweek.carry.json` | The private, redacted carry history, bounded to 12 week records. **Gitignored.** Only a successful lifecycle build advances it. |
-| `honestweek.carry.pending.json` | The hash-bound output/carry recovery envelope for an interrupted lifecycle build. **Gitignored.** Unknown output and carry combinations fail closed. |
+| `honestweek.prompts.json` | The private, redacted inbox of your Claude Code and Codex prompts, plus a no-text tombstone for each one you delete. **Gitignored.** No renderer ever reads it. |
+| `honestweek.curated.json` | The private, redacted review file from `digest prepare`, covering all six categories. **Gitignored.** It holds the exact selection and privacy decisions. An item you delete from the current week leaves only a no-text tombstone. |
+| `honestweek.digest.pending.json` | A no-text marker of a `digest prepare` in progress, used only to recover one that was interrupted. **Gitignored.** While it exists, other commands stop instead of running. |
+| `honestweek.prompt-items.json` | The items that passed the privacy check and are safe to make public. Version 1 holds prompts only, and version 2 is the balanced digest. **Gitignored.** `validate` and `build` rebuild it from local sources before they use it. |
+| `honestweek.carry.json` | The private, redacted history of items carried into later weeks, kept to 12 week records. **Gitignored.** Only a successful `build` that carries items between weeks moves it forward. |
+| `honestweek.carry.pending.json` | What honestweek needs to recover if a `build` that carries items between weeks is interrupted, tied by hashes to the output and carry history it was writing. **Gitignored.** If the output and carry history don't match a combination it recognizes, it stops. |
 | `honestweek.items.json` | The distilled, human-reviewable items. **Yours to keep or ignore** (not gitignored unless you add it; safe to delete). |
 | `honestweek.reader.json` (opt-in) | The reader profile for a client report: who it's for, what they see first, and where each line of that came from. Holds a real person's preferences, so keep it private with the report. |
 | `<report>.note.md` (opt-in) | The short note a reader profile asks for with `format.note`, written beside the client report. Yours to share. |
 | `honestweek.history.json` | What landed on the default branch in a period, from `history`: the raw material for a client report. **Gitignored.** Redacted before it's written; only counts are printed. |
 | `honestweek.drafts/` (opt-in) | Post drafts from `mine --draft`, with their claims still unverified. **Gitignored** in a folder `init` set up; elsewhere, add it yourself or set `mine.draft.dir`. |
-| `honestweek.harvest.json` | Proposed redaction-denylist candidates from `harvest`. **Gitignored.** Only the count is printed; the raw nouns stay local for you to review. |
+| `honestweek.harvest.json` | Words `harvest` suggests adding to your redaction lists. **Gitignored.** Only the count is printed, and the raw nouns stay on your machine for you to review. |
 | `honestweek.codex-judgments/` (opt-in) | What your own `codex` wrote about each Codex session when you press Run with Codex in `view`, one file per session. **Gitignored**: the folder ignores itself and gets a line in the config folder's `.gitignore`. Redacted before it's written. |
 | `output.file` (e.g. `honestweek.digest.md`) | The final rendered output. **Yours to keep or ignore.** |
 | `honestweek.config.json` | Your config. `init` adds it to `.gitignore` when you give it private words, since it then lists them; it can also hold private repo paths. Un-ignore it if you want it tracked. |
-| `honestweek.archive/` (opt-in) | The local weekly snapshots + `index.json` (the "/log" series). Only written when `output.archive` is true. **Yours to keep, ignore, or commit.** |
-| `honestweek.objectives.json` (opt-in) | The goal registry that turns `page` mode multi-page (emits `goals.html`). Absent → single-page. The publish gate for goals; commit it if you want the goals page. |
-| `honestweek.goal-changelog.json` (opt-in) | Optional append-only log of structural goal-set changes, rendered as the goals page's "what changed" band. |
-| `honestweek.findings.json` (opt-in) | The `mine` findings ledger: what was found, and what you accepted or declined. **Commit it**: it is the only record of what you already said no to, and everything in it is de-identified and redacted before it is written. |
+| `honestweek.archive/` (opt-in) | The weekly snapshots and `index.json`, a local version of a "/log" series of past weekly reports. `build` writes it only when `output.archive` is true. **Yours to keep, ignore, or commit.** |
+| `honestweek.objectives.json` (opt-in) | The goal registry. With it, `page` mode also writes `goals.html`. Without it, `page` mode stays single-page. It decides which goals get published, so commit it if you want the goals page. |
+| `honestweek.goal-changelog.json` (opt-in) | An optional log you only ever add to, recording changes to the set of goals itself. The goals page shows it as its "what changed" band. |
+| `honestweek.findings.json` (opt-in) | The ledger of what `mine` found, and what you accepted or declined. **Commit it**: it's the only record of what you already said no to, and everything in it is de-identified and redacted before it's written. |
 
 ## What it does NOT do / privacy model
 
-- **Only your own allowlisted repos are read.** `git` runs only against the repositories in your `repos` list, with two exceptions. The setup scans that suggest what to list (`init`, and Setup and Settings in `view`) look in the folder you run them in and the folders next to it. And `discover` and Settings check that the draft file and the config aren't tracked in the folder you run them in. Weekly reports use only sessions from those repos; `mine` reads every session in your logs, as [SECURITY.md](SECURITY.md) explains.
+- **Only your own allowlisted repos are read.** `git` runs only against the repositories in your `repos` list, with two exceptions. First, the scans that suggest repos to list (`init`, and the Setup and Settings pages in `view`) look in the folder you run them in and the folders next to it. Second, `discover` and Settings check that the draft file and the config aren't tracked in the folder you run them in. Weekly reports use only sessions from those repos. The `mine` command reads every session in your logs, as [SECURITY.md](SECURITY.md) explains.
 - **`display`-role repos are summarized generically and NEVER git-read.** There is no code path that runs `git` against a `display` repo.
 - **Output stays local until you publish it.** honestweek writes local files only.
-- **No telemetry, no network egress.** honestweek makes no network call. The one exception is yours to start: with Include /insights on, Run /insights and Run with Codex run your own `claude` or `codex`, which send your sessions to Claude or OpenAI after asking. The optional `preview` server is loopback-only (`127.0.0.1`): it serves your already-built output with no key, so any program or account on your machine can read it while it runs, and nothing leaves your machine. The `view` page is loopback-only too, answers only the page it opened, and keeps only what you choose to save; see [What `view` keeps private](#what-view-keeps-private).
+- **No telemetry, no network egress.** honestweek makes no network call. The one exception is yours to start. With Include /insights on, Run /insights and Run with Codex ask you first, then run your own `claude` or `codex`, which send your sessions to Claude or OpenAI. The optional `preview` server is loopback-only (`127.0.0.1`). It serves your already-built output with no key, so any program or account on your machine can read it while it runs, and nothing leaves your machine. The `view` page is loopback-only too. It answers only the page it opened and keeps only what you choose to save, as [What `view` keeps private](#what-view-keeps-private) explains.
 - **Nothing is auto-published.** honestweek produces a draft; *you* are the publisher.
 
 ### What the scrubber catches, and what it doesn't
 
-Redaction is pattern-based and deliberately over-redacts when a pattern is ambiguous. It reliably removes email addresses (including ones with an encoded `@`, like `%40`), home and user paths (including `~/…`, the root account's `/root/…`, URL-encoded paths, and the user name in Claude Code's encoded project folder names like `C--Users-you-…`), prefixed API keys (GitLab's `glpat-` too) and JWTs, high-entropy tokens of 32+ characters, UUIDs, bare 9+ digit runs, currency amounts, and every term you list under `redaction`, whether its accents are written composed or decomposed. A bare hex string of 32 or more characters counts as a token too, unless it's exactly 40 characters, the length of a full commit id. The names of fields in what it writes (JSON keys, like a chart's repo labels or a tool's name) are scrubbed the same way as their values.
+Redaction works by matching patterns, and when a pattern is ambiguous, it hides more than it needs to, on purpose. It reliably removes email addresses (including ones with an encoded `@`, like `%40`), home and user paths (including `~/…`, the root account's `/root/…`, URL-encoded paths, and the user name in Claude Code's encoded project folder names like `C--Users-you-…`), prefixed API keys (GitLab's `glpat-` too) and JWTs, high-entropy tokens of 32+ characters, UUIDs, bare 9+ digit runs, currency amounts, and every term you list under `redaction`, whether its accents are written composed or decomposed. A bare hex string of 32 or more characters counts as a token too, unless it's exactly 40 characters, the length of a full commit id. It scrubs the names of fields in what it writes (JSON keys, like a chart's repo labels or a tool's name) the same way as their values.
 
-It also hides the value of a field whose name says it's a secret: a password, passphrase, token, secret, API key, access or private key, credential, cookie, signature or authorization. The name can be spelled `API_KEY`, `x-api-key`, `client_secret`, `dbPassword`, `authtoken`, `DB_PASS`, `PGPASSWORD`, `MYSQL_PWD` or ODBC's `PWD`, and the value can follow `=`, `=>`, `:`, `:=`, `==` or `===`, sit in a quoted JSON string at any level of escaping, sit inside an XML element named that way (`<password>…</password>`), or follow a `--password` flag or a `-Password` parameter. A `password:` line and an `Authorization:` or `Cookie:` header are hidden to the end of the line, a quote, or the next `key:` on it. In a JSON record read back whole, a value under a key like that is hidden too. Bearer and Basic credentials, the password in a web address (`redis://:…@host`) or after `curl -u user:…`, and a PowerShell `ConvertTo-SecureString` literal (after `-String` or `-AsPlainText`, or piped in) go the same way. Only the value is replaced, with `[redacted:secret]`, so you can still see which field held it. A key that only ends in `Key`, like `fileKey` or `sessionKey`, isn't a secret, and neither is a value like `true`, `none`, or a test count after `pass:`.
+It also hides the value of a field whose name says it's a secret: a password, passphrase, token, secret, API key, access or private key, credential, cookie, signature or authorization. The name can be spelled `API_KEY`, `x-api-key`, `client_secret`, `dbPassword`, `authtoken`, `DB_PASS`, `PGPASSWORD`, `MYSQL_PWD` or ODBC's `PWD`, and the value can follow `=`, `=>`, `:`, `:=`, `==` or `===`, sit in a quoted JSON string at any level of escaping, sit inside an XML element named that way (`<password>…</password>`), or follow a `--password` flag or a `-Password` parameter. It hides a `password:` line and an `Authorization:` or `Cookie:` header up to the end of the line, a quote, or the next `key:` on it. When it reads back a whole JSON record, it hides a value under a key like that too. Bearer and Basic credentials, the password in a web address (`redis://:…@host`) or after `curl -u user:…`, and a PowerShell `ConvertTo-SecureString` literal (after `-String` or `-AsPlainText`, or piped in) go the same way. It replaces only the value, with `[redacted:secret]`, so you can still see which field held it. A key that only ends in `Key`, like `fileKey` or `sessionKey`, isn't a secret, and neither is a value like `true`, `none`, or a test count after `pass:`.
 
-It is a safety net, not a guarantee. Known gaps, so you can decide rather than assume:
+It's a safety net, not a guarantee. Here are the known gaps, so you can decide rather than assume:
 
-- **Short secrets with nothing naming them.** A hand-picked password under 32 characters that no field, flag, header or scheme names (a bare `hunter2` in a sentence, a password glued to `mysql -p`, an item in a plural `tokens` list) is indistinguishable from prose and survives.
-- **Prose that reads like a field.** Because it errs toward hiding, a sentence that starts like one loses the word after the colon: `Auth: users get logged out` is published as `Auth: [redacted:secret] get logged out`. In goal text (an objective's label, `what`, `why` or `how`, or a changelog entry), anything the redactor would change stops `build` instead, so reword a line like `Auth: refresh sessions quietly` there. Plain words after `Bearer` or `Basic` (`basic validation`) and a type annotation (`login(password: string)`) are left alone.
-- **A value after a bold label.** In `**Token:** abc123` the field's value reads as the closing `**`, so `abc123` still shows. Keep secrets out of Markdown bold labels.
-- **A quoted part inside a header.** A quoted part (`Cookie: theme="dark"; session=…`, `Authorization: Digest … response="…"`) ends the hidden part at its quote, so what follows can show.
+- **Short secrets with nothing naming them.** A hand-picked password under 32 characters survives when no field, flag, header or scheme names it (a bare `hunter2` in a sentence, a password glued to `mysql -p`, an item in a plural `tokens` list). It can't be told apart from prose.
+- **Prose that reads like a field.** Because it errs toward hiding, a sentence that starts like one loses the word after the colon: `Auth: users get logged out` comes out as `Auth: [redacted:secret] get logged out`. In goal text (an objective's label, `what`, `why` or `how`, or a changelog entry), anything the redactor would change stops `build` instead, so reword a line like `Auth: refresh sessions quietly` there. It leaves plain words after `Bearer` or `Basic` (`basic validation`) and a type annotation (`login(password: string)`) alone.
+- **A value after a bold label.** In `**Token:** abc123`, the redactor reads the closing `**` as the field's value, so `abc123` still shows. Keep secrets out of Markdown bold labels.
+- **A quoted part inside a header.** In a header with a quoted part (`Cookie: theme="dark"; session=…`, `Authorization: Digest … response="…"`), the hidden part ends at the quote, so what follows can show.
 - **Unlisted spellings of a listed term.** Adding `AcmeCorp` does not cover `Acme Corp`, `Acme-Corp`, or `Doe, Jane` for `Jane Doe`. List the variants you care about; `harvest` proposes candidates from your own draft.
 - **Structured personal data.** Phone numbers, SSNs, and space- or hyphen-separated card numbers are not matched. Only unbroken 9+ digit runs are.
-- **UNC paths.** `\\server\Users\you\…` is not matched; drive-letter and POSIX forms are.
+- **UNC paths.** It doesn't match a Windows network path like `\\server\Users\you\…`. It does match drive-letter and POSIX forms.
 
 Read the built output before you publish it. That review is part of the design, not a formality, and `preview` exists to make it easy.
 
@@ -616,8 +616,8 @@ Read the built output before you publish it. That review is part of the design, 
 
 honestweek's two non-negotiable promises:
 
-1. **A receipt on every line.** Every emitted item points to its source: a commit SHA or a session turn. An item that reaches the renderer without a receipt is a build error, not a receipt-less line.
-2. **It never asserts a motive the log does not contain.** honestweek defaults to **under-claiming**: verified/measured work that has landed on the repo's default branch reads as `shipped`; real work still on an unmerged branch reads as `in progress`; anything weaker reads as `designed, not proven`. It never narrates intent the transcript doesn't support.
+1. **A receipt on every line.** Every item in the output points to its source: a commit SHA or a session turn. If an item reaches the renderer without a receipt, that's a build error, not a line without a receipt.
+2. **It never asserts a motive the log doesn't contain.** honestweek defaults to **under-claiming**. Verified or measured work that has landed on the repo's default branch reads as `shipped`. Real work still on an unmerged branch reads as `in progress`. Anything weaker reads as `designed, not proven`. It never claims an intent the transcript doesn't support.
 
 ## Releasing (maintainers)
 
