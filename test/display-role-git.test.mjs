@@ -4,11 +4,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { existingDisplayRepos, inferAuthorEmail } from '../lib/init.mjs';
-import { ensureDraftGitignored } from '../lib/discover.mjs';
+import { CANT_CHECK_DRAFT, ensureDraftGitignored } from '../lib/discover.mjs';
+import { configTrackState } from '../lib/view/settings.mjs';
 
 const git = (dir, args) => execFileSync('git', ['-C', dir, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
 /**
@@ -54,9 +55,12 @@ test('discover never asks git about a display-only folder, even when its draft i
   const plain = silentIo();
   ensureDraftGitignored(dir, plain);
   assert.ok(plain.errors.some((s) => s.includes('is tracked in git')));
+  // Display-only: git isn't asked, and the one line says how to check by hand instead.
   const display = silentIo();
   ensureDraftGitignored(dir, display, { isDisplay: true });
-  assert.equal(display.errors.length, 0);
+  assert.deepEqual(display.errors, [CANT_CHECK_DRAFT]);
+  assert.match(CANT_CHECK_DRAFT, /^discover: check that honestweek\.draft\.json, your private draft, was never committed to git\. .* Run git ls-files honestweek\.draft\.json\. If it prints the file name, run git rm --cached honestweek\.draft\.json\.\n$/);
+  assert.doesNotMatch(CANT_CHECK_DRAFT, /—|–/);
 });
 
 // The wiring: runInit and runDiscover decide from the real config that the folder they
@@ -99,4 +103,93 @@ test('runDiscover skips the tracked-draft git check only when the folder is disp
     await runDiscover({ cwd: dir, now: new Date('2024-06-19T12:00:00Z'), io, adapter: async () => [], gitWindow: () => [] });
     assert.equal(io.errors.some((s) => s.includes('is tracked in git')), flagged, `role ${role}`);
   }
+});
+
+test('runDiscover says how to check by hand, and asks git nothing, where its folder holds a display-only one (issue 161)', async (t) => {
+  const dir = tempRepo(t);
+  const other = join(dirname(dir), 'other');
+  execFileSync('git', ['init', '-q', other]);
+  mkdirSync(join(dir, 'notes'));
+  writeFileSync(join(dir, 'honestweek.config.json'), JSON.stringify({
+    identity: { authorEmails: ['you@example.com'] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: '../other', label: 'other', role: 'featured' }, { path: 'notes', label: 'notes', role: 'display' }],
+    redaction: { codenames: [], names: [], terms: [] },
+    output: { mode: 'digest', file: 'out.md' },
+  }));
+  writeFileSync(join(dir, 'honestweek.draft.json'), '{}\n');
+  git(dir, ['add', 'honestweek.draft.json']);
+  const io = silentIo();
+  io.exit = (c) => c;
+  await runDiscover({ cwd: dir, now: new Date('2024-06-19T12:00:00Z'), io, adapter: async () => [], gitWindow: () => [] });
+  assert.ok(io.errors.includes(CANT_CHECK_DRAFT), io.errors.join(''));
+  assert.ok(!io.errors.some((s) => s.includes('is tracked in git')), 'git was not asked');
+});
+
+test('runDiscover asks git nothing in a worktree of a display-only repository, as Settings does (issue 161)', async (t) => {
+  const root = makeTempDir('hw-discover-display-worktree-');
+  t.after(() => removeTempDir(root));
+  const notes = join(root, 'notes');
+  execFileSync('git', ['init', '-q', notes]);
+  git(notes, ['-c', 'user.email=you@example.com', '-c', 'user.name=You', 'commit', '-q', '--allow-empty', '-m', 'start']);
+  const wt = join(root, 'notes-wt');
+  git(notes, ['worktree', 'add', '-q', wt]);
+  writeFileSync(join(wt, 'honestweek.config.json'), JSON.stringify({
+    identity: { authorEmails: ['you@example.com'] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: '../notes', label: 'notes', role: 'display' }],
+    redaction: { codenames: [], names: [], terms: [] },
+    output: { mode: 'digest', file: 'out.md' },
+  }));
+  writeFileSync(join(wt, 'honestweek.draft.json'), '{}\n');
+  git(wt, ['add', 'honestweek.draft.json']);
+  const io = silentIo();
+  io.exit = (c) => c;
+  await runDiscover({ cwd: wt, now: new Date('2024-06-19T12:00:00Z'), io, adapter: async () => [], gitWindow: () => [] });
+  assert.ok(io.errors.includes(CANT_CHECK_DRAFT), io.errors.join(''));
+  assert.ok(!io.errors.some((s) => s.includes('is tracked in git')), 'git was not asked');
+});
+
+test('runDiscover says nothing about tracking outside any checkout, even beside a display-only folder', async (t) => {
+  const root = makeTempDir('hw-discover-no-checkout-');
+  t.after(() => removeTempDir(root));
+  const dir = join(root, 'plain');
+  mkdirSync(join(dir, 'notes'), { recursive: true });
+  writeFileSync(join(dir, 'honestweek.config.json'), JSON.stringify({
+    identity: { authorEmails: ['you@example.com'] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: 'notes', label: 'notes', role: 'display' }],
+    redaction: { codenames: [], names: [], terms: [] },
+    output: { mode: 'digest', file: 'out.md' },
+  }));
+  const io = silentIo();
+  io.exit = (c) => c;
+  await runDiscover({ cwd: dir, now: new Date('2024-06-19T12:00:00Z'), io, adapter: async () => [], gitWindow: () => [] });
+  assert.ok(!io.errors.includes(CANT_CHECK_DRAFT), io.errors.join(''));
+});
+
+test('through a junction or symlink, discover and Settings find the checkout git finds and still warn', async (t) => {
+  const root = makeTempDir('hw-link-checkout-');
+  t.after(() => removeTempDir(root));
+  const repoB = join(root, 'repoB');
+  execFileSync('git', ['init', '-q', repoB]);
+  const inner = join(repoB, 'inner');
+  mkdirSync(inner);
+  mkdirSync(join(root, 'host'));
+  const link = join(root, 'host', 'link');
+  symlinkSync(inner, link, process.platform === 'win32' ? 'junction' : 'dir');
+  writeFileSync(join(inner, 'honestweek.config.json'), JSON.stringify({
+    identity: { authorEmails: ['you@example.com'] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: '.', label: 'here', role: 'featured' }],
+    redaction: { codenames: [], names: [], terms: [] },
+    output: { mode: 'digest', file: 'out.md' },
+  }));
+  writeFileSync(join(inner, 'honestweek.draft.json'), '{}\n');
+  git(repoB, ['add', join('inner', 'honestweek.draft.json'), join('inner', 'honestweek.config.json')]);
+  assert.equal(configTrackState(link), 'tracked');
+  const io = silentIo();
+  io.exit = (c) => c;
+  await runDiscover({ cwd: link, now: new Date('2024-06-19T12:00:00Z'), io, adapter: async () => [], gitWindow: () => [] });
+  assert.ok(io.errors.some((s) => s.includes('is tracked in git')), io.errors.join(''));
 });
