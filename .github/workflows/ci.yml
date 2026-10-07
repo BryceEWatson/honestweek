@@ -44,5 +44,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       # Zero runtime dependencies: there is nothing to install.
+      # Windows keeps Node's default number of test files at once: 4 and 6 both pushed the redactor
+      # speed test past its 2-second limit there (issue 143).
       - name: Run the test suite
         run: node --test

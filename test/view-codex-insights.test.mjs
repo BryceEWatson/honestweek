@@ -353,9 +353,10 @@ test('a run judges at most its cap and says how many wait; a slow codex is stopp
   assert.equal((await judge.run(work(sessions))).body.run.left, 1);
   const r = await settle(judge);
   assert.deepEqual([r.judged, r.left, r.cap], [1, 1, 1]);
-  // Slow: the run's own limit stops it, and the codex it started never finishes.
+  // Slow: the run's own limit stops it, and the codex it started never finishes. The limit, like
+  // the one below, leaves the fake time to start on a busy Windows runner.
   const slowLog = join(scratch, 'slow.log');
-  const slow = createCodexJudge({ configDir: join(scratch, 'cfg-slow'), isOn: ON, env: { ...env, PATH: fakeCodex('bin-slow', { FAKE_LOG: slowLog, FAKE_COUNT: join(scratch, 'slow.count'), FAKE_MODES: 'slow' }) }, timeoutMs: 700 });
+  const slow = createCodexJudge({ configDir: join(scratch, 'cfg-slow'), isOn: ON, env: { ...env, PATH: fakeCodex('bin-slow', { FAKE_LOG: slowLog, FAKE_COUNT: join(scratch, 'slow.count'), FAKE_MODES: 'slow' }) }, timeoutMs: 3000 });
   assert.equal((await slow.run(work(sessions))).status, 200);
   assert.equal((await settle(slow)).state, 'timeout');
   assert.ok(existsSync(slowLog), 'the fake codex started');
@@ -371,8 +372,9 @@ test('a run judges at most its cap and says how many wait; a slow codex is stopp
   for (let i = 0; i < 300 && alive(pid); i++) await sleep(50);
   assert.equal(alive(pid), false, 'the fake codex was stopped');
   assert.ok(!readFileSync(slowLog, 'utf8').includes('finished'), 'it was stopped before it answered');
-  // One session over its own limit fails, and the run goes on.
-  const one = createCodexJudge({ configDir: join(scratch, 'cfg-one'), isOn: ON, env: { ...env, PATH: fakeCodex('bin-one', { FAKE_LOG: join(scratch, 'one.log'), FAKE_COUNT: join(scratch, 'one.count'), FAKE_MODES: 'slow,good' }) }, sessionTimeoutMs: 700 });
+  // One session over its own limit fails, and the run goes on. On a busy Windows runner the quick
+  // fake once took longer than 700 ms to start; 3 s is still far short of the slow one's 20.
+  const one = createCodexJudge({ configDir: join(scratch, 'cfg-one'), isOn: ON, env: { ...env, PATH: fakeCodex('bin-one', { FAKE_LOG: join(scratch, 'one.log'), FAKE_COUNT: join(scratch, 'one.count'), FAKE_MODES: 'slow,good' }) }, sessionTimeoutMs: 3000 });
   await one.run(work(sessions));
   const o = await settle(one);
   assert.deepEqual([o.state, o.failed, o.judged], ['done', 1, 1]);
