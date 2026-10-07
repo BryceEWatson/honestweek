@@ -86,6 +86,26 @@ test('Save adds the config to .gitignore again when a later ! line un-ignores it
   assert.doesNotThrow(() => git(work, ['check-ignore', '-q', CONFIG]));
 });
 
+test('Save ignores a config with no private words too, since it holds an email and folder paths', async (t) => {
+  const work = setup(t, { workInRepo: true });
+  const gi = join(work, '.gitignore');
+  const s = createSettings({ cwd: work });
+  const i = s.info();
+  const noWords = JSON.stringify({ version: i.version, history: i.history, repos: i.repos.map((r) => ({ index: r.index, role: r.role })), authorEmails: [...i.authorEmails, 'two@example.com'], names: i.names, terms: i.terms, goalsFile: i.goalsFile });
+  const p = answer(await s.preview(noWords));
+  assert.equal(p.status, 200, JSON.stringify(p.json));
+  assert.ok(p.json.notes.includes(`Saving also adds ${CONFIG} to .gitignore, since it holds your email, folder paths and any private words.`), JSON.stringify(p.json.notes));
+  const r = answer(await s.save(noWords));
+  assert.equal(r.json.saved, true, JSON.stringify(r.json));
+  assert.equal(readFileSync(gi, 'utf8'), `${CONFIG}\n`);
+  // A tracked config with no private words gets no warning: there are no words to leak.
+  git(work, ['add', '-f', CONFIG]);
+  const again = createSettings({ cwd: work });
+  const j = again.info();
+  const tracked = answer(await again.preview(JSON.stringify({ version: j.version, history: j.history, repos: j.repos.map((r) => ({ index: r.index, role: r.role })), authorEmails: ['you@example.com'], names: j.names, terms: j.terms, goalsFile: j.goalsFile })));
+  assert.ok(!tracked.json.notes.some((n) => n.includes('tracked by git')), JSON.stringify(tracked.json.notes));
+});
+
 test('failing-path partner: a config already ignored leaves .gitignore byte for byte', async (t) => {
   const work = setup(t);
   const gi = join(work, '.gitignore');
