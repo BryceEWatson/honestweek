@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { loadConfig } from '../lib/config.mjs';
@@ -230,7 +230,7 @@ test('a display-only folder holding a worktree of a repository git reads is refu
   }
 });
 
-test('the check finds a worktree inside a plain display-only folder, and a main checkout inside one when a worktree is read', () => {
+test('the check finds a worktree inside a plain display-only folder, one whose folder is gone until git prunes it, and a main checkout inside one when a worktree is read', () => {
   const root = makeTempDir('hw-nested-wt-check-');
   try {
     // The layout issue 157 names: a plain folder, not a repository, holds the worktree.
@@ -239,11 +239,16 @@ test('the check finds a worktree inside a plain display-only folder, and a main 
     assert.equal(checkNestedRoles([{ path: away, label: 'away', role: 'featured' }, { path: priv, label: 'private', role: 'display' }]), null);
     git(away, ['worktree', 'add', '-q', join(priv, 'away-wt')]);
     assert.match(checkNestedRoles([{ path: away, label: 'away', role: 'reference' }, { path: priv, label: 'private', role: 'display' }]), /^away is read by git but has a worktree, away-wt, inside private/);
+    // A worktree whose folder is gone still counts until git prunes it.
+    rmSync(join(priv, 'away-wt'), { recursive: true, force: true });
+    assert.match(checkNestedRoles([{ path: away, label: 'away', role: 'featured' }, { path: priv, label: 'private', role: 'display' }]), /^away is read by git, which still lists a worktree of it, away-wt, inside private, .*Run git worktree prune in away/);
+    git(away, ['worktree', 'prune']);
+    assert.equal(checkNestedRoles([{ path: away, role: 'featured' }, { path: priv, role: 'display' }]), null);
     // Read through a worktree, a repository whose main checkout sits in a display-only folder.
     const main = repo(join(root, 'vault', 'main'));
     const wt = join(root, 'main-wt');
     git(main, ['worktree', 'add', '-q', wt]);
-    assert.match(checkNestedRoles([{ path: wt, label: 'main-wt', role: 'featured' }, { path: join(root, 'vault'), label: 'vault', role: 'display' }]), /^main-wt is read by git but has a worktree, main, inside vault/);
+    assert.match(checkNestedRoles([{ path: wt, label: 'main-wt', role: 'featured' }, { path: join(root, 'vault'), label: 'vault', role: 'display' }]), /^main-wt is read by git but its main checkout, main, sits inside vault, which is display-only/);
     // A folder named only like the display folder isn't inside it.
     const near = repo(join(root, 'near'));
     git(near, ['worktree', 'add', '-q', join(root, 'private-wt')]);
