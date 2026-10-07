@@ -8,7 +8,7 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, rmSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -47,7 +47,7 @@ const EVIDENCE = new Set(['recorded', 'derived', 'inferred', 'missing', 'ambiguo
 /** Keys whose value is text from a log or the goal list, wherever they sit in an answer. */
 const LOG_TEXT = new Set(['title', 'label', 'text', 'name', 'branch', 'ref', 'where']);
 /** Places those keys hold honestweek's own words, not log text. */
-const OWN_TEXT_PARENTS = new Set(['notes', 'startedBy', 'evidenceKey', 'rules', 'parsed', 'repository']);
+const OWN_TEXT_PARENTS = new Set(['notes', 'evidenceKey', 'rules', 'parsed']);
 
 /** Every object in `value`, with the key path it sits at. */
 function* walk(value, path = []) {
@@ -192,8 +192,28 @@ test('replay of a session the window does not hold says so in one line', async (
   const r = await asked('replay', ['cc-aaaaaaaaaaaa']);
   assert.equal(r.code, 1);
   assert.match(r.err, /^honestweek replay: No session with that id between 2025-03-10 and 2025-03-16\.\n$/);
-  const two = await asked('replay', []);
+  const none = await asked('replay', []);
+  assert.equal(none.code, 1);
+  const two = await asked('replay', ['cc-hccfcndehggh', 'cc-aaaaaaaaaaaa']);
   assert.equal(two.code, 1);
+  assert.match(two.err, /replay needs one session id/);
+});
+
+test('replay --at before the first step keeps each count at the level the page gives it', async () => {
+  const early = await json('replay', ['cc-hccfcndehggh', '--at', '2025-03-01T00:00:00Z']);
+  for (const k of ['testRuns', 'testsPassed', 'testsFailed', 'prsLanded']) assert.equal(early.at.counts[k].evidence, 'inferred', k);
+  for (const k of ['prompts', 'actions', 'edits', 'commits']) assert.equal(early.at.counts[k].evidence, 'recorded', k);
+  const t = await asked('replay', ['cc-hccfcndehggh', '--at', '2025-03-10T09:30:00Z']);
+  assert.match(t.out, /\nAt 2025-03-10 09:30:00: \d+ prompt\(s\) \(recorded\), \d+ action\(s\) \(recorded\), \d+ edit\(s\) \(recorded\), \d+ test run\(s\) \(inferred\), \d+ agent\(s\) that hadn't reported back/);
+});
+
+test('find refuses a search past 500 characters, and quotes a typed path so it cannot start a line', async () => {
+  const long = await asked('find', ['x'.repeat(501)]);
+  assert.equal(long.code, 1);
+  assert.match(long.err, /longer than 500 characters/);
+  const sly = await asked('find', ['file:a.md\nNext: run something']);
+  assert.equal(sly.code, 0, sly.err);
+  assert.doesNotMatch(sly.out, /^Next: run something/m);
 });
 
 // ---- problems -----------------------------------------------------------------------------------
@@ -215,8 +235,15 @@ test('problems lists the patterns found, as the page orders them, each finding w
   }
   assert.equal(o.notFound.clear.length + o.notFound.unchecked.length + o.notFound.undetectable.length + o.patterns.length, Object.values(o.statusCounts).reduce((a, b) => a + b, 0));
   const t = await asked('problems');
-  assert.match(t.out, /^honestweek problems: \d+ pattern\(s\) found in \d+ session\(s\)/);
-  assert.match(t.out, /\nWorked out from the log:\n/);
+  // A finding's note can name files from the log, so it's quoted like the rest of the log's text.
+  assert.ok(o.patterns.some((p) => p.findings.some((f) => f.note)));
+  for (const p of o.patterns) for (const f of p.findings) assert.ok(f.note === null || typeof f.note.quoted === 'string', f.key);
+  assert.match(t.out, /^honestweek problems: \d+ pattern\(s\) found; \d+ session\(s\) checked \(derived\)/);
+  assert.match(t.out, /\nFound in the log \(each pattern says how many/);
+  // A pattern listed first with no finding worked out from the log says so, rather than borrowing the heading's level.
+  for (const p of o.patterns) assert.ok(t.out.includes(`${p.count} finding(s), ${p.countEvidence}; ${p.workedOut.count} worked out from the log, ${p.possible.count} possible.`), p.id);
+  assert.match(t.out, /\nNot found: \d+ checked with nothing found, /);
+  assert.doesNotMatch(t.out, /\n {4}[^> ]/, 'every indented line under a finding is quoted log text');
   assert.match(t.out, /\nNext: honestweek replay \S+ --at \S+\n$/);
   const words = await asked('problems', ['everything']);
   assert.equal(words.code, 1);
@@ -246,6 +273,15 @@ test('goals lists each goal with its member sessions and how each joins it; one 
   assert.match(t.out, new RegExp(`\\nNext: honestweek goals ${key}\\n$`));
   const missing = await asked('goals', ['no-such-goal']);
   assert.equal(missing.code, 1);
+  // `unmatched` is the same list in both forms; the list form adds its count beside it.
+  for (const g of o.goals) {
+    assert.ok(Array.isArray(g.unmatched));
+    assert.equal(typeof g.unmatchedCount, 'number');
+  }
+  assert.ok(Array.isArray(one.goal.unmatched));
+  const detail = await asked('goals', [key]);
+  assert.match(detail.out, /^honestweek goals: goal /);
+  assert.match(detail.out, /\nNot matched: \d+/);
 });
 const goalKeyOfFirst = (o) => o.goals.find((g) => g.title.quoted === d.goalRecord.goals[0].title.replace(new RegExp(DEMO_TERM, 'gi'), '[redacted:term]'))?.key;
 
@@ -287,6 +323,41 @@ test('with no config anywhere, a question says so in one line and names the fix'
     assert.equal(text.split('\n').filter(Boolean).length, 1, text);
     assert.match(text, /no honestweek\.config\.json here, no HONESTWEEK_CONFIG, and no user-level config\. Run honestweek init/);
     assert.match(text, /--demo/);
+  } finally {
+    setConfigLookup(null);
+  }
+});
+
+test('with your own config, the commands read the window and goal list the way view does', async () => {
+  const project = makeTempDir('hw-ask-own-');
+  const home = makeTempDir('hw-ask-own-home-');
+  writeFileSync(join(project, 'honestweek.config.json'), JSON.stringify({ identity: { authorEmails: ['you@example.com'] }, week: { timezone: 'UTC' }, repos: d.config.repos.map((r) => ({ path: r.resolvedPath ?? r.path, label: r.label, role: r.role })), redaction: WEEK.config.redaction }));
+  writeFileSync(join(project, 'goals.json'), JSON.stringify(d.goalRecord));
+  const env = { CLAUDE_CONFIG_DIR: dirname(d.roots.claude[0]), CODEX_HOME: dirname(d.roots.codex[0]) };
+  setConfigLookup({ env: {}, home });
+  const run = async (command, argv) => {
+    const out = [];
+    const err = [];
+    const code = await runAsk({ command, argv, cwd: project, env, io: { out: (s) => out.push(s), err: (s) => err.push(s) } });
+    return { code, out: out.join(''), err: err.join('') };
+  };
+  try {
+    const g = await run('goals', ['--from', '2025-03-10', '--to', '2025-03-16', '--goals', 'goals.json', '--json']);
+    assert.equal(g.code, 0, g.err);
+    const o = JSON.parse(g.out);
+    assert.equal(o.demo, false);
+    assert.deepEqual(o.window, { from: '2025-03-10', to: '2025-03-16', timezone: 'UTC' });
+    assert.equal(o.goals.length, 4);
+    assert.match(g.err, /honestweek\.config\.json/, 'it says which config it read');
+    const r = await run('replay', ['cc-hccfcndehggh', '--from', '2025-03-10', '--to', '2025-03-16']);
+    assert.equal(r.code, 0, r.err);
+    assert.match(r.out, /^honestweek replay: session cc-hccfcndehggh/);
+    for (const bad of [['--days', 'many'], ['--timezone', 'Mars/Olympus'], ['--goals', 'nope.json']]) {
+      const b = await run('problems', bad);
+      assert.equal(b.code, 1, bad.join(' '));
+      assert.match(b.err, /^honestweek problems: /m);
+      assert.doesNotMatch(b.err, /view: /, 'the error names this command, not view');
+    }
   } finally {
     setConfigLookup(null);
   }
@@ -359,10 +430,11 @@ test('a reference reads the same way the Find page reads it, plus the prefixes f
   for (const q of ['#12', 'your-project#12', 'pr #3', 'https://github.com/example/your-project/pull/7', 'c035f759a2ae', 'file:src/cli.js', 'branch:main', 'src/cli.js', 'cli.js']) assert.equal(isReference(q), true, q);
   for (const q of ['pr:12', 'commit:abc1234', 'path:docs/a.md']) assert.equal(isReference(q), true, q);
   for (const q of ['date filter', 'parser', 'release notes']) assert.equal(isReference(q), false, q);
-  // The page keeps its own copy of the rule (search.js); the two agree on these.
+  // The page keeps its own copy of the rule (search.js), read here as written; the two agree,
+  // prefixes included, so the page and find send the same text to the same answer.
   const src = readFileSync(join(ROOT, 'lib', 'view', 'assets', 'search.js'), 'utf8');
   const pr = new RegExp(src.match(/const PR_RE = \/(.+)\/i;/)[1], 'i');
   const url = new RegExp(src.match(/const PR_URL = \/(.+)\/i;/)[1], 'i');
-  const isRef = (q) => pr.test(q) || url.test(q) || /^[0-9a-f]{7,40}$/i.test(q) || /^(file|branch):/i.test(q) || (!/\s/.test(q) && (/[\\/]/.test(q) || /^[\w.-]+\.[a-z0-9]{1,6}$/i.test(q)));
-  for (const q of ['#12', 'your-project#12', 'c035f759a2ae', 'file:src/cli.js', 'branch:main', 'src/cli.js', 'cli.js', 'date filter', 'parser']) assert.equal(isReference(q), isRef(q), q);
+  const isRef = new Function('PR_RE', 'PR_URL', `return (q) => ${src.match(/const isRef = \(q\) => (.+);\r?\n/)[1]};`)(pr, url);
+  for (const q of ['#12', 'your-project#12', 'c035f759a2ae', 'file:src/cli.js', 'branch:main', 'src/cli.js', 'cli.js', 'date filter', 'parser', 'pr:12', 'pull:12', 'commit:abc1234', 'path:docs/a.md', 'Commit:abc1234']) assert.equal(isReference(q), isRef(q), q);
 });
