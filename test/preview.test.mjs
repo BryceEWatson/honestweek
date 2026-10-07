@@ -20,6 +20,7 @@ import {
   browserOpenCommand,
   startServer,
   runPreview,
+  IDLE_STOP_MS,
 } from '../lib/preview.mjs';
 import * as digest from '../lib/emit/digest.mjs';
 import * as post from '../lib/emit/post.mjs';
@@ -313,6 +314,9 @@ test('runPreview --help prints usage and exits 0 without starting a server', asy
   assert.equal(code, 0);
   assert.match(io.outBuf, /honestweek preview:/);
   assert.match(io.outBuf, /--no-open/);
+  // The idle stop is told before the options, so the options list stays one unbroken block.
+  assert.match(io.outBuf, /30 minutes with no visits[^\n]*\n\nOptions:\n/);
+  assert.match(io.outBuf, /--no-open[^\n]*\n  -h, --help/);
 });
 
 test('runPreview exits 1 when there is no config and no --file', async () => {
@@ -477,6 +481,136 @@ test('runPreview keeps the locked-down (no-script) CSP for a Markdown output', a
     assert.ok(!/script-src/.test(csp), 'a Markdown preview never permits inline script');
   } finally {
     if (handle) await handle.close();
+    removeTempDir(dir);
+  }
+});
+
+/** Timers the test fires by hand, so the idle stop runs without waiting half an hour. */
+function fakeTimers() {
+  const set = [];
+  return {
+    set,
+    setTimeout: (fn, ms) => {
+      const t = { fn, ms, cleared: false };
+      set.push(t);
+      return t;
+    },
+    clearTimeout: (t) => {
+      t.cleared = true;
+    },
+  };
+}
+
+test('startServer with idleMs stops itself after the wait, and every page it serves restarts it', async () => {
+  const timers = fakeTimers();
+  let idled = false;
+  const handle = await startServer({ port: 0, html: '<p>x</p>', idleMs: 1000, onIdle: () => (idled = true), timers });
+  try {
+    assert.equal(timers.set.length, 1, 'the wait starts once it listens');
+    assert.equal(timers.set[0].ms, 1000);
+    // A refused request isn't a visit.
+    assert.equal((await httpGet(`${handle.url}nope`)).status, 404);
+    const posted = await new Promise((resolve, reject) => {
+      const req = http.request({ host: '127.0.0.1', port: handle.port, path: '/', method: 'POST' }, (res) => (res.resume(), res.on('end', () => resolve(res.statusCode))));
+      req.on('error', reject);
+      req.end();
+    });
+    assert.equal(posted, 405);
+    const otherHost = await new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port: handle.port, path: '/', headers: { Host: 'attacker.example' } }, (res) => (res.resume(), res.on('end', () => resolve(res.statusCode)))).on('error', reject);
+    });
+    assert.equal(otherHost, 403);
+    assert.equal(timers.set.length, 1, 'no refused request restarted the wait');
+    assert.equal((await httpGet(handle.url)).status, 200);
+    assert.equal(timers.set.length, 2);
+    assert.ok(timers.set[0].cleared, 'a visit restarts the wait');
+    assert.ok(!timers.set[1].cleared);
+    const closed = new Promise((r) => handle.server.once('close', r));
+    timers.set[1].fn();
+    await closed;
+    assert.equal(handle.server.listening, false);
+    assert.ok(idled, 'onIdle ran');
+  } finally {
+    if (handle.server.listening) await handle.close();
+  }
+});
+
+test('failing-path partner: startServer without idleMs sets no timer and keeps serving', async () => {
+  const timers = fakeTimers();
+  const handle = await startServer({ port: 0, html: '<p>x</p>', timers });
+  try {
+    assert.equal((await httpGet(handle.url)).status, 200);
+    assert.equal(timers.set.length, 0);
+    assert.equal(handle.server.listening, true);
+  } finally {
+    await handle.close();
+  }
+});
+
+test('runPreview says it stops on its own after 30 minutes with no visits, then does and says so', async () => {
+  const dir = tmp();
+  let handle;
+  try {
+    const md = join(dir, 'week.md');
+    writeFileSync(md, '# A week\n\nSome work.\n');
+    const io = fakeIo();
+    const timers = fakeTimers();
+    const code = await runPreview({ cwd: dir, argv: ['--file', md, '--no-open'], io, block: false, timers, onServe: (h) => (handle = h) });
+    assert.equal(code, 0, io.errBuf);
+    assert.match(io.outBuf, /\(press Ctrl\+C to stop; it stops on its own after 30 minutes with no visits\)\.\n/);
+    assert.equal(timers.set.at(-1).ms, IDLE_STOP_MS);
+    assert.equal(IDLE_STOP_MS, 30 * 60 * 1000);
+    const closed = new Promise((r) => handle.server.once('close', r));
+    timers.set.at(-1).fn();
+    await closed;
+    assert.match(io.outBuf, /\nhonestweek preview: stopped after 30 minutes with no visits\. Run it again to see the page\.\n$/);
+  } finally {
+    if (handle?.server.listening) await handle.close();
+    removeTempDir(dir);
+  }
+});
+
+test('runPreview serving until stopped returns 0 after the idle stop and leaves no Ctrl+C listener behind', async () => {
+  const dir = tmp();
+  let handle;
+  try {
+    const md = join(dir, 'week.md');
+    writeFileSync(md, '# A week\n\nSome work.\n');
+    const io = fakeIo();
+    const timers = fakeTimers();
+    const before = process.listenerCount('SIGINT');
+    let served;
+    const ready = new Promise((r) => (served = r));
+    const run = runPreview({ cwd: dir, argv: ['--file', md, '--no-open'], io, block: true, timers, onServe: (h) => { handle = h; served(); } });
+    await ready;
+    await null;
+    assert.equal(process.listenerCount('SIGINT'), before + 1, 'Ctrl+C is listened for while it serves');
+    timers.set.at(-1).fn();
+    assert.equal(await run, 0);
+    assert.equal(handle.server.listening, false);
+    assert.equal(process.listenerCount('SIGINT'), before);
+    assert.match(io.outBuf, /stopped after 30 minutes with no visits/);
+  } finally {
+    if (handle?.server.listening) await handle.close();
+    removeTempDir(dir);
+  }
+});
+
+test('runPreview with no idle wait promises no idle stop', async () => {
+  const dir = tmp();
+  let handle;
+  try {
+    const md = join(dir, 'week.md');
+    writeFileSync(md, '# A week\n\nSome work.\n');
+    const io = fakeIo();
+    const timers = fakeTimers();
+    const code = await runPreview({ cwd: dir, argv: ['--file', md, '--no-open'], io, block: false, idleMs: 0, timers, onServe: (h) => (handle = h) });
+    assert.equal(code, 0, io.errBuf);
+    assert.match(io.outBuf, /\(press Ctrl\+C to stop\)\.\n/);
+    assert.doesNotMatch(io.outBuf, /on its own/);
+    assert.equal(timers.set.length, 0);
+  } finally {
+    if (handle?.server.listening) await handle.close();
     removeTempDir(dir);
   }
 });
