@@ -57,6 +57,8 @@ node_modules/
 # exception is the project skill, so /honestweek works in a clone with nothing to install.
 /.claude/*
 !/.claude/skills/
+/.claude/skills/*
+!/.claude/skills/honestweek/
 
 # OS / editor cruft
 .DS_Store

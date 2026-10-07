@@ -43,4 +43,5 @@ test('git tracks the project skill though the rest of .claude stays ignored', ()
   assert.equal(ignored('.claude/skills/honestweek/SKILL.md'), false);
   assert.equal(ignored('.claude/handoffs/example.md'), true);
   assert.equal(ignored('.claude/worktrees/example'), true);
+  assert.equal(ignored('.claude/skills/another-skill/SKILL.md'), true);
 });

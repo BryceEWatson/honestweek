@@ -178,12 +178,14 @@ test('clean-room: README contains no real personal data', () => {
 
 // The repo's own .claude/ folder holds local working files (hand-offs, research, test logs,
 // prototypes built from real sessions). None of it may be committed, so the root ignore file
-// covers the whole folder and nothing under it is tracked.
+// covers the whole folder. The one exception is the honestweek project skill; any other skill
+// folder under .claude/skills/ stays ignored.
 test('the local .claude/ working folder is ignored, and only its project skill is tracked', () => {
   const lines = GITIGNORE.split(/\r?\n/).map((l) => l.trim());
   assert.ok(lines.includes('/.claude/*'), '.gitignore ignores everything in the root .claude/ folder');
   const reincluded = lines.filter((l) => l.startsWith('!') && l.includes('.claude'));
-  assert.deepEqual(reincluded, ['!/.claude/skills/'], 'the project skill is the one exception');
+  assert.deepEqual(reincluded, ['!/.claude/skills/', '!/.claude/skills/honestweek/'], 'the project skill is the one exception');
+  assert.ok(lines.includes('/.claude/skills/*'), 'other folders under .claude/skills/ stay ignored');
   let tracked;
   try {
     tracked = execFileSync('git', ['ls-files', '--', '.claude'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
@@ -191,7 +193,7 @@ test('the local .claude/ working folder is ignored, and only its project skill i
     return; // not a git checkout (an unpacked tarball): the ignore rules above are all there is to check
   }
   const files = tracked.split(/\r?\n/).filter(Boolean);
-  assert.deepEqual(files.filter((f) => !f.startsWith('.claude/skills/')), [], 'nothing else under .claude/ is tracked');
+  assert.deepEqual(files.filter((f) => !f.startsWith('.claude/skills/honestweek/')), [], 'nothing else under .claude/ is tracked');
 });
 
 test('contributor docs: no dashes, links resolve, no personal data, private reporting documented', () => {
