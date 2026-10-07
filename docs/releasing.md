@@ -47,7 +47,7 @@ node tools/release-check.mjs
 
 It runs three checks, compared with the last release tag (pass `--since <ref>` to compare with something else):
 
-1. **The package.** `npm pack` lists only `package.json`, the README, the license, `SKILL.md`, the example config, the two plugin manifests, `bin/` and `lib/`. Anything else, or any image, fails.
+1. **The package.** `npm pack` lists only `package.json`, the README, the license, `SKILL.md` and its `flows/` files, the example config, the two plugin manifests, `bin/` and `lib/`. Anything else, or any image, fails.
 2. **It runs.** The packed tarball, installed into an empty folder, prints `--help`, serves `view --demo`, and opens Setup when there's no config. It uses an empty home folder, so it reads no real logs.
 3. **What came in since the last release**, listed for a person to judge: every commit's author and committer, and in every new file version, honestweek's own secret-shape check, key formats, email addresses, home-folder paths, the clean-room fence (the check that keeps private names out of the repository), and new images.
 
@@ -94,7 +94,7 @@ npm publish --dry-run
 The dry run runs the whole test suite first (a few minutes), because `package.json` has a `prepublishOnly` script, and then prints what it would upload. Check:
 
 - `name: honestweek` and `version: X.Y.Z`;
-- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (157 files and 1.0 MB packed for 0.2.0; the count moves, so check the list rather than the number);
+- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, the files in `flows/`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (157 files and 1.0 MB packed for 0.2.0; the count moves, so check the list rather than the number);
 - nothing from `test/`, `docs/`, `tools/` or `.claude/`.
 
 Then the agent starts the real publish in my Terminal panel:

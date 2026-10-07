@@ -61,7 +61,7 @@ directly. The helper removes every folder it made when the test process exits, p
 
 ## Prose and documentation
 
-Public-facing text (README, SKILL.md, plugin manifests, `--help`) clears a published voice bar: no
+Public-facing text (README, SKILL.md and its `flows/` files, plugin manifests, `--help`) clears a published voice bar: no
 em dashes, no marketing tone, first person with contractions, the point stated first. Define a term
 the first time you use it rather than assuming the reader knows it.
 

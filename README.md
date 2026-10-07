@@ -274,7 +274,7 @@ I ship it as a Claude Code skill (instructions Claude follows when you type `/ho
 
 End-to-end happy path, in order. Each step names the artifact it produces.
 
-> Installed as the skill or plugin? Just run `/honestweek` (`/honestweek:honestweek` with the plugin), or ask Claude for a weekly summary: Claude drives these steps for you and resolves the CLI path automatically. The commands below write `honestweek`; with `npx` or from a clone, use the form under [Try it](#try-it).
+> Installed as the skill or plugin? Just run `/honestweek` (`/honestweek:honestweek` with the plugin), or ask Claude for a weekly summary: Claude drives these steps for you and resolves the CLI path automatically. To go straight to another flow, add its name after the command: `client 2026-09-01 2026-09-30`, `mine` or `view`. The commands below write `honestweek`; with `npx` or from a clone, use the form under [Try it](#try-it).
 
 1. **`init`** → writes `honestweek.config.json`, inferred from your git state (your `git config user.email` plus the nearby git repos it finds), for you to review. If it finds no repositories, it writes nothing and says where to run it instead. It also drops `honestweek.config.example.json` if one isn't present. If git doesn't know your email, it asks for it. If a repository it found holds a folder your config marks display-only, or sits inside one, it offers to mark that repository display-only too instead of stopping. It asks you to confirm twice before it writes, and accepting the defaults gives you a valid config. Between the two, it asks for the names and client words to keep private, which go under `redaction`. You can skip the names, the client words or both. Either way it adds the config to `.gitignore`, since the config holds your email and folder paths too. Before the second confirmation, it shows a short summary of what the file will say. Run again over an existing config it can read, it keeps that config's private words (its `redaction` lists and `neverPublicTerms`) and any display-only folder its search doesn't list, so a rewrite doesn't stop hiding a word or forget a folder you marked display-only. If the config there can't be read, it stops before running git anywhere, says why and writes nothing, since it can't tell which folders that config marked display-only.
    ```bash
@@ -673,7 +673,7 @@ honestweek's two non-negotiable promises:
 
 ## Releasing (maintainers)
 
-honestweek is on npm, starting with version 0.2.0. I publish each version from my own terminal and then tag it, in the order [docs/releasing.md](docs/releasing.md) sets out. The `files` allowlist in `package.json` decides what ships (`bin/`, `lib/`, `SKILL.md`, the example config and the plugin manifests), and `test/package-contents.test.mjs` pins it.
+honestweek is on npm, starting with version 0.2.0. I publish each version from my own terminal and then tag it, in the order [docs/releasing.md](docs/releasing.md) sets out. The `files` allowlist in `package.json` decides what ships (`bin/`, `lib/`, `SKILL.md` and its `flows/` folder, the example config and the plugin manifests), and `test/package-contents.test.mjs` pins it.
 
 ## How it reads Claude Code and Codex logs
 

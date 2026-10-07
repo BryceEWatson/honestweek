@@ -1,11 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { FLOW_FILES, SKILL_MD, SKILL_ROOT, SKILL_TEXT } from './helpers/skill-text.mjs';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SKILL = readFileSync(resolve(HERE, '..', 'SKILL.md'), 'utf8');
+// The skill as Claude reads it: SKILL.md, then the flow files its table names (issue 182).
+const SKILL = SKILL_TEXT;
 
 test('SKILL.md has valid front-matter naming the honestweek skill', () => {
   const fm = SKILL.match(/^---\n([\s\S]*?)\n---/);
@@ -83,4 +86,45 @@ test('mentions the exit-2 abort behavior', () => {
 test('clean-room: SKILL.md contains no real personal data', () => {
   assert.doesNotMatch(SKILL, /@(?:gmail|outlook|yahoo|proton|icloud)\.com/i);
   assert.doesNotMatch(SKILL, /\/home\/[a-z]+\/|C:\\Users\\[A-Za-z]+\\/);
+});
+
+// Issue 182: the honesty rules come first, each flow's detail sits in its own file, and the
+// file Claude always loads stays well under the 5,000 tokens Claude Code keeps after compaction.
+test('SKILL.md puts the contract and safety rules before any flow, and stays under its byte budget', () => {
+  const at = (h) => SKILL_MD.indexOf(h);
+  assert.ok(at('## Distillation contract') > 0 && at('## Distillation contract') < at('## Safety invariants'), 'contract, then safety');
+  assert.ok(at('## Safety invariants') < at('## Running the bundled CLI') && at('## Running the bundled CLI') < at('## Flows'), 'rules before the flows');
+  assert.ok(Buffer.byteLength(SKILL_MD) < 12000, `SKILL.md is ${Buffer.byteLength(SKILL_MD)} bytes; keep it under 12,000`);
+  assert.doesNotMatch(SKILL_MD, /v0\.1 epic|repo Issues/, 'everything Claude needs is in the files it has');
+});
+
+test('every flow file is listed in the table, exists, and ships nothing but its own flow', () => {
+  const onDisk = readdirSync(join(SKILL_ROOT, 'flows')).filter((f) => f.endsWith('.md')).map((f) => `flows/${f}`).sort();
+  assert.deepEqual([...FLOW_FILES].sort(), onDisk, 'the table lists exactly the files in flows/');
+  assert.equal(FLOW_FILES[0], 'flows/weekly.md', 'the weekly flow comes first, as the default');
+  for (const f of FLOW_FILES) {
+    const text = readFileSync(join(SKILL_ROOT, f), 'utf8');
+    assert.match(text, /^# /, `${f} opens with its title`);
+    assert.match(text, /isn't filled in here: use the skill folder `SKILL\.md` names/, `${f} says how to read its command paths`);
+    assert.doesNotMatch(text, /^---/, `${f} has no front matter, so it never loads as a skill of its own`);
+  }
+});
+
+test('the front matter names the flows as arguments and pre-approves only honestweek\'s own CLI', () => {
+  const fm = SKILL_MD.match(/^---\n([\s\S]*?)\n---/)[1];
+  const hint = /^argument-hint: "(.*)"$/m.exec(fm)?.[1] ?? '';
+  for (const flow of ['weekly', 'client', 'mine', 'view', 'digest']) assert.match(hint, new RegExp(`\\b${flow}\\b`), `argument-hint names ${flow}`);
+  // The rule names the exact script, so no node option (such as -e) can ride along on it.
+  assert.equal(/^allowed-tools: (.*)$/m.exec(fm)?.[1], 'Bash(node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" *)');
+  assert.match(SKILL_MD, /\$ARGUMENTS/, 'the flows section reads the arguments');
+  assert.match(SKILL_MD, /If it's empty, or shows a dollar sign and a word instead, nothing was passed/, 'no flow word falls back to what the user asked for');
+});
+
+// Codex on #192: the weekly flow is the only file read for a default run, so it must send a
+// page or site config with no goals registry to the digest flow before validate and build.
+test('the weekly flow sends page or site output with no goals registry to the digest flow', () => {
+  const weekly = readFileSync(join(SKILL_ROOT, 'flows', 'weekly.md'), 'utf8');
+  const rule = weekly.slice(0, weekly.indexOf('1. **`init`**'));
+  assert.match(rule, /`page` or `site` output and no goals registry/);
+  assert.match(rule, /read `flows\/digest\.md` too, and run `digest prepare` after DISTIL and before step 4's `validate` and `build`/);
 });

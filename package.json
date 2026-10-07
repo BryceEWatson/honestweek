@@ -28,6 +28,7 @@
     "bin/",
     "lib/",
     "SKILL.md",
+    "flows/",
     "honestweek.config.example.json",
     ".claude-plugin/"
   ],

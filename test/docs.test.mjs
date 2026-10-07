@@ -5,11 +5,13 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CARRY_GITIGNORE } from '../lib/digest-carry.mjs';
+import { SKILL_TEXT } from './helpers/skill-text.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 const README = readFileSync(resolve(ROOT, 'README.md'), 'utf8');
-const SKILL = readFileSync(resolve(ROOT, 'SKILL.md'), 'utf8');
+// SKILL.md and its flow files, as Claude reads them (issue 182).
+const SKILL = SKILL_TEXT;
 const BIN = readFileSync(resolve(ROOT, 'bin', 'honestweek.mjs'), 'utf8');
 const GITIGNORE = readFileSync(resolve(ROOT, '.gitignore'), 'utf8');
 const EXAMPLE = JSON.parse(readFileSync(resolve(ROOT, 'honestweek.config.example.json'), 'utf8'));
