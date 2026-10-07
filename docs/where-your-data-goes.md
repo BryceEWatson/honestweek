@@ -2,7 +2,7 @@
 
 ## In plain terms
 
-honestweek reads your Claude Code and Codex session logs and your git repositories on your own machine, and most of what it does sends nothing anywhere. The `view` page, its Setup and Settings, and the `init`, `discover` and `build` commands all run with fixed rules on your computer. Session text reaches an AI in two ways. When you type `/honestweek` in Claude Code, or ask Claude for a weekly summary, Claude runs honestweek for you, so it reads a redacted draft of last week's Claude Code sessions to write the summary, and it sees whatever each command prints. On the `view` page, two optional buttons can hand your sessions to Claude or OpenAI, but only after you turn on Include /insights, press one and confirm. Here I walk through both paths, list exactly what the draft holds, and say who receives what.
+honestweek reads your Claude Code and Codex session logs and your git repositories on your own machine, and most of what it does sends nothing anywhere. The `view` page, its Setup and Settings, and the `init`, `discover` and `build` commands all run with fixed rules on your computer. Session text reaches an AI in two ways. When you type `/honestweek` in Claude Code, or ask Claude for a weekly summary, Claude runs honestweek for you, so it reads a redacted draft of last week's Claude Code sessions to write the summary, and it sees whatever each command prints. If you run the skill in Codex instead, Codex sends the same draft and command output to OpenAI, or the endpoint your Codex is set to use, in Claude's place. On the `view` page, two optional buttons can hand your sessions to Claude or OpenAI, but only after you turn on Include /insights, press one and confirm. Here I walk through both paths, list exactly what the draft holds, and say who receives what.
 
 A few terms used below:
 
@@ -57,6 +57,8 @@ flowchart TD
   classDef ai stroke-dasharray:6 4,stroke-width:2px
   class A,D ai
 ```
+
+The skill in Codex works the same way, with Codex in place of Claude, sending the draft and command output to OpenAI, or the endpoint your Codex is set to use.
 
 Step by step:
 
