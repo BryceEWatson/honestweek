@@ -6,7 +6,7 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 
 ### Privacy
 
-- A config where a folder marked display-only holds a git worktree (a second working copy) of a repository git reads is refused, since git reading that repository reads the work done in that folder too. Loading the config, Setup's and Settings' Save, and `init` now stop with one line naming the worktree to move, and write nothing. A worktree outside every display-only folder is still accepted, and so is this layout once you mark the repository display as well. (#159, issue #157)
+- A config where a folder marked display-only holds a git worktree (a second working copy) of a repository git reads is refused, since git reading that repository reads the work done in that folder too. Loading the config, Setup's and Settings' Save, and `init` now stop with one line naming the worktree to move, and write nothing. A worktree outside every display-only folder is still accepted, and so is this layout once you mark the repository display as well. (#160, issue #157)
 
 ## 0.2.0 (6 October 2026)
 
