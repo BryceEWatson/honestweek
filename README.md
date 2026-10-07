@@ -73,7 +73,7 @@ honestweek works with the session logs that Claude Code and Codex already keep o
 - **Find and replay your work.** The Find page is one click away. Give it a pull request number, a commit, a file, a branch or a few words, and it shows the sessions behind it, which you can then replay step by step. Every link and count says how it's known: recorded if a log or git says so, derived if it's worked out from records, inferred if a named rule reads it that way, or missing. When the records fit a link more than one way, the page also marks it ambiguous.
 - **Write an honest weekly summary.** A short pipeline turns a finished week into a summary you review and publish yourself. It checks every commit the summary cites against your real git history first, and it stops rather than write a claim it can't back.
 
-It's for developers who do much of their work through an AI coding agent and want to find, check or show that work later. There's no account, no telemetry, and honestweek itself makes no network call. Two things you start do send session text to an AI, on your own plan: the weekly summary, where Claude runs honestweek in your own Claude Code session, reads a redacted draft of your week and sees what each command prints, and, after you turn on the Include /insights switch, the Run /insights and Run with Codex buttons, which send your sessions to Claude or OpenAI. [Where your data goes](#where-your-data-goes) has the details. The names and client words you list stay hidden on the page. Its Show private text switch shows them, on your own screen only, and the keys, tokens and passwords it recognizes stay hidden either way.
+It's for developers who do much of their work through an AI coding agent and want to find, check or show that work later. There's no account, no telemetry, and honestweek itself makes no network call. Two things you start do send session text to an AI, on your own plan: the weekly summary, where Claude runs honestweek in your own Claude Code session (or Codex, if you run the skill there), reads a redacted draft of your week and sees what each command prints, and, after you turn on the Include /insights switch, the Run /insights and Run with Codex buttons, which send your sessions to Claude or OpenAI. [Where your data goes](#where-your-data-goes) has the details. The names and client words you list stay hidden on the page. Its Show private text switch shows them, on your own screen only, and the keys, tokens and passwords it recognizes stay hidden either way.
 
 ## Try it
 
@@ -94,7 +94,7 @@ Run `honestweek view` from one of your project folders, or from a new folder nex
 
 What's further down:
 
-- [Install](#install) as a Claude Code plugin, a plain skill, or the standalone command.
+- [Install](#install) as a Claude Code plugin, a plain skill, a Codex skill, or the standalone command.
 - [Finding and replaying your work in the browser](#finding-and-replaying-your-work-in-the-browser-view): every option of `view`, the goal list, and what it keeps private.
 - [The flow](#the-flow-an-honest-weekly-summary): the weekly summary from `init` to `build`, then [mining solved problems](#mining-solved-problems-worth-publishing-mine), [a standalone site](#standalone-site-page-mode) and [a report for a client](#a-report-for-a-client-client-mode).
 - [Config reference](#config-reference), [Sidecars](#sidecars) (the files it writes) and the [privacy model](#what-it-does-not-do--privacy-model).
@@ -109,6 +109,8 @@ honestweek reads your logs and repositories on your own machine. Here's which pa
 | `/honestweek` (the weekly summary in Claude Code) | A redacted draft of last week's Claude Code sessions, plus what each command prints | Yes: Claude reads all of it and writes the summary from the draft |
 | `init`, `discover`, `build` on their own | Your git settings, repositories and logs | No. Run through `/honestweek`, Claude sees what they print |
 
+The skill in Codex works the same way as `/honestweek`, with Codex reading the draft and the command output and sending them to OpenAI, or the endpoint your Codex is set to use, in Claude's place.
+
 [Where your data goes](docs/where-your-data-goes.md) walks through each one step by step, lists exactly what the draft holds, and says who receives what from the two Run buttons.
 
 ## Why
@@ -122,11 +124,11 @@ The same rule runs through all of it: honestweek states nothing without its evid
 - **Node ≥ 18**
 - The system **`git` CLI**, version 2.24 or later, on your `PATH`
 - **Zero runtime dependencies**: Node built-ins plus `git` only
-- Runs **entirely locally**. No telemetry, and honestweek itself makes no network call. The weekly summary runs inside your own Claude Code session, so Claude reads the redacted draft of your week, and the two optional buttons under Include /insights run your own `claude` or `codex` only when you press them, and those do send your sessions to Claude or OpenAI. The optional `preview` and `view` servers bind to loopback (`127.0.0.1`) only.
+- Runs **entirely locally**. No telemetry, and honestweek itself makes no network call. The weekly summary runs inside your own Claude Code session (or Codex session), so Claude (or Codex) reads the redacted draft of your week, and the two optional buttons under Include /insights run your own `claude` or `codex` only when you press them, and those do send your sessions to Claude or OpenAI. The optional `preview` and `view` servers bind to loopback (`127.0.0.1`) only.
 
 ## Install
 
-honestweek runs locally and has no dependencies to install. Pick whichever path you prefer. The plugin and the skill give you `/honestweek`, which runs the weekly summary inside Claude Code. For the browser page (`view`), use the standalone command.
+honestweek runs locally and has no dependencies to install. Pick whichever path you prefer. The plugin, the plain skill and the Codex route each give you the weekly-summary skill, under the name each section below says; I checked each one from a fresh setup on 7 October 2026 (Claude Code 2.1.292, Codex 0.144.6). Through the skill, Claude can also start the browser page (`view`) for you; to run it yourself, use the standalone command.
 
 ### As a Claude Code plugin (recommended for the weekly summary)
 
@@ -144,7 +146,7 @@ claude plugin marketplace add BryceEWatson/honestweek
 claude plugin install honestweek@honestweek
 ```
 
-You get `/honestweek` inside Claude Code, with versioned updates via `/plugin marketplace update`.
+You get `/honestweek:honestweek` inside Claude Code, with versioned updates via `/plugin marketplace update`. Claude Code names a plugin's skill with the plugin's name in front, so it isn't plain `/honestweek` here. The plugin is for Claude Code only: Claude Code's plugin docs say claude.ai and Cowork don't install a plugin with a top-level `bin/` folder, and this one has one.
 
 ### As a plain skill
 
@@ -154,11 +156,23 @@ Clone into your personal skills directory:
 git clone https://github.com/BryceEWatson/honestweek ~/.claude/skills/honestweek
 ```
 
-Either way, when you run `/honestweek`, the skill runs its bundled CLI by an **absolute path inside the skill's own folder** (`${CLAUDE_SKILL_DIR}/bin/honestweek.mjs`). That's why the commands work from *your own* project directory.
+You get `/honestweek`. If you also have the plugin, you get both names, since the plugin's is set apart by its prefix.
+
+With the plugin or the plain skill, the skill runs its bundled CLI by an **absolute path inside the skill's own folder** (`${CLAUDE_SKILL_DIR}/bin/honestweek.mjs`). That's why the commands work from *your own* project directory.
 
 ### In a clone of this repository
 
-Working inside a clone of honestweek itself, `/honestweek` is already there with nothing to install: the repository carries a project skill in `.claude/skills/honestweek/` that points Claude at the root `SKILL.md` and the repository's own `bin/honestweek.mjs`. It only applies inside this repository; for your other projects, use the plugin or the plain skill above.
+Working inside a clone of honestweek itself, `/honestweek` is already there with nothing to install: the repository carries a project skill in `.claude/skills/honestweek/` that points Claude at the root `SKILL.md` and the repository's own `bin/honestweek.mjs`. It only applies inside this repository; for your other projects, use the plugin or the plain skill above. If you've also installed the plain skill, Claude Code runs that one, since a personal skill wins over a project skill with the same name. For Codex, the clone carries the same pointer in `.agents/skills/honestweek/`.
+
+### In Codex
+
+Clone into Codex's skills folder:
+
+```bash
+git clone https://github.com/BryceEWatson/honestweek ~/.codex/skills/honestweek
+```
+
+Codex lists it as `honestweek:honestweek`, which lets it start the skill when you ask for a weekly summary. If you've set `CODEX_HOME`, clone into its `skills` folder instead. Codex doesn't fill in `${CLAUDE_SKILL_DIR}`, so the skill tells it to run the CLI from the folder its `SKILL.md` is in. I've checked that Codex finds the skill there; I haven't run a whole weekly summary through Codex yet.
 
 ### As a standalone CLI
 
@@ -260,7 +274,7 @@ I ship it as a Claude Code skill (instructions Claude follows when you type `/ho
 
 End-to-end happy path, in order. Each step names the artifact it produces.
 
-> Installed as the skill/plugin? Just run `/honestweek`: Claude drives these steps for you and resolves the CLI path automatically. The commands below write `honestweek`; with `npx` or from a clone, use the form under [Try it](#try-it).
+> Installed as the skill or plugin? Just run `/honestweek` (`/honestweek:honestweek` with the plugin), or ask Claude for a weekly summary: Claude drives these steps for you and resolves the CLI path automatically. The commands below write `honestweek`; with `npx` or from a clone, use the form under [Try it](#try-it).
 
 1. **`init`** → writes `honestweek.config.json`, inferred from your git state (your `git config user.email` plus the nearby git repos it finds), for you to review. If it finds no repositories, it writes nothing and says where to run it instead. It also drops `honestweek.config.example.json` if one isn't present. If git doesn't know your email, it asks for it. If a repository it found holds a folder your config marks display-only, or sits inside one, it offers to mark that repository display-only too instead of stopping. It asks you to confirm twice before it writes, and accepting the defaults gives you a valid config. Between the two, it asks for the names and client words to keep private, which go under `redaction`. You can skip the names, the client words or both. Either way it adds the config to `.gitignore`, since the config holds your email and folder paths too. Before the second confirmation, it shows a short summary of what the file will say. Run again over an existing config it can read, it keeps that config's private words (its `redaction` lists and `neverPublicTerms`) and any display-only folder its search doesn't list, so a rewrite doesn't stop hiding a word or forget a folder you marked display-only. If the config there can't be read, it stops before running git anywhere, says why and writes nothing, since it can't tell which folders that config marked display-only.
    ```bash
@@ -629,7 +643,7 @@ Each of these sits beside the config the command read ([Where honestweek finds y
 - **Only your own allowlisted repos are read.** `git` runs only against the repositories in your `repos` list, with two exceptions. First, the scans that suggest repos to list (`init`, and the Setup and Settings pages in `view`) look in the folder you run them in and the folders next to it, but never ask `git` about the commits in a repository that holds a folder your config marks display-only, or sits inside one. Second, `discover` and Settings check that the draft file and the config aren't tracked in the folder you run them in. Where that would reach a display-only folder, they skip git, say so and give the two commands to check by hand. Weekly reports use only sessions from those repos. The `mine` command reads every session in your logs, as [SECURITY.md](SECURITY.md) explains.
 - **`display`-role repos are summarized generically and NEVER git-read.** There is no code path that runs `git` against a `display` repo.
 - **Output stays local until you publish it.** honestweek writes local files only.
-- **No telemetry, no network egress.** honestweek makes no network call. Two things you start do send session text to an AI. In the weekly summary, Claude runs honestweek in your own Claude Code session, reads the redacted draft (`honestweek.draft.json`) and sees what each command prints. With Include /insights on, Run /insights and Run with Codex ask you first, then run your own `claude` or `codex`, which send your sessions to Claude or OpenAI. [Where your data goes](docs/where-your-data-goes.md) has each step. The optional `preview` server is loopback-only (`127.0.0.1`). It serves your already-built output with no key, so any program or account on your machine can read it while it runs, and nothing leaves your machine. The `view` page is loopback-only too. It answers only the page it opened and keeps only what you choose to save, as [What `view` keeps private](#what-view-keeps-private) explains.
+- **No telemetry, no network egress.** honestweek makes no network call. Two things you start do send session text to an AI. In the weekly summary, Claude runs honestweek in your own Claude Code session (or Codex in yours, if you run the skill there), reads the redacted draft (`honestweek.draft.json`) and sees what each command prints. With Include /insights on, Run /insights and Run with Codex ask you first, then run your own `claude` or `codex`, which send your sessions to Claude or OpenAI. [Where your data goes](docs/where-your-data-goes.md) has each step. The optional `preview` server is loopback-only (`127.0.0.1`). It serves your already-built output with no key, so any program or account on your machine can read it while it runs, and nothing leaves your machine. The `view` page is loopback-only too. It answers only the page it opened and keeps only what you choose to save, as [What `view` keeps private](#what-view-keeps-private) explains.
 - **Nothing is auto-published.** honestweek produces a draft; *you* are the publisher.
 
 ### What the scrubber catches, and what it doesn't

@@ -5,7 +5,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIG_ENV, CONFIG_FILE, USER_DIR } from '../lib/config-lookup.mjs';
@@ -17,6 +17,18 @@ const PLUGIN = JSON.parse(read('.claude-plugin/plugin.json'));
 const MARKETPLACE = JSON.parse(read('.claude-plugin/marketplace.json'));
 const SKILL = read('SKILL.md');
 const README = read('README.md');
+
+// Issue 180: a plugin loads its root SKILL.md only while it has no skills/ folder and no
+// "skills" key, or a "skills" key that lists the root. Adding a second skill any other way would
+// silently drop the weekly skill for plugin users, and CI has no Claude Code to catch it.
+test('the plugin still loads its root SKILL.md', () => {
+  assert.ok(existsSync(resolve(ROOT, 'SKILL.md')), 'a root SKILL.md');
+  if (existsSync(resolve(ROOT, 'skills')) || PLUGIN.skills !== undefined) {
+    // Each listed path, as the folder it names relative to the plugin root.
+    const listed = [PLUGIN.skills ?? []].flat().map((p) => resolve(ROOT, String(p)));
+    assert.ok(listed.includes(ROOT), 'a skills folder or key must also list the root ("./")');
+  }
+});
 
 test('plugin.json is valid and declares the single required field (name)', () => {
   assert.equal(typeof PLUGIN.name, 'string');
@@ -35,6 +47,9 @@ test('marketplace.json has name, owner.name, and a plugins[] entry sourced at th
   // same-repo plugin source must be a relative path starting with "./"
   assert.equal(typeof entry.source, 'string');
   assert.match(entry.source, /^\.\//);
+  // Issue 180: Claude Code names a plugin's skill /honestweek:honestweek, so the listing
+  // mustn't promise a bare /honestweek.
+  assert.doesNotMatch(entry.description ?? '', /\/honestweek(?!:)/, 'the listing names the plugin skill as /honestweek:honestweek');
 });
 
 test('SKILL.md invokes the bundled CLI by a skill-anchored absolute path, not a bare relative one', () => {
