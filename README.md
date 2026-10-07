@@ -351,8 +351,10 @@ Configure the destination under `mine` in your config (all optional):
 }
 ```
 
-`draft.frontmatter` lists your destination's fields, not honestweek's. Keys it recognises
-get filled in, and keys it doesn't are kept, empty, for you. `ownRepos` stops
+`draft.frontmatter` lists your destination's fields, not honestweek's. Of the keys it recognises,
+it fills in `title` and `tags` (your schema's own tags, or `bug-fix`), and leaves `description`
+and `date` empty with a note saying when to fill each in. Keys it doesn't recognise are kept,
+empty, for you. `ownRepos` stops
 issues on your own repositories from counting as evidence that someone else's software broke.
 honestweek reads the GitHub remote of each configured repository for this, except `display`
 repositories, which it never runs `git` against. List their `owner/name` under `ownRepos` if
