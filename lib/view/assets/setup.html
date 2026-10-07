@@ -73,6 +73,13 @@
       <h2 id="goalsH"><label for="goals">Goal list</label> <span class="muted">(optional)</span> <span id="goalsHelp"></span></h2>
       <input class="setup-input" id="goals" type="text" autocomplete="off" spellcheck="false" placeholder="/path/to/your/goals.json">
     </section>
+    <section class="setup-part" aria-labelledby="saveToH" id="saveToPart" hidden>
+      <h2 id="saveToH"><label for="saveTo">Save it for</label> <span id="saveToHelp"></span></h2>
+      <select id="saveTo">
+        <option value="folder" id="saveToFolder">This folder</option>
+        <option value="user" id="saveToUser">Every folder</option>
+      </select>
+    </section>
     <div class="setup-inline setup-actions">
       <button type="button" class="btn" id="previewBtn">Preview</button>
       <button type="button" class="btn primary" id="saveBtn">Save</button>

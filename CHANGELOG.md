@@ -4,6 +4,10 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 
 ## Unreleased
 
+### Added
+
+- honestweek finds your config from any folder, so an agent working in another project can use it. Every command reads `honestweek.config.json` in the folder it runs in, as before, else the file the new `HONESTWEEK_CONFIG` environment variable names, else `~/.honestweek/honestweek.config.json`, and every command takes `--config <file>`. `init --user` and Setup's new "Save it for: Every folder" write that user-level file. Each command names the config it read in one line on stderr, and writes its files (the draft, the items, the sidecars, the output) beside that config, never into the folder it happened to run in. A config in the folder you run from still wins, and a library caller that passes its own folder, such as a scheduled run, reads only that folder, as before. Settings now changes a config named with `--config` in its own folder, instead of refusing. `mine --config` now keeps its ledger and drafts beside that config too, so pass `--ledger` to keep using a ledger in the folder you run from (#177).
+
 ### Privacy
 
 - The README and SECURITY.md now say plainly that the weekly summary sends session text to an AI: Claude runs honestweek in your own Claude Code session, reads the redacted draft (`honestweek.draft.json`) to write the summary, and sees what each command prints. The README's top line now makes its privacy claim about the page only, and a new "Where your data goes" table and page, [docs/where-your-data-goes.md](docs/where-your-data-goes.md), walk through `view` and `/honestweek` step by step, list exactly what the draft holds and what else Claude sees, and say who receives what from the two Run buttons. (#175)

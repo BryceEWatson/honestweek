@@ -28,7 +28,7 @@ Boxes with a dashed border are the steps where an AI sees your sessions.
 
 ```mermaid
 flowchart TD
-  A["You run honestweek view<br/>a page served on 127.0.0.1 only,<br/>with a fresh key for this run"] --> B{"Is there a config<br/>in this folder?"}
+  A["You run honestweek view<br/>a page served on 127.0.0.1 only,<br/>with a fresh key for this run"] --> B{"Is there a config<br/>here, in HONESTWEEK_CONFIG,<br/>or in ~/.honestweek?"}
   B -->|no| C["Setup suggests what to fill in<br/>from your git email setting, git on the repositories nearby,<br/>and your log files' names, dates and sizes only"]
   C --> D["You press Save<br/>it writes the config and adds lines to .gitignore"]
   D --> E
@@ -41,8 +41,8 @@ flowchart TD
 Step by step:
 
 1. **You run `honestweek view`.** It serves a page on `127.0.0.1`, so only your own machine can reach it. Each run makes a fresh key, and the page answers data requests only from a tab that holds it.
-2. **Setup suggests what to fill in**, when the folder has no config yet. It asks git for your email setting, and runs git in this folder and the folders next to it to see which are repositories you've committed to and when their last commit was. It looks at your log files' names, last-change dates and sizes to say how much history there is, without opening them.
-3. **You press Save.** It writes the config, an example config if there isn't one, and the lines that keep honestweek's private files out of git in `.gitignore`.
+2. **Setup suggests what to fill in**, when there's no config here, in `HONESTWEEK_CONFIG` or in `~/.honestweek` yet. It asks git for your email setting, and runs git in this folder and the folders next to it to see which are repositories you've committed to and when their last commit was. It looks at your log files' names, last-change dates and sizes to say how much history there is, without opening them.
+3. **You press Save.** It writes the config, an example config if there isn't one, and the lines that keep honestweek's private files out of git in `.gitignore`. If you pick "Save it for: Every folder", the config and that `.gitignore` go in `~/.honestweek` instead, with no example config.
 4. **Your week loads.** honestweek reads the logs in the window you chose (how many days back the page looks) into memory, runs git in the repositories your config lists (never in a display-only one), and checks it all with fixed rules. The page shows redacted text. Its Show private text switch shows your private words on your own screen only. Settings can also look for repositories in this folder and the folders next to it, as Setup does, and checks that git doesn't track your config here.
 5. **Optional: Run /insights or Run with Codex.** Both stay off until you turn on Include /insights, on the Problems page or in Settings. Each asks you to confirm first, then starts your own `claude` or `codex`. [Who receives what](#who-receives-what-from-the-two-run-buttons) says what each one sends.
 
@@ -61,10 +61,12 @@ flowchart TD
 Step by step:
 
 1. **You type `/honestweek`.** Claude follows the skill's instructions and runs honestweek's commands on your machine. Claude sees what each command prints, and Claude Code sends that to Anthropic like anything else in your session.
-2. **`init --yes`** writes a config if the folder doesn't have one, and leaves an existing one alone. Its first line names the folder it's working in. Its summary gives counts: how many repositories it found and the files it wrote, not your email or the repositories' names. If a display-only conflict stops it, the reason names the folders involved.
+2. **`init --yes`** writes a config if the folder doesn't have one, and leaves an existing one alone. `init --user` writes `~/.honestweek/honestweek.config.json` instead. Its first line names the folder it's working in. Its summary gives counts: how many repositories it found and the files it wrote, not your email or the repositories' names. If a display-only conflict stops it, the reason names the folders involved.
 3. **`discover`** reads the Claude Code sessions that started during the last completed week (Monday to Sunday, in UTC) and hold at least one prompt you typed, not Codex. It adds the session-end handoffs (notes saved at the end of a session in a repository's `.claude/handoffs/` folder) from repositories your config doesn't mark display-only. It writes the redacted draft, `honestweek.draft.json`, and prints counts and the week's dates. If it can't read a repository's history, the message names that repository's folder.
 4. **Claude reads the draft and writes the items**, the lines of your summary, into `honestweek.items.json`. This is where an AI sees your session text: everything in the draft, listed in the next section.
 5. **`validate` and `build`** check the items and recheck every commit they cite against git. If one doesn't resolve or isn't yours, `build` stops and writes nothing. Claude then shows you the result, and you decide whether to publish it.
+
+Every command also prints one line on stderr naming the config it read by its full path (the one in the folder it runs in, else the file `HONESTWEEK_CONFIG` names, else `~/.honestweek/honestweek.config.json`), and the folder its files go in when that isn't the folder it ran in. Claude sees that line too. The draft, the items and every other file a command writes go beside that config.
 
 With the `page` or `site` output, the skill can also run `digest prepare`, which picks a few items from your Claude Code and Codex sessions with fixed rules: prompts, ideas, techniques, decisions, reversals and next steps. The picks that pass its privacy check, redacted, go into the built page, and Claude reads that page when it shows it to you. So with these outputs an AI also sees those picks, Codex ones included.
 
@@ -108,4 +110,5 @@ Nothing. honestweek has no telemetry and makes no network calls. Its two local s
 - The draft: `lib/discover.mjs` (`mergeCandidateCommits`) and `lib/claude-adapter.mjs` (`adaptOneSession`, `extractEntry`, `handleToolUse`, `reducePath`, `detectTest`, `deriveStatus`, `extractCommits`, `privateEntry`, and the limits `MAX_STEERS`, `MAX_STEER_LEN`, `MAX_NOTES`, `MAX_NOTE_LEN`, `MAX_REDIRECTS`, `MAX_STATUS`, `MAX_CANDIDATES`). The week: `lib/resolve-week.mjs`. Handoffs: `lib/handoffs.mjs`. The redactor: `lib/redact.mjs`.
 - `mine`'s printed lines: `lib/mine.mjs`.
 - Run /insights: `lib/view/insights.mjs` (`CLAUDE_ENV`, `CLAUDE_PREFIXES`). Run with Codex: `lib/view/codex-judge.mjs`, whose fixed arguments are `CODEX_ARGS` and whose text is built by `sessionText`; which sessions it judges is `judgedSessions` in `lib/view/data.mjs`. The confirm boxes: `lib/view/assets/insights.js`.
+- Which config a command reads, and its stderr line: `findConfig` and `configLine` in `lib/config-lookup.mjs`.
 - The skill's steps: `SKILL.md`.
