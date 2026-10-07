@@ -10,6 +10,7 @@ import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
+import { withoutUserConfig } from './helpers/no-user-config.mjs';
 
 const CLI = new URL('../bin/honestweek.mjs', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const jsonl = (...r) => r.map((x) => JSON.stringify(x)).join('\n') + '\n';
@@ -351,7 +352,7 @@ test('an absent DEFAULT config downgrades with a note; a broken one fails', () =
   const cwd = join(fx.dir, 'elsewhere');
   mkdirSync(cwd, { recursive: true });
   const args = [CLI, 'mine', '--ledger', fx.ledger, '--json', '--corpus', 'claude-code'];
-  const opts = { encoding: 'utf8', cwd, env: { ...process.env, CLAUDE_CONFIG_DIR: fx.dir }, stdio: ['ignore', 'pipe', 'pipe'] };
+  const opts = { encoding: 'utf8', cwd, env: withoutUserConfig({ ...process.env, CLAUDE_CONFIG_DIR: fx.dir }), stdio: ['ignore', 'pipe', 'pipe'] };
 
   // No file at the default path: mining still runs, and says what it lost.
   const out = execFileSync(process.execPath, args, opts);

@@ -5,6 +5,7 @@ import { mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
+import { withoutUserConfig } from './helpers/no-user-config.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BIN = resolve(HERE, '..', 'bin', 'honestweek.mjs');
@@ -28,6 +29,7 @@ function runCli(args, cwd) {
     const stdout = execFileSync(process.execPath, [BIN, ...args], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: withoutUserConfig(),
       ...(cwd ? { cwd } : {}),
     });
     return { code: 0, stdout, stderr: '' };

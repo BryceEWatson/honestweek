@@ -28,7 +28,7 @@ Boxes with a dashed border are the steps where an AI sees your sessions.
 
 ```mermaid
 flowchart TD
-  A["You run honestweek view<br/>a page served on 127.0.0.1 only,<br/>with a fresh key for this run"] --> B{"Is there a config<br/>in this folder?"}
+  A["You run honestweek view<br/>a page served on 127.0.0.1 only,<br/>with a fresh key for this run"] --> B{"Is there a config<br/>here, in HONESTWEEK_CONFIG,<br/>or in ~/.honestweek?"}
   B -->|no| C["Setup suggests what to fill in<br/>from your git email setting, git on the repositories nearby,<br/>and your log files' names, dates and sizes only"]
   C --> D["You press Save<br/>it writes the config and adds lines to .gitignore"]
   D --> E

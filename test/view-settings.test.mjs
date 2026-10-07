@@ -256,13 +256,28 @@ test('every failure path is refused and writes nothing', async () => {
   writeFileSync(join(dir, 'honestweek.config.json'), before);
   assert.equal(readFileSync(join(dir, 'honestweek.config.json'), 'utf8'), before);
   assert.deepEqual(readdirSync(dir).sort(), listing, 'no other file written');
-  // A config named with --config may sit outside the start folder, so Settings won't change it.
+  // Settings writes only a file called honestweek.config.json, so a config named with --config
+  // under another name stays as it is.
   const elsewhere = project('elsewhere');
-  const named = await view(join(scratch, 'refuse'), ['--config', join(elsewhere, 'honestweek.config.json')]);
+  writeFileSync(join(elsewhere, 'team.json'), readFileSync(join(elsewhere, 'honestweek.config.json')));
+  const named = await view(join(scratch, 'refuse'), ['--config', join(elsewhere, 'team.json')]);
   const ni = (await call(named.port, { path: '/api/settings', key: named.key })).json;
   assert.equal(ni.editable, false);
   assert.match(ni.note, /--config/);
   assert.equal((await post(named, 'save', good)).status, 409);
+});
+
+test('Settings changes a config named with --config in its own folder, and writes nothing in the folder view started in', async () => {
+  const away = project('away');
+  const start = join(scratch, 'start-away');
+  mkdirSync(start, { recursive: true });
+  const s = await view(start, ['--config', join(away, 'honestweek.config.json')]);
+  const r = await post(s, 'save', { ...(await untouched(s)), terms: `${OTHER_TERM}, Northwind` });
+  assert.equal(r.status, 200, r.text);
+  assert.equal(r.json.saved, true);
+  assert.deepEqual(JSON.parse(readFileSync(join(away, 'honestweek.config.json'), 'utf8')).redaction.terms, [OTHER_TERM, 'Northwind']);
+  assert.match(readFileSync(join(away, '.gitignore'), 'utf8'), /^honestweek\.config\.json$/m);
+  assert.deepEqual(readdirSync(start), []);
 });
 
 test('the long-session limit is off until set in Settings, then the Problems page checks against it; clearing it gives back the same bytes', async () => {

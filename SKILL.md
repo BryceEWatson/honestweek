@@ -119,7 +119,8 @@ node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" view --demo              # a made-
 ```
 
 - It serves on `127.0.0.1` until Ctrl+C, so run it in the background or let the user run it in their own terminal. It prints an address carrying a one-time code; each code works once, and pressing Enter in that terminal prints a fresh one. Give that address only to the user's own browser.
-- With no `honestweek.config.json` here, the page that opens is Setup, which writes the config when the user presses Save (`init` asks the same questions in a terminal).
+- With no config to read, the page that opens is Setup, which writes the config when the user presses Save (`init` asks the same questions in a terminal).
+- Every command reads `honestweek.config.json` in the folder it runs in, else the file `HONESTWEEK_CONFIG` names, else `~/.honestweek/honestweek.config.json` (written by `init --user` or Setup's "Every folder"); `--config <file>` names one instead. Each names the config it read in one line on stderr, and writes its files beside that config, never in the folder it ran in. So from another project, the user's every-folder config just works; don't copy it into the project.
 - `--goals <file>` (or `goalsFile` in the config) names a goal list: `{ "goals": [{ "id", "title" }], "events": [] }`. It's a different file from the goals page's `honestweek.objectives.json`.
 - The page is redacted unless the user turns on Show private text. Don't copy what it shows into anything you write for someone else, and don't flip the switch for them.
 - Every link, count and step on it says how it's known (recorded, derived, inferred, missing, or ambiguous). When you report what it shows, keep that word: an inferred link is not a recorded one.

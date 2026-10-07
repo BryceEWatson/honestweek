@@ -90,7 +90,7 @@ The demo opens on the Problems page, which lists the known ways AI coding agents
 
 **Before you run it on your own logs.** honestweek only reads your logs. It never changes them. Keys, tokens and passwords it recognizes are always hidden on the page ([what it catches, and what it doesn't](#what-the-scrubber-catches-and-what-it-doesnt)). People's names and client words aren't hidden until you list them on the Setup page. Until you do, `honestweek view` tells you so in the terminal and on every page.
 
-Run `honestweek view` from one of your project folders, or from a new folder next to them. With no `honestweek.config.json` there, the page that opens is Setup. It lists that folder if it's a git repository, plus the git repositories next to it. A git worktree, a second working copy of a repository, shows up under its repository rather than on its own. Setup fills in your email from git and your timezone, then asks which people's names and client or project words to hide, and how far back to look. You can remove a repository or change its role first ([Repo roles](#config-reference) says what each role does). Press Save, and it writes the config and opens your week's Problems page. It also adds the config to `.gitignore`, since the file holds your email, your folder paths and any private words. To change any of this later, open Settings in the page header. For scripts and CI, `init` asks about the repositories and private words in a terminal (`honestweek init --yes` takes the defaults). Once the config exists, Settings' "Suggest words from my sessions" lists words from your own sessions you might want to hide, or run `honestweek discover`, then `honestweek harvest`, and read `honestweek.harvest.json`. [docs/local-page.md](docs/local-page.md) has every Setup and Settings detail.
+Run `honestweek view` from one of your project folders, or from a new folder next to them. With no config there or for every folder, the page that opens is Setup. It lists that folder if it's a git repository, plus the git repositories next to it. A git worktree, a second working copy of a repository, shows up under its repository rather than on its own. Setup fills in your email from git and your timezone, then asks which people's names and client or project words to hide, and how far back to look. You can remove a repository or change its role first ([Repo roles](#config-reference) says what each role does). Press Save, and it writes the config and opens your week's Problems page. "Save it for" picks this folder or every folder: the every-folder config is the one a command reads from any folder without its own, so an agent working in another project finds it ([Where honestweek finds your config](#where-honestweek-finds-your-config)). It also adds the config to `.gitignore`, since the file holds your email, your folder paths and any private words. To change any of this later, open Settings in the page header. For scripts and CI, `init` asks about the repositories and private words in a terminal (`honestweek init --yes` takes the defaults). Once the config exists, Settings' "Suggest words from my sessions" lists words from your own sessions you might want to hide, or run `honestweek discover`, then `honestweek harvest`, and read `honestweek.harvest.json`. [docs/local-page.md](docs/local-page.md) has every Setup and Settings detail.
 
 What's further down:
 
@@ -203,7 +203,7 @@ honestweek view --from 2024-06-10 --to 2024-06-16 --goals goals.json
 honestweek view --demo           # a made-up week, before you set anything up
 ```
 
-With no `honestweek.config.json` in the folder, it opens the Setup page instead, and the terminal says so in one line. Setup runs on the same local server with the same per-run key ([What `view` keeps private](#what-view-keeps-private) explains the key). It writes the config with the same code `init` uses, never over a config that's already there, and then the page moves on to your week's Problems page. Your answers, private words included, go only to this local server, never into an address or the terminal. If `--config` names a file that isn't there, it stops and says so. While it reads the logs, the page says what it's reading and for how long. When your config lists no private words, the terminal and every page say that names and client words show as written, and where to add them. Ctrl+C stops it.
+With no config to read ([where it looks](#where-honestweek-finds-your-config)), it opens the Setup page instead, and the terminal says so in one line. Setup runs on the same local server with the same per-run key ([What `view` keeps private](#what-view-keeps-private) explains the key). It writes the config with the same code `init` uses, never over a config that's already there, and then the page moves on to your week's Problems page. Your answers, private words included, go only to this local server, never into an address or the terminal. If `--config` names a file that isn't there, it stops and says so. While it reads the logs, the page says what it's reading and for how long. When your config lists no private words, the terminal and every page say that names and client words show as written, and where to add them. Ctrl+C stops it.
 
 What's on the page:
 
@@ -271,6 +271,10 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    honestweek init --yes
    ```
    `--yes` leaves an existing `honestweek.config.json` untouched; add `--force` to overwrite it. One that can't be read stops `init` with exit 1 either way, before it runs git.
+   To set it up once for every folder, add `--user`: it still looks for repositories where you run it, and writes `~/.honestweek/honestweek.config.json` instead (`--config <file>` names another place, a file called `honestweek.config.json`).
+   ```bash
+   honestweek init --user
+   ```
 2. **`discover`** → scans the **last completed week's** sessions **and session-end handoffs** (the `.claude/handoffs/*.md` notes) from your allowlisted repos. It reads handoffs only for `featured` and `reference` repos, and never reads one from a `display` repo. It writes the **redacted** result to `honestweek.draft.json`, which is gitignored. From each handoff it adds a bounded amount of extra material: its tagged claims, reversals and cited commits. It's deterministic, with no model call.
    ```bash
    honestweek discover          # or: discover --week 2024-W23
@@ -526,6 +530,19 @@ Without the file, the report uses the default and client profiles that ship with
 
 ## Config reference
 
+### Where honestweek finds your config
+
+Every command reads the first config it finds:
+
+1. the file `--config <file>` names, which every command takes;
+2. `honestweek.config.json` in the folder you run it from;
+3. the file the `HONESTWEEK_CONFIG` environment variable names;
+4. `~/.honestweek/honestweek.config.json`, the every-folder config that `init --user` and Setup's "Every folder" write.
+
+A config in the folder you run from always wins, so a setup you already have reads exactly what it did. A file that `--config` or `HONESTWEEK_CONFIG` names but that isn't there is an error, never a quiet switch to another config. Each command names the config it read in one line on stderr. The files a command writes (the draft, the items, the sidecars, the output) go beside that config, not in the folder you ran it from, so running `discover` from an unrelated project never drops a draft there, and the `.gitignore` lines go beside it too. Settings changes the config `view` read, in its own folder, as long as it's called `honestweek.config.json`.
+
+### The file
+
 Your `honestweek.config.json` follows the shape of `honestweek.config.example.json`. `init`, Setup and Settings add it to `.gitignore`, because it holds your email, your folder paths and the words you want hidden. Adding a file to `.gitignore` doesn't remove it from git if it was committed before; if yours was, run `git rm --cached honestweek.config.json`. If you do want it committed, add it once with `git add -f honestweek.config.json`: git keeps tracking it, and Settings puts the `.gitignore` line back if you remove it. Here's what it looks like:
 
 ```jsonc
@@ -581,6 +598,8 @@ Your `honestweek.config.json` follows the shape of `honestweek.config.example.js
 - **`display`**: summarized generically and **NEVER git-read**. Use it for repos you want acknowledged without reading their commits.
 
 ## Sidecars
+
+Each of these sits beside the config the command read ([Where honestweek finds your config](#where-honestweek-finds-your-config)).
 
 | File | Status |
 | --- | --- |

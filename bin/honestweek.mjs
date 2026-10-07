@@ -7,6 +7,7 @@
 // module that another issue has not built yet — `--help` works from a fresh
 // clone with zero modules present.
 
+import { setConfigLookup } from '../lib/config-lookup.mjs';
 import { commandForm, setCommandForm } from '../lib/invocation.mjs';
 
 const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts', 'digest', 'mine', 'history', 'view'];
@@ -20,7 +21,7 @@ const COMMAND_HELP = {
   init: `honestweek init: set up honestweek.config.json in this folder.
 
 Usage:
-  honestweek init [--yes] [--force]
+  honestweek init [--yes] [--force] [--user | --config <file>]
 
 Finds your git email and the git repositories in this folder and the folders
 next to it, folding each extra working copy (a git worktree) into its main
@@ -34,32 +35,40 @@ private files to .gitignore, since the config holds your email and folder
 paths. If it finds no repositories, it writes nothing. Answers piped in on
 stdin work, one per line.
 
+With --user it writes ~/.honestweek/honestweek.config.json instead, the config
+every command reads from a folder that has none of its own, so an agent working
+in any project finds it.
+
 Options:
   -y, --yes   Accept the inferred defaults without prompting. Use this when no
               one is there to answer (scripts, CI, or an agent shell): if stdin
               ends before the confirmations are answered, init exits 2 and
               writes nothing. On its own --yes leaves an existing config alone.
       --force With --yes, overwrite an existing honestweek.config.json.
+      --user  Write the user-level config, ~/.honestweek/honestweek.config.json.
+      --config <file>
+              Write this file instead. It must be called honestweek.config.json.
   -h, --help  Show this help.
 `,
   discover: `honestweek discover: read the last completed week into a redacted draft.
 
 Usage:
-  honestweek discover [--week <YYYY-Www>]
+  honestweek discover [--week <YYYY-Www>] [--config <file>]
 
 Scans the allowlisted repos' sessions and .claude/handoffs/*.md, then writes the
-gitignored, redacted honestweek.draft.json. Deterministic: no model call.
-'display'-role repos are never read.
+gitignored, redacted honestweek.draft.json beside the config. Deterministic: no
+model call. 'display'-role repos are never read.
 
 Options:
       --week <YYYY-Www>  Report on a specific ISO week instead of the last
                          completed one.
+      --config <file>    Read this config instead of the one honestweek finds.
   -h, --help             Show this help.
 `,
   validate: `honestweek validate: gate the distilled items before building.
 
 Usage:
-  honestweek validate [--no-dashes]
+  honestweek validate [--no-dashes] [--config <file>]
 
 Checks honestweek.items.json: every item needs a valid badge and a receipt, no
 item may name a 'display'-role repo or cite a commit against one, and no
@@ -68,13 +77,14 @@ configured redaction term may survive into the prose.
 Exits 2 when any check fails, naming the offending item.
 
 Options:
-      --no-dashes  Also apply the optional voice rule (no em dashes).
-  -h, --help       Show this help.
+      --no-dashes      Also apply the optional voice rule (no em dashes).
+      --config <file>  Read this config instead of the one honestweek finds.
+  -h, --help           Show this help.
 `,
   build: `honestweek build: verify every git-checkable claim, then emit.
 
 Usage:
-  honestweek build
+  honestweek build [--config <file>]
 
 Re-derives every cited commit against your real git history. Aborts with exit 2,
 writing nothing, if a cited commit is unresolved, its author is outside
@@ -91,12 +101,13 @@ different week, re-run discover with --week and redo the distillation. Mode
 "client" instead reports on the items file's "period", any length you name.
 
 Options:
-  -h, --help  Show this help.
+      --config <file>  Read this config instead of the one honestweek finds.
+  -h, --help           Show this help.
 `,
   history: `honestweek history: list what reached the default branch in a period.
 
 Usage:
-  honestweek history --from <YYYY-MM-DD> --to <YYYY-MM-DD>
+  honestweek history --from <YYYY-MM-DD> --to <YYYY-MM-DD> [--config <file>]
 
 The raw material for a client report (output.mode "client"). For each featured
 and reference repo, lists every pull request you authored that landed on the
@@ -110,12 +121,13 @@ Group those into items in honestweek.items.json, each citing its commits, set
 Options:
       --from <YYYY-MM-DD>  First day of the period.
       --to <YYYY-MM-DD>    Last day of the period (inclusive).
+      --config <file>      Read this config instead of the one honestweek finds.
   -h, --help               Show this help.
 `,
   harvest: `honestweek harvest: propose redaction-denylist candidates.
 
 Usage:
-  honestweek harvest
+  honestweek harvest [--config <file>]
 
 Reads honestweek.draft.json (run discover first) and writes candidate private
 nouns, most frequent first, to the gitignored honestweek.harvest.json. Only the
@@ -123,7 +135,8 @@ count is printed; the nouns stay local for you to review and add to your
 config's redaction lists: "names" for people, "terms" for clients and projects.
 
 Options:
-  -h, --help  Show this help.
+      --config <file>  Read this config instead of the one honestweek finds.
+  -h, --help           Show this help.
 `,
 };
 
@@ -139,6 +152,7 @@ Start here:
        ${cmd} view --demo
   2. Set up honestweek.config.json in this folder. It asks before writing:
        ${cmd} init
+     Add --user to set it up once for every folder.
   3. Find, check and replay your own sessions in your browser:
        ${cmd} view
 
@@ -174,6 +188,11 @@ Commands:
 Options:
   -h, --help  Show this help.
 
+Every command reads honestweek.config.json in the folder it runs in, else the
+file the HONESTWEEK_CONFIG environment variable names, else
+~/.honestweek/honestweek.config.json. --config <file> names one instead. Each
+says which it read in one line on stderr, and writes its files beside it.
+
 Run "${cmd} <command> --help" for command-specific help (where available).
 `;
 }
@@ -186,6 +205,9 @@ async function main(argv) {
   const [command, ...rest] = argv;
   // Messages that name a next step name it the way this run was started.
   setCommandForm(commandForm());
+  // A command run from a folder with no config of its own finds the one in HONESTWEEK_CONFIG or
+  // the user-level file, and says which config it read.
+  setConfigLookup({ env: process.env });
 
   if (command === undefined || command === '--help' || command === '-h') {
     printUsage(process.stdout);
