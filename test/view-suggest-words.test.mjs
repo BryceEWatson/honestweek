@@ -98,3 +98,13 @@ test('the no-private-words note points to Suggest words only where Settings can 
   assert.ok(!elsewhere.includes('Settings'), elsewhere);
   assert.match(elsewhere, /run honestweek discover, then honestweek harvest/);
 });
+
+test('reads the whole prompt it is given, not just the shown excerpt (Codex on #169)', () => {
+  const sessions = [{ key: 'a', title: 'x', mine: true }];
+  const long = `${'Plain words go here and here. '.repeat(30)}then send it to Marisol before Friday.`;
+  // The shown excerpt stops before the name; the whole prompt has it.
+  const events = [1, 2].map(() => ({ kind: 'prompt', session: 'a', facts: { text: long.slice(0, 600) }, whole: long }));
+  assert.ok(!long.slice(0, 600).includes('Marisol'));
+  assert.deepEqual(words(suggestWords({ sessions, events, include: (s) => s.mine })), [], 'the excerpt alone misses it');
+  assert.deepEqual(words(suggestWords({ sessions, events, include: (s) => s.mine, promptText: (e) => e.whole })), ['Marisol']);
+});
