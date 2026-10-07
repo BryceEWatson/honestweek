@@ -586,3 +586,48 @@ test('the bare address opens Setup when no config exists, and Problems when one 
   assert.match((await page(p2, '/')).text, /<body data-page="problems">/);
   assert.notEqual((await ready(p2, k2)).setup, true);
 });
+
+// Issue 198: a one-time address to a given page, from --page or from typing "link <page>".
+const linksIn = (text) => [...text.matchAll(/http:\/\/127\.0\.0\.1:(\d+)\/([^\s#]*)#(?:([A-Za-z0-9_.~:-]+)&)?c=([0-9a-f]+)/g)].map((m) => ({ port: Number(m[1]), page: m[2], fragment: m[3] ?? '', code: m[4] }));
+
+test('--page opens and prints a one-time address to that page, and keeps a step after #', async () => {
+  const r = await view(['--no-open', ...RANGE, '--page', 'replay.html?session=abc12345#t1~e2']);
+  assert.equal(r.code, 0, r.err());
+  const [link] = linksIn(r.out());
+  assert.equal(link.page, 'replay.html?session=abc12345');
+  assert.equal(link.fragment, 't1~e2', 'the step stays beside the code');
+  const key = await claim(link.port, link.code);
+  assert.ok(key, 'the code works');
+  assert.equal(await claim(link.port, link.code), null, 'once');
+  assert.match(await (await fetch(`http://127.0.0.1:${link.port}/replay.html`)).text(), /<body data-page="replay">/);
+  await r.handle.stop();
+});
+
+test('--page refuses anything but view\'s own pages, and a # part that is not plain ids', async () => {
+  for (const bad of ['../package.json', 'C:/Windows/win.ini', 'setup.html', 'selftest/clickthrough.html', 'replay.html#a&c=1234567890', 'replay.html?x-y=1']) {
+    const r = await view(['--no-open', ...RANGE, '--page', bad]);
+    assert.equal(r.code, 1, bad);
+    assert.match(r.err(), /^view: --page: /, bad);
+    assert.equal(r.handle, null, `${bad}: nothing was served`);
+  }
+});
+
+test('typing "link <page>" prints a fresh one-time address to it; a bad page or plain Enter behave as said', async () => {
+  const input = new PassThrough();
+  const r = await view(['--no-open', ...RANGE], { input });
+  const wait = async (n) => {
+    for (let i = 0; i < 200 && linksIn(r.out()).length < n; i++) await new Promise((done) => setTimeout(done, 10));
+  };
+  input.write('link goal.html?goal=g1\n');
+  await wait(2);
+  const asked = linksIn(r.out())[1];
+  assert.match(r.out(), /Link: http:\/\/127\.0\.0\.1:\d+\/goal\.html\?goal=g1#c=/);
+  assert.equal(asked.page, 'goal.html?goal=g1');
+  assert.ok(await claim(asked.port, asked.code), 'the link\'s code works');
+  input.write('link ../secrets.txt\n');
+  input.write('\n');
+  await wait(3);
+  assert.match(r.out(), /No link: "\.\.\/secrets\.txt" isn't one of view's pages/);
+  assert.match(r.out(), /Fresh address: http:\/\/127\.0\.0\.1:\d+\/#c=/, 'Enter still prints the Problems address');
+  await r.handle.stop();
+});
