@@ -8,6 +8,7 @@ import { join } from 'node:path';
 
 import { MAX_SUGGESTIONS, suggestWords } from '../lib/view/suggest-words.mjs';
 import { createViewData } from '../lib/view/data.mjs';
+import { privateWordsNote } from '../lib/private-words.mjs';
 import { buildViewWeek, PRIVATE_WORDS, WEEK } from './fixtures/view/week.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
@@ -35,12 +36,25 @@ test('leaves out code: code spans and blocks, identifiers with an underscore, an
   assert.deepEqual(words(suggestWords({ sessions, events, include: (s) => s.mine })), ['Priya']);
 });
 
-test('leaves out tool names, words already listed (any case, each word of a name) and repository labels', () => {
+test('leaves out tool names and words already listed, in any case', () => {
   const sessions = [{ key: 'a', title: 'x', mine: true }];
-  const text = 'Push to GitHub and ask Claude about Priya Raman, the Zephyr app and the README for Quill.';
+  const text = 'Push to GitHub and ask Claude about Priya, the Zephyr app and the README for Quill.';
   const events = [prompt('a', text), prompt('a', text)];
-  const r = suggestWords({ sessions, events, include: (s) => s.mine, exclude: ['priya raman', 'Zephyr'] });
+  const r = suggestWords({ sessions, events, include: (s) => s.mine, exclude: ['priya', 'Zephyr'] });
   assert.deepEqual(words(r), ['Quill'], JSON.stringify(r));
+});
+
+test('a first name alone is still suggested when only the whole name is listed, since the redactor hides only the whole name', () => {
+  const sessions = [{ key: 'a', title: 'x', mine: true }];
+  const events = [prompt('a', 'ask Priya about it'), prompt('a', 'and Priya again')];
+  assert.deepEqual(words(suggestWords({ sessions, events, include: (s) => s.mine, exclude: ['Priya Raman'] })), ['Priya']);
+});
+
+test('names in any alphabet come back whole, and list items and quotes count as sentence starts', () => {
+  const sessions = [{ key: 'a', title: 'x', mine: true }];
+  const text = 'ask José and Łukasz.\nDo this:\n- Check the totals\n2. Update the docs\nDone. "Remove it" now.';
+  const events = [prompt('a', text), prompt('a', text)];
+  assert.deepEqual(words(suggestWords({ sessions, events, include: (s) => s.mine })), ['José', 'Łukasz']);
 });
 
 test('failing-path partner: a display-only or outside session adds nothing, and the list stops at the cap', () => {
@@ -76,4 +90,11 @@ test('the route answers from the redacted build, so no private word or repositor
   } finally {
     data.stop?.();
   }
+});
+
+test('the no-private-words note points to Suggest words only where Settings can change the config', () => {
+  assert.match(privateWordsNote('honestweek'), /Suggest words from my sessions/);
+  const elsewhere = privateWordsNote('honestweek', { settings: false });
+  assert.ok(!elsewhere.includes('Settings'), elsewhere);
+  assert.match(elsewhere, /run honestweek discover, then honestweek harvest/);
 });
