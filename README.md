@@ -172,7 +172,7 @@ Clone into Codex's skills folder:
 git clone https://github.com/BryceEWatson/honestweek ~/.codex/skills/honestweek
 ```
 
-Codex lists it as `honestweek:honestweek`, which lets it start the skill when you ask for a weekly summary. If you've set `CODEX_HOME`, clone into its `skills` folder instead. Codex doesn't fill in `${CLAUDE_SKILL_DIR}`, so the skill tells it to run the CLI from the folder its `SKILL.md` is in. I've checked that Codex finds the skill there; I haven't run a whole weekly summary through Codex yet.
+Codex lists it as `honestweek:honestweek`, which lets it start the skill when you ask for a weekly summary. It also lists `honestweek:honestweek-contract`, the rules for writing the summary's items, which it can load by its description when it works on them. Codex has no subagents here, so it writes the items itself under those rules. If you've set `CODEX_HOME`, clone into its `skills` folder instead. Codex doesn't fill in `${CLAUDE_SKILL_DIR}`, so the skill tells it to run the CLI from the folder its `SKILL.md` is in. I've checked that Codex finds the skill there; I haven't run a whole weekly summary through Codex yet.
 
 ### As a standalone CLI
 
