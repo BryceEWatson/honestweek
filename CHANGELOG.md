@@ -30,7 +30,7 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 
 ### Fixed
 
-- `build` writes its output beside the config it read, as every other command does since #188, not in the folder it ran in. With a config found through `HONESTWEEK_CONFIG` or the user-level file, the post, digest, report or client report used to land in whatever folder `build` ran from, where `preview` couldn't find it. With the config in the folder `build` runs in, nothing changes, including the path it prints. (issue #194)
+- `build` writes its output beside the config it read, as every other command does since #188, not in the folder it ran in. With a config found through `HONESTWEEK_CONFIG` or the user-level file, the post, digest, report or client report used to land in whatever folder `build` ran from, where `preview` couldn't find it. With the config in the folder `build` runs in, nothing changes, including the path it prints. (#195, issue #194)
 
 ## 0.2.0 (6 October 2026)
 
