@@ -199,3 +199,26 @@ test('in a terminal, init asks for the email git does not know; with --yes it on
     removeTempDir(root);
   }
 });
+
+test('with two repositories holding display-only folders, each offer shows the reason for the repository it names (issue 163)', async () => {
+  const root = makeTempDir('hw-init-two-');
+  try {
+    const project = repo(join(root, 'project'));
+    for (const name of ['alpha', 'beta']) mkdirSync(join(repo(join(root, name)), 'secret'));
+    // Listed beta's folder first, so the first conflict found isn't alpha's.
+    writeConfig(project, { repos: [{ path: project, label: 'project', role: 'featured' }, { path: '../beta/secret', label: 'beta-secret', role: 'display' }, { path: '../alpha/secret', label: 'alpha-secret', role: 'display' }] });
+    const offers = [];
+    const io = terminal((q) => (/display-only too\?/.test(q) ? (offers.push(q), 'y') : /Write .* now\?/.test(q) ? 'y' : ''));
+    assert.equal(await runInit({ cwd: project, io, inferEmail: () => ME }), 0, io.stderr);
+    assert.equal(offers.length, 2);
+    for (const q of offers) {
+      const [, named] = /Mark (\S+) display-only too\?/.exec(q);
+      assert.match(q, new RegExp(`sits inside ${named}, which git reads`), q);
+    }
+    const roles = Object.fromEntries(configOf(project).repos.map((r) => [r.label, r.role]));
+    assert.equal(roles.alpha, 'display');
+    assert.equal(roles.beta, 'display');
+  } finally {
+    removeTempDir(root);
+  }
+});
