@@ -128,3 +128,12 @@ test('SKILL.md loads honestweek status as it starts, with a fallback for hosts t
   assert.match(SKILL_MD, /shows that command instead of a report[\s\S]*?run it yourself before anything else/);
   assert.match(SKILL_MD, /start from the step its `next:` line names, not from `init`/);
 });
+
+// Codex on #192: the weekly flow is the only file read for a default run, so it must send a
+// page or site config with no goals registry to the digest flow before validate and build.
+test('the weekly flow sends page or site output with no goals registry to the digest flow', () => {
+  const weekly = readFileSync(join(SKILL_ROOT, 'flows', 'weekly.md'), 'utf8');
+  const rule = weekly.slice(0, weekly.indexOf('1. **`init`**'));
+  assert.match(rule, /`page` or `site` output and no goals registry/);
+  assert.match(rule, /read `flows\/digest\.md` too, and run `digest prepare` after DISTIL and before step 4's `validate` and `build`/);
+});

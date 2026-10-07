@@ -52,3 +52,21 @@ test('git tracks the project skill though the rest of .claude stays ignored', ()
   assert.equal(ignored('.claude/worktrees/example'), true);
   assert.equal(ignored('.claude/skills/another-skill/SKILL.md'), true);
 });
+
+// Issue 180: Codex reads a repository's skills from .agents/skills, and doesn't fill in
+// ${CLAUDE_SKILL_DIR}, so the clone's Codex copy names the root's files by relative path.
+const codexDir = join(root, '.agents', 'skills', 'honestweek');
+const codex = readFileSync(join(codexDir, 'SKILL.md'), 'utf8');
+
+test('the Codex copy names honestweek, matches the root description, and points at the root files', () => {
+  assert.ok(codex.startsWith('---\n'));
+  assert.equal(field(codex, 'name'), 'honestweek');
+  assert.equal(field(codex, 'description'), field(rootSkill, 'description'));
+  assert.equal(field(codex, 'disable-model-invocation'), undefined, 'Codex reads its own switch, not this one');
+  assert.ok(codex.includes('`../../../SKILL.md`'));
+  assert.ok(codex.includes('`../../../flows/`'), 'it sends Codex to the flow files too (issue 182)');
+  assert.ok(codex.includes('node "<repository root>/bin/honestweek.mjs" init --yes'));
+  assert.equal(resolve(codexDir, '../../../SKILL.md'), join(root, 'SKILL.md'));
+  assert.ok(existsSync(resolve(codexDir, '../../../bin/honestweek.mjs')));
+  assert.doesNotMatch(codex, /—|–/, 'no em or en dashes');
+});
