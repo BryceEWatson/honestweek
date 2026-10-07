@@ -66,9 +66,9 @@ Step by step:
 4. **Claude reads the draft and writes the items**, the lines of your summary, into `honestweek.items.json`. This is where an AI sees your session text: everything in the draft, listed in the next section.
 5. **`validate` and `build`** check the items and recheck every commit they cite against git. If one doesn't resolve or isn't yours, `build` stops and writes nothing. Claude then shows you the result, and you decide whether to publish it.
 
-With the `page` or `site` output, the skill can also run `digest prepare`, which picks a few prompts from your Claude Code and Codex sessions with fixed rules. The picks that pass its privacy check, redacted, go into the built page, and Claude reads that page when it shows it to you. So with these outputs an AI also sees those few prompts, Codex ones included.
+With the `page` or `site` output, the skill can also run `digest prepare`, which picks a few items from your Claude Code and Codex sessions with fixed rules: prompts, ideas, techniques, decisions, reversals and next steps. The picks that pass its privacy check, redacted, go into the built page, and Claude reads that page when it shows it to you. So with these outputs an AI also sees those picks, Codex ones included.
 
-The skill can also run `mine`, which looks for solved problems across all your logs. Claude sees what it prints: counts, the first 80 characters of the redacted error line behind each of up to eight findings, and a drafted post's title.
+The skill can also run `mine`, which looks for solved problems across all your logs. Claude sees what it prints: counts and dates, the first 80 characters of a simplified, redacted error line for each of up to eight findings, and a drafted post's file path and title.
 
 ## What the draft holds
 
