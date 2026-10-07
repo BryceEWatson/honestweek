@@ -2,124 +2,166 @@
 
 ## In plain terms
 
-This is the checklist I follow to put a new version of honestweek on npm, the public registry that `npx honestweek` and `npm install -g honestweek` download from. A release is four steps in a fixed order: a pull request that sets the new version number, a publish to npm from my own terminal, a check that the published package runs, and then a git tag and a GitHub release that point people at it. The order matters because a GitHub release is public the moment it's created, so it comes last, after the package is already live. Nothing here runs by itself.
+This is the plan I follow for every release of honestweek to npm, the public registry that `npx honestweek` and `npm install -g honestweek` download from. It runs in a fixed order: a release pull request that sets the new version, a readiness check, my own test of the build, the merge, the publish to npm, a check that the published package runs, and last a git tag and a GitHub release. The order matters because a version number can be published to npm only once, and a GitHub release is public the moment it's created, so each step waits until the one before it has passed.
 
-The first version on npm is 0.2.0. Version 0.1.0 has a GitHub release, but its npm publish failed and it never reached npm.
+An agent session (Claude Code or Codex) can do the work, but nothing runs by itself: the merge, the publish and the tag each wait for my word, and npm's two-factor prompt is always mine to approve.
 
-## Two ways to publish, and the one I use
+## Who does what
 
-**From my own terminal (the one I use).** I log in to npm on my machine and run `npm publish`. npm asks for my two-factor code, so no token is stored anywhere. This is the simplest way to do a first publish, and it's what the steps below describe.
+| Step | Who | Starts when |
+| --- | --- | --- |
+| 1. The release pull request | the agent | I ask for a release |
+| 2. The readiness check | the agent | the last change for the release has landed |
+| 3. My test of the build | me, on a build the agent installs | the readiness check passes |
+| 4. Ship | the agent | I say `ship` |
+| 5. Publish | the agent runs it in my terminal, and I approve npm's prompt | I say `publish` |
+| 6. Check the published package | the agent | the publish finishes |
+| 7. Tag and GitHub release | the agent | I say `tag` |
+| 8. Afterwards | the agent, then me for sharing | the release is out |
 
-**From GitHub, when a release is published.** The [release workflow](../.github/workflows/release.yml) can publish for me, but only with an npm token saved as the repository secret `NPM_TOKEN`. That token has to be a granular access token with publish rights and "bypass two-factor authentication" turned on, because npm refuses an ordinary token for a publish. The 0.1.0 run failed for exactly that reason (`403 Forbidden ... Two-factor authentication or granular access token with bypass 2fa enabled is required`). If I ever switch to this path, I save the token first, check that `gh secret list` shows `NPM_TOKEN` with today's date, and only then publish the GitHub release.
+Below, `X.Y.Z` stands for the new version number, like `0.2.1`.
 
-The workflow is safe to leave on with the terminal path. When a release is published it checks four things before it does anything: the release tag matches the version in `package.json` (if not, it stops with an error and publishes nothing), the release isn't a prerelease (if it is, it stops with a notice, because npm would make a prerelease the version everyone installs), that version isn't on npm already (if it is, it stops with a notice; if npm can't be reached, it stops with an error when a token is set and with a notice when one isn't), and an `NPM_TOKEN` secret exists (if not, it stops with a notice). Because I publish to npm before I create the GitHub release, the workflow finds the version already there and does nothing.
+## Once per machine and account
 
-## Once, before the first release
-
-1. Turn on two-factor authentication on the npm account, for sign-in and for publishing (npmjs.com, Account, Two-Factor Authentication).
-2. Delete the old `NPM_TOKEN` secret, which npm rejected in August: `gh secret delete NPM_TOKEN`. With it gone, a GitHub release can never start a publish with a token that doesn't work. (The workflow's own checks already cover the normal order; this covers a release created by mistake before the npm publish.)
-3. Check the name is still free: `npm view honestweek` should answer `404 Not Found` until the first publish. It was free on 3 October 2026, and so were `honest-week`, `honest_week` and `honest.week`, the spellings npm would count as the same name.
+1. **Two-factor authentication on the npm account, for writes as well as sign-in** (npmjs.com, my avatar, Account, Two-Factor Authentication). npm refuses a publish without it, with `403 Forbidden ... Two-factor authentication or granular access token with bypass 2fa enabled is required`. That stopped the first try at 0.2.0 on 6 October 2026, and nothing was published.
+2. **Logged in to npm on the machine I publish from.** `npm whoami` prints my npm user name; if it says I'm not logged in, the agent runs `npm login` in my Terminal panel and I sign in in the browser it opens.
+3. **No `NPM_TOKEN` repository secret.** `gh secret list` should show none. The [release workflow](../.github/workflows/release.yml) publishes from GitHub only with that secret, a granular npm token with "bypass two-factor authentication" turned on. I publish from my own terminal instead, so no token is stored anywhere. The workflow is safe to leave on: when a GitHub release is published, it checks that the tag matches `package.json`, that the release isn't a prerelease, that the version isn't on npm yet, and that a token exists, and it stops at the first that fails. Because I publish before I tag, it finds the version already on npm and does nothing.
 
 ## 1. The release pull request
 
-On a branch from `main` (for 0.2.0, `feature/release-0.2.0-final`):
+On a branch from `main` named `feature/release-X.Y.Z`. Changes meant for the release go into this branch as their own pull requests, each with its own review and CI.
 
-1. Confirm every pull request the changelog marks "not merged yet" has merged (for 0.2.0 those were #84 and #87, and both have).
-2. Set the version to `0.2.0` in `package.json` and in `.claude-plugin/plugin.json`. A test checks the two match. `.claude-plugin/marketplace.json` has no version of its own, so it doesn't change.
-3. In `CHANGELOG.md`, rename `## Unreleased (0.2.0)` to `## 0.2.0 (<date>)`, drop the "not merged yet" notes, and add anything else merged since.
-4. In `README.md`, make `npx honestweek` the main way to run it (keep `npx github:BryceEWatson/honestweek` as the way to run unreleased code), and add an npm version badge if you want one. The Releasing section already points here. Until 0.2.0, `test/install.test.mjs` stopped the README from advertising `npx honestweek` before it worked; the 0.2.0 release pull request turned it into a test that the README leads with `npx honestweek`. From the merge until the publish in step 2, the README on `main` says honestweek is on npm when it isn't yet, so publish soon after merging.
-5. Run `node --test`, open the pull request, and merge it once CI is green on Linux, Windows and macOS.
+1. Set the version to `X.Y.Z` in `package.json` and in `.claude-plugin/plugin.json`. A test checks the two match. `.claude-plugin/marketplace.json` has no version of its own.
+2. In `CHANGELOG.md`, rename the unreleased section to `## X.Y.Z (<date>)` and check that every merged pull request is in it.
+3. Rewrite the release notes block at the end of this file for `X.Y.Z`: what's new, in plain words, with every count true to the code. The tests pin several counts.
+4. Check the README still says how to install and run this version, and what it needs (Node and git versions).
+5. Open the pull request into `main`.
 
-## 2. Publish from a clean copy of main
+## 2. The readiness check
 
-I publish from a fresh clone, so nothing from my everyday checkout (an untracked file under `lib/`, a local edit) can end up in the package. `test/package-contents.test.mjs` would stop a publish that includes a file under `bin/` or `lib/` that git doesn't track, but it can't see an uncommitted edit to a tracked file. A clean clone covers both.
+On the release branch's head, once the last change for the release has landed:
+
+```bash
+node tools/release-check.mjs
+```
+
+It runs three checks, compared with the last release tag (pass `--since <ref>` to compare with something else):
+
+1. **The package.** `npm pack` lists only `package.json`, the README, the license, `SKILL.md`, the example config, the two plugin manifests, `bin/` and `lib/`. Anything else, or any image, fails.
+2. **It runs.** The packed tarball, installed into an empty folder, prints `--help`, serves `view --demo`, and opens Setup when there's no config. It uses an empty home folder, so it reads no real logs.
+3. **What came in since the last release**, listed for a person to judge: every commit's author and committer, and in every new file version, honestweek's own secret-shape check, key formats, email addresses, home-folder paths, the clean-room fence (the check that keeps private names out of the repository), and new images.
+
+Checks 1 and 2 must pass. For check 3, the agent confirms each listed value is a made-up one in a test or the demo, every author is the GitHub no-reply address, and every new image shows only made-up data, by looking at each one.
+
+Then:
+
+- **The privacy and security statements** in the README, `SECURITY.md` and `docs/local-page.md` still match the code, above all after a change to what honestweek reads, writes, runs or serves.
+- **The full suite** passes once, with `node --test` from the repository root, and CI is green on all five jobs.
+- **One independent review** of the release pull request runs in a fresh session.
+
+The agent records the results as a dated comment on the release pull request, plain terms first. Anything private (personal details in git history, a security gap not fixed yet) never goes in the repository or the pull request; it goes in the project's private goal record.
+
+## 3. My test of the build
+
+The agent installs the release branch as my global `honestweek` and checks the installed `lib/` and `bin/` match the release branch's head:
+
+```bash
+npm install -g github:BryceEWatson/honestweek#feature/release-X.Y.Z
+```
+
+Then it starts `honestweek view` in my Terminal panel from the folder I usually run it in, and gives me the address. I look at what changed and try it on my own week. When I'm happy, I say `ship`.
+
+## 4. Ship
+
+On my word `ship`, the agent merges the release pull request into `main`: squash merge, pinned to its head commit with `--match-head-commit`, only when all five CI checks are green on that commit and every review thread is answered and resolved. It checks the merge commit's author is the GitHub no-reply address, closes any older pull request the release already includes (a comment first, then the close), and updates my `main` checkout.
+
+From the merge until the publish, the README on `main` describes a version npm doesn't have yet, so the publish should follow soon.
+
+## 5. Publish from a clean copy of main
+
+On my word `publish`. I publish from a fresh clone, so nothing from an everyday checkout (an untracked file under `lib/`, a local edit) can end up in the package. `test/package-contents.test.mjs` would stop a publish that includes a file under `bin/` or `lib/` that git doesn't track, but it can't see an uncommitted edit to a tracked file. A clean clone covers both.
+
+The agent runs these:
 
 ```bash
 git clone https://github.com/BryceEWatson/honestweek.git honestweek-release
 cd honestweek-release
-git log -1 --oneline   # should be the release pull request's merge commit
-npm whoami             # prints your npm user name; if it says you're not logged in, run: npm login
+git log -1 --oneline   # the release pull request's merge commit
+npm whoami             # my npm user name; if it says I'm not logged in, see "Once per machine and account"
 npm publish --dry-run
 ```
 
-The dry run runs the whole test suite first (about a minute), because `package.json` has a `prepublishOnly` script, and then prints what it would upload. Check:
+The dry run runs the whole test suite first (a few minutes), because `package.json` has a `prepublishOnly` script, and then prints what it would upload. Check:
 
-- `name: honestweek` and `version: 0.2.0`;
-- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (150 files and about 0.9 MB packed for 0.2.0 on 5 October, with the `view` pages under `lib/view/assets/`; later changes move the count, so check the list rather than the number);
+- `name: honestweek` and `version: X.Y.Z`;
+- the files are `package.json`, `README.md`, `LICENSE`, `SKILL.md`, `honestweek.config.example.json`, the two files in `.claude-plugin/`, and everything under `bin/` and `lib/` (157 files and 1.0 MB packed for 0.2.0; the count moves, so check the list rather than the number);
 - nothing from `test/`, `docs/`, `tools/` or `.claude/`.
 
-Then publish for real:
+Then the agent starts the real publish in my Terminal panel:
 
 ```bash
 npm publish
 ```
 
-npm asks for a one-time code from your authenticator, or opens a browser to confirm. You can also pass the code directly: `npm publish --otp 123456`. honestweek isn't a scoped package, so it's public without `--access public`.
+It runs the suite again, then npm asks for my two-factor approval in the terminal or a browser. I approve it there. The agent never types a password or a one-time code. honestweek isn't a scoped package, so it's public without `--access public`.
 
-A version number can be published only once, ever. If something's wrong after this point, see "If something goes wrong" below.
-
-## 3. Check the published package works
+## 6. Check the published package works
 
 From an empty folder that isn't inside the repository:
 
 ```bash
-# bash, macOS, Linux
-cd "$(mktemp -d)"
+npm view honestweek version        # X.Y.Z
+npx honestweek@X.Y.Z --help        # prints the help, downloaded from npm
+npx honestweek@X.Y.Z view --demo   # opens the made-up week in a browser; Ctrl+C to stop
 ```
 
-```powershell
-# PowerShell
-New-Item -ItemType Directory "$env:TEMP\honestweek-check" | Set-Location
-```
+The registry can take a minute or two to show a new version. If `npx` still can't find the package after that, stop and look before tagging.
 
-Then:
+## 7. Tag it and write the GitHub release
+
+On my word `tag`, back in the clean clone, the agent tags the commit that was published and pushes the tag:
 
 ```bash
-npm view honestweek version      # 0.2.0
-npx honestweek@0.2.0 --help      # prints the help, downloaded from npm
-npx honestweek@0.2.0 view --demo # opens a made-up week in your browser; Ctrl+C to stop
+git tag -a vX.Y.Z -m "honestweek X.Y.Z"
+git push origin vX.Y.Z
 ```
 
-The registry can take a minute or two to show a new version. If `npx` still says it can't find the package after that, stop here and look before tagging.
-
-## 4. Tag it and write the GitHub release
-
-Back in the clean clone, tag the commit you published and push the tag:
+It copies the release notes block below into a file outside the repository, say `notes.md`, and creates the release:
 
 ```bash
-git tag -a v0.2.0 -m "honestweek 0.2.0"
-git push origin v0.2.0
+gh release create vX.Y.Z --verify-tag --title "honestweek X.Y.Z" --notes-file notes.md
 ```
 
-Copy the release notes below into a file outside the repository, say `notes.md`, and create the release:
+Publishing the release starts the release workflow, which finds `X.Y.Z` already on npm and finishes without publishing.
 
-```bash
-gh release create v0.2.0 --verify-tag --title "honestweek 0.2.0" --notes-file notes.md
-```
+## 8. Afterwards
 
-Publishing the release starts the release workflow. It finds 0.2.0 already on npm and finishes without publishing, with a notice saying so.
-
-## 5. Afterwards
-
-- Edit the v0.1.0 release notes. Its Install section still lists `npx honestweek` and `npm i -g honestweek`, which never worked for 0.1.0. Point them at 0.2.0.
-- Close issue #63 with a link to the npm page: <https://www.npmjs.com/package/honestweek>.
-- Update the repository's About text and topics on GitHub to match `package.json`'s description and keywords.
+- Close the release's tracking issue, if there is one, with a link to <https://www.npmjs.com/package/honestweek>.
+- Reinstall my global copy from npm, `npm install -g honestweek@X.Y.Z`, so my machine runs what everyone else gets.
+- Check the repository's About text and topics still match `package.json`'s description and keywords.
 - Delete the clean clone.
+- Then I share it.
 
 ## If something goes wrong
 
+- **The readiness check fails.** Fix it on the release branch and run it again. Nothing is public yet.
 - **The dry run lists a file it shouldn't.** Don't publish. `git status` in the clone shows whether it's untracked; the package-contents test names it too.
-- **The publish fails with 403.** npm wants your two-factor code: run `npm publish --otp <code>`. If it says you don't have permission, check `npm whoami`.
-- **The published version is broken.** Mark it with `npm deprecate honestweek@0.2.0 "Broken; use 0.2.1"`, fix it, and release 0.2.1 the same way. npm limits `npm unpublish` (it's only freely allowed in the first 72 hours), and an unpublished version number can never be used again, so a new version is almost always the better fix.
-- **A GitHub release went out before the npm publish.** With `NPM_TOKEN` deleted, the workflow stops with a notice and nothing breaks: publish from your terminal, then the release is correct. If a token is still set and the run failed, publish from your terminal anyway; there's no need to re-run the workflow.
+- **The publish fails with `E403 ... Two-factor authentication ... is required`.** The npm account doesn't have two-factor authentication on for writes. Turn it on (see "Once per machine and account") and publish again. Nothing was published, so the version number is still free.
+- **The publish stops asking for a one-time code (`EOTP`).** Approve it in the terminal, or run `npm publish --otp <code>` myself.
+- **The published version is broken.** Mark it with `npm deprecate honestweek@X.Y.Z "Broken; use X.Y.(Z+1)"`, fix it, and release the next patch version the same way. npm limits `npm unpublish` (it's only freely allowed in the first 72 hours), and an unpublished version number can never be used again, so a new version is almost always the better fix.
+- **A GitHub release went out before the npm publish.** With no `NPM_TOKEN` secret, the workflow stops with a notice and nothing breaks: publish from the terminal, and then the release is correct.
 
-## Readiness check, 5 October 2026
+## Records from 0.2.0
 
-### In plain terms
+0.2.0 was the first version on npm (0.1.0 has a GitHub release, but its npm publish failed and it never reached npm). Its readiness checks are recorded below. Later releases record theirs on the release pull request instead.
+
+### Readiness check, 5 October 2026
+
+#### In plain terms
 
 Before publishing 0.2.0 and sharing the repository, I checked the release branch (the branch that holds everything going into 0.2.0) the way a stranger would meet it: the package npm would ship, every file and commit for secrets and personal details, the privacy promises in the docs against the code, the docs themselves, the third-party text in the problem catalog, and the repository's setup. The package installs and runs from the packed file, and no secret or private name is in any file. The docs had gaps, mostly privacy statements broader than the code and counts that had gone stale, and those are fixed in the pull request that added this section, along with one small code fix: `preview` now refuses other host names the way `view` does. What's left needs me: the publish, tag and GitHub steps above.
 
-### Results
+#### Results
 
 | Check | Result | What was found |
 | --- | --- | --- |
@@ -131,7 +173,7 @@ Before publishing 0.2.0 and sharing the repository, I checked the release branch
 | 6. Repository hygiene | Fixed | `.gitignore` covered the config and the working files; it now also covers `harvest`'s word list, Run with Codex's answers and `npm pack` tarballs, and a test checks it against the README's list of ignored files. The largest tracked file is 303 KB (the catalog). Nothing under `.claude/` is tracked. CI runs Linux on Node 18, 20 and 22, and Windows and macOS on Node 22. The release workflow runs only when a GitHub release is published and publishes only a full release whose tag matches `package.json`, with an `NPM_TOKEN` secret set and the version not yet on npm. No repository secrets are set, so it can't publish at all right now, which is the state step 2 of "Once, before the first release" asks for. |
 | 7. GitHub-side | For me | Listed below. Nothing on GitHub was changed. |
 
-### What's left for me
+#### What's left for me
 
 With the release, in the order above:
 
@@ -142,7 +184,7 @@ With the release, in the order above:
 
 CI could also run Node 18 and 20 on Windows and macOS, which it doesn't today. Three smaller hardening follow-ups the check found are fixed in pull request 124.
 
-### Implementation detail
+#### Implementation detail
 
 - Branch and commits checked: `origin/main` at `1084129` and `origin/feature/release-0.2.0-final` at `c385754`, with Node 22.14 and npm 10.9 on Windows. Pull request 111 is the release pull request.
 - The scan used `secretShapes` from `lib/problems/classify.mjs` per line, regexes for private-key blocks and GitHub, Anthropic, OpenAI, AWS, Slack, Google and npm key formats, and `findForbidden` with `privateForbidden` from `test/helpers/clean-room.mjs`, over `git rev-list --objects` of both refs and every commit message.
@@ -150,7 +192,7 @@ CI could also run Node 18 and 20 on Windows and macOS, which it doesn't today. T
 - Tests added: `test/public-docs.test.mjs` (links and anchors, dashes in prose and `--help`, catalog counts, the Sidecars table against `.gitignore`), a host-name case in `test/preview.test.mjs`, and `test/loopback-host.test.mjs`.
 - The cache-miss coverage is `coverage.codex.status` of the `cache-miss` pattern in `lib/problems/catalog.json`, added in `4c9451b`. The 6 October measurement ran `buildWorkHistory` and `runProblems` over 29 September to 5 October, then recomputed the one Codex session's misses from its log's `token_count` records (3,647 model calls; a miss where the call before carried 20,000 tokens or more, this call sent 20,000 or more uncached, and it read back less than half the call before's context from the cache). Both found the largest at call 3,120, 220,447 tokens after a 21-minute pause, and a total of 1,110,230; the log's 4 `compacted` records fall in the same minutes as the 4 misses the check skips.
 
-### Readiness re-check, 6 October 2026
+#### Readiness re-check, 6 October 2026
 
 I ran the checks above again on the final release branch, after the security fixes (#138 to #140), the deeper demo week (#141) and the check cards' sources (#142) had merged. The package still ships only what it should and runs from the packed file, nothing secret or private came in since the first check, and the README's screenshots show only the made-up demo week. Some privacy statements in the docs had drifted from the code after the security fixes. I fixed those, along with a few small things in the code and CI listed below.
 
@@ -164,14 +206,14 @@ I ran the checks above again on the final release branch, after the security fix
 
 What's left for me is the list above, plus a ruleset on `v*` tags that blocks moving or deleting a release tag.
 
-#### Implementation detail
+##### Implementation detail
 
 - Checked: `feature/final-readiness` at the head of its pull request, which is `origin/feature/release-0.2.0-final` at `c8d62fe` plus this pass, with Node 22.14, npm 10.9 and git 2.47 on Windows.
 - The scan is the first check's, over `git rev-list --objects 1084129..HEAD` and those commits' messages, authors and committers.
 - Owner-only on new files: `writeFileSync` with `mode: 0o600` in `lib/discover.mjs`, `lib/harvest.mjs` and `writeInitFiles` in `lib/init.mjs`; `ensureGitignore` passes `newMode: null` to `atomicWriteText`. Tests: `test/output-hardening-atomic-mode.test.mjs` (POSIX only).
 - CI: the `concurrency` block in `.github/workflows/ci.yml`; tests in `test/community-docs.test.mjs`.
 
-## 0.2.0 release notes
+### 0.2.0 release notes
 
 > **honestweek 0.2.0**
 >

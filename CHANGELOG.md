@@ -2,7 +2,7 @@
 
 What changed in each version of honestweek, newest first. Numbers in parentheses are the pull requests on GitHub.
 
-## 0.2.0 (4 October 2026)
+## 0.2.0 (6 October 2026)
 
 This is the first version on npm. 0.1.0 was released on GitHub, but its npm publish failed, so `npx honestweek` has never worked before this version.
 
