@@ -7,41 +7,21 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createRedactor, createSecretsOnlyRedactor, redactWithAudit } from '../lib/redact.mjs';
+import { assertGrowsInStep, FLOOR_MS } from './helpers/grows-in-step.mjs';
 
 const full = (terms = []) => createRedactor({ redaction: { codenames: [], names: [], terms } });
 
-// Growth between a quarter and a full length input, as in test/redact-secret-fields.test.mjs:
-// time in step with length is about 4 times, time that grows with the square about 16.
-const MAX_GROWTH = 10;
-const FLOOR_MS = 50;
+// The growth check is test/helpers/grows-in-step.mjs, shared with test/redact-secret-fields.test.mjs.
 const CEILING_MS = 3000;
-function assertGrowsInStep(label, build, run) {
-  const timed = (input) => {
-    const started = performance.now();
-    run(input);
-    return performance.now() - started;
-  };
-  const quarter = build(0.25);
-  let quarterMs = Infinity;
-  for (let i = 0; i < 3; i += 1) quarterMs = Math.min(quarterMs, timed(quarter));
-  const whole = build(1);
-  let fullMs = Infinity;
-  for (let i = 0; i < 3; i += 1) {
-    fullMs = Math.min(fullMs, timed(whole));
-    if (fullMs < CEILING_MS && (fullMs < FLOOR_MS || fullMs / quarterMs < MAX_GROWTH)) break;
-  }
-  const said = `${label}: ${fullMs.toFixed(1)} ms at full length, ${quarterMs.toFixed(1)} ms at a quarter`;
-  assert.ok(fullMs < CEILING_MS, `${said}, over the ${CEILING_MS} ms limit`);
-  assert.ok(fullMs < FLOOR_MS || fullMs / quarterMs < MAX_GROWTH, `${said}, ${(fullMs / quarterMs).toFixed(1)} times as long`);
-}
+const grows = (label, build, run) => assertGrowsInStep(label, build, run, { ceilingMs: CEILING_MS });
 
 // --- 4. speed ---------------------------------------------------------------------------
 
 test('a long run of digits and commas is scanned in linear time, by the redactor and the audit', () => {
   const build = (scale) => '1,'.repeat(Math.round(100000 * scale));
   const r = full();
-  assertGrowsInStep('redact', build, (s) => r.redact(s));
-  assertGrowsInStep('redactWithAudit', build, (s) => redactWithAudit(s, {}));
+  grows('redact', build, (s) => r.redact(s));
+  grows('redactWithAudit', build, (s) => redactWithAudit(s, {}));
   // Amounts are still hidden.
   assert.equal(r.redact('it cost 1,200 dollars'), 'it cost [redacted:account]');
   assert.equal(r.redact('paid 1,250.50 USD today'), 'paid [redacted:account] today');
@@ -51,8 +31,8 @@ test('a long run of URL-encoded slashes with no user folder after it is scanned 
   for (const sep of ['%2F', '%5C']) {
     const build = (scale) => `${sep.repeat(Math.round(50000 * scale))}Users`;
     const r = full();
-    assertGrowsInStep(`redact ${sep}`, build, (s) => r.redact(s));
-    assertGrowsInStep(`redactWithAudit ${sep}`, build, (s) => redactWithAudit(s, {}));
+    grows(`redact ${sep}`, build, (s) => r.redact(s));
+    grows(`redactWithAudit ${sep}`, build, (s) => redactWithAudit(s, {}));
   }
   // A path after a run of separators is still hidden whole.
   assert.equal(full().redact('see %2F%2F%2FUsers%2Fjdoe%2Frepo now'), 'see [redacted:path] now');
@@ -65,7 +45,7 @@ test('the term fast path stays on when the text holds a dotted capital I, a long
   for (const c of [0x130, 0x17f, 0x212a]) {
     const odd = String.fromCharCode(c);
     const build = (scale) => body.slice(0, Math.round(body.length * scale)) + odd;
-    assertGrowsInStep(`U+${c.toString(16)}`, build, (s) => r.redact(s));
+    grows(`U+${c.toString(16)}`, build, (s) => r.redact(s));
     // Comparable with the plain text, not many times slower.
     const t0 = performance.now(); r.redact(body); const plain = performance.now() - t0;
     const t1 = performance.now(); r.redact(body + odd); const withOdd = performance.now() - t1;
