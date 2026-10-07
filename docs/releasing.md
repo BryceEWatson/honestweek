@@ -107,7 +107,19 @@ It runs the suite again, then npm asks for my two-factor approval in the termina
 
 ## 6. Check the published package works
 
-From an empty folder that isn't inside the repository:
+From an empty folder that isn't inside the repository, because `npx` inside the clean clone could run the clone's own copy instead of the one on npm:
+
+```bash
+# bash, macOS, Linux
+cd "$(mktemp -d)"
+```
+
+```powershell
+# PowerShell
+New-Item -ItemType Directory "$env:TEMP\honestweek-check-X.Y.Z" | Set-Location
+```
+
+Then:
 
 ```bash
 npm view honestweek version        # X.Y.Z
@@ -126,10 +138,10 @@ git tag -a vX.Y.Z -m "honestweek X.Y.Z"
 git push origin vX.Y.Z
 ```
 
-It copies the release notes block below into a file outside the repository, say `notes.md`, and creates the release:
+It copies the release notes block below into a file outside the repository, say `../notes.md` next to the clean clone, and creates the release:
 
 ```bash
-gh release create vX.Y.Z --verify-tag --title "honestweek X.Y.Z" --notes-file notes.md
+gh release create vX.Y.Z --verify-tag --title "honestweek X.Y.Z" --notes-file ../notes.md
 ```
 
 Publishing the release starts the release workflow, which finds `X.Y.Z` already on npm and finishes without publishing.
@@ -139,7 +151,7 @@ Publishing the release starts the release workflow, which finds `X.Y.Z` already 
 - Close the release's tracking issue, if there is one, with a link to <https://www.npmjs.com/package/honestweek>.
 - Reinstall my global copy from npm, `npm install -g honestweek@X.Y.Z`, so my machine runs what everyone else gets.
 - Check the repository's About text and topics still match `package.json`'s description and keywords.
-- Delete the clean clone.
+- Delete the clean clone, `notes.md` next to it, and the check folder from step 6.
 - Then I share it.
 
 ## If something goes wrong

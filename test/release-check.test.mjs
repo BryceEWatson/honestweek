@@ -19,7 +19,7 @@ test('the packed file list allows only what a release ships, and no image', () =
 test('the scan lists what came in since the base, and leaves placeholders out', (t) => {
   const repo = makeTempDir('hw-release-scan-');
   t.after(() => removeTempDir(repo));
-  const git = (...args) => execFileSync('git', ['-C', repo, '-c', 'user.name=You', '-c', 'user.email=you@example.com', ...args], { encoding: 'utf8' });
+  const git = (...args) => execFileSync('git', ['-C', repo, '-c', 'user.name=You', '-c', 'user.email=you@example.com', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', '-c', 'core.hooksPath=.git/no-hooks', ...args], { encoding: 'utf8' });
   git('init', '-q');
   writeFileSync(join(repo, 'README.md'), 'A made-up project.\n');
   git('add', '-A');
