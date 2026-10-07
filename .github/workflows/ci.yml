@@ -44,8 +44,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       # Zero runtime dependencies: there is nothing to install.
-      # Node runs one test file fewer at a time than the runner has cores: 3 on GitHub's 4-core
-      # Windows runner. Most of the Windows job's time goes to starting git and node processes, so
-      # it runs 4 there. 6 pushed the timing tests past their limits (issue 143).
+      # Windows keeps Node's default number of test files at once: 4 and 6 both pushed the redactor
+      # speed test past its 2-second limit there (issue 143).
       - name: Run the test suite
-        run: node --test ${{ runner.os == 'Windows' && '--test-concurrency=4' || '' }}
+        run: node --test
