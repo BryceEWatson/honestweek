@@ -9,10 +9,11 @@
 // so a run can be slowed by whatever else is running at that moment. So each full run is timed
 // between two quarter runs and compared with the faster of them, and the check uses the round
 // with the lowest ratio. A busy stretch that slows a full run slows the quarter runs on either
-// side of it too, so it shouldn't make the ratio look like a slowdown (it can, if the load slows
-// long inputs more than short ones; three CI runs in a row passed on 6 October); and one slow quarter run
-// can't hide a real slowdown, because the faster neighbour is the one compared. It stops as soon
-// as the check passes, after at most ROUNDS rounds.
+// side of it too, so it shouldn't make the ratio look like a slowdown. It still can if the load
+// slows long inputs more than short ones; on 6 October the Linux jobs, where the old check kept
+// failing, passed three CI runs in a row with this one. And one slow quarter run can't hide a
+// real slowdown, because the faster neighbour is the one compared. It stops as soon as the
+// check passes, after at most ROUNDS rounds.
 //
 // - MAX_GROWTH: 12 sits between 4 and 16. On 6 October 2026 eight CI runs on GitHub's Linux
 //   runners (Node 18 and 20) failed the old limit of 10, measuring 10.0 to 12.2, when every
