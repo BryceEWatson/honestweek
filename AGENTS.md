@@ -74,4 +74,7 @@ flags, and line references belong at the bottom under an "Implementation detail"
 - Branch from `main` as `feature/<description>`.
 - One pull request per issue, squash-merged.
 - Never commit secrets, debug code, or scratch files.
-- Do not publish a release, push a tag, or run `npm publish`. Those are the operator's calls.
+- Don't merge a release, run `npm publish`, push a tag or create a GitHub release on your own. Each
+  waits for the operator's word (`ship`, `publish`, `tag`) and follows
+  [docs/releasing.md](docs/releasing.md). The operator approves npm's two-factor prompt; never type
+  a password or a one-time code.
