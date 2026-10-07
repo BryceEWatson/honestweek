@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { runInit } from '../lib/init.mjs';
@@ -116,18 +116,26 @@ test('init keeps a display-only worktree the list does not show, though the list
   }
 });
 
-test('init says when the old config cannot be read, so nothing from it is kept', async () => {
+test('init stops before running git anywhere when the config there cannot be read (issue 171)', async () => {
   const root = makeTempDir('hw-rewrite-broken-');
   try {
+    // The broken config marked the sibling repository display-only; init can't know that.
     const project = repo(join(root, 'project'));
-    writeFileSync(join(project, 'honestweek.config.json'), '{ "redaction": { "names": ["Dana Doe"], } }');
-    const left = terminal();
-    assert.equal(await runInit({ cwd: project, argv: ['--yes'], io: left, inferEmail: () => ME }), 0, left.stderr);
-    assert.doesNotMatch(left.stdout, /can't be read/, 'a run that leaves the config alone says nothing about keeping');
-    const io = terminal();
-    assert.equal(await runInit({ cwd: project, argv: ['--yes', '--force'], io, inferEmail: () => ME }), 0, io.stderr);
-    assert.match(io.stdout, /honestweek\.config\.json is there but can't be read as JSON, so a rewrite keeps nothing from it: no private words and no display-only folders\.\n/);
-    assert.ok(!io.stdout.includes('Dana Doe'));
+    repo(join(root, 'client'));
+    const broken = '{ "repos": [{ "path": "../client", "role": "display" }], "redaction": { "names": ["Dana Doe"], } }';
+    const file = join(project, 'honestweek.config.json');
+    writeFileSync(file, broken);
+    for (const argv of [['--yes'], ['--yes', '--force'], []]) {
+      let asked = false;
+      const io = terminal(() => 'y');
+      assert.equal(await runInit({ cwd: project, argv, io, inferEmail: () => ((asked = true), ME) }), 1, argv.join(' '));
+      assert.match(io.stderr, /^honestweek\.config\.json is here but can't be read \(not valid JSON\), so init can't tell which folders you marked display-only, and it runs git nowhere until it can\. Fix the file, or move it away to start fresh, then run init again\. Nothing was written\.\n$/);
+      assert.ok(!asked, 'git was never asked for the email');
+      assert.doesNotMatch(io.stdout, /Looking for git repositories/, 'the search never started');
+      assert.equal(readFileSync(file, 'utf8'), broken, 'nothing written');
+      assert.ok(!existsSync(join(project, '.gitignore')) && !existsSync(join(project, 'honestweek.config.example.json')), 'no other file written');
+      assert.ok(!io.stderr.includes('Dana Doe') && !io.stdout.includes('Dana Doe'));
+    }
   } finally {
     removeTempDir(root);
   }
@@ -147,6 +155,43 @@ test('init counts kept neverPublicTerms as private words and ignores the config,
     assert.match(io.stdout, /Your config keeps 1 word out of public versions only, so names and client words in your logs, that one included, show as written in your own pages/, 'it still warns that nothing hides words in its own pages');
     assert.match(readFileSync(join(project, '.gitignore'), 'utf8'), /^honestweek\.config\.json$/m, 'a config holding a never-public word stays out of git');
     assert.ok(!io.stdout.includes('Orchard'));
+  } finally {
+    removeTempDir(root);
+  }
+});
+
+test('init also stops when the config is JSON but not a config, is a folder, or is a link to nothing (issue 171)', async (t) => {
+  const root = makeTempDir('hw-rewrite-shapes-');
+  try {
+    const cases = [
+      ['null', 'not a config object'],
+      ['[{"path":"../client","role":"display"}]', 'not a config object'],
+      ['{"repos":{"0":{"path":"../client","role":"display"}}}', 'its repos is not a list'],
+    ];
+    let n = 0;
+    const check = async (project, why) => {
+      let asked = false;
+      const io = terminal();
+      assert.equal(await runInit({ cwd: project, argv: ['--yes', '--force'], io, inferEmail: () => ((asked = true), ME) }), 1, why);
+      assert.ok(io.stderr.startsWith(`honestweek.config.json is here but can't be read (${why}), so init can't tell`), io.stderr);
+      assert.ok(!asked, `${why}: git was never asked`);
+    };
+    for (const [text, why] of cases) {
+      const project = repo(join(root, `p${n++}`, 'project'));
+      writeFileSync(join(project, 'honestweek.config.json'), text);
+      await check(project, why);
+    }
+    const folder = repo(join(root, 'folder', 'project'));
+    mkdirSync(join(folder, 'honestweek.config.json'));
+    await check(folder, "it's a folder");
+    // A link to a missing file is still a config that's there: on a machine that can make one.
+    const dangling = repo(join(root, 'dangling', 'project'));
+    try {
+      symlinkSync(join(dangling, 'gone.json'), join(dangling, 'honestweek.config.json'), 'file');
+    } catch {
+      return t.diagnostic('this machine cannot make a file link, so the dangling-link case was skipped');
+    }
+    await check(dangling, 'it links to a file that is missing');
   } finally {
     removeTempDir(root);
   }
