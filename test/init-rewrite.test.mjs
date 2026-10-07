@@ -37,15 +37,16 @@ test('init --yes --force keeps a display-only folder it does not list, and the p
     repo(join(root, 'code', 'other'));
     mkdirSync(join(root, 'far', 'client-x'), { recursive: true });
     const far = { path: '../../far/client-x', label: 'client-x', role: 'display' };
-    writeConfig(project, { repos: [far], redaction: { names: ['Dana Doe'], terms: ['Acme'], codenames: ['Bluebird'] } });
+    writeConfig(project, { repos: [far], redaction: { names: ['Dana Doe', ' '], terms: ['Acme'], codenames: ['Bluebird'] }, privacy: { publicRenditions: { neverPublicTerms: ['Orchard'] } } });
     const io = terminal();
     assert.equal(await runInit({ cwd: project, argv: ['--yes', '--force'], io, inferEmail: () => ME }), 0, io.stderr);
     const written = configOf(project);
     assert.deepEqual(written.repos.find((r) => r.role === 'display'), far, 'kept as written');
-    assert.deepEqual(written.redaction, { codenames: ['Bluebird'], names: ['Dana Doe'], terms: ['Acme'] });
-    assert.match(io.stdout, /Keeping 1 display-only folder from your old config, since it isn't next to this folder\.\n/);
-    assert.match(io.stdout, /Keeping the 3 private words your old config hides\.\n/);
-    for (const secret of ['Dana Doe', 'Acme', 'Bluebird', 'client-x']) assert.ok(!io.stdout.includes(secret) && !io.stderr.includes(secret), `${secret} is never printed`);
+    assert.deepEqual(written.redaction, { codenames: ['Bluebird'], names: ['Dana Doe'], terms: ['Acme'] }, 'a blank entry hides nothing, so it is not kept');
+    assert.deepEqual(written.privacy.publicRenditions.neverPublicTerms, ['Orchard']);
+    assert.match(io.stdout, /Keeping 1 display-only folder from your old config that this search didn't list\.\n/);
+    assert.match(io.stdout, /Keeping the 4 private words your old config hides\.\n/);
+    for (const secret of ['Dana Doe', 'Acme', 'Bluebird', 'Orchard', 'client-x']) assert.ok(!io.stdout.includes(secret) && !io.stderr.includes(secret), `${secret} is never printed`);
   } finally {
     removeTempDir(root);
   }
@@ -57,7 +58,7 @@ test('init keeps the display-only folder inside a repository the person drops, a
     const project = repo(join(root, 'project'));
     const mono = repo(join(root, 'mono'));
     mkdirSync(join(mono, 'private'));
-    writeConfig(project, { repos: [{ path: project, label: 'project', role: 'featured' }, { path: '../mono/private', label: 'private', role: 'display' }], redaction: { names: ['Dana Doe'], terms: [], codenames: [] } });
+    writeConfig(project, { repos: [{ path: project, label: 'project', role: 'featured' }, { path: '../mono/private', label: 'private', role: 'display' }], redaction: { names: ['Dana Doe'], terms: [], codenames: ['Bluebird'] } });
     // The list is project, then mono; dropping mono leaves the display-only folder inside it unread.
     const edits = ['drop 2'];
     const io = terminal((q) => (q.startsWith(EDIT) ? edits.shift() ?? '' : q.startsWith("People's names") ? 'Sam Lee' : /Write .* now\?/.test(q) ? 'y' : ''));
@@ -65,8 +66,9 @@ test('init keeps the display-only folder inside a repository the person drops, a
     const written = configOf(project);
     assert.deepEqual(written.repos.map((r) => [r.label, r.role]), [['project', 'featured'], ['private', 'display']]);
     assert.deepEqual(written.redaction.names, ['Dana Doe', 'Sam Lee']);
-    assert.match(io.stdout, /Keeping 1 display-only folder from your old config/);
-    assert.match(io.stdout, /Your old config already hides 1 private word\. They stay; add any others below\./);
+    assert.deepEqual(written.redaction.codenames, ['Bluebird']);
+    assert.match(io.stdout, /Keeping 1 display-only folder from your old config that this search didn't list\.\n/);
+    assert.match(io.stdout, /Your old config already hides 2 private words\. They stay; add any others below\./);
   } finally {
     removeTempDir(root);
   }
@@ -89,6 +91,40 @@ test('failing-path partner: a display-only repository the list shows follows the
     const first = terminal();
     assert.equal(await runInit({ cwd: fresh, argv: ['--yes'], io: first, inferEmail: () => ME }), 0, first.stderr);
     assert.doesNotMatch(first.stdout, /Keeping|old config/);
+  } finally {
+    removeTempDir(root);
+  }
+});
+
+test('init keeps a display-only worktree the list does not show, though the list shows its repository', async () => {
+  const root = makeTempDir('hw-rewrite-wt-');
+  try {
+    const project = repo(join(root, 'code', 'project'));
+    const client = repo(join(root, 'code', 'client'));
+    const tree = join(root, 'far', 'client-wt');
+    git(client, ['worktree', 'add', '-q', '--detach', tree]);
+    const wt = { path: tree, label: 'client-wt', role: 'display' };
+    writeConfig(project, { repos: [{ path: client, label: 'client', role: 'display' }, wt] });
+    const io = terminal();
+    assert.equal(await runInit({ cwd: project, argv: ['--yes', '--force'], io, inferEmail: () => ME }), 0, io.stderr);
+    const written = configOf(project);
+    assert.deepEqual(written.repos.find((r) => r.label === 'client-wt'), wt, 'kept as written');
+    assert.equal(written.repos.find((r) => r.label === 'client').role, 'display');
+    assert.match(io.stdout, /Keeping 1 display-only folder from your old config/);
+  } finally {
+    removeTempDir(root);
+  }
+});
+
+test('init says when the old config cannot be read, so nothing from it is kept', async () => {
+  const root = makeTempDir('hw-rewrite-broken-');
+  try {
+    const project = repo(join(root, 'project'));
+    writeFileSync(join(project, 'honestweek.config.json'), '{ "redaction": { "names": ["Dana Doe"], } }');
+    const io = terminal();
+    assert.equal(await runInit({ cwd: project, argv: ['--yes', '--force'], io, inferEmail: () => ME }), 0, io.stderr);
+    assert.match(io.stdout, /honestweek\.config\.json is there but can't be read as JSON, so nothing from it is kept: no private words and no display-only folders\.\n/);
+    assert.ok(!io.stdout.includes('Dana Doe'));
   } finally {
     removeTempDir(root);
   }
