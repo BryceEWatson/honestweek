@@ -37,15 +37,15 @@ test('init --yes --force keeps a display-only folder it does not list, and the p
     repo(join(root, 'code', 'other'));
     mkdirSync(join(root, 'far', 'client-x'), { recursive: true });
     const far = { path: '../../far/client-x', label: 'client-x', role: 'display' };
-    writeConfig(project, { repos: [far], redaction: { names: ['Dana Doe', ' '], terms: ['Acme'], codenames: ['Bluebird'] }, privacy: { publicRenditions: { neverPublicTerms: ['Orchard'] } } });
+    writeConfig(project, { repos: [far], redaction: { names: ['Dana Doe', ' '], terms: ['Acme', 'Acme'], codenames: ['Bluebird'] }, privacy: { publicRenditions: { neverPublicTerms: ['Orchard'] } } });
     const io = terminal();
     assert.equal(await runInit({ cwd: project, argv: ['--yes', '--force'], io, inferEmail: () => ME }), 0, io.stderr);
     const written = configOf(project);
     assert.deepEqual(written.repos.find((r) => r.role === 'display'), far, 'kept as written');
-    assert.deepEqual(written.redaction, { codenames: ['Bluebird'], names: ['Dana Doe'], terms: ['Acme'] }, 'a blank entry hides nothing, so it is not kept');
+    assert.deepEqual(written.redaction, { codenames: ['Bluebird'], names: ['Dana Doe'], terms: ['Acme'] }, 'a blank entry hides nothing and a repeat adds nothing, so neither is kept');
     assert.deepEqual(written.privacy.publicRenditions.neverPublicTerms, ['Orchard']);
     assert.match(io.stdout, /Keeping 1 display-only folder from your old config that this search didn't list\.\n/);
-    assert.match(io.stdout, /Keeping the 4 private words your old config hides\.\n/);
+    assert.match(io.stdout, /Keeping the 4 private words your old config lists\.\n/);
     for (const secret of ['Dana Doe', 'Acme', 'Bluebird', 'Orchard', 'client-x']) assert.ok(!io.stdout.includes(secret) && !io.stderr.includes(secret), `${secret} is never printed`);
   } finally {
     removeTempDir(root);
@@ -68,7 +68,7 @@ test('init keeps the display-only folder inside a repository the person drops, a
     assert.deepEqual(written.redaction.names, ['Dana Doe', 'Sam Lee']);
     assert.deepEqual(written.redaction.codenames, ['Bluebird']);
     assert.match(io.stdout, /Keeping 1 display-only folder from your old config that this search didn't list\.\n/);
-    assert.match(io.stdout, /Your old config already hides 2 private words\. They stay; add any others below\./);
+    assert.match(io.stdout, /Your old config already lists 2 private words\. They stay; add any others below\./);
   } finally {
     removeTempDir(root);
   }
@@ -128,6 +128,25 @@ test('init says when the old config cannot be read, so nothing from it is kept',
     assert.equal(await runInit({ cwd: project, argv: ['--yes', '--force'], io, inferEmail: () => ME }), 0, io.stderr);
     assert.match(io.stdout, /honestweek\.config\.json is there but can't be read as JSON, so a rewrite keeps nothing from it: no private words and no display-only folders\.\n/);
     assert.ok(!io.stdout.includes('Dana Doe'));
+  } finally {
+    removeTempDir(root);
+  }
+});
+
+test('init counts kept neverPublicTerms as private words and ignores the config, but still warns they show in its own pages', async () => {
+  const root = makeTempDir('hw-rewrite-never-');
+  try {
+    const project = repo(join(root, 'project'));
+    writeConfig(project, { repos: [], privacy: { publicRenditions: { neverPublicTerms: ['Orchard'] } } });
+    const io = terminal((q) => (/Write .* now\?/.test(q) ? 'y' : ''));
+    assert.equal(await runInit({ cwd: project, io, inferEmail: () => ME }), 0, io.stderr);
+    assert.deepEqual(configOf(project).privacy.publicRenditions.neverPublicTerms, ['Orchard']);
+    assert.match(io.stdout, /Your old config already lists 1 private word\./);
+    assert.match(io.stdout, /Private words: 0 names, 1 client or project word\./);
+    assert.doesNotMatch(io.stdout, /No private words are set up/, 'it does not say none are set up after counting one');
+    assert.match(io.stdout, /Your config keeps 1 word out of public versions only, so names and client words in your logs, that one included, show as written in your own pages/, 'it still warns that nothing hides words in its own pages');
+    assert.match(readFileSync(join(project, '.gitignore'), 'utf8'), /^honestweek\.config\.json$/m, 'a config holding a never-public word stays out of git');
+    assert.ok(!io.stdout.includes('Orchard'));
   } finally {
     removeTempDir(root);
   }
