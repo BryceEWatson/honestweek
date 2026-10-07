@@ -222,3 +222,20 @@ test('with two repositories holding display-only folders, each offer shows the r
     removeTempDir(root);
   }
 });
+
+test('init stops asking for the email after three answers that are not addresses, and Enter skips at once (issue 163)', async () => {
+  const root = makeTempDir('hw-init-email-skip-');
+  try {
+    for (const [name, replies, asks] of [['three', ['a', 'b', 'c', 'd'], 3], ['enter', [''], 1]]) {
+      const project = repo(join(root, name, 'project'));
+      let asked = 0;
+      const io = terminal((q) => (q === EMAIL_QUESTION ? replies[asked++] : /Write .* now\?/.test(q) ? 'y' : ''));
+      assert.equal(await runInit({ cwd: project, io, inferEmail: () => null }), 0, io.stderr);
+      assert.equal(asked, asks, name);
+      assert.match(io.stderr, /could not infer your git user\.email/, name);
+      assert.deepEqual(configOf(project).identity.authorEmails, [], name);
+    }
+  } finally {
+    removeTempDir(root);
+  }
+});
