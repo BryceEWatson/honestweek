@@ -165,7 +165,7 @@ Publishing the release starts the release workflow, which finds `X.Y.Z` already 
 
 ## Records from 0.2.0
 
-0.2.0 was the first version on npm (0.1.0 has a GitHub release, but its npm publish failed and it never reached npm). Its readiness checks are recorded below. Later releases record theirs on the release pull request instead.
+0.2.0 was the first version on npm (0.1.0 has a GitHub release, but its npm publish failed and it never reached npm). npm also lists a `0.0.0-stage` version from two minutes before it: a two-file placeholder npm itself creates for staged publishing, with no code in it. `latest` points at 0.2.0. Its readiness checks are recorded below. Later releases record theirs on the release pull request instead.
 
 ### Readiness check, 5 October 2026
 
