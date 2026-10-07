@@ -160,6 +160,9 @@ const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 /** Placeholder and no-reply addresses, which the repository uses on purpose. */
 const placeholderEmail = (e) => /@(?:[\w-]+\.)*example\.(?:com|org|net)$|@users\.noreply\.github\.com$|^noreply@(?:github|anthropic)\.com$|\.(?:test|invalid|localhost|example)$/i.test(e);
 const HOME_PATH = /(?:[A-Za-z]:[\\/]+(?:Users|Documents and Settings)[\\/]+|\/Users\/|\/home\/)([^\\/\s"'`<>:;,)]+)/g;
+/** Lines are read in pieces this long, each overlapping the one before by LINE_OVERLAP. */
+const LINE_PIECE = 20_000;
+const LINE_OVERLAP = 2_000;
 
 /**
  * Step 3: what came in since `since`, for a person to judge. Returns { commits, blobs, images,
@@ -174,6 +177,16 @@ export function scanSince({ repo = ROOT, since, head = 'HEAD', owner = readOwner
     const i = l.indexOf(' ');
     return i < 0 ? [l, null] : [l.slice(0, i), l.slice(i + 1)];
   });
+  // A file copied or renamed with its content unchanged brings no new object, so rev-list
+  // misses its new path. The diff between the two ends names every path added or changed.
+  const seen = new Set(objects.map(([sha, path]) => `${sha} ${path}`));
+  const raw = git(['diff', '--raw', '--no-renames', '--no-abbrev', '-z', since, head]).split('\0');
+  for (let i = 0; i + 1 < raw.length; i += 2) {
+    const [, mode, sha, status] = raw[i].match(/^:\d+ (\d+) [0-9a-f]+ ([0-9a-f]+) (\w)/) ?? [];
+    if (!sha || status === 'D' || mode === '160000' || seen.has(`${sha} ${raw[i + 1]}`)) continue;
+    seen.add(`${sha} ${raw[i + 1]}`);
+    objects.push([sha, raw[i + 1]]);
+  }
   const commits = git(['rev-list', range]).split('\n').filter(Boolean);
   const kinds = objects.length ? git(['cat-file', '--batch-check'], `${objects.map(([sha]) => sha).join('\n')}\n`).toString('utf8').trim().split('\n') : [];
   const forbidden = privateForbidden(owner);
@@ -181,16 +194,25 @@ export function scanSince({ repo = ROOT, since, head = 'HEAD', owner = readOwner
   const note = (map, key, where) => map.set(key, [...(map.get(key) ?? []), where]);
   const scanText = (text, where) => {
     text.split(/\r?\n/).forEach((line, i) => {
-      if (line.length > 20_000) return;
       const at = `${where}:${i + 1}`;
-      const shapes = secretShapes(line);
-      if (Object.keys(shapes).length) out.secretShapes.push(`${at} ${Object.keys(shapes).join(', ')}`);
-      for (const [name, re] of KEY_FORMATS) for (const m of line.matchAll(re)) out.keyFormats.push(`${at} ${name} ${m[0].slice(0, 10)}...`);
-      for (const [e] of line.matchAll(EMAIL)) if (!placeholderEmail(e)) note(out.emails, e, at);
-      for (const m of line.matchAll(HOME_PATH)) note(out.homes, m[1], at);
+      // A long line (minified code, generated JSON) is read in overlapping pieces, so the
+      // checks stay fast and a value across a piece boundary is still whole in one of them.
+      const found = { shapes: new Set(), keys: new Set(), emails: new Set(), homes: new Set() };
+      for (let k = 0; k === 0 || k < line.length; k += LINE_PIECE - LINE_OVERLAP) {
+        const piece = line.slice(k, k + LINE_PIECE);
+        for (const kind of Object.keys(secretShapes(piece))) found.shapes.add(kind);
+        for (const [name, re] of KEY_FORMATS) for (const m of piece.matchAll(re)) found.keys.add(`${name} ${m[0].slice(0, 10)}...`);
+        for (const [e] of piece.matchAll(EMAIL)) if (!placeholderEmail(e)) found.emails.add(e);
+        for (const m of piece.matchAll(HOME_PATH)) found.homes.add(m[1]);
+      }
+      if (found.shapes.size) out.secretShapes.push(`${at} ${[...found.shapes].join(', ')}`);
+      for (const k of found.keys) out.keyFormats.push(`${at} ${k}`);
+      for (const e of found.emails) note(out.emails, e, at);
+      for (const u of found.homes) note(out.homes, u, at);
     });
     for (const { line, kind } of findForbidden(stripOwnAddress(text, owner.handle), forbidden)) out.cleanRoom.push(`${where}:${line} ${kind}`);
   };
+  const scanned = new Set();
   kinds.forEach((row, i) => {
     const [sha, type] = row.split(' ');
     const path = objects[i][1];
@@ -198,6 +220,9 @@ export function scanSince({ repo = ROOT, since, head = 'HEAD', owner = readOwner
     if (type !== 'blob') return;
     out.blobs += 1;
     if (IMAGE.test(path ?? '')) return void out.images.push(path);
+    // The same content under a second path needs its path checked (above), not a second read.
+    if (scanned.has(sha)) return;
+    scanned.add(sha);
     const buf = git(['cat-file', 'blob', sha], '');
     if (buf.includes(0)) return void out.images.push(`${path} (binary)`);
     scanText(buf.toString('utf8'), `${path}@${sha.slice(0, 7)}`);

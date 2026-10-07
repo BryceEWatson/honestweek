@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ROOT, scanSince, smoke, unexpectedFiles } from '../tools/release-check.mjs';
@@ -14,6 +14,44 @@ test('the packed file list allows only what a release ships, and no image', () =
   assert.deepEqual(unexpectedFiles(shipped), []);
   const stray = ['test/redact.test.mjs', 'docs/releasing.md', 'tools/release-check.mjs', '.github/workflows/ci.yml', '.claude/notes.md', 'honestweek.config.json', 'lib/view/assets/shot.png', 'honestweek-0.2.0.tgz'];
   assert.deepEqual(unexpectedFiles([...shipped, ...stray]), stray);
+});
+
+/** A throwaway repository with one commit, and a git that ignores signing, hooks and line-ending settings. */
+function scratchRepo(t) {
+  const repo = makeTempDir('hw-release-scan-');
+  t.after(() => removeTempDir(repo));
+  const git = (...args) => execFileSync('git', ['-C', repo, '-c', 'user.name=You', '-c', 'user.email=you@example.com', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', '-c', 'core.hooksPath=.git/no-hooks', ...args], { encoding: 'utf8' });
+  git('init', '-q');
+  writeFileSync(join(repo, 'README.md'), 'A made-up project.\n');
+  writeFileSync(join(repo, 'shot.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 1, 2]));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'Start');
+  return { repo, git, base: git('rev-parse', 'HEAD').trim() };
+}
+
+test('a file copied or renamed with its content unchanged is still checked under its new path', (t) => {
+  const { repo, git, base } = scratchRepo(t);
+  mkdirSync(join(repo, 'img'));
+  git('mv', 'shot.png', join('img', 'renamed.png'));
+  copyFileSync(join(repo, 'README.md'), join(repo, 'zanzibarquux-notes.md'));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'Move the screenshot and copy the readme');
+  const s = scanSince({ repo, since: base, owner: { tokens: new Set(['zanzibarquux']), handle: '' } });
+  assert.deepEqual(s.images, ['img/renamed.png'], 'the renamed image is listed to look at');
+  assert.ok(s.cleanRoom.some((c) => c.startsWith('path zanzibarquux-notes.md')), 'the new path goes through the clean-room fence');
+});
+
+test('a value deep in a very long line is found, once, even across a piece boundary', (t) => {
+  const { repo, git, base } = scratchRepo(t);
+  const token = `ghp_${'A1b2C3d4'.repeat(5)}`;
+  // The pieces are 20,000 characters, each overlapping the last by 2,000: 19,000 is in both.
+  writeFileSync(join(repo, 'bundle.min.js'), `${'x'.repeat(19_000)} ${token} ${'y'.repeat(11_000)} dev@company.io\n`);
+  git('add', '-A');
+  git('commit', '-q', '-m', 'Add a minified bundle');
+  const s = scanSince({ repo, since: base, owner: { tokens: new Set(), handle: '' } });
+  assert.equal(s.keyFormats.filter((k) => k.startsWith('bundle.min.js@')).length, 1);
+  assert.deepEqual([...s.emails.keys()], ['dev@company.io'], 'an address past the first piece is found');
+  assert.equal(s.emails.get('dev@company.io').length, 1);
 });
 
 test('the scan lists what came in since the base, and leaves placeholders out', (t) => {
