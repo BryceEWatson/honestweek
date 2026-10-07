@@ -106,6 +106,23 @@ test('Save ignores a config with no private words too, since it holds an email a
   assert.ok(!tracked.json.notes.some((n) => n.includes('tracked by git')), JSON.stringify(tracked.json.notes));
 });
 
+test('Save with nothing to change still adds the .gitignore line Preview promised, and says so', async (t) => {
+  const work = setup(t);
+  const gi = join(work, '.gitignore');
+  const s = createSettings({ cwd: work });
+  const i = s.info();
+  const same = JSON.stringify({ version: i.version, history: i.history, repos: i.repos.map((r) => ({ index: r.index, role: r.role })), authorEmails: i.authorEmails, names: i.names, terms: i.terms, goalsFile: i.goalsFile });
+  assert.ok(answer(await s.preview(same)).json.notes.some((n) => n.startsWith('Saving also adds')));
+  const r = answer(await s.save(same));
+  assert.equal(r.json.saved, false, JSON.stringify(r.json));
+  assert.equal(r.json.message, `Nothing in the config changed. ${CONFIG} is now in .gitignore.`);
+  assert.equal(readFileSync(gi, 'utf8'), `${CONFIG}\n`);
+  // Already ignored: nothing to add, and the answer says only that nothing changed.
+  const again = answer(await createSettings({ cwd: work }).save(same));
+  assert.equal(again.json.message, 'Nothing changed.');
+  assert.equal(readFileSync(gi, 'utf8'), `${CONFIG}\n`);
+});
+
 test('failing-path partner: a config already ignored leaves .gitignore byte for byte', async (t) => {
   const work = setup(t);
   const gi = join(work, '.gitignore');
