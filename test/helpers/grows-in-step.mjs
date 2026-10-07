@@ -25,8 +25,8 @@
 // - The ceiling (each caller's own): the growth check can't see a change that stays linear but
 //   costs more per character, so the fastest full run must also finish within it.
 // - Warm-up runs (each caller's own, 2 unless it says): quarter runs before the first round, so
-//   it doesn't time compilation. A caller that has already run `run` on every input it times can
-//   pass 0 and skip them; a cold first round only costs another round.
+//   it doesn't time compilation. A caller that has already run `run` on a shorter copy of the same
+//   input can pass 0 and skip them; a cold first round only costs another round.
 import assert from 'node:assert/strict';
 
 export const MAX_GROWTH = 12;
