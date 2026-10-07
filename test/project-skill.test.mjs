@@ -16,10 +16,10 @@ const rootSkill = readFileSync(join(root, 'SKILL.md'), 'utf8');
 const field = (text, name) => new RegExp(`^${name}: (.*)$`, 'm').exec(text)?.[1];
 const DIR = '${CLAUDE_SKILL_DIR}';
 
-test('the project skill names honestweek, only a person can start it, and its description matches the root skill', () => {
+test('the project skill names honestweek, starts the way the root skill does, and its description matches it', () => {
   assert.ok(project.startsWith('---\n'));
   assert.equal(field(project, 'name'), 'honestweek');
-  assert.equal(field(project, 'disable-model-invocation'), 'true');
+  assert.equal(field(project, 'disable-model-invocation'), field(rootSkill, 'disable-model-invocation'));
   assert.equal(field(project, 'description'), field(rootSkill, 'description'));
 });
 
@@ -44,4 +44,21 @@ test('git tracks the project skill though the rest of .claude stays ignored', ()
   assert.equal(ignored('.claude/handoffs/example.md'), true);
   assert.equal(ignored('.claude/worktrees/example'), true);
   assert.equal(ignored('.claude/skills/another-skill/SKILL.md'), true);
+});
+
+// Issue 180: Codex reads a repository's skills from .agents/skills, and doesn't fill in
+// ${CLAUDE_SKILL_DIR}, so the clone's Codex copy names the root's files by relative path.
+const codexDir = join(root, '.agents', 'skills', 'honestweek');
+const codex = readFileSync(join(codexDir, 'SKILL.md'), 'utf8');
+
+test('the Codex copy names honestweek, matches the root description, and points at the root files', () => {
+  assert.ok(codex.startsWith('---\n'));
+  assert.equal(field(codex, 'name'), 'honestweek');
+  assert.equal(field(codex, 'description'), field(rootSkill, 'description'));
+  assert.equal(field(codex, 'disable-model-invocation'), undefined, 'Codex reads its own switch, not this one');
+  assert.ok(codex.includes('`../../../SKILL.md`'));
+  assert.ok(codex.includes('node "<repository root>/bin/honestweek.mjs" init --yes'));
+  assert.equal(resolve(codexDir, '../../../SKILL.md'), join(root, 'SKILL.md'));
+  assert.ok(existsSync(resolve(codexDir, '../../../bin/honestweek.mjs')));
+  assert.doesNotMatch(codex, /—|–/, 'no em or en dashes');
 });

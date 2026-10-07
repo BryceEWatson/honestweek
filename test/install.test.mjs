@@ -5,9 +5,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CONFIG_ENV, CONFIG_FILE, USER_DIR } from '../lib/config-lookup.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -16,6 +17,18 @@ const PLUGIN = JSON.parse(read('.claude-plugin/plugin.json'));
 const MARKETPLACE = JSON.parse(read('.claude-plugin/marketplace.json'));
 const SKILL = read('SKILL.md');
 const README = read('README.md');
+
+// Issue 180: a plugin loads its root SKILL.md only while it has no skills/ folder and no
+// "skills" key, or a "skills" key that lists the root. Adding a second skill any other way would
+// silently drop the weekly skill for plugin users, and CI has no Claude Code to catch it.
+test('the plugin still loads its root SKILL.md', () => {
+  assert.ok(existsSync(resolve(ROOT, 'SKILL.md')), 'a root SKILL.md');
+  if (existsSync(resolve(ROOT, 'skills')) || PLUGIN.skills !== undefined) {
+    // Each listed path, as the folder it names relative to the plugin root.
+    const listed = [PLUGIN.skills ?? []].flat().map((p) => resolve(ROOT, String(p)));
+    assert.ok(listed.includes(ROOT), 'a skills folder or key must also list the root ("./")');
+  }
+});
 
 test('plugin.json is valid and declares the single required field (name)', () => {
   assert.equal(typeof PLUGIN.name, 'string');
@@ -34,6 +47,9 @@ test('marketplace.json has name, owner.name, and a plugins[] entry sourced at th
   // same-repo plugin source must be a relative path starting with "./"
   assert.equal(typeof entry.source, 'string');
   assert.match(entry.source, /^\.\//);
+  // Issue 180: Claude Code names a plugin's skill /honestweek:honestweek, so the listing
+  // mustn't promise a bare /honestweek.
+  assert.doesNotMatch(entry.description ?? '', /\/honestweek(?!:)/, 'the listing names the plugin skill as /honestweek:honestweek');
 });
 
 test('SKILL.md invokes the bundled CLI by a skill-anchored absolute path, not a bare relative one', () => {
@@ -46,9 +62,26 @@ test('SKILL.md invokes the bundled CLI by a skill-anchored absolute path, not a 
   assert.match(SKILL, /CLAUDE_SKILL_DIR/, 'documents the skill-dir substitution');
 });
 
-test('SKILL.md is manual-invoke only (disable-model-invocation)', () => {
+// Issue 185: agents and scheduled tasks may start the weekly skill, behind two guards: its
+// description asks for an explicit request, and with no config it stops and asks before init.
+test('SKILL.md can be started by an agent, but only on an explicit ask, and stops before writing a config', () => {
   const fm = SKILL.match(/^---\n([\s\S]*?)\n---/)[1];
-  assert.match(fm, /^disable-model-invocation:\s*true\s*$/m);
+  assert.doesNotMatch(fm, /^disable-model-invocation:/m, 'no manual-only flag');
+  const description = /^description: (.*)$/m.exec(fm)[1];
+  assert.match(description, /explicitly asks for a weekly summary/);
+  assert.match(description, /not for a question about today's commits or for finding a session/);
+  assert.match(description, /With no config it stops and asks before writing one\./);
+  const init = SKILL.slice(SKILL.indexOf('1. **`init`**'), SKILL.indexOf('2. **`discover`**'));
+  assert.ok(init.includes('stop and ask') && init.indexOf('stop and ask') < init.indexOf('init --yes'), 'the config check comes before init runs');
+  assert.match(init, /Run it only after they say yes\./);
+  // The check runs in the order lib/config-lookup.mjs uses: this folder, then HONESTWEEK_CONFIG
+  // (a missing file there stops it), then the user-level file. A config found anywhere skips init,
+  // which would otherwise write a second config in this folder that hides it.
+  const order = [`(a) \`${CONFIG_FILE}\``, `(b) else, if the \`${CONFIG_ENV}\``, `(c) else \`~/${USER_DIR}/${CONFIG_FILE}\``].map((s) => init.indexOf(s));
+  assert.ok(order.every((i) => i > 0) && order[0] < order[1] && order[1] < order[2], 'the three places, in the lookup order');
+  assert.match(init, /if that file isn't there, tell the user and stop without looking further/);
+  assert.match(init, /finds a config, skip `init` and go to `discover`/);
+  assert.match(init, /If none of them exists, don't run `init` yet/);
 });
 
 test('README documents the plugin-marketplace install route (in-app and terminal)', () => {

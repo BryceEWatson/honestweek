@@ -2,7 +2,7 @@
 
 ## In plain terms
 
-honestweek reads your Claude Code and Codex session logs and your git repositories on your own machine, and most of what it does sends nothing anywhere. The `view` page, its Setup and Settings, and the `init`, `discover` and `build` commands all run with fixed rules on your computer. Session text reaches an AI in two ways. When you type `/honestweek` in Claude Code, Claude runs honestweek for you, so it reads a redacted draft of last week's Claude Code sessions to write the summary, and it sees whatever each command prints. On the `view` page, two optional buttons can hand your sessions to Claude or OpenAI, but only after you turn on Include /insights, press one and confirm. Here I walk through both paths, list exactly what the draft holds, and say who receives what.
+honestweek reads your Claude Code and Codex session logs and your git repositories on your own machine, and most of what it does sends nothing anywhere. The `view` page, its Setup and Settings, and the `init`, `discover` and `build` commands all run with fixed rules on your computer. Session text reaches an AI in two ways. When you type `/honestweek` in Claude Code, or ask Claude for a weekly summary, Claude runs honestweek for you, so it reads a redacted draft of last week's Claude Code sessions to write the summary, and it sees whatever each command prints. If you run the skill in Codex instead, Codex sends the same draft and command output to OpenAI, or the endpoint your Codex is set to use, in Claude's place. On the `view` page, two optional buttons can hand your sessions to Claude or OpenAI, but only after you turn on Include /insights, press one and confirm. Here I walk through both paths, list exactly what the draft holds, and say who receives what.
 
 A few terms used below:
 
@@ -10,7 +10,7 @@ A few terms used below:
 - **Redacted** means honestweek has swapped private text for a marker such as `[redacted:email]` before anything else reads it.
 - A **display-only** repository is one your config marks `display`. honestweek never runs git in it, and its sessions are kept private.
 - Your **config** is `honestweek.config.json`, the file that lists your email, your repositories and the private words to hide.
-- The **skill** is the set of instructions Claude follows when you type `/honestweek`.
+- The **skill** is the set of instructions Claude follows when you type `/honestweek`, or when you ask it in words for a weekly summary, weekly update or work report. A scheduled task can start it too.
 - **Include /insights** is a switch on the `view` page that lets its two AI buttons run. It's off until you turn it on.
 - **Your plan** is your own Claude or OpenAI subscription, which those programs sign in with.
 
@@ -50,7 +50,7 @@ Step by step:
 
 ```mermaid
 flowchart TD
-  A["You type /honestweek in Claude Code<br/>Claude follows the skill's instructions<br/>and sees what each command prints"] --> B["init --yes<br/>writes a config if there isn't one;<br/>prints the folder and counts"]
+  A["You type /honestweek in Claude Code,<br/>or ask Claude for a weekly summary<br/>Claude follows the skill's instructions<br/>and sees what each command prints"] --> B["init --yes<br/>writes a config if there isn't one;<br/>prints the folder and counts"]
   B --> C["discover<br/>the last completed week's Claude Code sessions only, no Codex,<br/>plus your session-end handoffs;<br/>writes the redacted draft and prints counts"]
   C --> D["Claude reads the draft and writes the summary's items<br/>an AI sees this"]
   D --> E["validate and build<br/>recheck every cited commit with git, or stop and write nothing"]
@@ -58,10 +58,12 @@ flowchart TD
   class A,D ai
 ```
 
+The skill in Codex works the same way, with Codex in place of Claude, sending the draft and command output to OpenAI, or the endpoint your Codex is set to use.
+
 Step by step:
 
-1. **You type `/honestweek`.** Claude follows the skill's instructions and runs honestweek's commands on your machine. Claude sees what each command prints, and Claude Code sends that to Anthropic like anything else in your session.
-2. **`init --yes`** writes a config if the folder doesn't have one, and leaves an existing one alone. `init --user` writes `~/.honestweek/honestweek.config.json` instead. Its first line names the folder it's working in. Its summary gives counts: how many repositories it found and the files it wrote, not your email or the repositories' names. If a display-only conflict stops it, the reason names the folders involved.
+1. **You type `/honestweek`, or ask Claude for a weekly summary.** Claude follows the skill's instructions. With no config anywhere, it stops and asks you before `init` writes one. Then it runs honestweek's commands on your machine. Claude sees what each command prints, and Claude Code sends that to Anthropic like anything else in your session.
+2. **`init --yes`** runs only when there's no config anywhere and you've said yes; with one, the skill skips it. It writes a config if the folder doesn't have one, and leaves an existing one alone. `init --user` writes `~/.honestweek/honestweek.config.json` instead. Its first line names the folder it's working in. Its summary gives counts: how many repositories it found and the files it wrote, not your email or the repositories' names. If a display-only conflict stops it, the reason names the folders involved.
 3. **`discover`** reads the Claude Code sessions that started during the last completed week (Monday to Sunday, in UTC) and hold at least one prompt you typed, not Codex. It adds the session-end handoffs (notes saved at the end of a session in a repository's `.claude/handoffs/` folder) from repositories your config doesn't mark display-only. It writes the redacted draft, `honestweek.draft.json`, and prints counts and the week's dates. If it can't read a repository's history, the message names that repository's folder.
 4. **Claude reads the draft and writes the items**, the lines of your summary, into `honestweek.items.json`. This is where an AI sees your session text: everything in the draft, listed in the next section.
 5. **`validate` and `build`** check the items and recheck every commit they cite against git. If one doesn't resolve or isn't yours, `build` stops and writes nothing. Claude then shows you the result, and you decide whether to publish it.
