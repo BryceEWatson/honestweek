@@ -4,7 +4,7 @@
 // its own temporary tree whose parent holds only that tree, so discovery's scan stays small,
 // and the log folders are empty temporary ones, never the machine's own.
 
-import { test, after } from 'node:test';
+import { test, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -20,6 +20,11 @@ import { SETUP_MAX_BODY } from '../lib/view/setup.mjs';
 
 const scratch = makeTempDir('hw-view-setup-');
 const running = [];
+// Each test's pages stop when it ends, and their builds with them, so a build a test is done
+// with doesn't run git while a later test waits on its own.
+afterEach(async () => {
+  for (const h of running.splice(0)) await h.stop();
+});
 after(async () => {
   for (const h of running) await h.stop();
   removeTempDir(scratch);

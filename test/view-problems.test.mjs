@@ -472,8 +472,10 @@ test('each pattern says how many findings are worked out and how many are possib
 
 test('the trend answers for every pattern, reads the earlier window once, and says when it has no logs', async () => {
   let builds = 0;
+  const signals = [];
   const d = createViewData({ config: w.config, roots: w.roots, ...WINDOW, goalRecord: w.goalRecord, buildHistory: (o) => {
     builds += 1;
+    signals.push(o.signal);
     return buildWorkHistory(o);
   } });
   await d.start();
@@ -494,6 +496,11 @@ test('the trend answers for every pattern, reads the earlier window once, and sa
     assert.equal(row.possible.now.value, p.possible.look, p.id);
   }
   assert.equal(leaks.redacted(t).total, 0);
+  // Stopping the data stops both builds, this window's and the earlier one's, so a stopped
+  // page runs no more git.
+  d.stop();
+  assert.equal(signals.length, builds);
+  assert.ok(signals.every((x) => x?.aborted === true), 'every build carries the stop');
 });
 
 test('each check card links the published sources behind what it measures, and says where its numbers and rules come from', async () => {

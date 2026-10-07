@@ -3,13 +3,14 @@
 // reads only temporary folders: the made-up demo week, or the seeded week with the log
 // folders pointed at it, never the logs of the machine running the tests.
 
-import { test, after } from 'node:test';
+import { test, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { request } from 'node:http';
+import { createServer, request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
@@ -18,11 +19,18 @@ import { HELP, parseViewPort, resolveViewWindow, runView } from '../lib/view.mjs
 import { setCommandForm } from '../lib/invocation.mjs';
 import { CODE_HEADER, CODE_TTL_MS, KEY_HEADER } from '../lib/view/server.mjs';
 import { createLeakCounter } from '../lib/view/leaks.mjs';
+import { REST_GAP_MS } from '../lib/view/progressive.mjs';
+import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { buildViewWeek, PRIVATE_WORDS, TERM, WEEK } from './fixtures/view/week.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const scratch = makeTempDir('hw-view-cli-');
 const running = [];
+// Each test's pages stop when it ends, and their builds with them, so a build a test is done
+// with doesn't run git while a later test waits on its own.
+afterEach(async () => {
+  for (const h of running.splice(0)) await h.stop();
+});
 after(async () => {
   for (const h of running) await h.stop();
   removeTempDir(scratch);
@@ -368,6 +376,104 @@ test('a port already in use is a setup error', async () => {
   assert.equal(again.code, 1);
   assert.match(again.err(), /already in use/);
   await first.handle.stop();
+});
+
+test('a page that stops, or fails to start, while its build is still reading runs no more git', async () => {
+  const cp = createRequire(import.meta.url)('node:child_process');
+  const real = cp.execFileSync;
+  let reads = 0;
+  cp.execFileSync = function (file, ...rest) {
+    if (file === 'git') reads += 1;
+    return real.call(this, file, ...rest);
+  };
+  syncBuiltinESMExports();
+  // Every build waits at a gate the test opens, so a stop lands while it's still reading.
+  const gitReads = async (how, argv = ['--no-open', ...RANGE]) => {
+    let open;
+    const gate = new Promise((res) => (open = res));
+    const started = [];
+    const ended = [];
+    const buildHistory = async (o) => {
+      started.push(o.from);
+      await gate;
+      try {
+        return await buildWorkHistory(o);
+      } finally {
+        ended.push(o.from);
+      }
+    };
+    let handle = null;
+    const code = await runView({ argv, cwd: project, env: ENV, io: capture().io, input: null, block: false, onServe: (h) => (handle = h), buildHistory });
+    assert.equal(code, how === 'port in use' ? 1 : 0);
+    if (handle) running.push(handle);
+    reads = 0;
+    if (how === 'stopped') await handle.stop();
+    open();
+    const until = async (done) => {
+      for (let i = 0; i < 600 && !done(); i++) await new Promise((res) => setTimeout(res, 50));
+    };
+    // The first day's build ends, and the rest of the week's starts a moment later unless the
+    // page was stopped; if it started, it ends too.
+    await until(() => ended.includes(WEEK.to));
+    await new Promise((res) => setTimeout(res, REST_GAP_MS + 200));
+    await until(() => !started.includes(WEEK.from) || ended.includes(WEEK.from));
+    await handle?.stop();
+    return { reads, started, ended };
+  };
+  try {
+    // Failing-path partner: left running, the same builds read git.
+    const kept = await gitReads('kept');
+    assert.deepEqual(kept.ended, [WEEK.to, WEEK.from], 'the first day, then the whole week');
+    assert.ok(kept.reads > 0, 'a build left running reads git');
+    const stopped = await gitReads('stopped');
+    assert.deepEqual(stopped.started, [WEEK.to], 'only the first day was asked for, and the rest never starts');
+    assert.equal(stopped.reads, 0, 'a stopped page reads no git');
+    // A run whose server can't start has already started its build, which stops with it.
+    const taken = createServer();
+    await new Promise((res) => taken.listen(0, '127.0.0.1', res));
+    try {
+      const refused = await gitReads('port in use', ['--no-open', '--port', String(taken.address().port), ...RANGE]);
+      assert.deepEqual(refused.started, [WEEK.to]);
+      assert.equal(refused.reads, 0, 'a run that ended at a setup error reads no git');
+    } finally {
+      await new Promise((res) => taken.close(res));
+    }
+  } finally {
+    cp.execFileSync = real;
+    syncBuiltinESMExports();
+  }
+});
+
+test('a build stopped after it starts reading git reads no more once it next pauses', async () => {
+  const cp = createRequire(import.meta.url)('node:child_process');
+  const real = cp.execFileSync;
+  let reads = 0;
+  cp.execFileSync = function (file, ...rest) {
+    if (file === 'git') reads += 1;
+    return real.call(this, file, ...rest);
+  };
+  syncBuiltinESMExports();
+  try {
+    const options = { config: w.config, roots: w.roots, from: WEEK.from, to: WEEK.to, timezone: 'UTC', scope: 'all', goals: w.goalRecord };
+    // Failing-path partner: run to the end, the build reads git after that pause too.
+    await buildWorkHistory(options);
+    const whole = reads;
+    reads = 0;
+    // A stop that lands once git reading has begun, as a page stopped mid-build does.
+    let atStop = null;
+    const signal = {
+      get aborted() {
+        if (atStop === null && reads > 0) atStop = reads;
+        return atStop !== null;
+      },
+    };
+    await assert.rejects(buildWorkHistory({ ...options, signal }), /the build was stopped/);
+    assert.ok(atStop > 0 && atStop < whole, `stopped after ${atStop} of ${whole} git reads`);
+    assert.equal(reads, atStop, 'no git read after the stop');
+  } finally {
+    cp.execFileSync = real;
+    syncBuiltinESMExports();
+  }
 });
 
 // ---- the demo -------------------------------------------------------------------------------
