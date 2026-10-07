@@ -322,8 +322,10 @@ test('init refuses to rewrite a config so git would read a repository holding a 
   const t = monoLayout('hw-nested-rerun-');
   try {
     const before = readFileSync(t.config, 'utf8');
+    // With --yes there's nobody to ask; in a terminal, declining the offer to mark mono display-only refuses the same way.
     for (const argv of [['--yes', '--force'], []]) {
       const io = fakeIo();
+      io.prompt = async (q) => (/display-only too\?/.test(q) ? 'n' : '');
       assert.equal(await runInit({ cwd: t.project, argv, io, inferEmail: () => ME }), 1, io.stdout);
       assert.match(io.stderr, /^private is display-only but sits inside mono, which git reads/, argv.join(' '));
       assert.match(io.stderr, /Nothing was written\.\n$/);

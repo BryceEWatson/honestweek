@@ -68,6 +68,7 @@ async function everyAnswer(priv) {
     return r.body;
   };
   await add('/api/status');
+  await add('/api/suggest-words');
   const home = await add('/api/home');
   for (const q of ['#12', '#13', '#15', 'feature/group-by-scope', 'lib/format.mjs', TERM, 'zz-nothing-here', ...home.try.map((t) => t.text)]) await add('/api/lookup', { q });
   for (const q of [TERM, 'release', 'machine-readable', 'suite', 'Password', 'dates']) await add('/api/words', { q });
