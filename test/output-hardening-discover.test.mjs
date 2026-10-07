@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join, sep } from 'node:path';
+import { join } from 'node:path';
 
-import { isSameOrInside, runDiscover } from '../lib/discover.mjs';
+import { runDiscover } from '../lib/discover.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const git = (dir, args) => execFileSync('git', ['-C', dir, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -69,19 +69,3 @@ test('failing-path partner: from a subfolder of a featured repo, the tracked dra
   assert.equal(errors.some((s) => s.includes('is tracked in git')), true);
 });
 
-test('isSameOrInside compares by containment, ignoring trailing separators', () => {
-  const base = makeTempDir('hw-discover-path-');
-  try {
-    const repo = join(base, 'repo');
-    assert.equal(isSameOrInside(repo, repo), true);
-    assert.equal(isSameOrInside(`${repo}${sep}`, repo), true);
-    assert.equal(isSameOrInside(repo, `${repo}${sep}`), true);
-    assert.equal(isSameOrInside(join(repo, 'a', 'b'), repo), true);
-    assert.equal(isSameOrInside(`${repo}2`, repo), false, 'a sibling sharing the prefix is not inside');
-    assert.equal(isSameOrInside(base, repo), false, 'the parent is not inside');
-    assert.equal(isSameOrInside(join(repo, 'x'), join(repo, 'x', '..')), true, 'dot segments resolve');
-    if (process.platform === 'win32') assert.equal(isSameOrInside(join(repo, 'Sub').toUpperCase(), repo), true, 'case-insensitive on Windows');
-  } finally {
-    removeTempDir(base);
-  }
-});

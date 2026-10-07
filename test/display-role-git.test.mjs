@@ -124,3 +124,45 @@ test('runDiscover says how to check by hand, and asks git nothing, where its fol
   assert.ok(io.errors.includes(CANT_CHECK_DRAFT), io.errors.join(''));
   assert.ok(!io.errors.some((s) => s.includes('is tracked in git')), 'git was not asked');
 });
+
+test('runDiscover asks git nothing in a worktree of a display-only repository, as Settings does (issue 161)', async (t) => {
+  const root = makeTempDir('hw-discover-display-worktree-');
+  t.after(() => removeTempDir(root));
+  const notes = join(root, 'notes');
+  execFileSync('git', ['init', '-q', notes]);
+  git(notes, ['-c', 'user.email=you@example.com', '-c', 'user.name=You', 'commit', '-q', '--allow-empty', '-m', 'start']);
+  const wt = join(root, 'notes-wt');
+  git(notes, ['worktree', 'add', '-q', wt]);
+  writeFileSync(join(wt, 'honestweek.config.json'), JSON.stringify({
+    identity: { authorEmails: ['you@example.com'] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: '../notes', label: 'notes', role: 'display' }],
+    redaction: { codenames: [], names: [], terms: [] },
+    output: { mode: 'digest', file: 'out.md' },
+  }));
+  writeFileSync(join(wt, 'honestweek.draft.json'), '{}\n');
+  git(wt, ['add', 'honestweek.draft.json']);
+  const io = silentIo();
+  io.exit = (c) => c;
+  await runDiscover({ cwd: wt, now: new Date('2024-06-19T12:00:00Z'), io, adapter: async () => [], gitWindow: () => [] });
+  assert.ok(io.errors.includes(CANT_CHECK_DRAFT), io.errors.join(''));
+  assert.ok(!io.errors.some((s) => s.includes('is tracked in git')), 'git was not asked');
+});
+
+test('runDiscover says nothing about tracking outside any checkout, even beside a display-only folder', async (t) => {
+  const root = makeTempDir('hw-discover-no-checkout-');
+  t.after(() => removeTempDir(root));
+  const dir = join(root, 'plain');
+  mkdirSync(join(dir, 'notes'), { recursive: true });
+  writeFileSync(join(dir, 'honestweek.config.json'), JSON.stringify({
+    identity: { authorEmails: ['you@example.com'] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: 'notes', label: 'notes', role: 'display' }],
+    redaction: { codenames: [], names: [], terms: [] },
+    output: { mode: 'digest', file: 'out.md' },
+  }));
+  const io = silentIo();
+  io.exit = (c) => c;
+  await runDiscover({ cwd: dir, now: new Date('2024-06-19T12:00:00Z'), io, adapter: async () => [], gitWindow: () => [] });
+  assert.ok(!io.errors.includes(CANT_CHECK_DRAFT), io.errors.join(''));
+});

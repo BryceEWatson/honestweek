@@ -181,6 +181,8 @@ test('a config inside a display-only repository is never checked with git', asyn
     assert.ok(r.json.notes.includes(CANT_CHECK_CONFIG), JSON.stringify(r.json.notes));
     assert.ok(!r.json.notes.some((n) => n.includes('is tracked by git')));
     assert.equal(configTrackState(work), 'unchecked');
+    // The wording approved on issue 161, word for word.
+    assert.equal(CANT_CHECK_CONFIG, `Check that ${CONFIG} was never committed to git. It holds your private words, and listing it in .gitignore doesn't remove it from git if it was committed before. honestweek can't check for you here because of your display-only setting. Run git ls-files ${CONFIG}. If it prints the file name, run git rm --cached ${CONFIG}.`);
   } finally {
     cp.execFileSync = real;
     syncBuiltinESMExports();
@@ -224,4 +226,23 @@ test('Setup notes the .gitignore line only when Save will add it', async (t) => 
   writeFileSync(join(project, '.gitignore'), `node_modules/\n${CONFIG}\n`);
   const listed = await createSetup({ cwd: project, inferEmail: () => 'you@example.com' }).preview(body);
   assert.ok(!note(listed.body.notes), JSON.stringify(listed.body));
+});
+
+test('outside any checkout, Settings asks git nothing and gives no by-hand note', async (t) => {
+  const root = makeTempDir('hw-settings-no-checkout-');
+  t.after(() => removeTempDir(root));
+  const work = join(root, 'plain');
+  mkdirSync(join(work, 'notes'), { recursive: true });
+  writeFileSync(join(work, CONFIG), JSON.stringify({
+    identity: { authorEmails: ['you@example.com'] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: 'notes', label: 'notes', role: 'display' }],
+    redaction: { codenames: [], names: [], terms: [] },
+    output: { mode: 'digest', file: 'out.md' },
+  }, null, 2) + '\n');
+  assert.equal(configTrackState(work), 'untracked');
+  const s = createSettings({ cwd: work, lastCommitAt: () => null });
+  const r = answer(await s.preview(withWord(s)));
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.ok(!r.json.notes.includes(CANT_CHECK_CONFIG), JSON.stringify(r.json.notes));
 });

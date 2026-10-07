@@ -12,7 +12,7 @@ import { basename, join } from 'node:path';
 import { loadConfig } from '../lib/config.mjs';
 import { buildConfig, checkNestedRoles, existingDisplayRepos, findRepos, inferIdentity, runInit, writeInitFiles } from '../lib/init.mjs';
 import { createSetup } from '../lib/view/setup.mjs';
-import { configTracked, createSettings } from '../lib/view/settings.mjs';
+import { configTracked, configTrackState, createSettings } from '../lib/view/settings.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'you@example.com';
@@ -400,6 +400,7 @@ test('Settings never asks git whether the config is tracked where its checkout h
     assert.equal(configTracked(sub), true);
     writeFileSync(config, JSON.stringify({ repos: [{ path: '../notes', role: 'display' }] }));
     assert.equal(configTracked(sub), false);
+    assert.equal(configTrackState(sub), 'unchecked');
   } finally {
     removeTempDir(root);
   }
