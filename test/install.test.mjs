@@ -47,6 +47,9 @@ test('marketplace.json has name, owner.name, and a plugins[] entry sourced at th
   // same-repo plugin source must be a relative path starting with "./"
   assert.equal(typeof entry.source, 'string');
   assert.match(entry.source, /^\.\//);
+  // Issue 180: Claude Code names a plugin's skill /honestweek:honestweek, so the listing
+  // mustn't promise a bare /honestweek.
+  assert.doesNotMatch(entry.description ?? '', /\/honestweek(?!:)/, 'the listing names the plugin skill as /honestweek:honestweek');
 });
 
 test('SKILL.md invokes the bundled CLI by a skill-anchored absolute path, not a bare relative one', () => {
