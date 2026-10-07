@@ -19,7 +19,7 @@ honestweek runs on your own machine and reads private data: your AI coding sessi
 
 Please report privately if you find any way honestweek could:
 
-- send any data off your machine, other than through Run /insights or Run with Codex after you confirm;
+- send any data off your machine, other than through Run /insights or Run with Codex after you confirm, or through the weekly summary, where Claude reads the redacted draft and what each command prints in your own Claude Code session;
 - write an unredacted secret, or text it was told to redact, into an output file;
 - run `git` against a display-only repository, or against a repository outside your list other than the setup checks above;
 - make its `git` fetch anything, or start a program a repository's config or a session log names;
