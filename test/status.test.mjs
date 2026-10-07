@@ -250,3 +250,15 @@ test('the real command exits 0 and prints the report from a folder with no confi
   assert.match(r.stdout, /^honestweek status \(reads only, writes nothing\)\n {2}config: none found/);
   assert.deepEqual(readdirSync(dir), [], 'it wrote nothing');
 });
+
+test('items that name a different week from the current draft go back to DISTIL, never to build', () => {
+  const dir = project();
+  const t0 = Date.parse('2025-03-18T10:00:00Z');
+  writeFileSync(join(dir, 'honestweek.draft.json'), JSON.stringify({ week: LAST, sessions: [{ id: 'abc12345' }], handoffs: [] }));
+  utimesSync(join(dir, 'honestweek.draft.json'), at(t0), at(t0));
+  writeFileSync(join(dir, 'honestweek.items.json'), JSON.stringify({ week: { start: '2025-03-03', end: '2025-03-09' }, items: [goodItem('abc12345')] }));
+  utimesSync(join(dir, 'honestweek.items.json'), at(t0 + 1000), at(t0 + 1000));
+  const r = status(dir);
+  assert.equal(r.next.step, 'distil');
+  assert.match(r.next.says, /The items name 2025-03-03 to 2025-03-09, but the draft covers 2025-03-10 to 2025-03-16/);
+});
