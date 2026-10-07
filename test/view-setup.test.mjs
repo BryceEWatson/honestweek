@@ -128,6 +128,9 @@ test('a successful setup: the proposal, a preview, then Save writes the config w
   const prev = await post(s, 'preview', answers(s));
   assert.equal(prev.status, 200, prev.text);
   assert.deepEqual(files(s.project), ['readme.txt'], 'preview writes nothing');
+  assert.ok(prev.json.notes.includes('Saving also adds honestweek.config.json to .gitignore, since it holds your email, folder paths and any private words.'), prev.text);
+  const bare = await post(s, 'preview', answers(s, { names: '', terms: '' }));
+  assert.ok(bare.json.notes.some((n) => n.startsWith('Saving also adds honestweek.config.json to .gitignore')), 'a config with no private words is ignored too');
   const saved = await post(s, 'save', answers(s));
   assert.equal(saved.status, 200, saved.text);
   assert.equal(saved.json.saved, true);

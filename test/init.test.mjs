@@ -20,6 +20,8 @@ import {
   TERMS_QUESTION,
 } from '../lib/init.mjs';
 import { setCommandForm } from '../lib/invocation.mjs';
+import { HARVEST_GITIGNORE } from '../lib/harvest.mjs';
+import { JUDGE_DIR } from '../lib/view/codex-judge.mjs';
 import { privateWordsNote } from '../lib/private-words.mjs';
 import { loadConfig } from '../lib/config.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
@@ -368,10 +370,10 @@ test('interactive: the names and client words given go into the config, and the 
     assert.ok(io.outBuf.includes('Hiding: Dana Doe | Sam Lee\n') && io.outBuf.includes('Hiding: Acme\n'), 'each answer is read back as stored');
     assert.doesNotMatch(io.outBuf, /"curation"/, 'the whole file is not printed');
     assert.doesNotMatch(io.outBuf, /No private words are set/);
-    // The config now holds those words as written, so it goes into .gitignore.
+    // The config holds those words as written, and it's in .gitignore.
     const ignored = readFileSync(join(t.cwd, '.gitignore'), 'utf8').split(/\r?\n/);
     assert.ok(ignored.includes('honestweek.config.json'));
-    assert.match(io.outBuf, /honestweek\.config\.json lists your private words, so it's now in \.gitignore\. That keeps git from picking up a new file, not one it already tracks/);
+    assert.match(io.outBuf, /honestweek\.config\.json holds your email, folder paths and any private words, so it's now in \.gitignore\. If you committed it before, listing it there doesn't remove it from git: run git rm --cached honestweek\.config\.json\./);
   } finally {
     cleanup(t.parent);
   }
@@ -527,11 +529,16 @@ test('init in a folder with no git repositories near it writes nothing and says 
   }
 });
 
-test('a config with no private words is not added to .gitignore', async () => {
+test('init ignores the config even with no private words, and every private file from the start', async () => {
   const t = setupTree();
   try {
-    await runInit({ cwd: t.cwd, argv: ['--yes'], io: fakeIo() });
-    assert.ok(!readFileSync(join(t.cwd, '.gitignore'), 'utf8').split(/\r?\n/).includes('honestweek.config.json'));
+    const io = fakeIo();
+    await runInit({ cwd: t.cwd, argv: ['--yes'], io });
+    // The config holds an email and folder paths, and private words added later in Settings
+    // would be too late to ignore once it's committed.
+    const ignored = readFileSync(join(t.cwd, '.gitignore'), 'utf8').split(/\r?\n/);
+    for (const line of ['honestweek.config.json', 'honestweek.draft.json', ...HARVEST_GITIGNORE, `${JUDGE_DIR}/`]) assert.ok(ignored.includes(line), line);
+    assert.match(io.outBuf, /honestweek\.config\.json holds your email, folder paths and any private words, so it's now in \.gitignore\./);
   } finally {
     cleanup(t.parent);
   }
