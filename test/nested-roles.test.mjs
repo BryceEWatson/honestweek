@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
-import { buildConfig, checkNestedRoles, existingDisplayRepos, findRepos, runInit, writeInitFiles } from '../lib/init.mjs';
+import { buildConfig, checkNestedRoles, existingDisplayRepos, findRepos, inferIdentity, runInit, writeInitFiles } from '../lib/init.mjs';
 import { createSetup } from '../lib/view/setup.mjs';
 import { createSettings } from '../lib/view/settings.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
@@ -247,6 +247,30 @@ test('Setup makes no repository list where a config already is, the only place d
     assert.equal(info.configured, true);
     assert.equal(info.repos, undefined, 'no repository list was made');
     assert.equal((await setup.preview('{}')).status, 409);
+  } finally {
+    removeTempDir(t.root);
+  }
+});
+
+test('init asks the global git config for my email, not the folder it runs in, where that folder holds a display-only folder or sits inside one', () => {
+  const t = monoLayout('hw-nested-email-');
+  try {
+    const usesGlobal = (cwd) => {
+      let global;
+      inferIdentity(cwd, { inferEmail: (_, o) => ((global = o.isDisplay), ME) });
+      return global;
+    };
+    // The failing-path partner: a config marking a folder elsewhere display-only changes nothing here.
+    writeFileSync(join(t.other, 'honestweek.config.json'), JSON.stringify({ repos: [{ path: '../mono/private', role: 'display' }] }));
+    assert.equal(usesGlobal(t.other), false);
+    // Holds one: this project's config marks a folder inside it display-only.
+    folder(join(t.project, 'notes'));
+    writeFileSync(t.config, JSON.stringify({ repos: [{ path: 'notes', role: 'display' }] }));
+    assert.equal(usesGlobal(t.project), true);
+    // Sits inside one: a repository whose config marks the folder around it display-only.
+    const tool = repo(join(t.root, 'area', 'tool'));
+    writeFileSync(join(tool, 'honestweek.config.json'), JSON.stringify({ repos: [{ path: '..', role: 'display' }] }));
+    assert.equal(usesGlobal(tool), true);
   } finally {
     removeTempDir(t.root);
   }
