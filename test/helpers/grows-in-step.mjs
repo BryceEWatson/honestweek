@@ -24,6 +24,9 @@
 // - FLOOR_MS: under 50 ms the ratio is mostly noise, and nothing that fast is a real slowdown.
 // - The ceiling (each caller's own): the growth check can't see a change that stays linear but
 //   costs more per character, so the fastest full run must also finish within it.
+// - Warm-up runs (each caller's own, 2 unless it says): quarter runs before the first round, so
+//   it doesn't time compilation. A caller that has already run `run` on every input it times can
+//   pass 0 and skip them; a cold first round only costs another round.
 import assert from 'node:assert/strict';
 
 export const MAX_GROWTH = 12;
@@ -33,9 +36,9 @@ export const ROUNDS = 5;
 /**
  * Asserts that `run` on `build(1)` takes time in step with its length, against `build(0.25)`
  * timed on either side of it, and that its fastest full run finishes within `ceilingMs`. Returns
- * what the last full run returned.
+ * what the last full run returned. `warmups` quarter runs come first.
  */
-export function assertGrowsInStep(label, build, run, { ceilingMs }) {
+export function assertGrowsInStep(label, build, run, { ceilingMs, warmups = 2 }) {
   const timed = (input) => {
     const started = performance.now();
     const out = run(input);
@@ -43,8 +46,8 @@ export function assertGrowsInStep(label, build, run, { ceilingMs }) {
   };
   const quarter = build(0.25);
   const full = build(1);
-  // Two quarter runs first warm the code up, so the first round doesn't time compilation.
-  for (let i = 0; i < 2; i += 1) timed(quarter);
+  // Quarter runs first warm the code up, so the first round doesn't time compilation.
+  for (let i = 0; i < warmups; i += 1) timed(quarter);
   let [before] = timed(quarter);
   let fullMs = Infinity;
   let best = { ratio: Infinity, quarterMs: Infinity, fullMs: Infinity };
