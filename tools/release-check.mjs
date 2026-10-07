@@ -4,7 +4,7 @@
 //   node tools/release-check.mjs [--since <ref>] [--no-smoke]
 //
 // 1. The package. `npm pack --dry-run` lists only what a release ships: package.json, the
-//    README, the license, SKILL.md, the example config, the two plugin manifests, bin/ and lib/.
+//    README, the license, SKILL.md and its flows/ files, the example config, the two plugin manifests, bin/ and lib/.
 //    Anything else, or any image, fails the check.
 // 2. It runs. The packed tarball, installed into an empty folder, prints --help, serves
 //    `view --demo`, and opens Setup when there's no config. Its home and temporary folders are
@@ -32,7 +32,7 @@ import { findForbidden, privateForbidden, readOwner, stripOwnAddress } from '../
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** What a release ships, by path inside the tarball. */
-const SHIPPED = [/^package\.json$/, /^README\.md$/, /^LICENSE$/, /^SKILL\.md$/, /^honestweek\.config\.example\.json$/, /^\.claude-plugin\/[^/]+\.json$/, /^bin\//, /^lib\//];
+const SHIPPED = [/^package\.json$/, /^README\.md$/, /^LICENSE$/, /^SKILL\.md$/, /^flows\/[a-z-]+\.md$/, /^honestweek\.config\.example\.json$/, /^\.claude-plugin\/[^/]+\.json$/, /^bin\//, /^lib\//];
 const IMAGE = /\.(png|jpe?g|gif|webp|svg|ico)$/i;
 
 /** The packed paths that shouldn't be in a release: outside the shipped list, or an image. */

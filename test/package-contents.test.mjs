@@ -17,7 +17,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PKG = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 
 // The `files` allowlist in package.json, exactly.
-const FILES_ALLOWLIST = ['bin/', 'lib/', 'SKILL.md', 'honestweek.config.example.json', '.claude-plugin/'];
+const FILES_ALLOWLIST = ['bin/', 'lib/', 'SKILL.md', 'flows/', 'honestweek.config.example.json', '.claude-plugin/'];
 // Every top-level file that ships. npm adds package.json, README.md and LICENSE on its own.
 const SHIPPED_FILES = [
   'package.json',
@@ -29,7 +29,7 @@ const SHIPPED_FILES = [
   '.claude-plugin/marketplace.json',
 ];
 // Folders that ship whole: every file git tracks in them goes into the package.
-const SHIPPED_DIRS = ['bin/', 'lib/'];
+const SHIPPED_DIRS = ['bin/', 'lib/', 'flows/'];
 // A generous ceiling that still catches a stray log or fixture landing in lib/.
 const MAX_UNPACKED_BYTES = 5 * 1024 * 1024;
 
@@ -126,7 +126,7 @@ test('the shipped-file rule catches what must never ship', () => {
   for (const p of ['test/redact.test.mjs', 'test/fixtures/replay/corpus.mjs', 'tools/demo-week.mjs', 'docs/mining.md', '.claude/work/notes.md', '.github/workflows/ci.yml', 'honestweek.config.json', 'honestweek.draft.json', 'CHANGELOG.md']) {
     assert.equal(ships(p), false, `${p} must not ship`);
   }
-  for (const p of ['bin/honestweek.mjs', 'lib/redact.mjs', 'lib/view/assets/search.html', 'lib/readers/default.json', 'SKILL.md']) {
+  for (const p of ['bin/honestweek.mjs', 'lib/redact.mjs', 'lib/view/assets/search.html', 'lib/readers/default.json', 'SKILL.md', 'flows/weekly.md']) {
     assert.equal(ships(p), true, `${p} must ship`);
   }
 });

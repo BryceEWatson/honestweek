@@ -5,9 +5,9 @@ description: Turn a completed week of your AI coding sessions into an honest, gi
 
 # honestweek, in its own repository (Codex)
 
-This copy of the skill is here so Codex finds honestweek in a clone of the honestweek repository with nothing to install. The full instructions live in the repository's root `SKILL.md`, three folders up from this file (`../../../SKILL.md`).
+This copy of the skill is here so Codex finds honestweek in a clone of the honestweek repository with nothing to install. The full instructions live in the repository's root `SKILL.md`, three folders up from this file (`../../../SKILL.md`), and in the `flows/` folder beside it.
 
-1. Read that file in full before you do anything else, and follow it exactly. Its distillation contract applies word for word.
-2. Its commands run the bundled CLI as `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" ...`. Codex doesn't fill in `${CLAUDE_SKILL_DIR}`, and here the CLI sits at the repository root, three folders up from this file. So run `node "<repository root>/bin/honestweek.mjs" init --yes`, with the repository root's absolute path, and the same for every other command.
+1. Read that file in full before you do anything else, and follow it exactly. Its distillation contract applies word for word. Then read the flow file it sends you to, in `../../../flows/`.
+2. Its commands run the bundled CLI as `node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" ...`. Codex doesn't fill in `${CLAUDE_SKILL_DIR}`, and here the CLI and the `flows/` folder sit at the repository root, three folders up from this file. So run `node "<repository root>/bin/honestweek.mjs" init --yes`, with the repository root's absolute path, and the same for every other command.
 
 Everything else, including where it may and may not write, is in the root file.

@@ -9,13 +9,15 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIG_ENV, CONFIG_FILE, USER_DIR } from '../lib/config-lookup.mjs';
+import { SKILL_TEXT } from './helpers/skill-text.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 const read = (p) => readFileSync(resolve(ROOT, p), 'utf8');
 const PLUGIN = JSON.parse(read('.claude-plugin/plugin.json'));
 const MARKETPLACE = JSON.parse(read('.claude-plugin/marketplace.json'));
-const SKILL = read('SKILL.md');
+// SKILL.md and its flow files, as Claude reads them (issue 182).
+const SKILL = SKILL_TEXT;
 const README = read('README.md');
 
 // Issue 180: a plugin loads its root SKILL.md only while it has no skills/ folder and no

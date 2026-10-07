@@ -31,6 +31,13 @@ test('it points at the root SKILL.md and the root CLI, and both paths resolve fr
   assert.doesNotMatch(project, /—|–/, 'no em or en dashes');
 });
 
+test('it names the same flows as the root, sends Claude to flows/, and pre-approves only the root CLI', () => {
+  assert.equal(field(project, 'argument-hint'), field(rootSkill, 'argument-hint'));
+  assert.equal(field(project, 'allowed-tools'), `Bash(node "${DIR}/../../../bin/honestweek.mjs" *)`);
+  assert.ok(project.includes(`${DIR}/../../../flows/`));
+  assert.match(project, /\$ARGUMENTS/);
+});
+
 test('git tracks the project skill though the rest of .claude stays ignored', () => {
   const ignored = (p) => {
     try {
@@ -57,6 +64,7 @@ test('the Codex copy names honestweek, matches the root description, and points 
   assert.equal(field(codex, 'description'), field(rootSkill, 'description'));
   assert.equal(field(codex, 'disable-model-invocation'), undefined, 'Codex reads its own switch, not this one');
   assert.ok(codex.includes('`../../../SKILL.md`'));
+  assert.ok(codex.includes('`../../../flows/`'), 'it sends Codex to the flow files too (issue 182)');
   assert.ok(codex.includes('node "<repository root>/bin/honestweek.mjs" init --yes'));
   assert.equal(resolve(codexDir, '../../../SKILL.md'), join(root, 'SKILL.md'));
   assert.ok(existsSync(resolve(codexDir, '../../../bin/honestweek.mjs')));
