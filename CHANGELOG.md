@@ -17,6 +17,7 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 
 ### Changed
 
+- In a clone of the honestweek repository, `/honestweek` works with nothing to install: a project skill in `.claude/skills/honestweek/` points Claude at the root `SKILL.md` and the repository's own CLI. Your other projects still need the plugin or the plain skill. (#174)
 - In a terminal, `init` asks for your email when git doesn't know it, as Setup does, instead of writing an empty list that `build` then rejects. And where a repository it found holds a folder your config marks display-only, or sits inside one, it offers to mark that repository display-only too instead of stopping; the folder you run it in defaults to no. With `--yes` nothing is asked, as before. (#173, issue #163)
 
 ## 0.2.0 (6 October 2026)
