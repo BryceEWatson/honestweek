@@ -98,7 +98,7 @@ GENERIC (the adapter maps a site's field names onto these), e.g.:
 - `items` / `item.text` (model strings)
 
 It also computes `verifiedNumbers`: the SET of finite numbers seeded from the
-EXPLICITLY TRUSTED derived roots (`chart`, `sessions`, `provenance`, and each
+EXPLICITLY TRUSTED derived roots (`chart`, `sessions`, `provenance`, `projectStats`, `repos`, `meta`, and each
 group's git-derived `metrics`), never the whole model. Derived date STRINGS
 (e.g. `week.start`) are not numeric leaves and are not prose-scanned, so their
 digits are not required to be verified. **Verified-number provenance (resolved):**
@@ -131,20 +131,20 @@ same loud-fail posture as `_shared.mjs` `badge()/receiptPointer()/itemText()`.
   date/datetime and hex-sha tokens are exempted first (a date or a receipt is not a
   work-claim), so a trusted derived date string is not a false abort while a real
   quantity beside it still is. This closes the numbers-in-prose gap (`validate`
-  does not check prose numerals; `redact` passes numbers through unchanged:
-  `redact.mjs:221`).
+  does not check prose numerals; `redact` passes ordinary numbers through unchanged:
+  `redact.mjs:554`).
 - A throw is a verify-or-abort: `build` maps it to exit 2, writes nothing.
 
 ## Derivers (`lib/site/derive.mjs`, `lib/site/sessions.mjs`)
 
 Deterministic derivers over the verified model + the user's real git/sessions.
-`augmentSiteModel(model, ctx)` returns `{ ...model, chart, sessions, provenance }`;
-all three are seeded into `verifiedNumbers`. The seven Monday→Sunday day stubs come
+`augmentSiteModel(model, ctx)` returns `{ ...model, meta, chart, sessions, provenance, projectStats, repos, items, content, projects }`;
+all but `items`, `content` and `projects` are seeded into `verifiedNumbers`. The seven Monday→Sunday day stubs come
 from the shared `week-grid.mjs`, so a chart day and a session day never disagree.
 - `deriveChart`: per-day commit `total` + `byRepo` (a dynamic-keyed count map) +
-  `repoTotals`, from `commitsInWindow` per readable repo over the window. A
-  display-role repo is NEVER git-read; an unreadable repo contributes nothing
-  (never a fake zero-for-real). `chart.max` is the peak day total.
+  `repoTotals`, from `commitDatesInWindow` per featured repo over the window. A
+  display-role repo is NEVER git-read; a repo git can't read stops the build, but
+  a path that isn't a git repo counts as zero commits. `chart.max` is the peak day total.
 - `deriveProvenance`: `{ itemsTotal, itemsVerified, commitsVerified, redactions }`.
   The three **counts of content** (`itemsTotal`, `itemsVerified`, `commitsVerified`)
   are **scoped to the week being reported**, because this block ships inside a
@@ -239,7 +239,7 @@ from the shared `week-grid.mjs`, so a chart day and a session day never disagree
 
 `augmentSiteModel` also reconnects the feed: each chart/session day carries that
 day's items `{ id, title, status, project }`, placed by the item's git-derived
-commit date (an item that cites no resolved commit has no day).
+commit date (an item that cites no resolved commit uses its authored `date`, and has no day without one).
 
 ## Detection + schema inference (`lib/site/detect.mjs`, `lib/site/inspect.mjs`)
 
@@ -293,17 +293,17 @@ commit date (an item that cites no resolved commit has no day).
   transform, resolved like a repo path). `site` has NO entry in
   `DEFAULT_OUTPUT_FILES`: its write path is the adapter's own `artifact` (relative to
   the target root = build `cwd`). `build` assembles → `augmentSiteModel` → redacts
-  (unless `output.redact:false`) → `emit/index.mjs`'s async `emitSite` dispatches by
+  (unless `output.redact:false`) → `emit/index.mjs`'s async `prepareSiteEmission` dispatches by
   adapter extension (static `renderSite` vs transform `renderSiteViaTransform`) and
-  writes the JSON artifact. `emit()` itself THROWS for site mode (it is async, via
+  `build` writes the JSON artifact it returns. `emit()` itself THROWS for site mode (it is async, via
   `emitSite`).
 - `output.redact` (default true): honestweek scrubs every byte. A `site` target with
   its OWN redactor (applied inside the transform, for placeholder parity) sets it
   false to receive the raw bundle: **only permitted with a transform adapter** (a
   static `.json` adapter does not scrub strings, so `redact:false` there is rejected
   at config load). verify-or-abort + the numeric fence run regardless of `redact`.
-- A fact-fence/resolve throw carries `.factFence === true`; `build` maps it to
-  **exit 2** (verify-or-abort, nothing written), distinct from a config error (exit 1).
+- A fact-fence throw carries `.factFence === true`; `build` maps it to
+  **exit 2** (verify-or-abort, nothing written), distinct from a config error or an adapter key that doesn't resolve (exit 1).
 - No network, no publish: the artifact is a local write, exactly like every other
   emitter. The target's existing PR flow is the human publish gate.
 

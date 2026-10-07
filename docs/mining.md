@@ -195,7 +195,7 @@ So every draft carries, structurally:
   specific commands, versions and bug reports that session actually used;
 - a **"What I could not check"** section, pre-filled with the things a log genuinely
   cannot establish;
-- an **empty** last-verified field, whatever your destination calls it;
+- an **empty** last-verified field, whatever your destination calls it, when its schema has one;
 - a section for the fix that explicitly says a log cannot tell you what the fix *was* in
   a form worth publishing. Inventing one would be the worst output this system could
   produce.
@@ -210,7 +210,7 @@ between runs) and have the scheduled job do three things:
    branch. Never in a checkout someone might be using. Run it from the worktree's root:
    a relative ledger path resolves against the working directory, and the committed
    ledger (the only record of past decisions) lives at the repo root.
-2. **Read the exit code before the output.** Exit `2` means a corpus was empty, which is
+2. **Read the exit code before the output.** Exit `2` means the sensor was blind, which is
    a broken sensor, not a quiet week. Raise it as a fault; do not report zero findings.
    Exit `1` means the run never scanned at all: a mistyped `--corpus` name, or a config
    file that exists (or was named with `--config`) but cannot be loaded. Both fail loudly
@@ -300,7 +300,7 @@ website, and this feature keeps it that way:
 - The **detector** and **ranker** are generic. "Find solved third-party problems in agent
   session logs" involves no site-specific knowledge.
 - The **drafter** takes its destination schema from configuration. The field names in a
-  draft's frontmatter come from your config; none of them is hardcoded here.
+  draft's frontmatter come from your config; without one it falls back to `title`, `description`, `date` and `tags`, and it adds `draft: true` when no field says whether a post is live.
 - Anything that knows a specific site's layout, tags, or publishing rules belongs in that
   site's own repository, alongside its other site-specific scripts.
 
