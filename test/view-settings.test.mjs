@@ -6,7 +6,7 @@
 // next page load. Every run reads only temporary folders: the seeded week's logs, never the
 // machine's own.
 
-import { test, after } from 'node:test';
+import { test, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, readdirSync, readFileSync, rmSync, truncateSync, utimesSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
@@ -24,6 +24,11 @@ import { buildViewWeek, NAME, OTHER_TERM, TERM, WEEK } from './fixtures/view/wee
 
 const scratch = makeTempDir('hw-view-settings-');
 const running = [];
+// Each test's pages stop when it ends, and their builds with them, so a build a test is done
+// with doesn't run git while a later test waits on its own.
+afterEach(async () => {
+  for (const h of running.splice(0)) await h.stop();
+});
 after(async () => {
   for (const h of running) await h.stop();
   removeTempDir(scratch);
