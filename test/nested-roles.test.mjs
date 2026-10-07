@@ -7,11 +7,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
-import { buildConfig, checkNestedRoles, runInit, writeInitFiles } from '../lib/init.mjs';
+import { buildConfig, checkNestedRoles, existingDisplayRepos, findRepos, inferIdentity, runInit, writeInitFiles } from '../lib/init.mjs';
 import { createSetup } from '../lib/view/setup.mjs';
-import { createSettings } from '../lib/view/settings.mjs';
+import { configTracked, createSettings } from '../lib/view/settings.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'you@example.com';
@@ -158,6 +158,143 @@ test('init refuses a display repository inside the read one it finds, writes not
     assert.equal(await runInit({ cwd: project, argv: ['--yes', '--force'], io: io2, inferEmail: () => ME }), 0, io2.stderr);
     const written = JSON.parse(readFileSync(join(project, 'honestweek.config.json'), 'utf8'));
     assert.deepEqual(written.repos.map((r) => r.role).sort(), ['display', 'featured']);
+  } finally {
+    removeTempDir(root);
+  }
+});
+
+/** A project whose config marks `../mono/private`, a folder inside the sibling repository mono,
+ *  display-only, beside an ordinary sibling repository (issue 117). */
+function monoLayout(prefix) {
+  const root = makeTempDir(prefix);
+  const project = repo(join(root, 'project'));
+  const mono = repo(join(root, 'mono'));
+  const priv = folder(join(mono, 'private'));
+  const other = repo(join(root, 'other'));
+  const config = join(project, 'honestweek.config.json');
+  writeFileSync(config, JSON.stringify({ identity: { authorEmails: [ME] }, repos: [{ path: project, label: 'project', role: 'featured' }, { path: '../mono/private', label: 'private', role: 'display' }] }));
+  return { root, project, mono, priv, other, config };
+}
+
+test('findRepos never asks git about a repository holding a display-only folder, or inside one, and still asks an ordinary one', () => {
+  const t = monoLayout('hw-nested-find-');
+  try {
+    const asked = [];
+    const spy = (kind, answer) => (p) => (asked.push(`${kind} ${basename(p)}`), answer);
+    const { repos } = findRepos(t.project, ME, { displayPaths: existingDisplayRepos(t.project), hasCommits: spy('commits', true), lastCommitAt: spy('last', 1000) });
+    assert.ok(!asked.some((a) => a.endsWith(' mono')), `git was asked about mono: ${asked.join(', ')}`);
+    // The failing-path partner: an ordinary sibling repository is still asked both questions.
+    assert.ok(asked.includes('commits other') && asked.includes('last other'), asked.join(', '));
+    assert.equal(repos.find((r) => r.label === 'other').role, 'featured');
+    // mono is still listed, with the role it gets without asking, and the nested-role check explains it.
+    const mono = repos.find((r) => r.label === 'mono');
+    assert.deepEqual({ role: mono.role, lastAt: mono.lastAt }, { role: 'reference', lastAt: null });
+    assert.match(checkNestedRoles([...repos, { path: t.priv, label: 'private', role: 'display' }]), /^private is display-only but sits inside mono, which git reads, so its history would be read too\./);
+
+    // The folder it runs in, holding a display-only folder, isn't asked when it was last committed to.
+    const own = [];
+    findRepos(t.project, ME, { displayPaths: [folder(join(t.project, 'notes'))], hasCommits: () => true, lastCommitAt: (p) => (own.push(basename(p)), 1) });
+    assert.ok(!own.includes('project') && own.includes('mono'), own.join(', '));
+    // Repositories inside a display-only folder aren't asked at all, nor is one whose main
+    // checkout is elsewhere but whose worktree found here is inside it.
+    const elsewhere = makeTempDir('hw-nested-away-');
+    try {
+      const away = repo(join(elsewhere, 'away'));
+      git(away, ['worktree', 'add', '-q', join(t.root, 'away-wt')]);
+      const inside = [];
+      const { repos: within } = findRepos(t.project, ME, { displayPaths: [t.root], hasCommits: (p) => (inside.push(p), true), lastCommitAt: (p) => (inside.push(p), 1) });
+      assert.ok(within.some((r) => r.label === 'away'), 'the worktree is folded into its main checkout');
+      assert.deepEqual(inside, []);
+    } finally {
+      removeTempDir(elsewhere);
+    }
+  } finally {
+    removeTempDir(t.root);
+  }
+});
+
+test('init refuses to rewrite a config so git would read a repository holding a display-only folder, and accepts marking it display', async () => {
+  const t = monoLayout('hw-nested-rerun-');
+  try {
+    const before = readFileSync(t.config, 'utf8');
+    for (const argv of [['--yes', '--force'], []]) {
+      const io = fakeIo();
+      assert.equal(await runInit({ cwd: t.project, argv, io, inferEmail: () => ME }), 1, io.stdout);
+      assert.match(io.stderr, /^private is display-only but sits inside mono, which git reads/, argv.join(' '));
+      assert.match(io.stderr, /Nothing was written\.\n$/);
+      assert.equal(readFileSync(t.config, 'utf8'), before, 'nothing written');
+    }
+    // Marking mono display, as the line suggests, is accepted.
+    const n = findRepos(t.project, ME, { displayPaths: existingDisplayRepos(t.project) }).repos.findIndex((r) => r.label === 'mono') + 1;
+    const edits = [`role ${n} display`];
+    const io = fakeIo();
+    io.prompt = async (q) => (q.startsWith('Press Enter to keep this list') ? edits.shift() ?? '' : /Write .* now\?/.test(q) ? 'y' : '');
+    assert.equal(await runInit({ cwd: t.project, io, inferEmail: () => ME }), 0, io.stderr);
+    const written = JSON.parse(readFileSync(t.config, 'utf8')).repos;
+    assert.equal(written.find((r) => r.label === 'mono').role, 'display');
+  } finally {
+    removeTempDir(t.root);
+  }
+});
+
+test('Setup makes no repository list where a config already is, the only place display-only folders come from', async () => {
+  // Setup lists repositories only while its folder has no config, so it has no display-only
+  // folder to pass to findRepos; any list it makes goes through the findRepos test above.
+  const t = monoLayout('hw-nested-setup-list-');
+  try {
+    const setup = createSetup({ cwd: t.project, inferEmail: () => ME });
+    const info = setup.info();
+    assert.equal(info.configured, true);
+    assert.equal(info.repos, undefined, 'no repository list was made');
+    assert.equal((await setup.preview('{}')).status, 409);
+  } finally {
+    removeTempDir(t.root);
+  }
+});
+
+test('init asks the global git config for my email, not the folder it runs in, where that folder holds a display-only folder or sits inside one', () => {
+  const t = monoLayout('hw-nested-email-');
+  try {
+    const usesGlobal = (cwd) => {
+      let global;
+      inferIdentity(cwd, { inferEmail: (_, o) => ((global = o.isDisplay), ME) });
+      return global;
+    };
+    // The failing-path partner: a config marking a folder elsewhere display-only changes nothing here.
+    writeFileSync(join(t.other, 'honestweek.config.json'), JSON.stringify({ repos: [{ path: '../mono/private', role: 'display' }] }));
+    assert.equal(usesGlobal(t.other), false);
+    // Holds one: this project's config marks a folder inside it display-only.
+    folder(join(t.project, 'notes'));
+    writeFileSync(t.config, JSON.stringify({ repos: [{ path: 'notes', role: 'display' }] }));
+    assert.equal(usesGlobal(t.project), true);
+    // Sits inside one: a repository whose config marks the folder around it display-only.
+    const tool = repo(join(t.root, 'area', 'tool'));
+    writeFileSync(join(tool, 'honestweek.config.json'), JSON.stringify({ repos: [{ path: '..', role: 'display' }] }));
+    assert.equal(usesGlobal(tool), true);
+    // A plain subfolder of a checkout that holds one: git run there reads the whole checkout.
+    const pkgs = repo(join(t.root, 'pkgs'));
+    const sub = folder(join(pkgs, 'sub'));
+    folder(join(pkgs, 'notes'));
+    writeFileSync(join(sub, 'honestweek.config.json'), JSON.stringify({ repos: [{ path: '../notes', role: 'display' }] }));
+    assert.equal(usesGlobal(sub), true);
+  } finally {
+    removeTempDir(t.root);
+  }
+});
+
+test('Settings never asks git whether the config is tracked where its checkout holds a display-only folder', () => {
+  const root = makeTempDir('hw-nested-tracked-');
+  try {
+    const pkgs = repo(join(root, 'pkgs'));
+    const sub = folder(join(pkgs, 'sub'));
+    folder(join(pkgs, 'notes'));
+    const config = join(sub, 'honestweek.config.json');
+    // The failing-path partner: with no display-only folder listed, git is asked and says tracked.
+    writeFileSync(config, JSON.stringify({ repos: [] }));
+    git(pkgs, ['add', join('sub', 'honestweek.config.json')]);
+    assert.equal(configTracked(sub), true);
+    writeFileSync(config, JSON.stringify({ repos: [{ path: '../notes', role: 'display' }] }));
+    assert.equal(configTracked(sub), false);
   } finally {
     removeTempDir(root);
   }
