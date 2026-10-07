@@ -111,8 +111,10 @@ Usage:
 
 Says which config it found and where, the last completed week, whether the
 draft and the items exist and which week each covers, whether the items pass
-validate's item gate, whether the output is built and when, and the next step
-as a command.
+validate's item gate, whether the output is built, when and for which week
+(worked out from the items it was built after), and the next step as a
+command. A client config gets the client flow's steps, and a draft for another
+week is named as a choice rather than written over.
 It writes nothing, runs no git, and always exits 0: a missing or broken file is
 a line in the report. It prints names, weeks, counts and states, never an
 item's text or anything from a session. The weekly skill loads it first.

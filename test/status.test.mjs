@@ -4,13 +4,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { buildDemoWeek, WEEK } from '../lib/demo/week.mjs';
 import run, { statusOf, statusText } from '../lib/status.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 
 // A day in the week after the demo week, so the demo week is the last completed one.
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const NOW = new Date('2025-03-19T12:00:00Z');
 const LAST = { start: WEEK.from, end: WEEK.to };
 // A home folder of its own with no user-level config, and no HONESTWEEK_CONFIG.
@@ -63,12 +66,14 @@ test('with a config and no draft, the next step is discover, for the last comple
   assert.equal(r.next.command, 'honestweek discover');
 });
 
-test('a draft for another week sends it back to discover; a current one with no items asks for DISTIL', () => {
+test('a draft for another week is a choice, never an overwrite; a current one with no items asks for DISTIL', () => {
   const dir = project();
   writeFileSync(join(dir, 'honestweek.draft.json'), JSON.stringify({ week: { start: '2025-03-03', end: '2025-03-09' }, sessions: [{ id: 'a' }], handoffs: [] }));
   const old = status(dir);
   assert.equal(old.draft.current, false);
-  assert.equal(old.next.step, 'discover');
+  assert.equal(old.next.step, 'choose-week');
+  assert.match(old.next.says, /covers 2025-03-03 to 2025-03-09, not the last completed week \(2025-03-10 to 2025-03-16\)\. Ask which week the user means/);
+  assert.match(old.next.says, /honestweek discover writes a new draft over this one; to carry on with 2025-03-03 to 2025-03-09, go on from DISTIL/);
   writeFileSync(join(dir, 'honestweek.draft.json'), JSON.stringify({ week: LAST, sessions: [{ id: 'a' }, { id: 'b' }], handoffs: [] }));
   const current = status(dir);
   assert.equal(current.draft.current, true);
@@ -101,9 +106,14 @@ test('items with a problem name validate; passing items with no output name buil
   const built = status(dir);
   assert.equal(built.output.exists, true);
   assert.equal(built.next.step, 'review');
+  // Items that name no week were built for the last completed week on the build day: derived.
+  assert.deepEqual(built.output.week, { ...LAST, from: 'build-day' });
+  assert.match(statusText(built), /for 2025-03-10 to 2025-03-16 \(the last completed week on the day it was built\)/);
 
   utimesSync(join(dir, 'honestweek.items.json'), at(t0 + 4000), at(t0 + 4000));
-  assert.equal(status(dir).next.step, 'build', 'items changed after the build');
+  const stale = status(dir);
+  assert.equal(stale.next.step, 'build', 'items changed after the build');
+  assert.equal(stale.output.week, undefined, 'an output older than the items claims no week');
   utimesSync(join(dir, 'honestweek.draft.json'), at(t0 + 5000), at(t0 + 5000));
   assert.equal(status(dir).next.step, 'distil', 'a newer draft than the items');
 });
@@ -196,4 +206,47 @@ test('items the gate cannot read, or reserved digest fields, are problems, not a
   assert.equal(status(dir).items.passes, false);
   writeFileSync(join(dir, 'honestweek.items.json'), JSON.stringify({ period: LAST, week: { start: '2025-01-06', end: '2025-01-12' }, items: [] }));
   assert.deepEqual(status(dir).items.week, LAST, 'build reads period before week');
+});
+
+test('an output built after items that name a week covers that week', () => {
+  const dir = project();
+  const t0 = Date.parse('2025-03-18T10:00:00Z');
+  const week = { start: '2025-03-03', end: '2025-03-09' };
+  writeFileSync(join(dir, 'honestweek.draft.json'), JSON.stringify({ week: LAST, sessions: [{ id: 'abc12345' }], handoffs: [] }));
+  utimesSync(join(dir, 'honestweek.draft.json'), at(t0), at(t0));
+  writeFileSync(join(dir, 'honestweek.items.json'), JSON.stringify({ week, items: [goodItem('abc12345')] }));
+  utimesSync(join(dir, 'honestweek.items.json'), at(t0 + 1000), at(t0 + 1000));
+  writeFileSync(join(dir, 'post.md'), '# built\n');
+  utimesSync(join(dir, 'post.md'), at(t0 + 2000), at(t0 + 2000));
+  assert.deepEqual(status(dir).output.week, { ...week, from: 'items' });
+});
+
+test('a client config gets the client flow: history, items with a period, then validate and build', () => {
+  const root = makeTempDir('hw-status-client-');
+  const d = buildDemoWeek({ root: join(root, 'week') });
+  const dir = join(root, 'week');
+  const client = { ...d.config, client: { name: 'Example Client' }, output: { mode: 'client', file: 'report.html' } };
+  writeFileSync(join(dir, 'honestweek.config.json'), JSON.stringify(client, null, 2));
+  const r0 = status(dir);
+  if (r0.config.readable === false) assert.fail(`the client config didn't load: ${r0.config.error}`);
+  assert.equal(r0.next.step, 'history', 'no items yet: the period history comes first, never discover');
+  assert.match(r0.next.says, /honestweek history --from <YYYY-MM-DD> --to <YYYY-MM-DD>/);
+  writeFileSync(join(dir, 'honestweek.items.json'), JSON.stringify({ items: [goodItem('abc12345')] }));
+  assert.equal(status(dir).next.step, 'distil', 'client items with no period');
+  writeFileSync(join(dir, 'honestweek.items.json'), JSON.stringify({ period: { start: '2025-03-01', end: '2025-03-31' }, items: [goodItem('abc12345')] }));
+  const r2 = status(dir);
+  assert.deepEqual(r2.items.week, { start: '2025-03-01', end: '2025-03-31' });
+  assert.notEqual(r2.next.step, 'discover');
+  assert.notEqual(r2.next.step, 'choose-week');
+});
+
+test('the real command exits 0 and prints the report from a folder with no config', () => {
+  const dir = makeTempDir('hw-status-cli-');
+  const home = makeTempDir('hw-status-cli-home-');
+  const env = { ...process.env, HOME: home, USERPROFILE: home };
+  delete env.HONESTWEEK_CONFIG;
+  const r = spawnSync(process.execPath, [join(ROOT, 'bin', 'honestweek.mjs'), 'status'], { cwd: dir, env, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^honestweek status \(reads only, writes nothing\)\n {2}config: none found/);
+  assert.deepEqual(readdirSync(dir), [], 'it wrote nothing');
 });
