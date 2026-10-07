@@ -207,6 +207,20 @@ test('replay --at before the first step keeps each count at the level the page g
   assert.match(t.out, /\nAt 2025-03-10 09:30:00: \d+ prompt\(s\) \(recorded\), \d+ action\(s\) \(recorded\), \d+ edit\(s\) \(recorded\), \d+ test run\(s\) \(inferred\), \d+ agent\(s\) that hadn't reported back/);
 });
 
+test('replay --at reads the state at that exact moment, not the step that started before it', async () => {
+  // A call whose result came back before the next step started: just after the result, nothing
+  // waits on it, though the page's frames still show the moment the call started.
+  const o = await json('replay', ['cc-hccfcndehggh']);
+  const timed = o.steps.filter((e) => e.at);
+  const i = timed.findIndex((e, k) => e.endAt && timed[k + 1] && Date.parse(e.endAt) + 1 < Date.parse(timed[k + 1].at) && Date.parse(e.endAt) > Date.parse(e.at));
+  assert.ok(i >= 0, 'the demo week has a call that ended before the next step');
+  const call = timed[i];
+  const during = await json('replay', ['cc-hccfcndehggh', '--at', new Date(Date.parse(call.at) + 1).toISOString()]);
+  const afterResult = await json('replay', ['cc-hccfcndehggh', '--at', new Date(Date.parse(call.endAt) + 1).toISOString()]);
+  assert.equal(during.at.step, afterResult.at.step, 'the same last step by both moments');
+  assert.ok(during.at.awaiting > afterResult.at.awaiting, `${call.id}: waiting during the call (${during.at.awaiting}), not after its result (${afterResult.at.awaiting})`);
+});
+
 test('find refuses a search past 500 characters, and quotes a typed path so it cannot start a line', async () => {
   const long = await asked('find', ['x'.repeat(501)]);
   assert.equal(long.code, 1);
