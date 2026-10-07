@@ -178,7 +178,7 @@ const worktreeLayout = (dir, wt) => {
 test('a display-only folder holding a worktree of a repository git reads is refused at load, by Setup, by Settings and by init; a worktree beside it is accepted (issue 157)', async () => {
   const root = makeTempDir('hw-nested-wt-');
   try {
-    const line = /^away is read by git but has a worktree, away-wt, inside private, which is display-only, so the work done there would be read too\. Move that worktree out of private, or mark away display as well\.$/;
+    const line = /^away is read by git but has a worktree, away-wt, inside private, which is display-only, so the work done there would be read too\. Move that worktree out of private with git worktree move, or mark away display as well\.$/;
     for (const [where, inside] of [['in', true], ['beside', false]]) {
       const { away, priv, file } = worktreeLayout(join(root, where), inside ? join('private', 'away-wt') : 'away-wt');
       const before = readFileSync(file, 'utf8');
@@ -241,7 +241,17 @@ test('the check finds a worktree inside a plain display-only folder, one whose f
     assert.match(checkNestedRoles([{ path: away, label: 'away', role: 'reference' }, { path: priv, label: 'private', role: 'display' }]), /^away is read by git but has a worktree, away-wt, inside private/);
     // A worktree whose folder is gone still counts until git prunes it.
     rmSync(join(priv, 'away-wt'), { recursive: true, force: true });
-    assert.match(checkNestedRoles([{ path: away, label: 'away', role: 'featured' }, { path: priv, label: 'private', role: 'display' }]), /^away is read by git, which still lists a worktree of it, away-wt, inside private, .*Run git worktree prune in away/);
+    assert.match(checkNestedRoles([{ path: away, label: 'away', role: 'featured' }, { path: priv, label: 'private', role: 'display' }]), /^away is read by git, which still lists a worktree of it, away-wt, inside private, .*If you moved it by hand, run git worktree repair with its new folder in away; if it's gone for good, run git worktree prune there/);
+    git(away, ['worktree', 'prune']);
+    // A locked worktree says so: prune skips it until it's unlocked, and moving it needs the unlock too.
+    git(away, ['worktree', 'add', '-q', join(priv, 'away-wt')]);
+    git(away, ['worktree', 'lock', join(priv, 'away-wt')]);
+    assert.match(checkNestedRoles([{ path: away, label: 'away', role: 'featured' }, { path: priv, label: 'private', role: 'display' }]), /Move that worktree out of private with git worktree unlock and git worktree move,/);
+    rmSync(join(priv, 'away-wt'), { recursive: true, force: true });
+    const locked = checkNestedRoles([{ path: away, label: 'away', role: 'featured' }, { path: priv, label: 'private', role: 'display' }]);
+    assert.match(locked, /^away is read by git, which lists a locked worktree of it, away-wt, inside private, .*If you moved it by hand, run git worktree repair .*if it's gone for good, run git worktree unlock and git worktree prune there/);
+    assert.doesNotMatch(locked, /\n/);
+    git(away, ['worktree', 'unlock', join(priv, 'away-wt')]);
     git(away, ['worktree', 'prune']);
     assert.equal(checkNestedRoles([{ path: away, role: 'featured' }, { path: priv, role: 'display' }]), null);
     // Read through a worktree, a repository whose main checkout sits in a display-only folder.
