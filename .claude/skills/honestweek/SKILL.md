@@ -11,6 +11,11 @@ This copy of the skill is here so `/honestweek` works in a clone of the honestwe
 
 1. Read that file in full before you do anything else, and follow it exactly. Its distillation contract applies word for word. Then read the flow file it sends you to, in `${CLAUDE_SKILL_DIR}/../../../flows/`.
 2. Those files run the bundled CLI from the skill's own folder, written as the skill folder placeholder (a dollar sign and `CLAUDE_SKILL_DIR` in braces). Here that folder is the repository root, `${CLAUDE_SKILL_DIR}/../../..`, which holds `bin/honestweek.mjs`. So where they run the CLI's `init --yes`, you run `node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" init --yes`, and the same for every other command.
-3. The text after the skill's name, if any, is `$ARGUMENTS`. Pick the flow from it the way the root file's Flows section says.
+3. Where the weekly summary stands, from `honestweek status` (it reads only):
+
+   !`node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" status`
+
+   Use this in place of the root file's own status line, which only runs when that file is the skill.
+4. The text after the skill's name, if any, is `$ARGUMENTS`. Pick the flow from it the way the root file's Flows section says.
 
 Everything else, including where it may and may not write, is in the root file.

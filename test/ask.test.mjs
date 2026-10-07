@@ -424,7 +424,7 @@ test('the commands run from the package entry point with --demo alone, and refus
 test('every existing command\'s help is byte-identical when run as honestweek', () => {
   // sha256 of each command's --help as it was before the form was printed (main after PR 188), with
   // this run's form put back to `honestweek`.
-  const PINNED = { init: 'ab19e2612ef4f30d', discover: '2f8a956d47782695', validate: '89aae3507378c98d', build: '98c962f4eae39b1a', history: '4ea17a3d41f0650c', harvest: '7ef53b3059eaccb3', prompts: '722a9ce168f5fa1c', digest: 'abed4b6419559f18', preview: 'f612271257e1dba6', mine: '677f622dcb6493c0', view: 'dcad8e4bd18a03f8' };
+  const PINNED = { init: 'ab19e2612ef4f30d', discover: '2f8a956d47782695', validate: '89aae3507378c98d', build: '98c962f4eae39b1a', history: '4ea17a3d41f0650c', harvest: '7ef53b3059eaccb3', prompts: '722a9ce168f5fa1c', digest: 'abed4b6419559f18', preview: 'f612271257e1dba6', mine: '677f622dcb6493c0', view: 'dcad8e4bd18a03f8', status: 'c264bc08328fb0b2' };
   const env = withoutUserConfig();
   // From a folder outside the repository, the form names the entry point by its whole path.
   const outside = makeTempDir('hw-ask-help-');

@@ -127,7 +127,7 @@ test('the sample output snippets show a status badge and a receipt on every rend
 
 test('DOCS-CONSISTENCY: documented subcommands match the dispatcher, with no phantom commands', () => {
   const subs = actualSubcommands();
-  assert.deepEqual(subs.sort(), ['build', 'digest', 'discover', 'find', 'goals', 'harvest', 'history', 'init', 'mine', 'preview', 'problems', 'prompts', 'replay', 'validate', 'view']);
+  assert.deepEqual(subs.sort(), ['build', 'digest', 'discover', 'find', 'goals', 'harvest', 'history', 'init', 'mine', 'preview', 'problems', 'prompts', 'replay', 'status', 'validate', 'view']);
   for (const s of subs) assert.ok(README.includes(`honestweek.mjs ${s}`) || README.includes(`honestweek ${s}`), `README documents the ${s} command`);
   // there is no distil/verify/emit SUBCOMMAND — the docs must not invent one
   for (const phantom of ['distil', 'verify', 'emit']) {
@@ -219,7 +219,7 @@ test('contributor docs: no dashes, links resolve, no personal data, private repo
 });
 
 test('DOCS-CONSISTENCY: the README counts the subcommands the dispatcher has', () => {
-  const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen'];
+  const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen'];
   const m = README.match(/The CLI surface is (\w+) subcommands/);
   assert.ok(m, 'the README states how many subcommands there are');
   assert.equal(m[1], words[actualSubcommands().length], `the README says ${m[1]}; the dispatcher has ${actualSubcommands().length}`);

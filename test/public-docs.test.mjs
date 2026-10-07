@@ -116,7 +116,7 @@ test('the public docs keep the voice bar: no em or en dash in prose', () => {
 });
 
 test('the --help text of every command keeps the voice bar', () => {
-  const commands = ['', 'init', 'discover', 'prompts', 'digest', 'validate', 'build', 'harvest', 'preview', 'mine', 'history', 'view'];
+  const commands = ['', 'init', 'discover', 'prompts', 'digest', 'validate', 'build', 'harvest', 'preview', 'mine', 'history', 'view', 'status', 'find', 'replay', 'problems', 'goals'];
   for (const c of commands) {
     const r = spawnSync(process.execPath, [join(ROOT, PKG.bin.honestweek), ...(c ? [c] : []), '--help'], { encoding: 'utf8' });
     const text = `${r.stdout}${r.stderr}`;

@@ -49,9 +49,17 @@ Each item in `honestweek.items.json` carries:
 
 ## Running the bundled CLI
 
-**Running the bundled CLI.** honestweek ships a Node CLI bundled with this skill. Run the flows' commands from the **user's project directory** (each command writes its sidecars beside the config it read, which is this folder's unless the weekly flow's step 1 found one elsewhere), but invoke the script by its **skill-anchored absolute path**. `${CLAUDE_SKILL_DIR}` resolves to this skill's own install directory, so the path works regardless of the current working directory (personal, project, or plugin install). If `${CLAUDE_SKILL_DIR}` is ever not substituted in your environment, fall back to the absolute path of the directory containing this `SKILL.md`.
+honestweek ships a Node CLI bundled with this skill. Run the flows' commands from the **user's project directory** (each command writes its sidecars beside the config it read, which is this folder's unless the weekly flow's step 1 found one elsewhere), but invoke the script by its **skill-anchored absolute path**. `${CLAUDE_SKILL_DIR}` resolves to this skill's own install directory, so the path works regardless of the current working directory (personal, project, or plugin install). If `${CLAUDE_SKILL_DIR}` is ever not substituted in your environment, fall back to the absolute path of the directory containing this `SKILL.md`.
 
 This skill's folder is `${CLAUDE_SKILL_DIR}`. The flow files below are plain files read with your file tools, so the skill folder placeholder in their commands isn't filled in for you: use this folder in its place, written the same way, with forward slashes. Claude Code then runs honestweek's own commands without asking each time, and asks as usual for anything else.
+
+## Where things stand
+
+`honestweek status` reads the step files and says which config honestweek would read, the last completed week, which of the draft, the items and the output exist and for which week, and the next step. It writes nothing and prints no item text. Its report for this folder:
+
+!`node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" status`
+
+If the line above shows that command instead of a report, nothing ran it for you (Codex, for one, doesn't): run it yourself before anything else. In the weekly flow, start from the step its `next:` line names, not from `init`.
 
 ## Flows
 
