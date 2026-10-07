@@ -132,7 +132,12 @@ test('find reads words as a phrase search: goals, titles, branches and prompts h
   // Log text sits on lines of its own, after ">", collapsed onto one line.
   const quotedLines = t.out.split('\n').filter((l) => /^\s+> /.test(l));
   assert.ok(quotedLines.length >= o.words.prompts.length, t.out);
-  assert.match(t.out, /Elsewhere on this machine/);
+  // The full count of sessions elsewhere, at its level, and how many are shown when that's fewer.
+  const e = o.elsewhere;
+  assert.ok(Number.isFinite(e.sessions.value));
+  const shown = e.results.length < e.sessions.value ? `, the first ${e.results.length} shown` : '';
+  assert.ok(t.out.includes(`: ${e.sessions.value} session(s) (${e.sessions.evidence})${shown}.`), t.out);
+  for (const r of e.results) assert.ok(t.out.includes(`${r.matches.value} matching prompt(s) (${r.matches.evidence})`), r.session);
 });
 
 test('find with a file or a branch also looks for it in words, as the page does', async () => {
@@ -204,7 +209,7 @@ test('replay --at before the first step keeps each count at the level the page g
   for (const k of ['testRuns', 'testsPassed', 'testsFailed', 'prsLanded']) assert.equal(early.at.counts[k].evidence, 'inferred', k);
   for (const k of ['prompts', 'actions', 'edits', 'commits']) assert.equal(early.at.counts[k].evidence, 'recorded', k);
   const t = await asked('replay', ['cc-hccfcndehggh', '--at', '2025-03-10T09:30:00Z']);
-  assert.match(t.out, /\nAt 2025-03-10 09:30:00: \d+ prompt\(s\) \(recorded\), \d+ action\(s\) \(recorded\), \d+ edit\(s\) \(recorded\), \d+ test run\(s\) \(inferred\), \d+ agent\(s\) that hadn't reported back/);
+  assert.match(t.out, /\nAt 2025-03-10 09:30:00: \d+ prompt\(s\) \(recorded\), \d+ action\(s\) \(recorded\), \d+ edit\(s\) \(recorded\), \d+ test run\(s\) \(inferred\), \d+ agent\(s\) with recorded work spanning this moment/);
 });
 
 test('replay --at reads the state at that exact moment, not the step that started before it', async () => {
@@ -219,6 +224,17 @@ test('replay --at reads the state at that exact moment, not the step that starte
   const afterResult = await json('replay', ['cc-hccfcndehggh', '--at', new Date(Date.parse(call.endAt) + 1).toISOString()]);
   assert.equal(during.at.step, afterResult.at.step, 'the same last step by both moments');
   assert.ok(during.at.awaiting > afterResult.at.awaiting, `${call.id}: waiting during the call (${during.at.awaiting}), not after its result (${afterResult.at.awaiting})`);
+});
+
+test('/api/replay answers the exact state at a moment, and refuses a moment it cannot read', async () => {
+  const data = createViewData({ ...WEEK, command: 'honestweek' });
+  await data.start();
+  const ask = (q) => data.route('/api/replay', new URLSearchParams(q));
+  for (const at of ['', ' ', 'soon']) assert.equal((await ask({ session: 'cc-hccfcndehggh', at })).status, 400, JSON.stringify(at));
+  const r = (await ask({ session: 'cc-hccfcndehggh', at: String(Date.parse('2025-03-10T09:30:00Z')) })).body;
+  assert.equal(typeof r.atFrame?.prompts, 'number');
+  assert.equal('atFrame' in (await ask({ session: 'cc-hccfcndehggh' })).body, false, 'the page, which sends no moment, gets the answer it always did');
+  data.stop();
 });
 
 test('find refuses a search past 500 characters, and quotes a typed path so it cannot start a line', async () => {
@@ -239,6 +255,11 @@ test('problems lists the patterns found, as the page orders them, each finding w
   // Worked out from the log first, then Possible.
   const places = o.patterns.map((p) => p.place);
   assert.deepEqual(places, [...places].sort((a, b) => (a === 'possible') - (b === 'possible')));
+  // The first group is the page's Found in the log, never "worked out": it can hold a pattern whose
+  // findings are all possible (none worth a look), so each pattern says its own split.
+  assert.ok(places.every((x) => x === 'found' || x === 'possible'), places.join());
+  const pt = await asked('problems');
+  for (const p of o.patterns) assert.ok(pt.out.includes(`; ${p.workedOut.count} worked out from the log, ${p.possible.count} possible.`), p.id);
   for (const p of o.patterns) {
     assert.ok(EVIDENCE.has(p.countEvidence));
     for (const f of p.findings) {
@@ -284,6 +305,12 @@ test('goals lists each goal with its member sessions and how each joins it; one 
   assert.equal(byId.goal.key, goalKeyOfFirst(o));
   const t = await asked('goals');
   assert.match(t.out, /^honestweek goals: 4 goal\(s\)/);
+  // Each join in text carries its count and its level, with "ambiguous" kept when the JSON has it.
+  for (const g of o.goals) {
+    for (const m of g.members) {
+      for (const j of m.joins) assert.ok(t.out.includes(`${j.type}${j.count > 1 ? ` x${j.count}` : ''} (${j.ambiguous ? `${j.evidence}, ambiguous` : j.evidence}${j.rule ? `, ${j.rule}` : ''})`), `${m.session} ${j.type}`);
+    }
+  }
   assert.match(t.out, new RegExp(`\\nNext: honestweek goals ${key}\\n$`));
   const missing = await asked('goals', ['no-such-goal']);
   assert.equal(missing.code, 1);
