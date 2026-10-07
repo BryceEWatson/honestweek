@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { loadConfig } from '../lib/config.mjs';
 import { buildConfig, checkNestedRoles, runInit, writeInitFiles } from '../lib/init.mjs';
 import { createSetup } from '../lib/view/setup.mjs';
 import { createSettings } from '../lib/view/settings.mjs';
@@ -158,6 +159,95 @@ test('init refuses a display repository inside the read one it finds, writes not
     assert.equal(await runInit({ cwd: project, argv: ['--yes', '--force'], io: io2, inferEmail: () => ME }), 0, io2.stderr);
     const written = JSON.parse(readFileSync(join(project, 'honestweek.config.json'), 'utf8'));
     assert.deepEqual(written.repos.map((r) => r.role).sort(), ['display', 'featured']);
+  } finally {
+    removeTempDir(root);
+  }
+});
+
+/** `away` (a repository) beside `private` (a display-only repository), with a worktree of `away`
+ *  at `wt` under `dir`, and away's honestweek.config.json listing both. */
+const worktreeLayout = (dir, wt) => {
+  const away = repo(join(dir, 'away'));
+  const priv = repo(join(dir, 'private'));
+  git(away, ['worktree', 'add', '-q', join(dir, wt)]);
+  const file = join(away, 'honestweek.config.json');
+  writeFileSync(file, JSON.stringify({ identity: { authorEmails: [ME] }, repos: [{ path: away, label: 'away', role: 'featured' }, { path: priv, label: 'private', role: 'display' }] }));
+  return { away, priv, file };
+};
+
+test('a display-only folder holding a worktree of a repository git reads is refused at load, by Setup, by Settings and by init; a worktree beside it is accepted (issue 157)', async () => {
+  const root = makeTempDir('hw-nested-wt-');
+  try {
+    const line = /^away is read by git but has a worktree, away-wt, inside private, which is display-only, so the work done there would be read too\. Move that worktree out of private, or mark away display as well\.$/;
+    for (const [where, inside] of [['in', true], ['beside', false]]) {
+      const { away, priv, file } = worktreeLayout(join(root, where), inside ? join('private', 'away-wt') : 'away-wt');
+      const before = readFileSync(file, 'utf8');
+
+      // Loading the config.
+      if (inside) assert.throws(() => loadConfig(file), (err) => line.test(err.message.replace(/^honestweek config: "repos": /, '')));
+      else assert.equal(loadConfig(file).repos.length, 2);
+
+      // Setup's save, in a folder with no config yet.
+      const fresh = folder(join(root, where, 'fresh'));
+      const setup = createSetup({ cwd: fresh, inferEmail: () => ME });
+      const s = await setup.save(JSON.stringify({ authorEmails: [ME], timezone: 'UTC', repos: [{ path: away, role: 'featured' }, { path: priv, role: 'display' }], names: '', terms: '' }));
+      if (inside) {
+        assert.equal(s.status, 400, JSON.stringify(s.body));
+        assert.match(s.body.message, line);
+        assert.equal(existsSync(join(fresh, 'honestweek.config.json')), false, 'nothing written');
+      } else assert.equal(s.status, 200, JSON.stringify(s.body));
+
+      // Settings' save, adding the display-only folder to a config that reads away.
+      const own = folder(join(root, where, 'own'));
+      writeInitFiles(own, buildConfig({ authorEmail: ME, timezone: 'UTC', repos: [{ path: away, label: 'away', role: 'featured' }] }), { force: true });
+      const ownFile = join(own, 'honestweek.config.json');
+      const ownBefore = readFileSync(ownFile, 'utf8');
+      const settings = createSettings({ cwd: own });
+      const i = settings.info();
+      const base = { version: i.version, history: i.history, repos: i.repos.map((r) => ({ index: r.index, role: r.role })), authorEmails: i.authorEmails, names: i.names, terms: i.terms, goalsFile: i.goalsFile };
+      const r = await settings.save(JSON.stringify({ ...base, repos: [...base.repos, { path: priv, label: 'private', role: 'display' }] }));
+      if (inside) {
+        assert.equal(r.status, 400, JSON.stringify(r.body));
+        assert.match(r.body.message, line);
+        assert.equal(readFileSync(ownFile, 'utf8'), ownBefore, 'nothing written');
+      } else assert.equal(r.status, 200, JSON.stringify(r.body));
+
+      // init in away, which finds away and the display-only repository beside it.
+      const io = fakeIo();
+      const code = await runInit({ cwd: away, argv: ['--yes', '--force'], io, inferEmail: () => ME });
+      if (inside) {
+        assert.equal(code, 1, io.stdout);
+        assert.match(io.stderr, /^away is read by git but has a worktree, away-wt, inside private, .* Nothing was written\.\n$/);
+        assert.equal(io.stderr.split('\n').length, 2, 'one line');
+        assert.equal(readFileSync(file, 'utf8'), before, 'nothing written');
+      } else {
+        assert.equal(code, 0, io.stderr);
+        assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')).repos.map((x) => x.role).sort(), ['display', 'featured']);
+      }
+    }
+  } finally {
+    removeTempDir(root);
+  }
+});
+
+test('the check finds a worktree inside a plain display-only folder, and a main checkout inside one when a worktree is read', () => {
+  const root = makeTempDir('hw-nested-wt-check-');
+  try {
+    // The layout issue 157 names: a plain folder, not a repository, holds the worktree.
+    const away = repo(join(root, 'away'));
+    const priv = folder(join(root, 'private'));
+    assert.equal(checkNestedRoles([{ path: away, label: 'away', role: 'featured' }, { path: priv, label: 'private', role: 'display' }]), null);
+    git(away, ['worktree', 'add', '-q', join(priv, 'away-wt')]);
+    assert.match(checkNestedRoles([{ path: away, label: 'away', role: 'reference' }, { path: priv, label: 'private', role: 'display' }]), /^away is read by git but has a worktree, away-wt, inside private/);
+    // Read through a worktree, a repository whose main checkout sits in a display-only folder.
+    const main = repo(join(root, 'vault', 'main'));
+    const wt = join(root, 'main-wt');
+    git(main, ['worktree', 'add', '-q', wt]);
+    assert.match(checkNestedRoles([{ path: wt, label: 'main-wt', role: 'featured' }, { path: join(root, 'vault'), label: 'vault', role: 'display' }]), /^main-wt is read by git but has a worktree, main, inside vault/);
+    // A folder named only like the display folder isn't inside it.
+    const near = repo(join(root, 'near'));
+    git(near, ['worktree', 'add', '-q', join(root, 'private-wt')]);
+    assert.equal(checkNestedRoles([{ path: near, role: 'featured' }, { path: priv, role: 'display' }]), null);
   } finally {
     removeTempDir(root);
   }
