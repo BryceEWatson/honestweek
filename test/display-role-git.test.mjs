@@ -4,11 +4,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { existingDisplayRepos, inferAuthorEmail } from '../lib/init.mjs';
 import { CANT_CHECK_DRAFT, ensureDraftGitignored } from '../lib/discover.mjs';
+import { configTrackState } from '../lib/view/settings.mjs';
 
 const git = (dir, args) => execFileSync('git', ['-C', dir, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
 /**
@@ -165,4 +166,30 @@ test('runDiscover says nothing about tracking outside any checkout, even beside 
   io.exit = (c) => c;
   await runDiscover({ cwd: dir, now: new Date('2024-06-19T12:00:00Z'), io, adapter: async () => [], gitWindow: () => [] });
   assert.ok(!io.errors.includes(CANT_CHECK_DRAFT), io.errors.join(''));
+});
+
+test('through a junction or symlink, discover and Settings find the checkout git finds and still warn', async (t) => {
+  const root = makeTempDir('hw-link-checkout-');
+  t.after(() => removeTempDir(root));
+  const repoB = join(root, 'repoB');
+  execFileSync('git', ['init', '-q', repoB]);
+  const inner = join(repoB, 'inner');
+  mkdirSync(inner);
+  mkdirSync(join(root, 'host'));
+  const link = join(root, 'host', 'link');
+  symlinkSync(inner, link, process.platform === 'win32' ? 'junction' : 'dir');
+  writeFileSync(join(inner, 'honestweek.config.json'), JSON.stringify({
+    identity: { authorEmails: ['you@example.com'] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: '.', label: 'here', role: 'featured' }],
+    redaction: { codenames: [], names: [], terms: [] },
+    output: { mode: 'digest', file: 'out.md' },
+  }));
+  writeFileSync(join(inner, 'honestweek.draft.json'), '{}\n');
+  git(repoB, ['add', join('inner', 'honestweek.draft.json'), join('inner', 'honestweek.config.json')]);
+  assert.equal(configTrackState(link), 'tracked');
+  const io = silentIo();
+  io.exit = (c) => c;
+  await runDiscover({ cwd: link, now: new Date('2024-06-19T12:00:00Z'), io, adapter: async () => [], gitWindow: () => [] });
+  assert.ok(io.errors.some((s) => s.includes('is tracked in git')), io.errors.join(''));
 });
