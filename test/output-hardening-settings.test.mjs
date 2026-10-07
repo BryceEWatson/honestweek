@@ -112,6 +112,7 @@ test('Save with nothing to change still adds the .gitignore line Preview promise
   const s = createSettings({ cwd: work });
   const i = s.info();
   const same = JSON.stringify({ version: i.version, history: i.history, repos: i.repos.map((r) => ({ index: r.index, role: r.role })), authorEmails: i.authorEmails, names: i.names, terms: i.terms, goalsFile: i.goalsFile });
+  const config = readFileSync(join(work, CONFIG), 'utf8');
   assert.ok(answer(await s.preview(same)).json.notes.some((n) => n.startsWith('Saving also adds')));
   const r = answer(await s.save(same));
   assert.equal(r.json.saved, false, JSON.stringify(r.json));
@@ -121,6 +122,8 @@ test('Save with nothing to change still adds the .gitignore line Preview promise
   const again = answer(await createSettings({ cwd: work }).save(same));
   assert.equal(again.json.message, 'Nothing changed.');
   assert.equal(readFileSync(gi, 'utf8'), `${CONFIG}\n`);
+  // Neither save wrote the config itself.
+  assert.equal(readFileSync(join(work, CONFIG), 'utf8'), config);
 });
 
 test('failing-path partner: a config already ignored leaves .gitignore byte for byte', async (t) => {
