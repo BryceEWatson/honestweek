@@ -246,7 +246,7 @@ End-to-end happy path, in order. Each step names the artifact it produces.
 
 > Installed as the skill/plugin? Just run `/honestweek`: Claude drives these steps for you and resolves the CLI path automatically. The commands below write `honestweek`; with `npx` or from a clone, use the form under [Try it](#try-it).
 
-1. **`init`** → writes `honestweek.config.json`, inferred from your git state (your `git config user.email` plus the nearby git repos it finds), for you to review. If it finds no repositories, it writes nothing and says where to run it instead. It also drops `honestweek.config.example.json` if one isn't present. It asks you to confirm twice before it writes, and accepting the defaults gives you a valid config. Between the two, it asks for the names and client words to keep private, which go under `redaction`. You can skip either one, and if you give some, it also adds the config to `.gitignore`. Before the second confirmation, it shows a short summary of what the file will say.
+1. **`init`** → writes `honestweek.config.json`, inferred from your git state (your `git config user.email` plus the nearby git repos it finds), for you to review. If it finds no repositories, it writes nothing and says where to run it instead. It also drops `honestweek.config.example.json` if one isn't present. It asks you to confirm twice before it writes, and accepting the defaults gives you a valid config. Between the two, it asks for the names and client words to keep private, which go under `redaction`. You can skip the names, the client words or both, and if you give some, it also adds the config to `.gitignore`. Before the second confirmation, it shows a short summary of what the file will say.
    ```bash
    honestweek init
    ```
