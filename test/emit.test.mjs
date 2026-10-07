@@ -4,7 +4,7 @@ import { writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { emit, renderFor } from '../lib/emit/index.mjs';
+import { emit, renderFor, resolvePrimaryOutputPath } from '../lib/emit/index.mjs';
 import * as digest from '../lib/emit/digest.mjs';
 import * as post from '../lib/emit/post.mjs';
 import * as changelog from '../lib/emit/changelog.mjs';
@@ -176,4 +176,18 @@ test('empty report model still renders a valid, honest digest', () => {
   const out = digest.render({ week: { start: '2024-06-10', end: '2024-06-16' }, items: [] }, {});
   assert.match(out, /# Weekly digest/);
   assert.match(out, /No interactive coding sessions/);
+});
+
+test('a relative output.file lands in the config folder, and carry recovery looks for it there', async () => {
+  const dir = tmp();
+  try {
+    const config = { output: { mode: 'changelog', file: 'CHANGES.md' } };
+    writeFileSync(join(dir, 'CHANGES.md'), '# Changes\n\nKept by hand.\n');
+    const res = emit(model(), config, { cwd: dir });
+    assert.equal(res.path, join(dir, 'CHANGES.md'));
+    assert.match(readFileSync(res.path, 'utf8'), /Kept by hand\./, 'changelog merges into the file it writes');
+    assert.equal(resolve(await resolvePrimaryOutputPath(config, { cwd: dir })), resolve(res.path));
+  } finally {
+    removeTempDir(dir);
+  }
 });
