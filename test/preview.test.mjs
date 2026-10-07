@@ -501,13 +501,20 @@ function fakeTimers() {
   };
 }
 
-test('startServer with idleMs stops itself after the wait, and every request restarts it', async () => {
+test('startServer with idleMs stops itself after the wait, and every page it serves restarts it', async () => {
   const timers = fakeTimers();
   let idled = false;
   const handle = await startServer({ port: 0, html: '<p>x</p>', idleMs: 1000, onIdle: () => (idled = true), timers });
   try {
     assert.equal(timers.set.length, 1, 'the wait starts once it listens');
     assert.equal(timers.set[0].ms, 1000);
+    // A refused request isn't a visit, so another site polling the port can't keep it running.
+    assert.equal((await httpGet(`${handle.url}nope`)).status, 404);
+    const otherHost = await new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port: handle.port, path: '/', headers: { Host: 'attacker.example' } }, (res) => (res.resume(), res.on('end', () => resolve(res.statusCode)))).on('error', reject);
+    });
+    assert.equal(otherHost, 403);
+    assert.equal(timers.set.length, 1, 'neither refused request restarted the wait');
     assert.equal((await httpGet(handle.url)).status, 200);
     assert.equal(timers.set.length, 2);
     assert.ok(timers.set[0].cleared, 'a visit restarts the wait');
