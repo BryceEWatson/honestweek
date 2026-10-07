@@ -9,8 +9,9 @@ import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { configTracked, createSettings, gitignoreIgnores } from '../lib/view/settings.mjs';
+import { CANT_CHECK_CONFIG, configTracked, configTrackState, createSettings, gitignoreIgnores } from '../lib/view/settings.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
+import { createSetup } from '../lib/view/setup.mjs';
 
 const CONFIG = 'honestweek.config.json';
 const git = (dir, args) => execFileSync('git', ['-C', dir, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -155,6 +156,7 @@ test('failing-path partner: an untracked config gets the "adds it to .gitignore"
     const r = answer(await s.preview(withWord(s)));
     assert.ok(r.json.notes.some((n) => n.startsWith('Saving also adds')), JSON.stringify(r.json.notes));
     assert.ok(!r.json.notes.some((n) => n.includes('tracked by git')));
+    assert.ok(!r.json.notes.includes(CANT_CHECK_CONFIG), 'git was asked, so no by-hand note');
   }
 });
 
@@ -175,6 +177,19 @@ test('a config inside a display-only repository is never checked with git', asyn
     const s = createSettings({ cwd: work, lastCommitAt: () => null });
     const r = answer(await s.preview(withWord(s)));
     assert.equal(r.status, 200, JSON.stringify(r.json));
+    // Git can't be asked, so the note says how to check by hand (issue 161), and no tracked warning shows.
+    assert.ok(r.json.notes.includes(CANT_CHECK_CONFIG), JSON.stringify(r.json.notes));
+    assert.ok(!r.json.notes.some((n) => n.includes('is tracked by git')));
+    assert.equal(configTrackState(work), 'unchecked');
+    // Save says it too, since it can be pressed without Review.
+    const saved = answer(await s.save(withWord(s)));
+    assert.equal(saved.json.saved, true, JSON.stringify(saved.json));
+    assert.equal(saved.json.warning, CANT_CHECK_CONFIG);
+    const again = answer(await s.save(withWord(s)));
+    assert.equal(again.json.saved, false, JSON.stringify(again.json));
+    assert.ok(again.json.message.endsWith(CANT_CHECK_CONFIG), again.json.message);
+    // The wording approved on issue 161, word for word.
+    assert.equal(CANT_CHECK_CONFIG, `Check that ${CONFIG} was never committed to git. It holds your private words, and listing it in .gitignore doesn't remove it from git if it was committed before. honestweek can't check for you here because of your display-only setting. Run git ls-files ${CONFIG}. If it prints the file name, run git rm --cached ${CONFIG}.`);
   } finally {
     cp.execFileSync = real;
     syncBuiltinESMExports();
@@ -203,4 +218,38 @@ test('the "adds it to .gitignore" note follows what Save will do, not whether th
   const r2 = answer(await s2.preview(withWord(s2)));
   assert.equal(r2.status, 200, JSON.stringify(r2.json));
   assert.ok(!r2.json.notes.some((n) => n.startsWith('Saving also adds')), JSON.stringify(r2.json.notes));
+});
+
+test('Setup notes the .gitignore line only when Save will add it', async (t) => {
+  const root = makeTempDir('hw-setup-ignore-note-');
+  t.after(() => removeTempDir(root));
+  const project = join(root, 'project');
+  execFileSync('git', ['init', '-q', project]);
+  const body = JSON.stringify({ authorEmails: ['you@example.com'], timezone: 'UTC', repos: [{ path: project, role: 'featured' }], names: '', terms: '' });
+  const note = (notes) => notes.some((n) => n.startsWith(`Saving also adds ${CONFIG} to .gitignore`));
+  const fresh = await createSetup({ cwd: project, inferEmail: () => 'you@example.com' }).preview(body);
+  assert.ok(note(fresh.body.notes), JSON.stringify(fresh.body));
+  // Already listed word for word: Save adds nothing, so there's no note.
+  writeFileSync(join(project, '.gitignore'), `node_modules/\n${CONFIG}\n`);
+  const listed = await createSetup({ cwd: project, inferEmail: () => 'you@example.com' }).preview(body);
+  assert.ok(!note(listed.body.notes), JSON.stringify(listed.body));
+});
+
+test('outside any checkout, Settings asks git nothing and gives no by-hand note', async (t) => {
+  const root = makeTempDir('hw-settings-no-checkout-');
+  t.after(() => removeTempDir(root));
+  const work = join(root, 'plain');
+  mkdirSync(join(work, 'notes'), { recursive: true });
+  writeFileSync(join(work, CONFIG), JSON.stringify({
+    identity: { authorEmails: ['you@example.com'] },
+    week: { startsOn: 'monday', timezone: 'UTC' },
+    repos: [{ path: 'notes', label: 'notes', role: 'display' }],
+    redaction: { codenames: [], names: [], terms: [] },
+    output: { mode: 'digest', file: 'out.md' },
+  }, null, 2) + '\n');
+  assert.equal(configTrackState(work), 'untracked');
+  const s = createSettings({ cwd: work, lastCommitAt: () => null });
+  const r = answer(await s.preview(withWord(s)));
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.ok(!r.json.notes.includes(CANT_CHECK_CONFIG), JSON.stringify(r.json.notes));
 });
