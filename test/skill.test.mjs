@@ -98,7 +98,7 @@ test('SKILL.md puts the contract and safety rules before any flow, and stays und
   assert.doesNotMatch(SKILL_MD, /v0\.1 epic|repo Issues/, 'everything Claude needs is in the files it has');
 });
 
-test('every flow file is listed in the table, exists, and ships nothing but its own flow', () => {
+test('every flow file is listed in the table, exists, and holds only its own flow', () => {
   const onDisk = readdirSync(join(SKILL_ROOT, 'flows')).filter((f) => f.endsWith('.md')).map((f) => `flows/${f}`).sort();
   assert.deepEqual([...FLOW_FILES].sort(), onDisk, 'the table lists exactly the files in flows/');
   assert.equal(FLOW_FILES[0], 'flows/weekly.md', 'the weekly flow comes first, as the default');
