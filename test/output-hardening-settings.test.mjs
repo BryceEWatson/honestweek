@@ -181,6 +181,13 @@ test('a config inside a display-only repository is never checked with git', asyn
     assert.ok(r.json.notes.includes(CANT_CHECK_CONFIG), JSON.stringify(r.json.notes));
     assert.ok(!r.json.notes.some((n) => n.includes('is tracked by git')));
     assert.equal(configTrackState(work), 'unchecked');
+    // Save says it too, since it can be pressed without Review.
+    const saved = answer(await s.save(withWord(s)));
+    assert.equal(saved.json.saved, true, JSON.stringify(saved.json));
+    assert.equal(saved.json.warning, CANT_CHECK_CONFIG);
+    const again = answer(await s.save(withWord(s)));
+    assert.equal(again.json.saved, false, JSON.stringify(again.json));
+    assert.ok(again.json.message.endsWith(CANT_CHECK_CONFIG), again.json.message);
     // The wording approved on issue 161, word for word.
     assert.equal(CANT_CHECK_CONFIG, `Check that ${CONFIG} was never committed to git. It holds your private words, and listing it in .gitignore doesn't remove it from git if it was committed before. honestweek can't check for you here because of your display-only setting. Run git ls-files ${CONFIG}. If it prints the file name, run git rm --cached ${CONFIG}.`);
   } finally {
