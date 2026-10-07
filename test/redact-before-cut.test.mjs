@@ -622,6 +622,11 @@ const ALLOWED = [
   ['parse-common.mjs', "String(s ?? '').slice(0, RAW_ERROR_MAX)", "a failed call's raw error text, kept in memory for checks (keepRaw) and never shown"],
   ['timeline.mjs', "k.split('|')[0]", 'an internal map key'],
   ['views.mjs', 'toISOString().slice(0, 10)', 'a date'],
+  ['word-index.mjs', 'return text.slice(0, end).trimEnd();', 'the helper itself (cutRedacted): text already redacted whole, cut before any marker it would split'],
+  ['word-index.mjs', 'matched.slice(0, MAX_RESULTS)', 'a list of sessions, not text'],
+  ['word-index.mjs', 'hits.slice(0, 3)', 'a list of prompts, not text; each excerpt is redacted whole, then cut'],
+  ['words.mjs', '.slice(0, MAX_PROMPTS);', 'a list of prompts, not text'],
+  ['words.mjs', '.slice(0, MAX_SIMILAR);', 'a list of prompts, not text'],
 ];
 
 // The ways a line of the engine cuts a string or takes a piece of it: the old helpers, a

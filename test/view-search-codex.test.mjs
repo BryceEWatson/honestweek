@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { makeTempDir } from './helpers/temp-dir.mjs';
-import { buildWordIndex, createWordSearch } from '../lib/view/word-index.mjs';
+import { buildWordIndex, createWordSearch } from '../lib/replay/word-index.mjs';
 
 const at = (mm, ss = 0) => `2025-03-12T10:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}.000Z`;
 const cx = (ts, type, payload) => JSON.stringify({ timestamp: ts, type, payload });

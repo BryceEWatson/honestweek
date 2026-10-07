@@ -15,7 +15,7 @@ import { createContext, isExecInstruction, isPersonPrompt } from '../lib/problem
 import { runProblems } from '../lib/problems/index.mjs';
 import { createViewData } from '../lib/view/data.mjs';
 import { whoOf } from '../lib/view/replay-export.mjs';
-import { buildWordIndex } from '../lib/view/word-index.mjs';
+import { buildWordIndex } from '../lib/replay/word-index.mjs';
 import { LEGACY, IDS, WINDOW, normalizeReading, writeTurnOriginLogs } from './fixtures/replay/turn-origin.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 

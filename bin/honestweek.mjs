@@ -2,7 +2,8 @@
 // bin/honestweek.mjs — thin subcommand dispatcher.
 //
 // This file ONLY routes. Each subcommand's logic lives in a lib/<cmd>.mjs
-// module that default-exports `async function run(args)`. Handlers are imported
+// module that default-exports `async function run(args)` (find, replay, problems and goals
+// share lib/ask.mjs, whose run also takes the command's name). Handlers are imported
 // LAZILY via dynamic import() so the dispatcher never statically depends on a
 // module that another issue has not built yet — `--help` works from a fresh
 // clone with zero modules present.
@@ -10,18 +11,21 @@
 import { setConfigLookup } from '../lib/config-lookup.mjs';
 import { commandForm, setCommandForm } from '../lib/invocation.mjs';
 
-const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts', 'digest', 'mine', 'history', 'view'];
+const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts', 'digest', 'mine', 'history', 'view', 'find', 'replay', 'problems', 'goals'];
+/** The module a command runs from, where it isn't lib/<command>.mjs. */
+const MODULE = { find: 'ask', replay: 'ask', problems: 'ask', goals: 'ask' };
 
 // Subcommands that parse `--help` themselves and print their own richer text.
 // Everything else is served by COMMAND_HELP below, BEFORE the handler is
 // imported, because asking for help must never read a session log or write a file.
-const SELF_HELP = new Set(['prompts', 'digest', 'preview', 'mine', 'view']);
+const SELF_HELP = new Set(['prompts', 'digest', 'preview', 'mine', 'view', 'find', 'replay', 'problems', 'goals']);
 
-const COMMAND_HELP = {
+/** Each command's help, with `cmd` the command as the person typed it (lib/invocation.mjs). */
+const COMMAND_HELP = (cmd) => ({
   init: `honestweek init: set up honestweek.config.json in this folder.
 
 Usage:
-  honestweek init [--yes] [--force] [--user | --config <file>]
+  ${cmd} init [--yes] [--force] [--user | --config <file>]
 
 Finds your git email and the git repositories in this folder and the folders
 next to it, folding each extra working copy (a git worktree) into its main
@@ -53,7 +57,7 @@ Options:
   discover: `honestweek discover: read the last completed week into a redacted draft.
 
 Usage:
-  honestweek discover [--week <YYYY-Www>] [--config <file>]
+  ${cmd} discover [--week <YYYY-Www>] [--config <file>]
 
 Scans the allowlisted repos' sessions and .claude/handoffs/*.md, then writes the
 gitignored, redacted honestweek.draft.json beside the config. Deterministic: no
@@ -68,7 +72,7 @@ Options:
   validate: `honestweek validate: gate the distilled items before building.
 
 Usage:
-  honestweek validate [--no-dashes] [--config <file>]
+  ${cmd} validate [--no-dashes] [--config <file>]
 
 Checks honestweek.items.json: every item needs a valid badge and a receipt, no
 item may name a 'display'-role repo or cite a commit against one, and no
@@ -84,7 +88,7 @@ Options:
   build: `honestweek build: verify every git-checkable claim, then emit.
 
 Usage:
-  honestweek build [--config <file>]
+  ${cmd} build [--config <file>]
 
 Re-derives every cited commit against your real git history. Aborts with exit 2,
 writing nothing, if a cited commit is unresolved, its author is outside
@@ -107,7 +111,7 @@ Options:
   history: `honestweek history: list what reached the default branch in a period.
 
 Usage:
-  honestweek history --from <YYYY-MM-DD> --to <YYYY-MM-DD> [--config <file>]
+  ${cmd} history --from <YYYY-MM-DD> --to <YYYY-MM-DD> [--config <file>]
 
 The raw material for a client report (output.mode "client"). For each featured
 and reference repo, lists every pull request you authored that landed on the
@@ -127,7 +131,7 @@ Options:
   harvest: `honestweek harvest: propose redaction-denylist candidates.
 
 Usage:
-  honestweek harvest [--config <file>]
+  ${cmd} harvest [--config <file>]
 
 Reads honestweek.draft.json (run discover first) and writes candidate private
 nouns, most frequent first, to the gitignored honestweek.harvest.json. Only the
@@ -138,7 +142,7 @@ Options:
       --config <file>  Read this config instead of the one honestweek finds.
   -h, --help           Show this help.
 `,
-};
+});
 
 const wantsHelp = (args) => args.some((a) => a === '--help' || a === '-h');
 
@@ -184,6 +188,12 @@ Commands:
   view        Find, check and replay your agent work in your browser, on a
               local-only (127.0.0.1) page. Add --demo to look around a made-up
               week first. Publishes nothing.
+  find        Find the sessions and goals behind a pull request, a commit, a
+              file, a branch or some words. Add --json for JSON.
+  replay      List one session's steps in order, or its state at a moment
+              (--at <time>).
+  problems    List where your sessions went wrong, highest priority first.
+  goals       List your goals and the sessions that did their work.
 
 Options:
   -h, --help  Show this help.
@@ -223,14 +233,15 @@ async function main(argv) {
   // Serve help before the handler is imported. `honestweek discover --help`
   // must print help, not scan a week of session logs; `honestweek harvest
   // --help` must not write a file.
-  if (!SELF_HELP.has(command) && wantsHelp(rest) && COMMAND_HELP[command]) {
-    process.stdout.write(COMMAND_HELP[command]);
+  const help = COMMAND_HELP(commandForm());
+  if (!SELF_HELP.has(command) && wantsHelp(rest) && help[command]) {
+    process.stdout.write(help[command]);
     return 0;
   }
 
   let mod;
   try {
-    mod = await import(new URL(`../lib/${command}.mjs`, import.meta.url));
+    mod = await import(new URL(`../lib/${MODULE[command] ?? command}.mjs`, import.meta.url));
   } catch (err) {
     if (err && err.code === 'ERR_MODULE_NOT_FOUND') {
       process.stderr.write(
@@ -249,7 +260,8 @@ async function main(argv) {
     return 1;
   }
 
-  const code = await run(rest);
+  // Only the shared module takes the command name; the others have their own second argument.
+  const code = await (MODULE[command] ? run(rest, command) : run(rest));
   return typeof code === 'number' ? code : 0;
 }
 

@@ -125,7 +125,7 @@ test('the sample output snippets show a status badge and a receipt on every rend
 
 test('DOCS-CONSISTENCY: documented subcommands match the dispatcher, with no phantom commands', () => {
   const subs = actualSubcommands();
-  assert.deepEqual(subs.sort(), ['build', 'digest', 'discover', 'harvest', 'history', 'init', 'mine', 'preview', 'prompts', 'validate', 'view']);
+  assert.deepEqual(subs.sort(), ['build', 'digest', 'discover', 'find', 'goals', 'harvest', 'history', 'init', 'mine', 'preview', 'problems', 'prompts', 'replay', 'validate', 'view']);
   for (const s of subs) assert.ok(README.includes(`honestweek.mjs ${s}`) || README.includes(`honestweek ${s}`), `README documents the ${s} command`);
   // there is no distil/verify/emit SUBCOMMAND — the docs must not invent one
   for (const phantom of ['distil', 'verify', 'emit']) {
@@ -140,7 +140,8 @@ test('DOCS-CONSISTENCY: every subcommand has a help path, so none can fall throu
   // side-effecting-help bug. Bind both sets to SUBCOMMANDS so a tenth
   // subcommand cannot be added without picking one.
   const selfHelp = [...(BIN.match(/const SELF_HELP = new Set\(\[([^\]]*)\]/)?.[1] ?? '').matchAll(/'([^']+)'/g)].map((x) => x[1]);
-  const commandHelp = [...(BIN.match(/const COMMAND_HELP = \{([\s\S]*?)\n\};/)?.[1] ?? '').matchAll(/^ {2}([a-z]+): `/gm)].map((x) => x[1]);
+  // COMMAND_HELP is a function of the command's form: (cmd) => ({ init: `...`, ... }).
+  const commandHelp = [...(BIN.match(/const COMMAND_HELP = (?:\(cmd\) => \()?\{([\s\S]*?)\n\}\)?;/)?.[1] ?? '').matchAll(/^ {2}([a-z]+): `/gm)].map((x) => x[1]);
   assert.ok(selfHelp.length > 0, 'bin declares a SELF_HELP set');
   assert.ok(commandHelp.length > 0, 'bin declares a COMMAND_HELP map');
 

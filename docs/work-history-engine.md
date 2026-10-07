@@ -225,9 +225,23 @@ What lookup can't find:
 
 A session's repository is named by its origin remote (owner and name) when git is read, and by its configured label (a name with no owner) otherwise.
 
+### Phrase search
+
+Words that aren't a reference are matched against the history too, the same way for the view page's Find and for `honestweek find`: goal titles and ids that hold every word, titles of sessions in configured repositories that hold every word, branch names that hold the text, and up to 20 prompts that share any of the words, most shared first, then newest. Words in a title, a branch name or a prompt are recorded there; ranking prompts by how many they share is a named rule's reading (`view.shared-words`), and so is "similar prompts" (`view.similar-prompt`). A display-only or outside session never joins these matches. "Search everywhere" then reads the prompts and titles of every session on the machine in the window again from the logs, display-only and outside ones included, and redacts each excerpt whole before cutting it.
+
 ## Trying it
 
-From a clone of this repository (the developer tool isn't in the published package):
+The published commands answer from the package alone, on the made-up demo week:
+
+```bash
+honestweek find --demo '#12'
+honestweek find --demo date filter
+honestweek replay --demo cc-hccfcndehggh --at 2025-03-10T09:30:00Z
+honestweek problems --demo
+honestweek goals --demo
+```
+
+From a clone of this repository, a developer tool prints the history level by level (it isn't in the published package):
 
 ```bash
 node tools/replay-inspect.mjs --config honestweek.config.json --from 2024-06-10 --to 2024-06-16 walk
@@ -264,5 +278,7 @@ node tools/replay-inspect.mjs --config honestweek.config.json --from 2024-06-10 
 - `lib/replay/goals.mjs` reads the goal record (`normalizeGoalRecord`, `goalCitations`) and builds membership (`goalMembership`, `goalView`); `lib/replay/lookup.mjs` holds `parseLookup`, the reference index both share (`createReferenceIndex`), and `createLookup`. The parse-time scan is `createWatch` in `parse-common.mjs`: the adapters get it as `ctx.watch` (null for a private source) and push `{ token, where, event }` notes onto `joins.watched`; Claude Code's push, branch, and worktree records go onto `joins.branches`. Both lists move onto the kept copy of a record in `assemble.mjs` like the other joins, and neither adds a fact to any event.
 - The rules `pr.gh-command`, `pr.squash-subject`, and `goal.prompt-names-id` are in `LOOKUP_RULES` in `classify.mjs`, apart from the event rules in `RULES` that `assertEventContract` checks; the history's `rules` merges both only when `goals` is given, and `describeRules` gives a lookup result's `rules` and a `goal(id)` join's `ruleText`. `prRefsInCommand` implements the first rule. File paths are compared through `keyPath` in `ids.mjs`, the form `pathKey` hashes. A repository's checkouts (`rootsOfRepo` in `index.mjs`) are its configured path, `attributionRoots` from `lib/worktrees.mjs` (the same folders sessions are attributed by, read from the repository's metadata without running git), and `worktreeList` in `lib/git.mjs` (`git worktree list --porcelain`). Squash subjects come from `lookupCommit`. Neither git call is made for a display-role repository or with `git: false`. Owner matching is `prMatches` and `matchPrRefs` in `lookup.mjs`; the ambiguity ranking is `effectiveRank`; a call that never ran is `didNotRun`; a Codex call's working folder is kept on its event as `_workdir`, which isn't serialized.
 - Launch links: `lib/replay/launch.mjs` holds `launchKind(command)` (a `claude` word with `-p` or `--print`, or `codex exec`, read outside quoted text one command at a time), `matchLaunches({ launches, children, knownIds })` and `LAUNCH_RULES`. `claude.mjs` keeps in memory a program's opening turn (`joins.programStart`, its full text) and a Stop hook's own strings (`joins.hookLaunches`), and `codex.mjs` keeps a `codex exec` run's opening the same way; neither is written anywhere. `assemble.mjs` reads the shell calls from each step's in-memory command, matches them, sets the run's `launchedBy` (`{ event, session, evidence, rule }`, or `{ ambiguous: true, evidence, rule, launches, sessions }`), and adds a `program-launch` link `{ from: <step id>, to: <session>, evidence, rule, sessions: [launcher, run] }`. The history's `rules` gains `LAUNCH_RULES` only when a session has `launchedBy`, so a history without one is byte-identical to before. Tests: `test/program-launch.test.mjs`, on made-up logs in `test/fixtures/replay/program-launch.mjs`, with the reading the engine gave before the join kept in `test/fixtures/program-launch-before.json`.
+- Phrase search: `lib/replay/words.mjs` holds `wordsOf`, `isReference` (the Find page's own rule, kept as `isRef` in `lib/view/assets/search.js`, plus the `pr:`, `pull:`, `commit:` and `path:` prefixes), `matchWords(h, text)`, `similarPrompts(h, eventId)` and `WORD_RULES`; `lib/replay/word-index.mjs` holds search everywhere (`buildWordIndex`, `createWordSearch`, `cutRedacted`, `excerpt`). `lib/view/data.mjs` shapes their matches into `/api/words` and `/api/search`, which answer exactly as they did before the move; `test/ask.test.mjs` pins that on the demo week.
+- The commands: `lib/ask.mjs` builds the week the way `view` does (`ownWeek` in `lib/view/own-week.mjs`, or the demo week from `lib/demo/week.mjs`), asks `createViewData` in this process for `/api/lookup`, `/api/words`, `/api/search`, `/api/replay`, `/api/problems`, `/api/home` and `/api/goal`, never with `private=1`, and shapes each answer into its own JSON, marking log and goal-list text `{ quoted }`. Tests: `test/ask.test.mjs`.
 - `tools/replay-inspect.mjs --demo` imports `buildCorpus({ goals: true })` from the test fixtures, so it runs only from a clone.
 - Tests: `test/replay-model.test.mjs`, `test/replay-timeline.test.mjs`, `test/replay-units.test.mjs`, `test/replay-harness.test.mjs`, `test/replay-regressions.test.mjs` (one test per defect the independent review found), `test/replay-goals.test.mjs` (goal membership, lookup, and the tool's new commands), the clean-room fence in `test/site-cleanroom.test.mjs`, over the synthetic corpus in `test/fixtures/replay/corpus.mjs` (its goal sessions are added only with `buildCorpus({ goals: true })`, so the other tests read the corpus they always did).

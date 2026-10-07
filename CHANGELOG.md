@@ -6,6 +6,8 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 
 ### Added
 
+- `find`, `replay`, `problems` and `goals` ask the questions the view page answers, from a terminal or any chat that can run a command, as text or as JSON with `--json`. `find` takes a pull request, a commit, a file, a branch or some words; `replay` lists a session's steps, or its state at a moment with `--at`; `problems` lists where sessions went wrong in the page's order; `goals` lists each goal's sessions and how each joins it. Each works on the made-up week with `--demo`, from the package alone. The answers are redacted exactly as the page shows them with Show private text off, with no option to show private text; every row keeps its evidence word; and text copied from your logs or goal list is marked `{"quoted": ...}` in JSON, and in text set in double quotes or on a line starting with `>` (#178).
+- Phrase search moved into the work-history engine (`lib/replay/words.mjs`, and search everywhere into `lib/replay/word-index.mjs`), so the view page and `find` share one implementation. The page answers exactly as before (#178).
 - honestweek finds your config from any folder, so an agent working in another project can use it. Every command reads `honestweek.config.json` in the folder it runs in, as before, else the file the new `HONESTWEEK_CONFIG` environment variable names, else `~/.honestweek/honestweek.config.json`, and every command takes `--config <file>`. `init --user` and Setup's new "Save it for: Every folder" write that user-level file. Each command names the config it read in one line on stderr, and writes its files (the draft, the items, the sidecars, the output) beside that config, never into the folder it happened to run in. A config in the folder you run from still wins, and a library caller that passes its own folder, such as a scheduled run, reads only that folder, as before. Settings now changes a config named with `--config` in its own folder, instead of refusing. `mine --config` now keeps its ledger and drafts beside that config too, so pass `--ledger` to keep using a ledger in the folder you run from (#177).
 
 ### Privacy
@@ -22,6 +24,7 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 
 ### Changed
 
+- Help text and the next steps commands print (`prompts` and `digest` "Next:" pages, the commands to rerun after a delete, and the usage lines) name honestweek the way you ran it, such as `npx github:<owner>/honestweek` or `node bin/honestweek.mjs`, so a step an agent copies works. Run as `honestweek`, every one reads exactly as before (#178).
 - In a clone of the honestweek repository, `/honestweek` works with nothing to install: a project skill in `.claude/skills/honestweek/` points Claude at the root `SKILL.md` and the repository's own CLI. Your other projects still need the plugin or the plain skill. (#174)
 - In a terminal, `init` asks for your email when git doesn't know it, as Setup does, instead of writing an empty list that `build` then rejects. And where a repository it found holds a folder your config marks display-only, or sits inside one, it offers to mark that repository display-only too instead of stopping; the folder you run it in defaults to no. With `--yes` nothing is asked, as before. (#173, issue #163)
 
