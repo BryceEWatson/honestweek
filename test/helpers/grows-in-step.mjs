@@ -9,7 +9,8 @@
 // so a run can be slowed by whatever else is running at that moment. So each full run is timed
 // between two quarter runs and compared with the faster of them, and the check uses the round
 // with the lowest ratio. A busy stretch that slows a full run slows the quarter runs on either
-// side of it too, so it can't make the ratio look like a slowdown; and one slow quarter run
+// side of it too, so it shouldn't make the ratio look like a slowdown (it can, if the load slows
+// long inputs more than short ones; three CI runs in a row passed on 6 October); and one slow quarter run
 // can't hide a real slowdown, because the faster neighbour is the one compared. It stops as soon
 // as the check passes, after at most ROUNDS rounds.
 //
