@@ -3,7 +3,7 @@
 [![CI](https://github.com/BryceEWatson/honestweek/actions/workflows/ci.yml/badge.svg)](https://github.com/BryceEWatson/honestweek/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-See where your Claude Code and Codex sessions went wrong, open the exact steps behind each problem, and check every count yourself. Local and rule-based; nothing is sent to an AI unless you ask.
+See where your Claude Code and Codex sessions went wrong, open the exact steps behind each problem, and check every count yourself. The page runs on your machine with fixed rules and sends nothing to an AI unless you turn that on.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/replay-dark.png">
@@ -73,7 +73,7 @@ honestweek works with the session logs that Claude Code and Codex already keep o
 - **Find and replay your work.** The Find page is one click away. Give it a pull request number, a commit, a file, a branch or a few words, and it shows the sessions behind it, which you can then replay step by step. Every link and count says how it's known: recorded if a log or git says so, derived if it's worked out from records, inferred if a named rule reads it that way, or missing. When the records fit a link more than one way, the page also marks it ambiguous.
 - **Write an honest weekly summary.** A short pipeline turns a finished week into a summary you review and publish yourself. It checks every commit the summary cites against your real git history first, and it stops rather than write a claim it can't back.
 
-It's for developers who do much of their work through an AI coding agent and want to find, check or show that work later. Nothing leaves your machine. There's no account, no telemetry and no network call. The one exception is optional: turn on the Include /insights switch, then press the Run /insights or Run with Codex button, and your sessions go to Claude or OpenAI on your own plan. The names and client words you list stay hidden on the page. Its Show private text switch shows them, on your own screen only, and the keys, tokens and passwords it recognizes stay hidden either way.
+It's for developers who do much of their work through an AI coding agent and want to find, check or show that work later. There's no account, no telemetry, and honestweek itself makes no network call. Two things you start do send session text to an AI, on your own plan: the weekly summary, where Claude reads a redacted draft of your week in your own Claude Code session, and, after you turn on the Include /insights switch, the Run /insights and Run with Codex buttons, which send your sessions to Claude or OpenAI. [Where your data goes](#where-your-data-goes) has the details. The names and client words you list stay hidden on the page. Its Show private text switch shows them, on your own screen only, and the keys, tokens and passwords it recognizes stay hidden either way.
 
 ## Try it
 
@@ -98,6 +98,18 @@ What's further down:
 - [Finding and replaying your work in the browser](#finding-and-replaying-your-work-in-the-browser-view): every option of `view`, the goal list, and what it keeps private.
 - [The flow](#the-flow-an-honest-weekly-summary): the weekly summary from `init` to `build`, then [mining solved problems](#mining-solved-problems-worth-publishing-mine), [a standalone site](#standalone-site-page-mode) and [a report for a client](#a-report-for-a-client-client-mode).
 - [Config reference](#config-reference), [Sidecars](#sidecars) (the files it writes) and the [privacy model](#what-it-does-not-do--privacy-model).
+
+## Where your data goes
+
+honestweek reads your logs and repositories on your own machine. Here's which parts of it an AI ever sees:
+
+| What you run | What it reads | Does an AI see it? |
+| --- | --- | --- |
+| `honestweek view` (the page and its Setup) | Your session logs and repositories, into memory on your machine | No, unless you turn on Include /insights and press Run |
+| `/honestweek` (the weekly summary in Claude Code) | A redacted draft of last week's Claude Code sessions | Yes: Claude writes the summary from that draft |
+| `init`, `discover`, `build` | Your git settings, repositories and logs | No |
+
+[Where your data goes](docs/where-your-data-goes.md) walks through each one step by step, lists exactly what the draft holds, and says who receives what from the two Run buttons.
 
 ## Why
 
@@ -244,7 +256,7 @@ Name it with `--goals <file>`, or once with `goalsFile` in the config. It's a di
 
 This turns a completed week of your AI coding **sessions** (each one conversation log) into a work summary that's honest, checked against git and private by default. It includes work you figured out but haven't shipped yet, which your commits can't show.
 
-I ship it as a Claude Code skill (instructions Claude follows when you type `/honestweek`) that runs small Node scripts with no dependencies, all on your machine. It reads your AI coding session transcripts and distils a completed week into an honest summary you can share. It **re-derives every claim git can check against your real commits, or aborts**. Then it produces a draft *you* review and publish yourself. It never auto-publishes.
+I ship it as a Claude Code skill (instructions Claude follows when you type `/honestweek`) that runs small Node scripts with no dependencies, all on your machine. It reads your AI coding session transcripts and distils a completed week into an honest summary you can share. It **re-derives every claim git can check against your real commits, or aborts**. Then it produces a draft *you* review and publish yourself. It never auto-publishes. Of these steps, only one sends session text to an AI: Claude reads the redacted draft (`honestweek.draft.json`) in your own Claude Code session and writes the summary from it.
 
 End-to-end happy path, in order. Each step names the artifact it produces.
 
@@ -598,7 +610,7 @@ Your `honestweek.config.json` follows the shape of `honestweek.config.example.js
 - **Only your own allowlisted repos are read.** `git` runs only against the repositories in your `repos` list, with two exceptions. First, the scans that suggest repos to list (`init`, and the Setup and Settings pages in `view`) look in the folder you run them in and the folders next to it, but never ask `git` about the commits in a repository that holds a folder your config marks display-only, or sits inside one. Second, `discover` and Settings check that the draft file and the config aren't tracked in the folder you run them in. Where that would reach a display-only folder, they skip git, say so and give the two commands to check by hand. Weekly reports use only sessions from those repos. The `mine` command reads every session in your logs, as [SECURITY.md](SECURITY.md) explains.
 - **`display`-role repos are summarized generically and NEVER git-read.** There is no code path that runs `git` against a `display` repo.
 - **Output stays local until you publish it.** honestweek writes local files only.
-- **No telemetry, no network egress.** honestweek makes no network call. The one exception is yours to start. With Include /insights on, Run /insights and Run with Codex ask you first, then run your own `claude` or `codex`, which send your sessions to Claude or OpenAI. The optional `preview` server is loopback-only (`127.0.0.1`). It serves your already-built output with no key, so any program or account on your machine can read it while it runs, and nothing leaves your machine. The `view` page is loopback-only too. It answers only the page it opened and keeps only what you choose to save, as [What `view` keeps private](#what-view-keeps-private) explains.
+- **No telemetry, no network egress.** honestweek makes no network call. Two things you start do send session text to an AI. In the weekly summary, Claude reads the redacted draft (`honestweek.draft.json`) in your own Claude Code session and writes the summary from it. With Include /insights on, Run /insights and Run with Codex ask you first, then run your own `claude` or `codex`, which send your sessions to Claude or OpenAI. [Where your data goes](docs/where-your-data-goes.md) has each step. The optional `preview` server is loopback-only (`127.0.0.1`). It serves your already-built output with no key, so any program or account on your machine can read it while it runs, and nothing leaves your machine. The `view` page is loopback-only too. It answers only the page it opened and keeps only what you choose to save, as [What `view` keeps private](#what-view-keeps-private) explains.
 - **Nothing is auto-published.** honestweek produces a draft; *you* are the publisher.
 
 ### What the scrubber catches, and what it doesn't
