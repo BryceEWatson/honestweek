@@ -101,7 +101,9 @@ What's further down:
 
 ## Why
 
-Your commits show what shipped. Your sessions show what you *figured out*: the dead ends you ruled out and the work that's designed but not yet proven. I built honestweek to show that work without overstating it. Every line points to the commit or session turn it came from (I call that its receipt), and each distilled work item carries a status: `shipped`, `in progress` or `designed, not proven`. Items the digest picks out on its own say why they were picked, without claiming a status.
+An agent can say "All tests pass" right after a test run failed, and in a three-hour session with seven sub-agents you might never scroll back far enough to see it. I built honestweek to catch that and let you dig in. Problems checks your sessions against known ways agents go wrong and puts the claims the agent couldn't back first. Each finding opens on its place in the session's timeline, with one row for the main agent and one for each sub-agent, and every step opens down to the log line behind it, the command's output and how its time is known. You see exactly what happened before you change anything, then copy the fix it offers, and its count against the week before shows whether it's happening less.
+
+The same rule runs through all of it: nothing is stated without its evidence. Every link, count and step says how it's known. The weekly summary goes further: your commits show what shipped, your sessions show what you *figured out*, and every line points to the commit or session turn it came from (I call that its receipt), with a status of `shipped`, `in progress` or `designed, not proven`.
 
 ## Requirements
 
