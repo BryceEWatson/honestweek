@@ -29,9 +29,10 @@ repository. It shows the list so you can keep or drop repositories by number
 people's names and client or project words to keep private (you can skip
 both). It reads back the words it'll store, and writes nothing until you've
 said yes twice. Then it writes honestweek.config.json, drops
-honestweek.config.example.json if absent, and adds honestweek's generated files
-to .gitignore, and the config too when you gave it private words. If it finds no
-repositories, it writes nothing. Answers piped in on stdin work, one per line.
+honestweek.config.example.json if absent, and adds the config and honestweek's
+private files to .gitignore, since the config holds your email and folder
+paths. If it finds no repositories, it writes nothing. Answers piped in on
+stdin work, one per line.
 
 Options:
   -y, --yes   Accept the inferred defaults without prompting. Use this when no

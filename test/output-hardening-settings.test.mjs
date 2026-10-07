@@ -1,4 +1,4 @@
-// Settings and the config's .gitignore line once the config lists private words: a later `!`
+// Settings and the config's .gitignore line, which Save always adds: a later `!`
 // line that un-ignores the config is honoured (so the line is added again), and a config git
 // already tracks gets a note saying .gitignore won't hide it, instead of the "adds it to
 // .gitignore" one. A folder inside a display-only repository is never asked (invariant 4).
