@@ -6,6 +6,8 @@ Commands in this file are written with the skill folder placeholder, the dollar 
 
 Drive the pipeline in this exact order. Each stage names its input and its output artifact.
 
+**With `page` or `site` output and no goals registry** (no `honestweek.objectives.json` beside the config), the balanced digest is an extra input to the same build: read `flows/digest.md` too, and run `digest prepare` after DISTIL and before step 4's `validate` and `build`. With any other output, or with a goals registry, skip it.
+
 1. **`init`** *(input: none; output: `honestweek.config.json`)*
    **First, look for a config, and with none, stop and ask.** The status report in `SKILL.md` already names the config honestweek would read, or says there's none; trust it when it's there. Without it, check these in order and stop at the first that applies, the same order every command uses: (a) `honestweek.config.json` in the folder you're in; (b) else, if the `HONESTWEEK_CONFIG` environment variable is set, the file it names, and if that file isn't there, tell the user and stop without looking further, since every command would fail on it; (c) else `~/.honestweek/honestweek.config.json` in the user's home folder. If (a), (b) or (c) finds a config, skip `init` and go to `discover`, which reads that config: running `init` here would write a second config in this folder that hides it. If none of them exists, don't run `init` yet: tell the user there's no config, that `init` would write one in this folder from their git settings and the repositories nearby, and ask whether to go ahead (or to run `honestweek view`, whose Setup page asks the same questions). Run it only after they say yes. This holds whether they typed `/honestweek` or asked for a weekly summary in words.
 
