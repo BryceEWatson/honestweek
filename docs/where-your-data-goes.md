@@ -111,7 +111,7 @@ Nothing. honestweek has no telemetry and makes no network calls. Its two local s
 - `init`'s printed lines: the opening line and `foundLine` in `runInit`, `lib/init.mjs`; a display-only conflict's message comes from `checkDisplayOverlap` and `checkNestedRoles` in `lib/repo-identity.mjs`.
 - The draft: `lib/discover.mjs` (`mergeCandidateCommits`) and `lib/claude-adapter.mjs` (`adaptOneSession`, `extractEntry`, `handleToolUse`, `reducePath`, `detectTest`, `deriveStatus`, `extractCommits`, `privateEntry`, and the limits `MAX_STEERS`, `MAX_STEER_LEN`, `MAX_NOTES`, `MAX_NOTE_LEN`, `MAX_REDIRECTS`, `MAX_STATUS`, `MAX_CANDIDATES`). The week: `lib/resolve-week.mjs`. Handoffs: `lib/handoffs.mjs`. The redactor: `lib/redact.mjs`.
 - `mine`'s printed lines: `lib/mine.mjs`.
-- The distiller and the contract it preloads: `agents/honestweek-distiller.md` and `skills/honestweek-contract/SKILL.md`, listed in `.claude-plugin/plugin.json`.
+- The distiller: `agents/honestweek-distiller.md`, which Claude Code finds in the plugin's `agents/` folder. The contract it preloads: `skills/honestweek-contract/SKILL.md`, listed under `skills` in `.claude-plugin/plugin.json`.
 - Run /insights: `lib/view/insights.mjs` (`CLAUDE_ENV`, `CLAUDE_PREFIXES`). Run with Codex: `lib/view/codex-judge.mjs`, whose fixed arguments are `CODEX_ARGS` and whose text is built by `sessionText`; which sessions it judges is `judgedSessions` in `lib/view/data.mjs`. The confirm boxes: `lib/view/assets/insights.js`.
 - Which config a command reads, and its stderr line: `findConfig` and `configLine` in `lib/config-lookup.mjs`.
 - The skill's rules and its flows: `SKILL.md`, and the weekly steps in `flows/weekly.md`.

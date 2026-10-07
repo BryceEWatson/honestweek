@@ -11,6 +11,8 @@ import { SKILL_MD, SKILL_ROOT } from './helpers/skill-text.mjs';
 
 const read = (p) => readFileSync(join(SKILL_ROOT, p), 'utf8');
 const frontMatter = (text) => /^---\n([\s\S]*?)\n---\n/.exec(text)?.[1] ?? '';
+/** The contract skill's one opening paragraph, word for word. */
+const INTRO = "These are the rules the honestweek skill gives Claude for its one model-judgment step. They apply whenever you write or edit `honestweek.items.json`, in any chat, whether or not the skill is running. `validate` and `build` check the items afterwards; these rules keep an unsupported claim from being written in the first place.";
 const field = (fm, name) => new RegExp(`^${name}: (.*)$`, 'm').exec(fm)?.[1];
 const CONTRACT_SKILL = read('skills/honestweek-contract/SKILL.md');
 const DISTILLER = read('agents/honestweek-distiller.md');
@@ -19,12 +21,12 @@ const PLUGIN = JSON.parse(read('.claude-plugin/plugin.json'));
 test('the contract skill carries SKILL.md\'s contract word for word', () => {
   const section = SKILL_MD.slice(SKILL_MD.indexOf('## Distillation contract'), SKILL_MD.indexOf('## Safety invariants')).trimEnd();
   assert.ok(section.length > 1000, 'found the contract section in SKILL.md');
-  assert.ok(CONTRACT_SKILL.includes(section), 'the contract skill holds the same text as SKILL.md');
-  // Nothing added around it either: after its own heading and one opening paragraph, the skill is the section.
-  const body = CONTRACT_SKILL.slice(CONTRACT_SKILL.indexOf('\n---\n', 4) + 5).trimStart().trimEnd();
+  // After its front matter, the skill is its heading, one fixed opening paragraph, then exactly
+  // the section: nothing can be added anywhere without failing this.
+  const body = CONTRACT_SKILL.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
   const [heading, intro, ...rest] = body.split('\n\n');
   assert.equal(heading, '# The honestweek distillation contract');
-  assert.match(intro, /^These are the rules the honestweek skill gives Claude/);
+  assert.equal(intro, INTRO);
   assert.equal(rest.join('\n\n'), section, 'the rest of the contract skill is exactly the section');
 });
 
@@ -53,7 +55,7 @@ test('the distiller has file tools only and preloads the contract', () => {
 test('the plugin lists its root skill and every skill folder, so none is dropped silently', () => {
   const listed = PLUGIN.skills ?? [];
   assert.ok(listed.includes('./'), 'the weekly skill at the root still loads');
-  for (const dir of readdirSync(join(SKILL_ROOT, 'skills'))) {
+  for (const dir of readdirSync(join(SKILL_ROOT, 'skills'), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)) {
     assert.ok(listed.includes(`./skills/${dir}`), `skills/${dir} is listed in plugin.json`);
     assert.ok(existsSync(join(SKILL_ROOT, 'skills', dir, 'SKILL.md')), `skills/${dir} has a SKILL.md`);
   }
