@@ -94,7 +94,7 @@ Run `honestweek view` from one of your project folders, or from a new folder nex
 
 What's further down:
 
-- [Install](#install) as a Claude Code plugin, a plain skill, or the standalone command.
+- [Install](#install) as a Claude Code plugin, a plain skill, a Codex skill, or the standalone command.
 - [Finding and replaying your work in the browser](#finding-and-replaying-your-work-in-the-browser-view): every option of `view`, the goal list, and what it keeps private.
 - [The flow](#the-flow-an-honest-weekly-summary): the weekly summary from `init` to `build`, then [mining solved problems](#mining-solved-problems-worth-publishing-mine), [a standalone site](#standalone-site-page-mode) and [a report for a client](#a-report-for-a-client-client-mode).
 - [Config reference](#config-reference), [Sidecars](#sidecars) (the files it writes) and the [privacy model](#what-it-does-not-do--privacy-model).
@@ -126,7 +126,7 @@ The same rule runs through all of it: honestweek states nothing without its evid
 
 ## Install
 
-honestweek runs locally and has no dependencies to install. Pick whichever path you prefer. The plugin and the skill give you `/honestweek`, which runs the weekly summary inside Claude Code. For the browser page (`view`), use the standalone command.
+honestweek runs locally and has no dependencies to install. Pick whichever path you prefer. The plugin, the plain skill and the Codex route each give you the weekly-summary skill, under the name each section below says; I checked each one from a fresh setup on 7 October 2026 (Claude Code 2.1.292, Codex 0.144.6). Through the skill, Claude can also start the browser page (`view`) for you; to run it yourself, use the standalone command.
 
 ### As a Claude Code plugin (recommended for the weekly summary)
 
@@ -144,7 +144,7 @@ claude plugin marketplace add BryceEWatson/honestweek
 claude plugin install honestweek@honestweek
 ```
 
-You get `/honestweek` inside Claude Code, with versioned updates via `/plugin marketplace update`.
+You get `/honestweek:honestweek` inside Claude Code, with versioned updates via `/plugin marketplace update`. Claude Code names a plugin's skill with the plugin's name in front, so it isn't plain `/honestweek` here. The plugin is for Claude Code only: Claude Code's plugin docs say claude.ai and Cowork don't install a plugin with a top-level `bin/` folder, and this one has one.
 
 ### As a plain skill
 
@@ -154,11 +154,23 @@ Clone into your personal skills directory:
 git clone https://github.com/BryceEWatson/honestweek ~/.claude/skills/honestweek
 ```
 
-Either way, when you run `/honestweek`, the skill runs its bundled CLI by an **absolute path inside the skill's own folder** (`${CLAUDE_SKILL_DIR}/bin/honestweek.mjs`). That's why the commands work from *your own* project directory.
+You get `/honestweek`. If you also have the plugin, you get both names, since the plugin's is set apart by its prefix.
+
+Either way, when the skill runs, the skill runs its bundled CLI by an **absolute path inside the skill's own folder** (`${CLAUDE_SKILL_DIR}/bin/honestweek.mjs`). That's why the commands work from *your own* project directory.
 
 ### In a clone of this repository
 
-Working inside a clone of honestweek itself, `/honestweek` is already there with nothing to install: the repository carries a project skill in `.claude/skills/honestweek/` that points Claude at the root `SKILL.md` and the repository's own `bin/honestweek.mjs`. It only applies inside this repository; for your other projects, use the plugin or the plain skill above.
+Working inside a clone of honestweek itself, `/honestweek` is already there with nothing to install: the repository carries a project skill in `.claude/skills/honestweek/` that points Claude at the root `SKILL.md` and the repository's own `bin/honestweek.mjs`. It only applies inside this repository; for your other projects, use the plugin or the plain skill above. If you've also installed the plain skill, Claude Code runs that one, since a personal skill wins over a project skill with the same name. For Codex, the clone carries the same pointer in `.agents/skills/honestweek/`.
+
+### In Codex
+
+Clone into Codex's skills folder:
+
+```bash
+git clone https://github.com/BryceEWatson/honestweek ~/.codex/skills/honestweek
+```
+
+Codex lists it as `honestweek:honestweek`, which lets it start the skill when you ask for a weekly summary. If you've set `CODEX_HOME`, clone into its `skills` folder instead. Codex doesn't fill in `${CLAUDE_SKILL_DIR}`, so the skill tells it to run the CLI from the folder its `SKILL.md` is in. I've checked that Codex finds the skill there; I haven't run a whole weekly summary through Codex yet.
 
 ### As a standalone CLI
 
@@ -260,7 +272,7 @@ I ship it as a Claude Code skill (instructions Claude follows when you type `/ho
 
 End-to-end happy path, in order. Each step names the artifact it produces.
 
-> Installed as the skill/plugin? Just run `/honestweek`: Claude drives these steps for you and resolves the CLI path automatically. The commands below write `honestweek`; with `npx` or from a clone, use the form under [Try it](#try-it).
+> Installed as the skill or plugin? Just run `/honestweek` (`/honestweek:honestweek` with the plugin), or ask Claude for a weekly summary: Claude drives these steps for you and resolves the CLI path automatically. The commands below write `honestweek`; with `npx` or from a clone, use the form under [Try it](#try-it).
 
 1. **`init`** → writes `honestweek.config.json`, inferred from your git state (your `git config user.email` plus the nearby git repos it finds), for you to review. If it finds no repositories, it writes nothing and says where to run it instead. It also drops `honestweek.config.example.json` if one isn't present. If git doesn't know your email, it asks for it. If a repository it found holds a folder your config marks display-only, or sits inside one, it offers to mark that repository display-only too instead of stopping. It asks you to confirm twice before it writes, and accepting the defaults gives you a valid config. Between the two, it asks for the names and client words to keep private, which go under `redaction`. You can skip the names, the client words or both. Either way it adds the config to `.gitignore`, since the config holds your email and folder paths too. Before the second confirmation, it shows a short summary of what the file will say. Run again over an existing config it can read, it keeps that config's private words (its `redaction` lists and `neverPublicTerms`) and any display-only folder its search doesn't list, so a rewrite doesn't stop hiding a word or forget a folder you marked display-only. If the config there can't be read, it stops before running git anywhere, says why and writes nothing, since it can't tell which folders that config marked display-only.
    ```bash
