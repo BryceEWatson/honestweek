@@ -6,7 +6,7 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 
 ### Privacy
 
-- `init` doesn't ask git about a repository that holds a folder your config marks display-only, or one inside such a folder, since git reading it would read that folder's history too. Asked to rewrite the config there, `init` stops with one line saying why and writes nothing, where it used to write that repository as one git reads and drop the display-only folder from the list. Mark the repository display as well and it's accepted. Settings' Find new repositories already skipped these, and Setup only looks for repositories while the folder has no config, so it never had a display-only folder to skip. (issue #117)
+- `init` doesn't ask git about a repository that holds a folder your config marks display-only, or one inside such a folder, since git reading it would read that folder's history too. Asked to rewrite the config there, `init` stops with one line saying why and writes nothing, where it used to write that repository as one git reads and drop the display-only folder from the list. Mark the repository display as well and it's accepted. Settings' Find new repositories already skipped these, and Setup only looks for repositories while the folder has no config, so it never had a display-only folder to skip. (#158, issue #117)
 
 ## 0.2.0 (6 October 2026)
 
