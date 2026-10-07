@@ -98,7 +98,7 @@ test('SKILL.md puts the contract and safety rules before any flow, and stays und
   assert.doesNotMatch(SKILL_MD, /v0\.1 epic|repo Issues/, 'everything Claude needs is in the files it has');
 });
 
-test('every flow file is listed in the table, exists, and ships nothing but its own flow', () => {
+test('every flow file is listed in the table, exists, and holds only its own flow', () => {
   const onDisk = readdirSync(join(SKILL_ROOT, 'flows')).filter((f) => f.endsWith('.md')).map((f) => `flows/${f}`).sort();
   assert.deepEqual([...FLOW_FILES].sort(), onDisk, 'the table lists exactly the files in flows/');
   assert.equal(FLOW_FILES[0], 'flows/weekly.md', 'the weekly flow comes first, as the default');
@@ -118,6 +118,15 @@ test('the front matter names the flows as arguments and pre-approves only honest
   assert.equal(/^allowed-tools: (.*)$/m.exec(fm)?.[1], 'Bash(node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" *)');
   assert.match(SKILL_MD, /\$ARGUMENTS/, 'the flows section reads the arguments');
   assert.match(SKILL_MD, /If it's empty, or shows a dollar sign and a word instead, nothing was passed/, 'no flow word falls back to what the user asked for');
+});
+
+// Issue 183: the skill opens knowing where the week stands, from `honestweek status` run as it
+// loads, and a host that doesn't run that line (Codex) is told to run it first.
+test('SKILL.md loads honestweek status as it starts, with a fallback for hosts that do not run it', () => {
+  assert.ok(SKILL_MD.includes('!`node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" status`'), 'the status line runs the bundled CLI');
+  assert.ok(SKILL_MD.indexOf('honestweek.mjs" status`') < SKILL_MD.indexOf('## Flows'), 'status comes before the flows');
+  assert.match(SKILL_MD, /shows that command instead of a report[\s\S]*?run it yourself before anything else/);
+  assert.match(SKILL_MD, /start from the step its `next:` line names, not from `init`/);
 });
 
 // Codex on #192: the weekly flow is the only file read for a default run, so it must send a
