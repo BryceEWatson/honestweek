@@ -72,6 +72,7 @@ test('a draft for another week is a choice, never an overwrite; a current one wi
   const old = status(dir);
   assert.equal(old.draft.current, false);
   assert.equal(old.next.step, 'choose-week');
+  assert.equal(old.next.command, undefined, 'no command to run blindly over the draft');
   assert.match(old.next.says, /covers 2025-03-03 to 2025-03-09, not the last completed week \(2025-03-10 to 2025-03-16\)\. Ask which week the user means/);
   assert.match(old.next.says, /honestweek discover writes a new draft over this one; to carry on with 2025-03-03 to 2025-03-09, go on from DISTIL/);
   writeFileSync(join(dir, 'honestweek.draft.json'), JSON.stringify({ week: LAST, sessions: [{ id: 'a' }, { id: 'b' }], handoffs: [] }));
@@ -236,8 +237,7 @@ test('a client config gets the client flow: history, items with a period, then v
   writeFileSync(join(dir, 'honestweek.items.json'), JSON.stringify({ period: { start: '2025-03-01', end: '2025-03-31' }, items: [goodItem('abc12345')] }));
   const r2 = status(dir);
   assert.deepEqual(r2.items.week, { start: '2025-03-01', end: '2025-03-31' });
-  assert.notEqual(r2.next.step, 'discover');
-  assert.notEqual(r2.next.step, 'choose-week');
+  assert.equal(r2.next.step, 'build', 'items that pass, not built yet: build, never discover');
 });
 
 test('the real command exits 0 and prints the report from a folder with no config', () => {
