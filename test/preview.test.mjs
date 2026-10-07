@@ -20,6 +20,7 @@ import {
   browserOpenCommand,
   startServer,
   runPreview,
+  IDLE_STOP_MS,
 } from '../lib/preview.mjs';
 import * as digest from '../lib/emit/digest.mjs';
 import * as post from '../lib/emit/post.mjs';
@@ -477,6 +478,78 @@ test('runPreview keeps the locked-down (no-script) CSP for a Markdown output', a
     assert.ok(!/script-src/.test(csp), 'a Markdown preview never permits inline script');
   } finally {
     if (handle) await handle.close();
+    removeTempDir(dir);
+  }
+});
+
+/** Timers the test fires by hand, so the idle stop runs without waiting half an hour. */
+function fakeTimers() {
+  const set = [];
+  return {
+    set,
+    setTimeout: (fn, ms) => {
+      const t = { fn, ms, cleared: false };
+      set.push(t);
+      return t;
+    },
+    clearTimeout: (t) => {
+      t.cleared = true;
+    },
+  };
+}
+
+test('startServer with idleMs stops itself after the wait, and every request restarts it', async () => {
+  const timers = fakeTimers();
+  let idled = false;
+  const handle = await startServer({ port: 0, html: '<p>x</p>', idleMs: 1000, onIdle: () => (idled = true), timers });
+  try {
+    assert.equal(timers.set.length, 1, 'the wait starts once it listens');
+    assert.equal(timers.set[0].ms, 1000);
+    assert.equal((await httpGet(handle.url)).status, 200);
+    assert.equal(timers.set.length, 2);
+    assert.ok(timers.set[0].cleared, 'a visit restarts the wait');
+    assert.ok(!timers.set[1].cleared);
+    const closed = new Promise((r) => handle.server.once('close', r));
+    timers.set[1].fn();
+    await closed;
+    assert.equal(handle.server.listening, false);
+    assert.ok(idled, 'onIdle ran');
+  } finally {
+    if (handle.server.listening) await handle.close();
+  }
+});
+
+test('failing-path partner: startServer without idleMs sets no timer and keeps serving', async () => {
+  const timers = fakeTimers();
+  const handle = await startServer({ port: 0, html: '<p>x</p>', timers });
+  try {
+    assert.equal((await httpGet(handle.url)).status, 200);
+    assert.equal(timers.set.length, 0);
+    assert.equal(handle.server.listening, true);
+  } finally {
+    await handle.close();
+  }
+});
+
+test('runPreview says it stops on its own after 30 minutes with no visits, then does and says so', async () => {
+  const dir = tmp();
+  let handle;
+  try {
+    const md = join(dir, 'week.md');
+    writeFileSync(md, '# A week\n\nSome work.\n');
+    const io = fakeIo();
+    const timers = fakeTimers();
+    const code = await runPreview({ cwd: dir, argv: ['--file', md, '--no-open'], io, block: false, timers, onServe: (h) => (handle = h) });
+    assert.equal(code, 0, io.errBuf);
+    assert.match(io.outBuf, /\(press Ctrl\+C to stop; it stops on its own after 30 minutes with no visits\)\.\n/);
+    assert.equal(timers.set.at(-1).ms, IDLE_STOP_MS);
+    assert.equal(IDLE_STOP_MS, 30 * 60 * 1000);
+    const closed = new Promise((r) => handle.server.once('close', r));
+    timers.set.at(-1).fn();
+    await closed;
+    assert.match(io.outBuf, /\nhonestweek preview: stopped after 30 minutes with no visits\. Run it again to see the page\.\n$/);
+  } finally {
+    if (handle?.server.listening) await handle.close();
     removeTempDir(dir);
   }
 });
