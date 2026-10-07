@@ -53,6 +53,14 @@ Each item in `honestweek.items.json` carries:
 
 This skill's folder is `${CLAUDE_SKILL_DIR}`. The flow files below are plain files read with your file tools, so the skill folder placeholder in their commands isn't filled in for you: use this folder in its place, written the same way, with forward slashes. Claude Code then runs honestweek's own commands without asking each time, and asks as usual for anything else.
 
+## Where things stand
+
+`honestweek status` reads the step files and says which config honestweek would read, the last completed week, which of the draft, the items and the output exist and for which week, and the next step. It writes nothing and prints no item text. Its report for this folder:
+
+!`node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" status`
+
+If the line above shows that command instead of a report, nothing ran it for you (Codex, for one, doesn't): run it yourself before anything else. In the weekly flow, start from the step its `next:` line names, not from `init`.
+
 ## Flows
 
 The text after the skill's name, if any, is `$ARGUMENTS`. Its first word picks the flow. If that shows a dollar sign and a word instead, nothing was passed: pick the flow from what the user asked for, and with no clear ask run the weekly flow. Before you run any of a flow's commands, read its file in full from the `flows/` folder beside this `SKILL.md`.

@@ -10,7 +10,7 @@
 import { setConfigLookup } from '../lib/config-lookup.mjs';
 import { commandForm, setCommandForm } from '../lib/invocation.mjs';
 
-const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts', 'digest', 'mine', 'history', 'view'];
+const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts', 'digest', 'mine', 'history', 'view', 'status'];
 
 // Subcommands that parse `--help` themselves and print their own richer text.
 // Everything else is served by COMMAND_HELP below, BEFORE the handler is
@@ -104,6 +104,23 @@ Options:
       --config <file>  Read this config instead of the one honestweek finds.
   -h, --help           Show this help.
 `,
+  status: `honestweek status: where the weekly summary stands, read-only.
+
+Usage:
+  honestweek status [--json] [--config <file>]
+
+Says which config it found and where, the last completed week, whether the
+draft, the items and the built output exist and which week each covers,
+whether the items pass validate's item gate, and the next step as a command.
+It writes nothing, runs no git, and always exits 0: a missing or broken file is
+a line in the report. It prints names, weeks, counts and states, never an
+item's text or anything from a session. The weekly skill loads it first.
+
+Options:
+      --json           Print the report as JSON.
+      --config <file>  Read this config instead of the one honestweek finds.
+  -h, --help           Show this help.
+`,
   history: `honestweek history: list what reached the default branch in a period.
 
 Usage:
@@ -181,6 +198,8 @@ Commands:
               undecided. Add --draft to write the top one up as a post.
   history     List the pull requests you landed in a period (--from, --to), the
               raw material for a client report. Writes a gitignored sidecar.
+  status      Say where the weekly summary stands and what to run next.
+              Reads only; always exits 0.
   view        Find, check and replay your agent work in your browser, on a
               local-only (127.0.0.1) page. Add --demo to look around a made-up
               week first. Publishes nothing.
