@@ -254,7 +254,7 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    ```bash
    honestweek init --yes
    ```
-   `--yes` leaves an existing `honestweek.config.json` untouched; add `--force` to overwrite it.
+   `--yes` leaves an existing `honestweek.config.json` untouched; add `--force` to overwrite it. One that can't be read stops `init` with exit 1 either way, before it runs git.
 2. **`discover`** → scans the **last completed week's** sessions **and session-end handoffs** (the `.claude/handoffs/*.md` notes) from your allowlisted repos. It reads handoffs only for `featured` and `reference` repos, and never reads one from a `display` repo. It writes the **redacted** result to `honestweek.draft.json`, which is gitignored. From each handoff it adds a bounded amount of extra material: its tagged claims, reversals and cited commits. It's deterministic, with no model call.
    ```bash
    honestweek discover          # or: discover --week 2024-W23
