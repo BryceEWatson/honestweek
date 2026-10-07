@@ -8,11 +8,11 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { commandConfig, configLine, findConfig, setConfigLookup, takeConfigFlag, userConfigPath } from '../lib/config-lookup.mjs';
+import { commandConfig, configAgain, configLine, findConfig, setConfigLookup, takeConfigFlag, userConfigPath } from '../lib/config-lookup.mjs';
 import { createSetup } from '../lib/view/setup.mjs';
 import { createSettings } from '../lib/view/settings.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
@@ -331,6 +331,10 @@ test('Setup refuses the user-level choice when this run would never read that fi
 
 // ---- display-only folders across configs (AGENTS.md invariant 4) ------------------------------
 
+/** A path as the file system names it (macOS keeps temporary folders behind a link), compared
+ *  without case, so a written path and the one a test made match on every system. */
+const real = (p) => realpathSync.native(p).toLowerCase();
+
 /** A folder of two git repositories side by side, and a config marking one of them display-only. */
 function besideAClientRepo(name) {
   const root = folder(name);
@@ -355,7 +359,7 @@ test('plain init keeps the display-only folders of the user-level config every c
   const r = cli(['init', '--yes'], { cwd: work, home });
   assert.equal(r.code, 0, r.err);
   const written = JSON.parse(readFileSync(join(work, 'honestweek.config.json'), 'utf8'));
-  const entry = written.repos.find((x) => resolve(x.path).toLowerCase() === resolve(client).toLowerCase());
+  const entry = written.repos.find((x) => real(x.path) === real(client));
   assert.equal(entry?.role, 'display', JSON.stringify(written.repos));
 });
 
@@ -375,11 +379,43 @@ test('Settings, editing a config in another folder, never asks git about a folde
   writeFileSync(join(work, 'honestweek.config.json'), `${JSON.stringify(marking, null, 2)}\n`);
   const elsewhere = configIn('settings-elsewhere');
   const asked = [];
-  const spy = (path) => { asked.push(resolve(path).toLowerCase()); return null; };
+  const spy = (path) => { asked.push(real(path)); return null; };
   const s = createSettings({ cwd: work, configDir: () => dirname(elsewhere), hasCommits: spy, lastCommitAt: spy });
   const f = s.found();
   assert.equal(f.editable, true, f.note);
-  assert.ok(!asked.includes(resolve(client).toLowerCase()), asked.join(', '));
-  assert.ok(!f.repos.some((x) => resolve(x.path).toLowerCase() === resolve(client).toLowerCase()));
+  assert.ok(!asked.includes(real(client)), asked.join(', '));
+  assert.ok(!f.repos.some((x) => real(x.path) === real(client)));
   assert.match(createSettings({ cwd: work, configDir: () => folder('settings-empty') }).info().note, /There's no honestweek\.config\.json in .*settings-empty/);
+});
+
+test('init writing elsewhere runs git nowhere when the config where it started can\'t be read', () => {
+  const home = folder('home');
+  const { work } = besideAClientRepo('init-start-unreadable');
+  writeFileSync(join(work, 'honestweek.config.json'), '{ not json');
+  const there = folder('there');
+  for (const args of [['init', '--yes', '--user'], ['init', '--yes', '--config', join(there, 'honestweek.config.json')]]) {
+    const r = cli(args, { cwd: work, home });
+    assert.equal(r.code, 1, args.join(' '));
+    assert.match(r.err, /can't be read \(not valid JSON\)/);
+  }
+  assert.ok(!existsSync(join(home, '.honestweek')));
+  assert.deepEqual(readdirSync(there), []);
+});
+
+test('Settings asks git nothing when the config where view started can\'t be read', () => {
+  const { work } = besideAClientRepo('settings-unreadable');
+  writeFileSync(join(work, 'honestweek.config.json'), '{ not json');
+  const elsewhere = configIn('settings-elsewhere');
+  const asked = [];
+  const spy = (path) => { asked.push(path); return null; };
+  const f = createSettings({ cwd: work, configDir: () => dirname(elsewhere), hasCommits: spy, lastCommitAt: spy }).found();
+  assert.equal(f.editable, false);
+  assert.match(f.note, /can't be read/);
+  assert.deepEqual(asked, []);
+});
+
+test('a printed next command repeats --config as it was given', () => {
+  assert.deepEqual(configAgain(undefined), []);
+  assert.deepEqual(configAgain('honestweek.config.json'), ['--config', 'honestweek.config.json']);
+  assert.deepEqual(configAgain('my folder/honestweek.config.json'), ['--config', '"my folder/honestweek.config.json"']);
 });
