@@ -314,6 +314,9 @@ test('runPreview --help prints usage and exits 0 without starting a server', asy
   assert.equal(code, 0);
   assert.match(io.outBuf, /honestweek preview:/);
   assert.match(io.outBuf, /--no-open/);
+  // The idle stop is told before the options, so the options list stays one unbroken block.
+  assert.match(io.outBuf, /30 minutes with no visits[^\n]*\n\nOptions:\n/);
+  assert.match(io.outBuf, /--no-open[^\n]*\n  -h, --help/);
 });
 
 test('runPreview exits 1 when there is no config and no --file', async () => {
@@ -548,6 +551,51 @@ test('runPreview says it stops on its own after 30 minutes with no visits, then 
     timers.set.at(-1).fn();
     await closed;
     assert.match(io.outBuf, /\nhonestweek preview: stopped after 30 minutes with no visits\. Run it again to see the page\.\n$/);
+  } finally {
+    if (handle?.server.listening) await handle.close();
+    removeTempDir(dir);
+  }
+});
+
+test('runPreview serving until stopped returns 0 after the idle stop and leaves no Ctrl+C listener behind', async () => {
+  const dir = tmp();
+  let handle;
+  try {
+    const md = join(dir, 'week.md');
+    writeFileSync(md, '# A week\n\nSome work.\n');
+    const io = fakeIo();
+    const timers = fakeTimers();
+    const before = process.listenerCount('SIGINT');
+    let served;
+    const ready = new Promise((r) => (served = r));
+    const run = runPreview({ cwd: dir, argv: ['--file', md, '--no-open'], io, block: true, timers, onServe: (h) => { handle = h; served(); } });
+    await ready;
+    await null;
+    assert.equal(process.listenerCount('SIGINT'), before + 1, 'Ctrl+C is listened for while it serves');
+    timers.set.at(-1).fn();
+    assert.equal(await run, 0);
+    assert.equal(handle.server.listening, false);
+    assert.equal(process.listenerCount('SIGINT'), before);
+    assert.match(io.outBuf, /stopped after 30 minutes with no visits/);
+  } finally {
+    if (handle?.server.listening) await handle.close();
+    removeTempDir(dir);
+  }
+});
+
+test('runPreview with no idle wait promises no idle stop', async () => {
+  const dir = tmp();
+  let handle;
+  try {
+    const md = join(dir, 'week.md');
+    writeFileSync(md, '# A week\n\nSome work.\n');
+    const io = fakeIo();
+    const timers = fakeTimers();
+    const code = await runPreview({ cwd: dir, argv: ['--file', md, '--no-open'], io, block: false, idleMs: 0, timers, onServe: (h) => (handle = h) });
+    assert.equal(code, 0, io.errBuf);
+    assert.match(io.outBuf, /\(press Ctrl\+C to stop\)\.\n/);
+    assert.doesNotMatch(io.outBuf, /on its own/);
+    assert.equal(timers.set.length, 0);
   } finally {
     if (handle?.server.listening) await handle.close();
     removeTempDir(dir);
