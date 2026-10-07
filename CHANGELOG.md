@@ -15,6 +15,10 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 - `init` doesn't ask git about a repository that holds a folder your config marks display-only, or one inside such a folder, since git reading it would read that folder's history too. When it runs in such a repository, or in any folder inside it, it takes your email from your global git config instead of that repository's, and Settings doesn't ask git there whether the config is tracked. Asked to rewrite the config there, `init` stops with one line saying why and writes nothing, where it used to write that repository as one git reads and drop the display-only folder from the list. Mark the repository display as well and it's accepted. Settings' Find new repositories already skipped these, and Setup only looks for repositories while the folder has no config, so it never had a display-only folder to skip. (#158, issue #117)
 - A config where a folder marked display-only holds a git worktree (a second working copy) of a repository git reads is refused, since git reading that repository reads the work done in that folder too. Loading the config, Setup's and Settings' Save, and `init` now stop with one line naming the worktree and how to fix it, and write nothing. A worktree outside every display-only folder is still accepted, and so is this layout once you mark the repository display as well. (#160, issue #157)
 
+### Changed
+
+- In a terminal, `init` asks for your email when git doesn't know it, as Setup does, instead of writing an empty list that `build` then rejects. And where a repository it found holds a folder your config marks display-only, or sits inside one, it offers to mark that repository display-only too instead of stopping; the folder you run it in defaults to no. With `--yes` nothing is asked, as before. (#173, issue #163)
+
 ## 0.2.0 (6 October 2026)
 
 This is the first version on npm. 0.1.0 was released on GitHub, but its npm publish failed, so `npx honestweek` has never worked before this version.

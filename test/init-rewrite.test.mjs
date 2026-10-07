@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { runInit } from '../lib/init.mjs';
+import { EMAIL_QUESTION, runInit } from '../lib/init.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const ME = 'you@example.com';
@@ -155,6 +155,94 @@ test('init counts kept neverPublicTerms as private words and ignores the config,
     assert.match(io.stdout, /Your config keeps 1 word out of public versions only, so names and client words in your logs, that one included, show as written in your own pages/, 'it still warns that nothing hides words in its own pages');
     assert.match(readFileSync(join(project, '.gitignore'), 'utf8'), /^honestweek\.config\.json$/m, 'a config holding a never-public word stays out of git');
     assert.ok(!io.stdout.includes('Orchard'));
+  } finally {
+    removeTempDir(root);
+  }
+});
+
+test('in a terminal, init offers to mark a repository holding a display-only folder display-only too, instead of stopping (issue 163)', async () => {
+  const root = makeTempDir('hw-init-offer-');
+  try {
+    const project = repo(join(root, 'project'));
+    const mono = repo(join(root, 'mono'));
+    mkdirSync(join(mono, 'private'));
+    writeConfig(project, { repos: [{ path: project, label: 'project', role: 'featured' }, { path: '../mono/private', label: 'private', role: 'display' }] });
+    const asked = [];
+    const io = terminal((q) => (asked.push(q), /Write .* now\?/.test(q) ? 'y' : ''));
+    assert.equal(await runInit({ cwd: project, io, inferEmail: () => ME }), 0, io.stderr);
+    const offer = asked.find((q) => /display-only too\?/.test(q));
+    assert.match(offer, /^\nprivate is display-only but sits inside mono, which git reads, so its history would be read too\. .*\nMark mono display-only too\? \[Y\/n\] $/s);
+    assert.match(io.stdout, /mono is display-only now, so git won't read it\./);
+    assert.equal(configOf(project).repos.find((r) => r.label === 'mono').role, 'display');
+    // The folder init runs in is offered too, but defaults to no: Enter leaves it read and stops.
+    const here = repo(join(root, 'here'));
+    mkdirSync(join(here, 'notes'));
+    writeConfig(here, { repos: [{ path: 'notes', label: 'notes', role: 'display' }] });
+    const io2 = terminal((q) => (/display-only too\?/.test(q) ? '' : ''));
+    assert.equal(await runInit({ cwd: here, argv: [], io: io2, inferEmail: () => ME }), 1);
+    assert.match(io2.stderr, /^notes is display-only but sits inside here, which git reads/);
+  } finally {
+    removeTempDir(root);
+  }
+});
+
+test('in a terminal, init asks for the email git does not know; with --yes it only warns (issue 163)', async () => {
+  const root = makeTempDir('hw-init-email-');
+  try {
+    const project = repo(join(root, 'project'));
+    const answers = ['not an email', 'you@example.com'];
+    const io = terminal((q) => (q === EMAIL_QUESTION ? answers.shift() : /Write .* now\?/.test(q) ? 'y' : ''));
+    assert.equal(await runInit({ cwd: project, io, inferEmail: () => null }), 0, io.stderr);
+    assert.match(io.stderr, /that isn't an email address/);
+    assert.doesNotMatch(io.stderr, /could not infer your git user\.email/);
+    assert.deepEqual(configOf(project).identity.authorEmails, ['you@example.com']);
+    // The failing-path partner: --yes asks nothing and warns, as before.
+    const other = repo(join(root, 'other', 'project'));
+    const quiet = terminal(() => {
+      throw new Error('--yes must not ask');
+    });
+    assert.equal(await runInit({ cwd: other, argv: ['--yes'], io: quiet, inferEmail: () => null }), 0, quiet.stderr);
+    assert.match(quiet.stderr, /could not infer your git user\.email/);
+  } finally {
+    removeTempDir(root);
+  }
+});
+
+test('with two repositories holding display-only folders, each offer shows the reason for the repository it names (issue 163)', async () => {
+  const root = makeTempDir('hw-init-two-');
+  try {
+    const project = repo(join(root, 'project'));
+    for (const name of ['alpha', 'beta']) mkdirSync(join(repo(join(root, name)), 'secret'));
+    // Listed beta's folder first, so the first conflict found isn't alpha's.
+    writeConfig(project, { repos: [{ path: project, label: 'project', role: 'featured' }, { path: '../beta/secret', label: 'beta-secret', role: 'display' }, { path: '../alpha/secret', label: 'alpha-secret', role: 'display' }] });
+    const offers = [];
+    const io = terminal((q) => (/display-only too\?/.test(q) ? (offers.push(q), 'y') : /Write .* now\?/.test(q) ? 'y' : ''));
+    assert.equal(await runInit({ cwd: project, io, inferEmail: () => ME }), 0, io.stderr);
+    assert.equal(offers.length, 2);
+    for (const q of offers) {
+      const [, named] = /Mark (\S+) display-only too\?/.exec(q);
+      assert.match(q, new RegExp(`sits inside ${named}, which git reads`), q);
+    }
+    const roles = Object.fromEntries(configOf(project).repos.map((r) => [r.label, r.role]));
+    assert.equal(roles.alpha, 'display');
+    assert.equal(roles.beta, 'display');
+  } finally {
+    removeTempDir(root);
+  }
+});
+
+test('init stops asking for the email after three answers that are not addresses, and Enter skips at once (issue 163)', async () => {
+  const root = makeTempDir('hw-init-email-skip-');
+  try {
+    for (const [name, replies, asks] of [['three', ['a', 'b', 'c', 'd'], 3], ['enter', [''], 1]]) {
+      const project = repo(join(root, name, 'project'));
+      let asked = 0;
+      const io = terminal((q) => (q === EMAIL_QUESTION ? replies[asked++] : /Write .* now\?/.test(q) ? 'y' : ''));
+      assert.equal(await runInit({ cwd: project, io, inferEmail: () => null }), 0, io.stderr);
+      assert.equal(asked, asks, name);
+      assert.match(io.stderr, /could not infer your git user\.email/, name);
+      assert.deepEqual(configOf(project).identity.authorEmails, [], name);
+    }
   } finally {
     removeTempDir(root);
   }
