@@ -311,3 +311,73 @@ test('a run that takes every session back unread leaves the saved days as they w
   assert.ok(changed.every((k) => k.startsWith('checks/')), changed.join(', '));
   assert.ok(Object.keys(before).filter((k) => k.startsWith(`${DAYS_SUB}/`)).every((k) => before[k] === after[k]), 'no history day is written again');
 });
+
+test('a log that grows after the build read it is saved with the fingerprint it had when read', async () => {
+  const d = buildDemoWeek();
+  after(() => rmSync(d.root, { recursive: true, force: true }));
+  const config = CONFIG_OF(d);
+  const h = await buildWorkHistory({ config, from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots, goals: d.goalRecord, saving: true, git: false });
+  const s = h.sessions.find((x) => !x.private && h.exportSession(x.key));
+  assert.ok(s);
+  const before = h.exportSession(s.key).sources;
+  const file = [...h.sourceFiles.values()].find((f) => fileFingerprint(f)?.size === before[0].size && pathKey(f) === before[0].file);
+  assert.ok(file);
+  appendFileSync(file, '\n');
+  const after_ = h.exportSession(s.key).sources[0];
+  assert.equal(after_.size, before[0].size, 'saved with the size it was read at');
+  assert.notEqual(fileFingerprint(file).size, after_.size, 'so the grown log reads as changed next time');
+});
+
+test('the private build reads every log, since a saved copy is redacted', async () => {
+  const w = await savedWeek();
+  const loaded = w.load();
+  assert.ok(loaded.reuse.size);
+  const h = await buildWorkHistory({ config: w.config, roots: w.d.roots, from: w.d.week.from, to: w.d.week.to, timezone: w.d.week.timezone, scope: 'all', updates: true, privateText: true, saved: loaded.sessions, reuse: loaded.reuse });
+  assert.equal(h.reusedSessions.size, 0, 'no session comes back unread with private text shown');
+});
+
+/** Rewrites each saved file of one kind (checks or days) through fn. */
+function rewriteSaved(w, sub, fn) {
+  const dir = join(w.dir, SAVED_DIR, sub);
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    const gz = name.endsWith('.gz');
+    const value = JSON.parse((gz ? gunzipSync(readFileSync(p)) : readFileSync(p)).toString('utf8'));
+    const out = Buffer.from(JSON.stringify(fn(value)), 'utf8');
+    writeFileSync(p, gz ? gzipSync(out) : out);
+  }
+}
+
+test('a saved session is taken back unredacted only by its own private-word print, not its day file\'s', async () => {
+  const w = await savedWeek();
+  assert.ok(w.load().sessions.every((x) => typeof x.redaction === 'string'), 'each session carries the print it was saved with');
+  // A session kept in a day written again with other private words keeps its own, older print.
+  rewriteSaved(w, DAYS_SUB, (f) => ({ ...f, sessions: f.sessions.map(({ redaction, ...x }) => x) }));
+  const loaded = w.load();
+  assert.equal(loaded.reuse.size, 0, 'none is taken back unread');
+  assert.ok(loaded.sessions.every((x) => x.redaction === null));
+});
+
+test('a session whose saved findings did not cover all of it is read again', async () => {
+  const w = await savedWeek();
+  const all = w.load().reuse.size;
+  const x = w.load().sessions.find((s) => w.load().reuse.has(s.key));
+  rewriteSaved(w, 'checks', (f) => ({ ...f, sessions: f.sessions.map((s) => (s.key === x.key ? { ...s, checkedTo: Date.parse(s.lastAt) } : s)) }));
+  assert.equal(w.load().reuse.size, all - 1, 'it ran past the window it was checked in');
+});
+
+test('the trend reads the logs for a day saved before it ended, or a log changed since it was saved', async () => {
+  const w = await savedWeek();
+  const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+  const args = { dir: join(w.dir, SAVED_DIR), from: w.d.week.from, to: w.d.week.to, timezone: w.d.week.timezone, roots: w.d.roots, version };
+  assert.ok(countsFromSaved(args));
+  const claudeLogs = readdirSync(w.d.roots.claude[0], { recursive: true }).filter((f) => f.endsWith('.jsonl')).map((f) => join(w.d.roots.claude[0], f));
+  const log = claudeLogs.find((f) => f.includes(SESSION_IDS.windowsCi));
+  let was = null;
+  rewriteSaved(w, 'checks', (f) => (f.day === w.d.week.to ? ((was = f.savedAt), { ...f, savedAt: `${w.d.week.to}T00:00:00.000Z` }) : f));
+  assert.equal(countsFromSaved(args), null, 'a day saved before it ended: read it');
+  rewriteSaved(w, 'checks', (f) => (f.day === w.d.week.to ? { ...f, savedAt: was } : f));
+  assert.ok(countsFromSaved(args));
+  appendFileSync(log, '\n');
+  assert.equal(countsFromSaved(args), null, 'a grown log: read it');
+});
