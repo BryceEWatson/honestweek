@@ -9,7 +9,7 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { gunzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 
 import { buildDemoWeek, CODEX_IDS, SESSION_IDS } from '../lib/demo/week.mjs';
 import { DEMO_TERM } from '../lib/view.mjs';
@@ -17,7 +17,7 @@ import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { createViewData } from '../lib/view/data.mjs';
 import { createSaver } from '../lib/saved/saver.mjs';
 import { DAYS_SUB, loadSaved, readHistoryDay, saveHistory } from '../lib/saved/history.mjs';
-import { SAVED_DIR, savedDays, writeSaved } from '../lib/saved/store.mjs';
+import { SAVED_DIR, savedDays, writeSaved, writeSavedBytes } from '../lib/saved/store.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const d = buildDemoWeek();
@@ -177,7 +177,8 @@ test('a session whose log is gone stays on the page: listed, replayable, its fin
   const key = keyOfLog(SESSION_IDS.windowsCi);
   await withoutLogs([key], async () => {
     const loaded = saver.load({ from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots });
-    assert.deepEqual(loaded.sessions.map((x) => x.key), [key], 'only the session whose log is gone comes back');
+    assert.deepEqual(loaded.sessions.filter((x) => x.log === 'gone').map((x) => x.key), [key], 'only the session whose log is gone comes back as gone');
+    assert.ok(loaded.sessions.filter((x) => x.log === 'on-disk').every((x) => loaded.reuse.has(x.key)), 'the rest come back unread, their logs unchanged');
     const data = viewOf(saver);
     await data.start();
     const ask = async (path, params = {}) => (await data.route(path, new URLSearchParams(params))).body;
@@ -254,7 +255,7 @@ test('a later run keeps a saved day it reads again, and a session whose log is g
   const kept = f.sessions.find((x) => x.key === key);
   assert.ok(kept, 'the gone session is still saved');
   assert.equal(kept.savedAt, new Date(NOW).toISOString());
-  assert.deepEqual(loadSaved({ dir: saved, from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots }).sessions, [], 'every log is back on disk: nothing comes back as saved');
+  assert.deepEqual(loadSaved({ dir: saved, from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots }).sessions.filter((x) => x.log === 'gone').map((x) => x.key), [], 'every log is back on disk: nothing comes back as gone');
 });
 
 test('only configured repositories\' history is saved, unless otherSessions says to keep the rest', async () => {
@@ -276,7 +277,8 @@ test('with otherSessions turned off later, the other sessions saved while it was
   assert.ok(priv.length > 0);
   const saver = createSaver({ configDir: () => join(saved, '..'), config: () => CONFIG, now: () => NOW });
   await withoutLogs(priv, async () => {
-    assert.equal(saver.load({ from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots }), null, 'none comes back with the box off');
+    const back = saver.load({ from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots });
+    assert.deepEqual((back?.sessions ?? []).filter((x) => priv.includes(x.key)).map((x) => x.key), [], 'none comes back with the box off');
     const data = viewOf(saver);
     await data.start();
     for (let i = 0; i < 100; i++) await new Promise((r) => setTimeout(r, 10));
@@ -294,6 +296,10 @@ test("a saved check result whose log moved (an archived Codex log) is replaced, 
   entry.files = ['moved-elsewhere'];
   entry.savedAt = '2000-01-01T00:00:00.000Z';
   writeSaved(saved, ['checks', `${day}.json`], file);
+  // Its saved history names the old path too, as a move leaves it, so it isn't taken back unread.
+  const hist = readHistoryDay(saved, day);
+  for (const x of hist?.sessions ?? []) if (x.key === entry.key) for (const s of x.sources) s.file = 'f-movedelsewhere';
+  if (hist) writeSavedBytes(saved, [DAYS_SUB, `${day}.json.gz`], gzipSync(Buffer.from(JSON.stringify(hist))));
   const data = viewOf(saver);
   await data.start();
   for (let i = 0; i < 100; i++) await new Promise((r) => setTimeout(r, 10));
