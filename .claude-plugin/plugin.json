@@ -5,5 +5,6 @@
   "author": { "name": "Bryce Watson" },
   "homepage": "https://github.com/BryceEWatson/honestweek",
   "license": "MIT",
-  "keywords": ["weekly-summary", "git", "claude-code", "privacy", "changelog", "skill"]
+  "keywords": ["weekly-summary", "git", "claude-code", "privacy", "changelog", "skill"],
+  "skills": ["./", "./skills/honestweek-contract"]
 }
