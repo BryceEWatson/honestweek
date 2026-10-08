@@ -351,7 +351,11 @@ test('every session, step, finding and goal names its page on view, one view --p
   assert.equal(r.page, `replay.html?session=cc-hccfcndehggh#${r.thread.id}`);
   for (const e of r.steps) if (e.session) assert.equal(e.page, `replay.html?session=${e.session}#${r.thread.id}~${e.id}`);
   for (const p of answers.problems.patterns) for (const f of p.findings) assert.ok(f.page?.includes(`#${f.thread}~${f.event}`), f.key);
-  for (const g of answers.goals.goals) assert.equal(g.page, `goal.html#${g.key}`);
+  for (const g of answers.goals.goals) {
+    assert.equal(g.page, `goal.html#${g.key}`);
+    // A member opens on its own thread, as the goal page's replay link does.
+    for (const m of g.members) assert.match(m.page, /^replay\.html\?session=[a-z]{2,4}-[a-p]+#th-[a-p]+$/, m.session);
+  }
 
   // In text, each row ends with its page, and the line before Next opens it on the same week.
   const t = await asked('replay', ['cc-hccfcndehggh']);
