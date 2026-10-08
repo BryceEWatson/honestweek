@@ -76,6 +76,12 @@ test('it reports the way the commands answer: evidence words kept, log text as d
   assert.match(body, /never give a confidence number or a percentage for how likely a finding is right/);
   assert.match(body, /never the finding's `evidence` word, which says how the finding is known, not why it happened/);
   assert.match(body, /Where the note says what the reason rests on isn't recorded, give no reason/);
+  assert.match(body, /names it as the cause, with the word that rule or signal gives it/);
+  assert.match(body, /never give one of them as the reason/);
+  assert.match(body, /Give a reason finding by finding, never for the whole pattern at once/);
+  assert.match(body, /an expired cache is inferred, and only where the note shows a pause longer than a known cache length/);
+  assert.match(body, /or rate it in other words \("almost certainly", "very likely real"\)/);
+  assert.match(body, /The pattern's `strength` says how well the pattern is documented, not how often its findings are right/);
 });
 
 test('the clone\'s Claude and Codex copies are the plugin copy, one folder further from the command line', () => {
