@@ -16,7 +16,7 @@ test('a page, its query and a step come back as the part after the address', () 
 });
 
 test('anything but view\'s own pages, an odd key or a # part that is not ids is refused', () => {
-  for (const bad of ['../package.json', '..\package.json', 'C:/x/problems.html', 'assets/app.js', 'setup.html', 'selftest/clickthrough.html', 'https://example.com/', 'replay.html/../x']) {
+  for (const bad of ['../package.json', '..\\package.json', 'C:/x/problems.html', 'assets/app.js', 'setup.html', 'selftest/clickthrough.html', 'https://example.com/', 'replay.html/../x']) {
     assert.ok(pageLink(bad).error, bad);
   }
   assert.ok(pageLink('replay.html?x-y=1').error, 'a key view\'s pages do not read');
