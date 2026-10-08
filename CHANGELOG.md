@@ -2,7 +2,7 @@
 
 What changed in each version of honestweek, newest first. Numbers in parentheses are the pull requests on GitHub.
 
-## Unreleased
+## 0.3.0 (8 October 2026)
 
 ### Added
 
