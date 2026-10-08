@@ -177,7 +177,8 @@ test('a session whose log is gone stays on the page: listed, replayable, its fin
   const key = keyOfLog(SESSION_IDS.windowsCi);
   await withoutLogs([key], async () => {
     const loaded = saver.load({ from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots });
-    assert.deepEqual(loaded.sessions.map((x) => x.key), [key], 'only the session whose log is gone comes back');
+    assert.deepEqual(loaded.sessions.filter((x) => x.log === 'gone').map((x) => x.key), [key], 'only the session whose log is gone comes back as gone');
+    assert.ok(loaded.sessions.filter((x) => x.log === 'on-disk').every((x) => loaded.reuse.has(x.key)), 'the rest come back unread, their logs unchanged');
     const data = viewOf(saver);
     await data.start();
     const ask = async (path, params = {}) => (await data.route(path, new URLSearchParams(params))).body;

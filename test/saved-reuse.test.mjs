@@ -73,11 +73,15 @@ test('a run after a save reads no log that did not change, and answers as if it 
   const w = await savedWeek();
   const loaded = w.load();
   const fresh = await buildWorkHistory({ config: w.config, roots: w.d.roots, from: w.d.week.from, to: w.d.week.to, timezone: w.d.week.timezone, scope: 'all', updates: true, hiddenSessions: 'redacted', usage: true, keepRaw: true, goals: w.d.goalRecord });
-  assert.equal(loaded.reuse.size, fresh.sessions.length, 'every session is unchanged and comes back unread');
+  // Only configured repositories' history is saved (no otherSessions), so the rest are read.
+  const others = fresh.sessions.filter((s) => s.private);
+  assert.ok(others.length > 0);
+  assert.equal(loaded.reuse.size, fresh.sessions.length - others.length, 'every configured session is unchanged and comes back unread');
   assert.equal(loaded.sessions.every((x) => x.log === 'on-disk'), true);
   let progress = null;
   const reused = await answers(w.view({ onProgress: (p) => (progress = p) }));
-  assert.deepEqual(progress, { read: 0, total: 0 }, 'no log file was read');
+  const otherFiles = [...fresh.sourceFiles].filter(([src]) => others.some((s) => s.key === fresh.sourceSession.get(src))).length;
+  assert.deepEqual(progress, { read: otherFiles, total: otherFiles }, "only the display-only and outside sessions' logs were read");
   const plain = await answers(createViewData({ config: { ...w.config, saveResults: undefined }, roots: w.d.roots, from: w.d.week.from, to: w.d.week.to, timezone: w.d.week.timezone, goalRecord: w.d.goalRecord, now: () => NOW }));
   // Compared as text, part by part: a difference names its part without printing every answer.
   assert.deepEqual(reused.savedCount, { value: plain.problems.coverage.sessions.value, evidence: 'derived' }, 'every session checked came back from saved results');
@@ -185,7 +189,8 @@ test('the trend counts a saved window as reading its logs would, and reads it wh
   const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
   const args = { dir: saved, from: w.d.week.from, to: w.d.week.to, timezone: w.d.week.timezone, roots: w.d.roots, version };
   const h = await buildWorkHistory({ config: w.config, roots: w.d.roots, from: w.d.week.from, to: w.d.week.to, timezone: w.d.week.timezone, scope: 'all', updates: true, hiddenSessions: 'redacted', usage: true, keepRaw: true });
-  assert.deepEqual(countsFromSaved(args), trendCounts(runProblems(h, { builtT: NOW })));
+  const rr = runProblems(h, { builtT: NOW, longSessionTokens: w.config.longSessionTokens ?? null });
+  assert.deepEqual(countsFromSaved(args), trendCounts(rr));
   assert.equal(countsFromSaved({ ...args, from: '2025-03-09' }), null, 'a day never saved: read the logs');
   assert.equal(countsFromSaved({ ...args, version: '9.9.9' }), null, 'saved by another version with its logs on disk: read them');
   // With every log gone, another version's counts stand.
