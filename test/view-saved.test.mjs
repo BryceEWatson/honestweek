@@ -106,7 +106,7 @@ test('with saving on, the whole window is saved once it loads, Settings shows it
   assert.ok(readdirSync(checks).every((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)));
   assert.match(readFileSync(join(dir, '.gitignore'), 'utf8'), /^honestweek\.saved\/$/m);
   const i = await settings(s);
-  assert.deepEqual(i.saveResults, { on: true, keepDays: 30, defaultDays: 365, min: 1, max: 36500 });
+  assert.deepEqual(i.saveResults, { on: true, keepDays: 30, history: true, defaultDays: 365, min: 1, max: 36500 });
   assert.equal(i.saved.available, true);
   assert.ok(i.saved.days >= 7 && i.saved.bytes > 0, JSON.stringify(i.saved));
   assert.equal(i.saved.error, null);
@@ -126,7 +126,7 @@ test('with saveResults absent, view writes nothing beside the config', async () 
   assert.equal(existsSync(join(dir, 'honestweek.saved')), false);
   assert.equal(readFileSync(join(dir, 'honestweek.config.json'), 'utf8'), text(cfg));
   const i = await settings(s);
-  assert.deepEqual(i.saveResults, { on: false, keepDays: null, defaultDays: 365, min: 1, max: 36500 });
+  assert.deepEqual(i.saveResults, { on: false, keepDays: null, history: true, defaultDays: 365, min: 1, max: 36500 });
   assert.deepEqual(i.saved, { available: true, days: 0, bytes: 0, lastSavedAt: null, error: null });
 });
 
@@ -143,7 +143,7 @@ test('Settings turns saving on with a number of days, adds the .gitignore line, 
     assert.equal(r.status, 400, JSON.stringify(bad));
   }
   const prev = await post(s, '/api/settings/preview', { ...base, saveResults: { on: true, keepDays: 90 } });
-  assert.deepEqual(prev.json.changes, ['Save results between runs: on, kept 90 days.']);
+  assert.deepEqual(prev.json.changes, ["Save results between runs: on, with each day's history, kept 90 days."]);
   assert.ok(prev.json.notes.includes('Saving also adds honestweek.saved/ to .gitignore.'), JSON.stringify(prev.json.notes));
   const saved = await post(s, '/api/settings/save', { ...base, saveResults: { on: true, keepDays: 90 } });
   assert.equal(saved.json.saved, true, saved.text);

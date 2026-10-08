@@ -62,7 +62,8 @@ test('the config takes saveResults on or off with a number of days to keep, and 
     assert.throws(() => normalizeConfig({ ...base, saveResults: bad }), /saveResults/, JSON.stringify(bad));
   }
   assert.equal(savedOptions({ saveResults: { on: false } }), null);
-  assert.deepEqual(savedOptions({ saveResults: { on: true } }), { keepDays: 365 });
+  assert.deepEqual(savedOptions({ saveResults: { on: true } }), { keepDays: 365, history: true });
+  assert.deepEqual(savedOptions({ saveResults: { on: true, history: false } }), { keepDays: 365, history: false });
 });
 
 test('each day of the window is saved, owner-only and git-ignored, with no raw id, path or private word', () => {
