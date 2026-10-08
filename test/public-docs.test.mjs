@@ -17,9 +17,15 @@ const rel = (p) => relative(ROOT, p).split('\\').join('/');
 const CATALOG = JSON.parse(read('lib/problems/catalog.json'));
 const PKG = JSON.parse(read('package.json'));
 
-const DOCS = readdirSync(join(ROOT, 'docs')).filter((f) => f.endsWith('.md')).map((f) => `docs/${f}`);
-const FLOWS = readdirSync(join(ROOT, 'flows')).filter((f) => f.endsWith('.md')).map((f) => `flows/${f}`);
-const PUBLIC = ['README.md', 'SKILL.md', ...FLOWS, 'CHANGELOG.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CODE_OF_CONDUCT.md', ...DOCS];
+/** Every .md file directly in `dir`, as a repository path. */
+const mdIn = (dir) => readdirSync(join(ROOT, dir)).filter((f) => f.endsWith('.md')).map((f) => `${dir}/${f}`);
+const DOCS = mdIn('docs');
+const FLOWS = mdIn('flows');
+// Every .md file in each skill folder, not only SKILL.md, and folders only, so a stray file in
+// skills/ (a macOS .DS_Store) can't break the list.
+const SKILLS = readdirSync(join(ROOT, 'skills'), { withFileTypes: true }).filter((d) => d.isDirectory()).flatMap((d) => mdIn(`skills/${d.name}`));
+const AGENTS = mdIn('agents');
+const PUBLIC = ['README.md', 'SKILL.md', ...FLOWS, ...SKILLS, ...AGENTS, 'CHANGELOG.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CODE_OF_CONDUCT.md', ...DOCS];
 const DASH = /[\u2014\u2013]| -- /;
 
 /** The lines of a Markdown file outside fenced code blocks, with their line numbers. */
