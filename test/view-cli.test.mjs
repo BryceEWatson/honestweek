@@ -586,3 +586,82 @@ test('the bare address opens Setup when no config exists, and Problems when one 
   assert.match((await page(p2, '/')).text, /<body data-page="problems">/);
   assert.notEqual((await ready(p2, k2)).setup, true);
 });
+
+// Issue 198: a one-time address to a given page, from --page or from typing "link <page>".
+const linksIn = (text) => [...text.matchAll(/http:\/\/127\.0\.0\.1:(\d+)\/([^\s#]*)#(?:([A-Za-z0-9_.~:=-]+)&)?c=([0-9a-f]+)/g)].map((m) => ({ port: Number(m[1]), page: m[2], fragment: m[3] ?? '', code: m[4] }));
+
+test('--page opens and prints a one-time address to that page, and keeps a step after #', async () => {
+  const r = await view(['--no-open', ...RANGE, '--page', 'replay.html?session=abc12345#t1~e2']);
+  assert.equal(r.code, 0, r.err());
+  const [link] = linksIn(r.out());
+  assert.equal(link.page, 'replay.html?session=abc12345');
+  assert.equal(link.fragment, 't1~e2', 'the step stays beside the code');
+  const key = await claim(link.port, link.code);
+  assert.ok(key, 'the code works');
+  assert.equal(await claim(link.port, link.code), null, 'once');
+  assert.match(await (await fetch(`http://127.0.0.1:${link.port}/replay.html`)).text(), /<body data-page="replay">/);
+  await r.handle.stop();
+});
+
+test('--page refuses anything but view\'s own pages, and a # part that is not plain ids', async () => {
+  for (const bad of ['../package.json', 'C:/Windows/win.ini', 'setup.html', 'selftest/clickthrough.html', 'replay.html#a&c=1234567890', 'replay.html?x-y=1']) {
+    const r = await view(['--no-open', ...RANGE, '--page', bad]);
+    assert.equal(r.code, 1, bad);
+    assert.match(r.err(), /^view: --page: /, bad);
+    assert.equal(r.handle, null, `${bad}: nothing was served`);
+  }
+});
+
+test('typing "link <page>" prints a fresh one-time address to it; a bad page or plain Enter behave as said', async () => {
+  const input = new PassThrough();
+  const r = await view(['--no-open', ...RANGE], { input });
+  const wait = async (n) => {
+    for (let i = 0; i < 200 && linksIn(r.out()).length < n; i++) await new Promise((done) => setTimeout(done, 10));
+  };
+  input.write('link goal.html?goal=g1\n');
+  await wait(2);
+  const asked = linksIn(r.out())[1];
+  assert.match(r.out(), /Link: http:\/\/127\.0\.0\.1:\d+\/goal\.html\?goal=g1#c=/);
+  assert.equal(asked.page, 'goal.html?goal=g1');
+  assert.ok(await claim(asked.port, asked.code), 'the link\'s code works');
+  input.write('link ../secrets.txt\n');
+  input.write('\n');
+  await wait(3);
+  assert.match(r.out(), /No link: "\.\.\/secrets\.txt" isn't one of view's pages/);
+  assert.match(r.out(), /Fresh address: http:\/\/127\.0\.0\.1:\d+\/#c=/, 'Enter still prints the Problems address');
+  await r.handle.stop();
+});
+
+test('"link" takes a search this run keeps, in Search\'s own address, and the link opens it', async () => {
+  const input = new PassThrough();
+  const r = await view(['--no-open', ...RANGE], { input });
+  const [{ port, code }] = codesIn(r.out());
+  const key = await claim(port, code);
+  await ready(port, key);
+  const words = await get(port, '/api/words?q=width', { [KEY_HEADER]: key });
+  assert.equal(words.status, 200);
+  const qid = words.json.queryId;
+  assert.match(qid, /^q[a-p]{16}$/);
+  input.write(`link search.html#q=${qid}~w\n`);
+  for (let i = 0; i < 200 && linksIn(r.out()).length < 2; i++) await new Promise((done) => setTimeout(done, 10));
+  const asked = linksIn(r.out())[1];
+  assert.deepEqual([asked.page, asked.fragment], ['search.html', `q=${qid}~w`]);
+  const k2 = await claim(asked.port, asked.code);
+  assert.ok(k2, 'the link\'s code works');
+  const again = await get(port, `/api/words?id=${qid}`, { [KEY_HEADER]: k2 });
+  assert.equal(again.json.queryId, qid, 'and the search it names is still kept in this run');
+  await r.handle.stop();
+});
+
+test('while Setup is open, --page and "link" wait for it: the address opens Setup, and link says to finish it first', async () => {
+  const input = new PassThrough();
+  const r = await view(['--no-open', '--page', 'replay.html?session=abc12345'], { cwd: makeTempDir('hw-view-cli-link-setup-'), input });
+  assert.equal(r.code, 0, r.err());
+  assert.match(r.out(), /http:\/\/127\.0\.0\.1:\d+\/setup\.html#c=[0-9a-f]+/, 'the printed address opens Setup, not the page asked for');
+  assert.match(r.out(), /\nSetup comes first\. Once it's saved, type link replay\.html\?session=abc12345 here for an address to that page\.\n/, 'it says how to reach the page after Setup');
+  input.write('link replay.html?session=abc12345\n');
+  for (let i = 0; i < 200 && !/No link yet/.test(r.out()); i++) await new Promise((done) => setTimeout(done, 10));
+  assert.match(r.out(), /No link yet: finish Setup first, then ask again\./);
+  assert.doesNotMatch(r.out(), /Link: /);
+  await r.handle.stop();
+});
