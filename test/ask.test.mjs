@@ -359,7 +359,7 @@ test('every session, step, finding and goal names its page on view, one view --p
 
   // In text, each row ends with its page, and the line before Next opens it on the same week.
   const t = await asked('replay', ['cc-hccfcndehggh']);
-  assert.ok(t.out.includes(`\nIts page: ${r.page}. Each step's is that with ~ and the step's id after it, such as ${r.steps[0].page}.\n`), t.out.slice(0, 600));
+  assert.ok(t.out.includes(`\nIts page: ${r.page}. For one step, add ~ and the step's id, such as ${r.page}~${r.steps[0].id}.\n`), t.out.slice(0, 600));
   assert.match(t.out, new RegExp(`\\nOpen it on the page: honestweek view --demo --page "${r.page.replace(/[.?]/g, '\\$&')}"\\nNext: `));
   const f = await asked('find', ['#12']);
   assert.ok(f.out.includes(`10:25  page ${answers.find.reference.sessions[0].page}\n`), f.out);
