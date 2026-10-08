@@ -129,7 +129,7 @@ test('--pattern and --finding refuse each other, --session, a malformed key, and
     [['--pattern', 'cache-miss', '--session', 'cc-aaaaaaaaaaaa'], /--session can't be combined with --pattern/],
     [['--finding', 'pf-aaaaaaaaaaaa', '--session', 'cc-aaaaaaaaaaaa'], /--session can't be combined with --finding/],
     [['--finding', 'pf-1'], /a finding's key looks like pf- and 12 letters/],
-    [['--finding', 'pf-aaaaaaaaaaaa'], /No finding in this window has that key/],
+    [['--finding', 'pf-aaaaaaaaaaaa'], /No finding in this window has that key..* saved session outside these dates .* problems --session <session>/],
     [['--pattern', 'session'], /patterns match that/],
   ]) {
     const r = await asked(argv);
