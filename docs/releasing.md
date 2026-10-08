@@ -58,6 +58,13 @@ Then:
 - **The privacy and security statements** in the README, `SECURITY.md` and `docs/local-page.md` still match the code, above all after a change to what honestweek reads, writes, runs or serves.
 - **The full suite** passes once, with `node --test` from the repository root, and CI is green on all five jobs.
 - **One independent review** of the release pull request runs in a fresh session.
+- **The skill evals** run once, on my machine and my plan, never in CI: they make real model calls. Each case in `evals/` is a prompt and its graders, checking that the find skill starts for questions about past sessions and stays out of everything else, that the weekly skill starts for a weekly summary and, with no config, asks before `init` writes one, and that the distiller doesn't follow a line planted in the draft. From the repository root:
+
+  ```bash
+  claude plugin eval . --no-publish --trust-plugin --allow-tools Write Edit Bash
+  ```
+
+  `--no-publish` keeps the report on this machine (it publishes to claude.ai otherwise). Each run gets a fresh home and config folder, so it reads none of my logs; the write tools only reach that folder. The agent records each case's score in the readiness comment and looks into any below 1.0 before the release. Claude Code warns that `evals/` sits inside the plugin's root skill folder (`"skills": ["./"]`); that's expected, since a case has no `SKILL.md`. A run that can't sign in stops at its first case: check that `claude -p "hi"` works, and that no `apiKeyHelper` in `~/.claude/settings.json` points at a missing file.
 
 The agent records the results as a dated comment on the release pull request, plain terms first. Anything private (personal details in git history, a security gap not fixed yet) never goes in the repository or the pull request; it goes in the project's private goal record.
 

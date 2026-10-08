@@ -67,3 +67,6 @@ node_modules/
 Thumbs.db
 *.log
 .vscode/
+
+# Results of `claude plugin eval` (docs/releasing.md), kept on the machine that ran them.
+/evals/results/
