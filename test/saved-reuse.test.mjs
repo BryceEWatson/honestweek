@@ -407,3 +407,17 @@ test('when every session taken back is read after all (it may have launched one 
   assert.equal(h.reusedSessions.size, 0, 'the launcher is read after all');
   for (const key of [launcher.key, launched.key]) assert.deepEqual(h.exportSession(key).joins.uuids, plain.exportSession(key).joins.uuids, key);
 });
+
+test('a session checked within an hour of its last record is read again, and the trend reads its logs', async () => {
+  const w = await savedWeek();
+  const loaded = w.load();
+  const all = loaded.reuse.size;
+  const x = loaded.sessions.find((s) => loaded.reuse.has(s.key));
+  const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+  const args = { dir: join(w.dir, SAVED_DIR), from: w.d.week.from, to: w.d.week.to, timezone: w.d.week.timezone, roots: w.d.roots, version, config: w.config };
+  assert.ok(countsFromSaved(args));
+  // As if the checks ran ten minutes after its last record: its last turn's findings were notes then.
+  rewriteSaved(w, 'checks', (f) => ({ ...f, sessions: f.sessions.map((s) => (s.key === x.key ? { ...s, checkedAt: Date.parse(s.lastAt) + 10 * 60e3 } : s)) }));
+  assert.equal(w.load().reuse.size, all - 1, 'its saved findings may have been softened: read it');
+  assert.equal(countsFromSaved(args), null, 'the trend reads the logs too');
+});
