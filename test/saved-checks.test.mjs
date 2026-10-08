@@ -279,3 +279,14 @@ test('a saved day of the wrong shape is replaced by the next save and never stop
   assert.ok(saver.onChecked(payload), saver.info().error ?? 'saved');
   assert.ok(Array.isArray(readSaved(saved, [CHECKS_SUB, '2025-03-12.json']).sessions), 'replaced whole');
 });
+
+test('a save still pending when Forget is pressed saves nothing; the next window that loads does', () => {
+  const { saved, saver } = savedFolder();
+  assert.equal(saver.forget().body.forgotten, true);
+  assert.equal(saver.onChecked({ ...payload, builtT: NOW - 1000 }), null, 'a build that began before Forget');
+  assert.equal(existsSync(saved), false);
+  assert.equal(saver.onChecked({ ...payload, builtT: undefined }), null, 'a build that says nothing of when it began');
+  assert.equal(existsSync(saved), false);
+  assert.ok(saver.onChecked({ ...payload, builtT: NOW + 1 }), 'a build that began after it');
+  assert.ok(existsSync(saved));
+});
