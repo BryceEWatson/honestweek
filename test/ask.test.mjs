@@ -8,18 +8,18 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { askHelp, parseAskArgs, runAsk, TEXT_NOTE, QUOTED_NOTE } from '../lib/ask.mjs';
+import { askHelp, parseAskArgs, runAsk, sessionOf, TEXT_NOTE, QUOTED_NOTE } from '../lib/ask.mjs';
 import { pageLink } from '../lib/view/page-link.mjs';
 import { setConfigLookup } from '../lib/config-lookup.mjs';
 import { buildDemoWeek } from '../lib/demo/week.mjs';
 import { setCommandForm } from '../lib/invocation.mjs';
 import { isReference } from '../lib/replay/words.mjs';
 import { DEMO_TERM } from '../lib/view.mjs';
-import { createViewData } from '../lib/view/data.mjs';
+import { createViewData, matchSession, SESSION_PREFIX_MIN } from '../lib/view/data.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 import { withoutUserConfig } from './helpers/no-user-config.mjs';
 
@@ -363,6 +363,106 @@ test('every session, step, finding and goal names its page on view, one view --p
   const first = answers.problems.patterns[0].findings[0];
   assert.ok(pr.out.includes(`  page ${first.page}\n`), pr.out.slice(0, 800));
   assert.ok(pr.out.includes(`\nOpen it on the page: honestweek view --demo --page "${first.page}"\nNext: honestweek replay ${first.session}`));
+});
+
+// ---- one session (issue 197) --------------------------------------------------------------------
+
+test('a session is found by its key, the id in its own log, or the start of either, and a shared start lists them', () => {
+  const h = {
+    sessions: [{ key: 'cc-aaaabbbbcccc', private: false }, { key: 'cc-aaaabbbbdddd', private: false }, { key: 'cx-eeeeffffgggg', private: true, repoRole: 'display' }, { key: 'cc-hhhhiiiijjjj', private: true }],
+    claudeIds: new Map([['cc-aaaabbbbcccc', '0f5c2a9e-1111-4222-8333-444455556666'], ['cc-aaaabbbbdddd', '0f5c2a9e-7777-4888-9999-000011112222'], ['cc-gone', '9a9a9a9a-0000-4000-8000-000000000000']]),
+    codexIds: new Map([['cx-eeeeffffgggg', '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5b']]),
+  };
+  assert.deepEqual(matchSession(h, 'cc-aaaabbbbcccc'), { key: 'cc-aaaabbbbcccc', group: 'configured', checked: true });
+  assert.equal(matchSession(h, ' 0F5C2A9E-1111-4222-8333-444455556666 ').key, 'cc-aaaabbbbcccc', 'a log\'s own id, in any case');
+  assert.equal(matchSession(h, '0f5c2a9e-11').key, 'cc-aaaabbbbcccc', 'the start of one');
+  assert.deepEqual(matchSession(h, '0f5c2a9e'), { matches: ['cc-aaaabbbbcccc', 'cc-aaaabbbbdddd'] }, 'a start two share');
+  assert.deepEqual(matchSession(h, 'cc-aaaabbbb'), { matches: ['cc-aaaabbbbcccc', 'cc-aaaabbbbdddd'] });
+  assert.deepEqual(matchSession(h, 'cc-aaaa'), { none: true }, `a start shorter than ${SESSION_PREFIX_MIN} characters reads as nothing`);
+  assert.deepEqual(matchSession(h, '019a1b2c'), { key: 'cx-eeeeffffgggg', group: 'display', checked: false }, 'a display-only session is never checked');
+  assert.deepEqual(matchSession(h, 'cc-hhhhiiiijjjj'), { key: 'cc-hhhhiiiijjjj', group: 'outside', checked: false });
+  assert.deepEqual(matchSession(h, '9a9a9a9a-0000-4000-8000-000000000000'), { none: true }, 'an id whose session is not in the window');
+  assert.deepEqual(matchSession(h, ''), { none: true });
+  assert.throws(() => sessionOf({ sessionMatch: () => ({ matches: ['cc-aaaabbbbcccc', 'cc-aaaabbbbdddd'] }) }, '0f5c2a9e'), /that's the start of 2 sessions' ids in this window: cc-aaaabbbbcccc, cc-aaaabbbbdddd\. Give more of it\./);
+  assert.equal(sessionOf({ sessionMatch: () => ({ none: true }) }, 'x'), null);
+});
+
+test('problems --session lists only that session\'s findings, counted over them, and says whether the checks read it', async () => {
+  const all = await json('problems');
+  const key = all.patterns[0].findings[0].session;
+  const o = await json('problems', ['--session', key]);
+  checkAnswer(o, 'problems');
+  assert.equal(o.session.session, key);
+  assert.equal(o.session.checked, true);
+  assert.equal(o.session.group, 'configured');
+  assert.equal(o.session.findingsPage, `problems.html?session=${key}`);
+  assert.ok(o.session.page.startsWith(`replay.html?session=${key}#th-`));
+  assert.ok(o.patterns.length > 0);
+  let total = 0;
+  for (const p of o.patterns) {
+    assert.ok(p.findings.length > 0, `${p.id} has a finding for this session`);
+    assert.ok(p.findings.every((f) => f.session === key), p.id);
+    assert.equal(p.count, p.findings.length);
+    assert.equal(p.workedOut.count + p.possible.count, p.count);
+    total += p.count;
+  }
+  assert.equal(o.session.findings.value, total);
+  assert.equal(o.statusCounts, null, 'the window\'s statuses would read as this session\'s');
+  assert.equal(o.notFound, null);
+  const t = await asked('problems', ['--session', key]);
+  assert.match(t.out, new RegExp(`^honestweek problems: session ${key}, `));
+  assert.ok(t.out.includes(`\n\n${total} finding(s) in ${o.patterns.length} pattern(s), ${o.session.worthALook.value} worth a look.\n`), t.out.slice(0, 500));
+  assert.doesNotMatch(t.out, /\nNot found: /);
+  assert.ok(t.out.includes(`\nOpen it on the page: honestweek view --demo --page "problems.html?session=${key}"\nNext: honestweek replay ${key} --at `));
+
+  // A session the checks read with nothing found, and one they never read, each say so.
+  const goals = await json('goals');
+  const flagged = new Set(all.patterns.flatMap((p) => p.findings.map((f) => f.session)));
+  const quiet = goals.goals.flatMap((g) => g.members.map((m) => m.session)).find((s) => !flagged.has(s));
+  if (quiet) {
+    const q = await asked('problems', ['--session', quiet]);
+    assert.equal(q.code, 0, q.err);
+    assert.match(q.out, /\n\nThe checks read this session and found nothing\.\n/);
+  }
+  const words = await json('find', ['date', 'filter']);
+  const display = words.elsewhere.results.find((r) => r.group === 'display' && r.inWindow);
+  assert.ok(display, 'the demo week has a display-only session in the window');
+  const d1 = await json('problems', ['--session', display.session]);
+  assert.deepEqual([d1.session.checked, d1.session.group, d1.patterns.length], [false, 'display', 0]);
+  const d2 = await asked('problems', ['--session', display.session]);
+  assert.match(d2.out, /\n\nThe checks don't read this session: it's in a display-only repository, so there's nothing to show for it\.\n/);
+});
+
+test('problems --session and replay take the id in a session\'s own log, and say when the window holds none', async () => {
+  const data = createViewData({ ...WEEK, command: 'honestweek' });
+  await data.start();
+  let own = null;
+  let key = null;
+  try {
+    const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]));
+    for (const file of WEEK.roots.claude.flatMap(walk)) {
+      const id = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/.exec(file)?.[1];
+      const m = id ? data.sessionMatch(id) : null;
+      if (m?.key) {
+        own = id;
+        key = m.key;
+        break;
+      }
+    }
+  } finally {
+    data.stop();
+  }
+  assert.ok(own, 'a demo session is found by its log\'s own id');
+  const r = await asked('replay', [own.toUpperCase()]);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, new RegExp(`^honestweek replay: session ${key}, `));
+  const p = await json('problems', ['--session', own.slice(0, SESSION_PREFIX_MIN)]);
+  assert.equal(p.session.session, key);
+  const none = await asked('problems', ['--session', 'cc-zzzzzzzzzzzz']);
+  assert.equal(none.code, 1);
+  assert.equal(none.err, `honestweek problems: no session between ${WEEK.from} and ${WEEK.to} has that id. If it's outside these dates, try --days, or --from with --to.\n`);
+  assert.throws(() => parseAskArgs('find', ['--session', key]), /unknown option "--session"/, '--session is problems\' alone');
+  assert.throws(() => parseAskArgs('replay', ['--session', key]), /unknown option "--session"/);
 });
 
 test('goals without a goal list says how to give one', async () => {
