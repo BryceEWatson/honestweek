@@ -106,7 +106,7 @@ test('with saving on, the whole window is saved once it loads, Settings shows it
   assert.ok(readdirSync(checks).every((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)));
   assert.match(readFileSync(join(dir, '.gitignore'), 'utf8'), /^honestweek\.saved\/$/m);
   const i = await settings(s);
-  assert.deepEqual(i.saveResults, { on: true, keepDays: 30, history: true, defaultDays: 365, min: 1, max: 36500 });
+  assert.deepEqual(i.saveResults, { on: true, keepDays: 30, history: true, otherSessions: false, defaultDays: 365, min: 1, max: 36500 });
   assert.equal(i.saved.available, true);
   assert.ok(i.saved.days >= 7 && i.saved.bytes > 0, JSON.stringify(i.saved));
   assert.equal(i.saved.error, null);
@@ -126,7 +126,7 @@ test('with saveResults absent, view writes nothing beside the config', async () 
   assert.equal(existsSync(join(dir, 'honestweek.saved')), false);
   assert.equal(readFileSync(join(dir, 'honestweek.config.json'), 'utf8'), text(cfg));
   const i = await settings(s);
-  assert.deepEqual(i.saveResults, { on: false, keepDays: null, history: true, defaultDays: 365, min: 1, max: 36500 });
+  assert.deepEqual(i.saveResults, { on: false, keepDays: null, history: true, otherSessions: false, defaultDays: 365, min: 1, max: 36500 });
   assert.deepEqual(i.saved, { available: true, days: 0, bytes: 0, lastSavedAt: null, error: null });
 });
 

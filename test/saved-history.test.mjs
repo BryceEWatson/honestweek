@@ -256,3 +256,35 @@ test('a later run keeps a saved day it reads again, and a session whose log is g
   assert.equal(kept.savedAt, new Date(NOW).toISOString());
   assert.deepEqual(loadSaved({ dir: saved, from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots }).sessions, [], 'every log is back on disk: nothing comes back as saved');
 });
+
+test('only configured repositories\' history is saved, unless otherSessions says to keep the rest', async () => {
+  const days = (saved) => savedDays(saved, DAYS_SUB).flatMap((day) => readHistoryDay(saved, day).sessions);
+  const { saved } = await savedWeek();
+  const kept = days(saved);
+  assert.ok(kept.length > 0);
+  assert.equal(kept.some((x) => x.record.private), false, 'no display-only or outside session by default');
+  const privateKeys = fresh.sessions.filter((s) => s.private).map((s) => s.key);
+  assert.ok(privateKeys.length > 0, 'the demo week has display-only and outside sessions');
+  const all = await savedWeek({ ...CONFIG, saveResults: { ...CONFIG.saveResults, otherSessions: true } });
+  assert.deepEqual(new Set(days(all.saved).filter((x) => x.record.private).map((x) => x.key)), new Set(privateKeys.filter((k) => fresh.sessions.find((s) => s.key === k).firstAt)));
+});
+
+test('a saved session that named a log file this run did not read keeps its fuller saved copy', async () => {
+  const { saved, saver } = await savedWeek();
+  const before = savedDays(saved, DAYS_SUB).flatMap((day) => readHistoryDay(saved, day).sessions);
+  const x = before.find((s) => s.sources.length > 1 && !s.record.private);
+  assert.ok(x, 'a configured session with a sub-agent');
+  const sub = [...fresh.sourceFiles].find(([src]) => src === x.sources.find((s) => s.role !== 'session').key)[1];
+  renameSync(sub, `${sub}.away`);
+  try {
+    const data = viewOf(saver);
+    await data.start();
+    for (let i = 0; i < 100; i++) await new Promise((r) => setTimeout(r, 10));
+    data.stop();
+  } finally {
+    renameSync(`${sub}.away`, sub);
+  }
+  const after = savedDays(saved, DAYS_SUB).flatMap((day) => readHistoryDay(saved, day).sessions).find((s) => s.key === x.key);
+  assert.deepEqual(after.sources.map((s) => s.key), x.sources.map((s) => s.key), 'both of its files are still in its saved copy');
+  assert.equal(after.events.length, x.events.length);
+});
