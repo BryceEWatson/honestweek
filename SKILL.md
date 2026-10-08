@@ -70,7 +70,7 @@ The text after the skill's name, if any, is `$ARGUMENTS`. Its first word picks t
 | `weekly` (the default) | A summary of the last completed week: `init`, `discover`, DISTIL, `build`, `review` | [flows/weekly.md](flows/weekly.md) |
 | `client` | A report of one period of work for a client, such as `client 2026-09-01 2026-09-30` | [flows/client.md](flows/client.md) |
 | `mine` | Solved problems in the user's logs worth writing up | [flows/mine.md](flows/mine.md) |
-| `view` | Finding and replaying sessions in the local page | [flows/view.md](flows/view.md) |
+| `view` | Finding and replaying sessions, in the local page or with `find`, `replay`, `problems` and `goals` | [flows/view.md](flows/view.md) |
 | `digest` | The balanced digest lane, for `page` or `site` output with no goals registry | [flows/digest.md](flows/digest.md) |
 
 The distillation contract and the safety invariants above apply to every flow.

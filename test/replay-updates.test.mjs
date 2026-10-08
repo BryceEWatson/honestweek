@@ -336,12 +336,16 @@ test('written outputs: the discover draft keeps exactly the thinking notes Repla
   assert.ok(dropped.every((n) => kept.includes(n)), 'nothing else differs');
 });
 
-test('written outputs: no command but view can reach the code that reads updates', () => {
+test('written outputs: no command but view and the questions it answers can reach the code that reads updates', () => {
   // Every subcommand's module and everything it imports, statically or by a literal import().
   // A quoted path that names no file is text in a module (the demo week writes code), not an
-  // import: a real one would fail to load.
+  // import: a real one would fail to load. find, replay, problems and goals (lib/ask.mjs) print
+  // what the view page shows and write no file, so they may reach it; nothing else may.
   const bin = readFileSync(join(ROOT, 'bin', 'honestweek.mjs'), 'utf8');
   const commands = JSON.parse(bin.match(/const SUBCOMMANDS = (\[[^\]]*\])/)[1].replaceAll("'", '"'));
+  const moduleOf = JSON.parse(bin.match(/const MODULE = (\{[^}]*\})/)[1].replace(/(\w+):/g, '"$1":').replaceAll("'", '"'));
+  const SHOWS_VIEW = new Set(['view', 'find', 'replay', 'problems', 'goals']);
+  assert.doesNotMatch(readFileSync(join(ROOT, 'lib', 'ask.mjs'), 'utf8'), /writeFileSync|appendFileSync|atomicWrite|createWriteStream|mkdirSync/, 'the question commands write no file');
   assert.ok(commands.includes('discover') && commands.includes('view'));
   const reach = (start) => {
     const seen = new Set();
@@ -359,8 +363,8 @@ test('written outputs: no command but view can reach the code that reads updates
   };
   const engine = resolve(ROOT, 'lib', 'replay', 'claude.mjs');
   for (const c of commands) {
-    const reached = reach(resolve(ROOT, 'lib', `${c}.mjs`)).has(engine);
-    assert.equal(reached, c === 'view', `${c} ${c === 'view' ? "doesn't reach" : 'reaches'} the engine's Claude Code parser`);
+    const reached = reach(resolve(ROOT, 'lib', `${moduleOf[c] ?? c}.mjs`)).has(engine);
+    assert.equal(reached, SHOWS_VIEW.has(c), `${c} ${SHOWS_VIEW.has(c) ? "doesn't reach" : 'reaches'} the engine's Claude Code parser`);
   }
   // The guard is real: the parser is a file this test can see.
   assert.ok(readdirSync(join(ROOT, 'lib', 'replay')).includes('claude.mjs'));

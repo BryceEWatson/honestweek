@@ -412,8 +412,8 @@ test('only the redactor and the work-history engine name privateText or the secr
   // lib/view/: honestweek view's data layer is the one place a request's private=1 becomes
   // the engine's privateText (data.mjs), and it and the leak counter (leaks.mjs) use the
   // secrets-only scrubber for this machine's own screen. Both answer a keyed page on
-  // 127.0.0.1 and never write a file. word-index.mjs may take the scrubber from data.mjs.
-  const allowed = new Set(['lib/redact.mjs', 'lib/replay/index.mjs', 'lib/replay/claude.mjs', 'lib/replay/codex.mjs', 'lib/replay/assemble.mjs', 'lib/view/data.mjs', 'lib/view/word-index.mjs', 'lib/view/leaks.mjs']);
+  // 127.0.0.1 and never write a file. lib/replay/word-index.mjs may take the scrubber from data.mjs.
+  const allowed = new Set(['lib/redact.mjs', 'lib/replay/index.mjs', 'lib/replay/claude.mjs', 'lib/replay/codex.mjs', 'lib/replay/assemble.mjs', 'lib/view/data.mjs', 'lib/replay/word-index.mjs', 'lib/view/leaks.mjs']);
   const found = [];
   const walk = (dir) => {
     for (const name of readdirSync(dir)) {

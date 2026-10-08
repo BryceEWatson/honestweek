@@ -256,6 +256,18 @@ test('mine keeps its ledger beside the config it read', () => {
   assert.deepEqual(readdirSync(unrelated), []);
 });
 
+test('prompts keeps its private inbox beside the config it read', () => {
+  const home = folder('home');
+  const user = userConfigUnder(home);
+  const unrelated = folder('unrelated');
+  const r = cli(['prompts', 'sync'], { cwd: unrelated, home });
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.err, /honestweek prompts: config .*\(your user-level config\)\. Files it writes go in /);
+  assert.ok(existsSync(join(dirname(user), 'honestweek.prompts.json')), r.err);
+  assert.match(readFileSync(join(dirname(user), '.gitignore'), 'utf8'), /honestweek\.prompts\.json/);
+  assert.deepEqual(readdirSync(unrelated), []);
+});
+
 test('init --user writes the user-level config, with no example file, and other commands then find it', () => {
   const home = folder('home');
   const root = folder('init-user');
