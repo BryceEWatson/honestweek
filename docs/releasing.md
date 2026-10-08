@@ -58,6 +58,13 @@ Then:
 - **The privacy and security statements** in the README, `SECURITY.md` and `docs/local-page.md` still match the code, above all after a change to what honestweek reads, writes, runs or serves.
 - **The full suite** passes once, with `node --test` from the repository root, and CI is green on all five jobs.
 - **One independent review** of the release pull request runs in a fresh session.
+- **The skill evals** run once, on my machine and my plan, never in CI: they make real model calls. Each case in `evals/` is a prompt and its graders, checking that the find skill starts for questions about past sessions and stays out of a coding task, a question about today's commits and a weekly summary, that the weekly skill starts for a weekly summary and, with no config, asks before `init` writes one, and that the distiller doesn't follow a line planted in the draft. From the repository root:
+
+  ```bash
+  claude plugin eval . --no-publish --trust-plugin --allow-tools Write Edit Bash
+  ```
+
+  `--no-publish` keeps the report on this machine (it publishes to claude.ai otherwise). On Windows I run it from WSL2: native Windows has no sandbox for runs granted Bash, so Claude Code refuses each one and the case scores 0. In WSL2 or on Linux, `bubblewrap` and `socat` need to be installed first, and `claude` signed in there. Each run gets a fresh home and config folder, so it doesn't find my logs or my config, and its sandbox limits what the write tools reach (the CLI says that's not a guarantee). Each case runs three times (the CLI's default), with the plugin and again without it. The agent records each case's score with the plugin, as runs passed out of three (a 3 of 3 means it fired every time here, not that it always will), and looks into any below 1.0 before the release. A case where a skill should stay out only means something if the cases where it should start passed in the same run, since a plugin that never loaded stays out of everything. Claude Code warns that `evals/` sits inside the plugin's root skill folder (`"skills": ["./"]`); that's expected, since a case has no `SKILL.md`. A run that can't sign in stops at its first case: check that `claude -p "hi"` works, and that no `apiKeyHelper` in `~/.claude/settings.json` points at a missing file.
 
 The agent records the results as a dated comment on the release pull request, plain terms first. Anything private (personal details in git history, a security gap not fixed yet) never goes in the repository or the pull request; it goes in the project's private goal record.
 
