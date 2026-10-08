@@ -244,3 +244,38 @@ test('init keeps the saved folder out of git from the start', async () => {
   assert.ok(r.wrote.includes('.gitignore (+honestweek.saved/)'), JSON.stringify(r.wrote));
   assert.match(readFileSync(join(dir, '.gitignore'), 'utf8'), /^honestweek\.saved\/$/m);
 });
+
+test('a kept session answers with the pattern states of the run that checked it, never a later run', async () => {
+  const { saved, saver } = savedFolder();
+  const day = '2025-03-12';
+  const file = join(saved, CHECKS_SUB, `${day}.json`);
+  const f = JSON.parse(readFileSync(file, 'utf8'));
+  const base = f.sessions.find((s) => s.checked);
+  assert.ok(Array.isArray(base.status), 'a checked session carries the states of its own run');
+  // An earlier run had no check yet for a pattern this run checks.
+  const later = payload.result.patterns.find((p) => p.status === 'clear' || p.status === 'found').id;
+  const older = { ...base, key: 'cc-olderolderolder', idHash: null, files: [], findings: 0, look: 0, status: base.status.map((x) => (x.id === later ? { ...x, status: 'unchecked' } : x)) };
+  const unknown = { ...base, key: 'cc-unknownunknown', idHash: null, files: [], findings: 0, look: 0 };
+  delete unknown.status;
+  f.sessions.push(older, unknown);
+  writeFileSync(file, JSON.stringify(f));
+  saver.onChecked(payload);
+  const o = JSON.parse((await ask(['--session', older.key, '--json'], { saved })).out);
+  assert.ok(o.notFound.unchecked.includes(later), "the later run's check doesn't count for a session it never read");
+  const u = await ask(['--session', unknown.key], { saved });
+  assert.equal(u.code, 0, u.err);
+  assert.match(u.out, /found nothing, as far as it had gone when it was saved\./);
+  assert.match(u.out, /Which patterns weren't looked for wasn't saved with this session\./);
+  assert.equal(JSON.parse((await ask(['--session', unknown.key, '--json'], { saved })).out).notFound, null);
+});
+
+test('a saved day of the wrong shape is replaced by the next save and never stops an answer', async () => {
+  const { saved, saver } = savedFolder();
+  const file = join(saved, CHECKS_SUB, '2025-03-12.json');
+  writeFileSync(file, JSON.stringify({ schema: 1, sessions: 'not a list', findings: {} }));
+  const r = await ask(['--session', 'cc-whatever-at-all'], { saved });
+  assert.equal(r.code === 0 || r.code === 1, true, r.err);
+  assert.doesNotMatch(r.err, /TypeError/);
+  assert.ok(saver.onChecked(payload), saver.info().error ?? 'saved');
+  assert.ok(Array.isArray(readSaved(saved, [CHECKS_SUB, '2025-03-12.json']).sessions), 'replaced whole');
+});
