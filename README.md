@@ -273,8 +273,11 @@ honestweek find "date filter"              # or some words
 honestweek replay cc-abcdefghijkl          # one session's steps, in order
 honestweek replay cc-abcdefghijkl --at 2026-10-05T14:30:00Z
 honestweek problems                        # where sessions went wrong, highest priority first
+honestweek problems --session cc-abcdefghijkl   # one session's findings, and whether it was checked
 honestweek goals                           # your goals and the sessions behind each one
 ```
+
+A session id can be the one these commands print, the id in the session's own log (a Claude Code session id or a Codex thread id), or the first eight characters or more of either. When a start fits more than one session, the answer lists them and asks for more. `problems --session` says whether the checks read that session at all (they read only your configured repositories, never a display-only one), and when they read it and found nothing, it says that in one line.
 
 Each reads the same week `view` does: the config honestweek finds, and the dates `--days`, `--from` with `--to`, or the config's "history" name. Add `--demo` to try any of them on the made-up week, with nothing set up. Every answer is redacted the way the page shows it with Show private text off, and no option shows private text: the page's switch is still the only way, and it's yours. Every row keeps its evidence word (recorded, derived, inferred, missing or ambiguous), so an inferred link never reads as a recorded one. Text copied from your logs or your goal list, and a step's description or a finding's note that carries it, is marked, so an agent can tell it from honestweek's own words and treat it as data: in JSON it sits inside `{"quoted": "..."}`, and in text it's in double quotes or on a line that starts with `>`. A text answer that found something ends with a command to try next, written the way you ran this one. Each session, step, finding and goal also names its page on `view` (`page` in JSON, such as `replay.html?session=<id>`), and a text answer's "Open it on the page" line is the `view --page` command that opens it on the same dates, since a thread's id can change with them; add any `--config` or `--goals` you gave. They write nothing to disk, except that `--demo` builds its made-up week in a temporary folder and deletes it before it exits.
 

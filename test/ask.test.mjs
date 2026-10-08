@@ -423,11 +423,11 @@ test('problems --session lists only that session\'s findings, counted over them,
   const goals = await json('goals');
   const flagged = new Set(all.patterns.flatMap((p) => p.findings.map((f) => f.session)));
   const quiet = goals.goals.flatMap((g) => g.members.map((m) => m.session)).find((s) => !flagged.has(s));
-  if (quiet) {
-    const q = await asked('problems', ['--session', quiet]);
-    assert.equal(q.code, 0, q.err);
-    assert.match(q.out, /\n\nThe checks read this session and found nothing\.\n/);
-  }
+  assert.ok(quiet, 'the demo week has a session the checks read and found nothing in');
+  const q = await asked('problems', ['--session', quiet]);
+  assert.equal(q.code, 0, q.err);
+  assert.match(q.out, /\n\nThe checks read this session and found nothing\.\n/);
+  assert.match(q.out, new RegExp(`\\nOpen it on the page: honestweek view --demo --page "problems\\.html\\?session=${quiet}"\\nNext: honestweek replay ${quiet}\\n$`));
   const words = await json('find', ['date', 'filter']);
   const display = words.elsewhere.results.find((r) => r.group === 'display' && r.inWindow);
   assert.ok(display, 'the demo week has a display-only session in the window');
