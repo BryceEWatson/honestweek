@@ -172,7 +172,7 @@ Clone into Codex's skills folder:
 git clone https://github.com/BryceEWatson/honestweek ~/.codex/skills/honestweek
 ```
 
-Codex lists it as `honestweek:honestweek`, which lets it start the skill when you ask for a weekly summary. If you've set `CODEX_HOME`, clone into its `skills` folder instead. Codex doesn't fill in `${CLAUDE_SKILL_DIR}`, so the skill tells it to run the CLI from the folder its `SKILL.md` is in. I've checked that Codex finds the skill there; I haven't run a whole weekly summary through Codex yet.
+Codex lists it as `honestweek:honestweek`, which lets it start the skill when you ask for a weekly summary. It also lists `honestweek:honestweek-contract`, the rules for writing the summary's items, which it can load by its description when it works on them. Codex has no subagents here, so it writes the items itself under those rules. If you've set `CODEX_HOME`, clone into its `skills` folder instead. Codex doesn't fill in `${CLAUDE_SKILL_DIR}`, so the skill tells it to run the CLI from the folder its `SKILL.md` is in. I've checked that Codex finds the skill there; I haven't run a whole weekly summary through Codex yet.
 
 ### As a standalone CLI
 
@@ -309,7 +309,7 @@ End-to-end happy path, in order. Each step names the artifact it produces.
    ```bash
    honestweek discover          # or: discover --week 2024-W23
    ```
-3. **`/honestweek`** (the skill) → **distils** the draft into the human-reviewable `honestweek.items.json`, with a status badge **and** a receipt on every item. This is the one model-judgment step; see [`SKILL.md`](SKILL.md) for the distillation contract.
+3. **`/honestweek`** (the skill) → **distils** the draft into the human-reviewable `honestweek.items.json`, with a status badge **and** a receipt on every item. This is the one model-judgment step; see [`SKILL.md`](SKILL.md) for the distillation contract. With the plugin, Claude hands it to a distiller that has file tools only, no shell or web, and none of your CLAUDE.md instructions, with the contract loaded, so a line in your session logs written to steer an agent can't make it run a command or open a page. It can still write files, and it's told to write only the items file. With the plugin, the contract is also set to load whenever Claude works with `honestweek.items.json`.
    If your output is `page` or `site` and you don't use the optional goals registry (`honestweek.objectives.json`), run `honestweek digest prepare` too. It reads the finished week's Claude Code and Codex sessions, picks a short list of prompts, ideas, techniques, decisions, reversals and next steps, each linked to the session it came from, and writes the ones that pass the privacy check to `honestweek.prompt-items.json`. `digest candidates` and `digest explain <item-ref>` show why each one was picked. `digest keep`, `hide` and `delete <item-ref> --yes` change what goes in. They change the selection only and never bypass the receipt or privacy gates. Then you run `validate` and `build`. A deleted item leaves a no-text tombstone (a marker with no text in it) so the next `prepare` doesn't pick it again. Deleting cannot recall an output you've already built. The balanced digest and the goals page don't work together yet, so with a goals registry, use the distillation step above. [docs/digest.md](docs/digest.md) has the rest: the hold on high-risk items, carrying unresolved items into later weeks, and recovering an interrupted build.
    > Optional but recommended: gate the distilled items before building:
    > ```bash
