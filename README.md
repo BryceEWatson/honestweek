@@ -276,10 +276,14 @@ honestweek replay cc-abcdefghijkl          # one session's steps, in order
 honestweek replay cc-abcdefghijkl --at 2026-10-05T14:30:00Z
 honestweek problems                        # where sessions went wrong, highest priority first
 honestweek problems --session cc-abcdefghijkl   # one session's findings, and whether it was checked
+honestweek problems --pattern cache-miss   # one problem: its cause, fix, how sure, and timeline
+honestweek problems --finding pf-abcdefghijkl   # the same for one finding
 honestweek goals                           # your goals and the sessions behind each one
 ```
 
 A session id can be the one these commands print, the id in the session's own log (a Claude Code session id or a Codex thread id), or the first eight characters or more of either. When a start fits more than one session, the answer lists them and asks for more. `problems --session` says whether the checks read that session at all (they read only your configured repositories, never a display-only one), and when they read it and found nothing, it says that in one line, then how many patterns no check looks for in any session yet. A pattern's priority there is still the whole window's, and it says so.
+
+`problems --pattern` answers four questions about one problem at once: what caused it, how to fix it, how sure honestweek is, and when it happened. It takes a pattern's id, its name, or a piece only that pattern has. Its cause is honestweek's general description of the pattern, labelled as general, then what your log shows: each finding's note and the steps its check recorded, with how each is known, and never a reason the log doesn't record. Its fix is the general fixes, the ready-made one you can copy, how to test it, and any tests of it already in the window; nothing is applied for you. How sure says how each finding is known, how established the pattern is, what can set the check off wrongly and where it comes from, and plainly that how often each check is right hasn't been measured yet, so there's no confidence number. Its timeline is every finding in the window in time order, each with a link that opens the replay zoomed to it, and the count per day. `--finding` gives the same for one finding. For "last week", ask with `--days 7`.
 
 With Save results between runs on, `problems --session` also answers for a session outside the dates, from what `view` saved: by its id, the start of its id, or its log's full id (honestweek keeps only a hash of that, so its first characters alone don't find a saved session). The answer says when the results were saved, by which honestweek version, and whether the session's log is still on disk, and each finding keeps the evidence word it had then. It has no priority, since there's no window to rank it in, and no page to open.
 

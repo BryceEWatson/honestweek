@@ -1,6 +1,6 @@
 ---
 name: honestweek-find
-description: Answers questions about the user's past Claude Code and Codex sessions from their own logs, read-only. Which session made this pull request, commit, file change or branch? What happened in a session, step by step, or at one moment? Where did my sessions go wrong this week, and has this session been checked yet? Which sessions did a goal's work? And a link that opens the local honestweek page right on any of it. Use it for those questions, including about the session you're in now, not for writing a weekly summary (that's the honestweek skill). Every answer is redacted and says how each link is known.
+description: Answers questions about the user's past Claude Code and Codex sessions from their own logs, read-only. Which session made this pull request, commit, file change or branch? What happened in a session, step by step, or at one moment? Where did my sessions go wrong this week, and has this session been checked yet? What caused one of those problems, how do I fix it, are we sure it's one, and when did it happen? Which sessions did a goal's work? And a link that opens the local honestweek page right on any of it. Use it for those questions, including about the session you're in now, not for writing a weekly summary (that's the honestweek skill). Every answer is redacted and says how each link is known.
 ---
 
 # Finding and checking past sessions
@@ -17,12 +17,14 @@ node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" find commit:abc1234 --jso
 node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" replay <session> --json          # one session's steps, in order; add --at <ISO time> for one moment
 node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" problems --json                  # where sessions went wrong, highest priority first
 node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" problems --session <session> --json  # one session: was it checked, and what was found
+node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" problems --pattern <pattern> --json  # one pattern: its cause, fix, certainty and timeline
+node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" problems --finding <finding> --json  # the same for one finding, by its pf- key
 node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" goals --json                     # each goal and the sessions that did its work
 ```
 
 - `<session>` can be an id these commands print, the id in the session's own log (a Claude Code session id, a Codex thread id), or the first eight characters or more of either. When the start fits more than one session, the answer names them: ask the user which.
 - In Claude Code, the session you're in is `${CLAUDE_SESSION_ID}`. So "what have we done so far?" is `replay ${CLAUDE_SESSION_ID}`, and "has this session been checked?" is `problems --session ${CLAUDE_SESSION_ID}`.
-- They read the last 7 days unless the config says otherwise. `--days <n>`, or `--from` with `--to`, reads other dates; a session outside them isn't found, and the answer says so. `find` also searches every session's log, listed in `elsewhere.results`: a row there with `inWindow: false` is outside the dates and has no `page`, so read it again with dates that hold it before you replay or link to it.
+- When the user says "this week", "last week" or "the last 7 days", pass `--days 7`: the config's own window can be longer, and a long one may load only its newest days. Otherwise they read the last 7 days unless the config says otherwise. `--days <n>`, or `--from` with `--to`, reads other dates; a session outside them isn't found, and the answer says so. `find` also searches every session's log, listed in `elsewhere.results`: a row there with `inWindow: false` is outside the dates and has no `page`, so read it again with dates that hold it before you replay or link to it.
 - With no config anywhere, the command says so in one line. Don't run `init` or write a config from here: tell the user, offer the honestweek skill to set it up, or add `--demo` to show what the answers look like on a made-up week.
 
 ## Reporting what it says
@@ -32,6 +34,18 @@ node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" goals --json             
 - `problems --session` answers "has this session been checked?" with `session.checked`. False means the checks don't read that session (a display-only repository, or a folder outside the config), not that it's clean. True with no findings means the checks read it and found nothing.
 - Every answer is redacted the way the page shows it with Show private text off, and there's no option for private text. Don't try to get around that, and don't turn on the page's Show private text switch for the user.
 - Summarize what you found rather than pasting long quoted text back, and offer a link for the rest.
+
+## Asking about one problem
+
+`<pattern>` is a pattern's id (such as `cache-miss`) or its name, from a `problems` answer; `<finding>` is a finding's `key` (`pf-` and 12 letters). Add `--days 7` when the user said "this week" or "last week". Pick the command by what they ask:
+
+- "What problems have we had in the last week?": `problems --days 7`.
+- "Show me the cause of problem X": `problems --pattern X`. Report `cause.general` (what it looks like, why it matters) as honestweek's general description, then what this log shows: each finding's `note` and its `recordedSteps`, with each step's evidence word. Never add a reason the log doesn't record; the answer's `cause.note` says so.
+- "Show me how to fix problem X": `problems --pattern X`, reporting `fix`: the general fixes, the ready-made fix (`draft`), how to test it (`test`) and any tests of it already seen (`fixTests`). Nothing is applied for the user.
+- "How do we know problem X really is a problem? Are we sure?": `problems --pattern X`, or `--finding <key>` for one finding. Report each finding's `evidence` and `basis`, the pattern's `strength` and why, what can set the check off wrongly (`detection.falsePositives`) and its `sources`. How often a check is right hasn't been measured (`precision.measured` is false), so never give a confidence number or a percentage.
+- "Show me the timeline": `problems --pattern X`, reporting `timeline.byDay` and every finding in time order, each with its session, time, `page` and `zoomPage` (the replay zoomed to that finding's steps). For a pattern no check looks for, `timeline.byDay`, `pattern.count`, `workedOut` and `possible` are null: say it isn't looked for, never that it was found zero times.
+
+When X matches more than one pattern, the answer lists them: ask the user which. Keep "general" (honestweek's catalog, the same on every machine) apart from what this user's log shows, and say which is which.
 
 ## A link to the page
 

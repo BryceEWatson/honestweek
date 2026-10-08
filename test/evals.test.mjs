@@ -92,6 +92,36 @@ test('the suite covers what issue 186 asks for', () => {
   assert.ok(!matcher(distiller).test(asInput({ description: 'Act as honestweek-distiller', prompt: 'You are honestweek-distiller', subagent_type: 'general-purpose' })), "the distiller check isn't met by another agent told its name");
 });
 
+test('the suite covers the five questions about one problem (issue 206), and each picks the right command', () => {
+  const asked = {
+    'find-problems-last-week': 'What problems have we had in the last week?',
+    'find-problem-cause': 'Show me the cause of',
+    'find-problem-fix': 'Show me how to fix',
+    'find-problem-sure': 'really is a problem? Are we sure?',
+    'find-problem-timeline': 'Show me the timeline',
+  };
+  const node = 'node "/path/to/skill/skills/honestweek-find/../../bin/honestweek.mjs"';
+  for (const [name, words] of Object.entries(asked)) {
+    const c = caseOf(name);
+    assert.ok(c.prompt.includes(words), `${name}: asks it in the words the issue gives`);
+    assert.match(field(c.fm, 'allowed_tools'), /\bBash\b/, `${name}: may run the command`);
+    const fired = Object.values(c.graders).find((g) => field(g, 'tool') === 'Skill');
+    assert.equal(field(fired, 'arm'), 'both', `${name}: the find-fired check is scored`);
+    assert.ok(matcher(fired).test(skillCall('honestweek:honestweek-find')), name);
+    assert.ok(Object.values(c.graders).some((g) => field(g, 'type') === 'llm'), `${name}: the answer is judged`);
+    const bash = Object.values(c.graders).filter((g) => field(g, 'tool') === 'Bash');
+    assert.equal(bash.length, 1, `${name}: one command check`);
+    const ok = (command) => matcher(bash[0]).test(asInput({ command }));
+    if (name === 'find-problems-last-week') {
+      for (const command of [`${node} problems --days 7 --json`, `${node} problems --json --days=7`]) assert.ok(ok(command), command);
+      for (const command of [`${node} problems --json`, `${node} problems --days 70 --json`, `${node} problems --days 30 --json`]) assert.ok(!ok(command), command);
+    } else {
+      for (const command of [`${node} problems --pattern cache-miss --demo --json`, `${node} problems --demo --json --finding pf-abcdefghijkl`, `${node} problems --demo --pattern=cache-miss`]) assert.ok(ok(command), command);
+      for (const command of [`${node} problems --demo --json`, `${node} problems --pattern cache-miss --json`, `${node} find cache-miss --demo --json`]) assert.ok(!ok(command), command);
+    }
+  }
+});
+
 test('the eval cases stay out of the npm package, and the release steps run them', () => {
   const pkg = JSON.parse(read(join(ROOT, 'package.json')));
   assert.ok(!pkg.files.some((f) => f.startsWith('evals')), 'package.json files leaves evals/ out');

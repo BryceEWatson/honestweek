@@ -13,6 +13,7 @@ import { runInNewContext } from 'node:vm';
 import { createViewData } from '../lib/view/data.mjs';
 import { createLeakCounter } from '../lib/view/leaks.mjs';
 import { createProblemsRoute, FINDING_KEY, withScope, zoomOf } from '../lib/view/problems-route.mjs';
+import { zoomPage } from '../lib/view/page-link.mjs';
 import { SCOPE_KINDS } from '../lib/problems/scope.mjs';
 import { buildViewWeek, WEEK } from './fixtures/view/week.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
@@ -170,6 +171,7 @@ test('the link round-trips: the page builds it, the replay reads the key back, a
   const f = findings.find((x) => x.zoom.events.length > 1 && x.thread);
   const href = zoomHrefP(f);
   assert.equal(href, zoomHrefS(f), 'the Problems page and the strip build the same link');
+  assert.equal(zoomPage(f), href, 'and so does the zoom link the ask commands print');
   const u = new URL(href, 'http://127.0.0.1/');
   assert.equal(u.pathname, '/replay.html');
   assert.equal(u.searchParams.get('session'), f.session);
