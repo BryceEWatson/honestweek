@@ -139,17 +139,19 @@ test('--pattern and --finding refuse each other, --session, a malformed key, and
   }
 });
 
-test('a pattern with no finding still answers its cause, fix and certainty, and says why the timeline is empty', async () => {
+test('a pattern no check looks for still answers its cause, fix and certainty, with no count rather than a zero', async () => {
   const none = loadCatalog().patterns.find((p) => p.id === 'sycophancy');
   const o = await json(['--pattern', none.id]);
   assert.equal(o.pattern.status, 'unchecked');
   assert.deepEqual(o.findings, []);
   assert.equal(o.cause.general.looksLike, none.looksLike);
-  assert.ok(o.timeline.byDay.every((x) => x.findings === 0));
+  assert.equal(o.pattern.count, null, 'not looked for is no count, not a zero');
+  assert.equal(o.timeline.byDay, null);
   const t = await asked(['--pattern', none.id]);
   assert.match(t.out, /This pattern is not looked for: there's no check for it yet\./);
-  assert.match(t.out, /What the log shows: nothing in this window\./);
-  assert.match(t.out, /No finding in this window\./);
+  assert.match(t.out, /What the log shows: nothing, since no check looks for it\./);
+  assert.match(t.out, /No check looks for this pattern, so there's no count to show\./);
+  assert.doesNotMatch(t.out, /Per day:|No finding in this window/);
 });
 
 test('the text answer has its four parts, labels general text, and says check precision is unmeasured', async () => {
