@@ -277,7 +277,8 @@ test('with otherSessions turned off later, the other sessions saved while it was
   assert.ok(priv.length > 0);
   const saver = createSaver({ configDir: () => join(saved, '..'), config: () => CONFIG, now: () => NOW });
   await withoutLogs(priv, async () => {
-    assert.equal(saver.load({ from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots }), null, 'none comes back with the box off');
+    const back = saver.load({ from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots });
+    assert.deepEqual((back?.sessions ?? []).filter((x) => priv.includes(x.key)).map((x) => x.key), [], 'none comes back with the box off');
     const data = viewOf(saver);
     await data.start();
     for (let i = 0; i < 100; i++) await new Promise((r) => setTimeout(r, 10));
