@@ -53,12 +53,14 @@ node_modules/
 .demo-out/
 
 # Local working files for this repo: hand-offs, research, test logs, worktrees and
-# prototypes built from real sessions. They stay on the machine that made them. The one
-# exception is the project skill, so /honestweek works in a clone with nothing to install.
+# prototypes built from real sessions. They stay on the machine that made them. The
+# exceptions are the project skills, so /honestweek and the find skill work in a clone with
+# nothing to install.
 /.claude/*
 !/.claude/skills/
 /.claude/skills/*
 !/.claude/skills/honestweek/
+!/.claude/skills/honestweek-find/
 
 # OS / editor cruft
 .DS_Store
