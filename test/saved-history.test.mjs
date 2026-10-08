@@ -9,7 +9,7 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { gunzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 
 import { buildDemoWeek, CODEX_IDS, SESSION_IDS } from '../lib/demo/week.mjs';
 import { DEMO_TERM } from '../lib/view.mjs';
@@ -17,7 +17,7 @@ import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { createViewData } from '../lib/view/data.mjs';
 import { createSaver } from '../lib/saved/saver.mjs';
 import { DAYS_SUB, loadSaved, readHistoryDay, saveHistory } from '../lib/saved/history.mjs';
-import { SAVED_DIR, savedDays, writeSaved } from '../lib/saved/store.mjs';
+import { SAVED_DIR, savedDays, writeSaved, writeSavedBytes } from '../lib/saved/store.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const d = buildDemoWeek();
@@ -296,6 +296,10 @@ test("a saved check result whose log moved (an archived Codex log) is replaced, 
   entry.files = ['moved-elsewhere'];
   entry.savedAt = '2000-01-01T00:00:00.000Z';
   writeSaved(saved, ['checks', `${day}.json`], file);
+  // Its saved history names the old path too, as a move leaves it, so it isn't taken back unread.
+  const hist = readHistoryDay(saved, day);
+  for (const x of hist?.sessions ?? []) if (x.key === entry.key) for (const s of x.sources) s.file = 'f-movedelsewhere';
+  if (hist) writeSavedBytes(saved, [DAYS_SUB, `${day}.json.gz`], gzipSync(Buffer.from(JSON.stringify(hist))));
   const data = viewOf(saver);
   await data.start();
   for (let i = 0; i < 100; i++) await new Promise((r) => setTimeout(r, 10));

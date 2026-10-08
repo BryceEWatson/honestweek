@@ -294,3 +294,20 @@ test('the trend reads the week before from saved results when every day of it is
   assert.equal(t.earlier.from, '2025-03-03');
   assert.equal(t.earlier.sessions, 0);
 });
+
+test('a run that takes every session back unread leaves the saved days as they were', async () => {
+  const w = await savedWeek();
+  const saved = join(w.dir, SAVED_DIR);
+  const stamp = () => Object.fromEntries(['checks', DAYS_SUB].flatMap((sub) => readdirSync(join(saved, sub)).map((f) => [`${sub}/${f}`, readFileSync(join(saved, sub, f)).toString('base64')])));
+  const before = stamp();
+  const data = w.view();
+  await data.start();
+  for (let i = 0; i < 100; i++) await new Promise((r) => setTimeout(r, 10));
+  data.stop();
+  const after = stamp();
+  // Only the days that hold a display-only or outside session (read again, since only configured
+  // repositories' history is saved) may be written again; the rest are byte for byte as they were.
+  const changed = Object.keys(before).filter((k) => before[k] !== after[k]);
+  assert.ok(changed.every((k) => k.startsWith('checks/')), changed.join(', '));
+  assert.ok(Object.keys(before).filter((k) => k.startsWith(`${DAYS_SUB}/`)).every((k) => before[k] === after[k]), 'no history day is written again');
+});
