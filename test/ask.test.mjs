@@ -12,7 +12,7 @@ import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { askHelp, parseAskArgs, runAsk, sessionOf, TEXT_NOTE, QUOTED_NOTE } from '../lib/ask.mjs';
+import { answerProblems, askHelp, parseAskArgs, runAsk, sessionOf, TEXT_NOTE, QUOTED_NOTE } from '../lib/ask.mjs';
 import { pageLink } from '../lib/view/page-link.mjs';
 import { setConfigLookup } from '../lib/config-lookup.mjs';
 import { buildDemoWeek } from '../lib/demo/week.mjs';
@@ -405,6 +405,11 @@ test('a session is found by its key, the id in its own log, or the start of eith
   assert.equal(sessionOf({ sessionMatch: () => ({ none: true }) }, 'x'), null);
 });
 
+test('problems --session on logs that aren\'t read yet says why, never "no session"', async () => {
+  const building = { sessionMatch: () => null, status: () => ({ state: 'building' }), route: async () => ({ status: 503, body: { error: 'building' } }) };
+  await assert.rejects(answerProblems(building, { '--session': 'cc-aaaabbbbcccc' }, { from: '2026-10-01', to: '2026-10-07' }), (err) => !/no session between/.test(err.message) && /building/.test(err.message));
+});
+
 test('problems --session lists only that session\'s findings, counted over them, and says whether the checks read it', async () => {
   const all = await json('problems');
   const key = all.patterns[0].findings[0].session;
@@ -426,11 +431,15 @@ test('problems --session lists only that session\'s findings, counted over them,
   }
   assert.equal(o.session.findings.value, total);
   assert.equal(o.statusCounts, null, 'the window\'s statuses would read as this session\'s');
-  assert.equal(o.notFound, null);
+  assert.deepEqual(Object.keys(o.notFound), ['unchecked', 'undetectable'], 'only what no session is checked for');
+  assert.ok(o.patterns.every((p) => !p.priority || p.priority.of === 'window'), 'a pattern\'s tier is the window\'s, and says so');
+  assert.ok(all.patterns.every((p) => !p.priority || !('of' in p.priority)), 'the whole window\'s answer is unchanged');
   const t = await asked('problems', ['--session', key]);
   assert.match(t.out, new RegExp(`^honestweek problems: session ${key}, `));
   assert.ok(t.out.includes(`\n\n${total} finding(s) in ${o.patterns.length} pattern(s), ${o.session.worthALook.value} worth a look.\n`), t.out.slice(0, 500));
   assert.doesNotMatch(t.out, /\nNot found: /);
+  assert.match(t.out, / priority in the window, /);
+  assert.ok(t.out.includes(`\n\nNot looked for, in any session: ${o.notFound.unchecked.length} pattern(s) with no check yet, ${o.notFound.undetectable.length} that logs can't show.\n`));
   assert.ok(t.out.includes(`\nOpen it on the page: honestweek view --demo --page "problems.html?session=${key}"\nNext: honestweek replay ${key} --at `));
 
   // A session the checks read with nothing found, and one they never read, each say so.
@@ -440,15 +449,17 @@ test('problems --session lists only that session\'s findings, counted over them,
   assert.ok(quiet, 'the demo week has a session the checks read and found nothing in');
   const q = await asked('problems', ['--session', quiet]);
   assert.equal(q.code, 0, q.err);
-  assert.match(q.out, /\n\nThe checks read this session and found nothing\.\n/);
+  assert.match(q.out, /\n\nThe checks read this session and found nothing\.\n\nNot looked for, in any session: \d+ pattern\(s\) with no check yet, \d+ that logs can't show\.\n/);
   assert.match(q.out, new RegExp(`\\nOpen it on the page: honestweek view --demo --page "problems\\.html\\?session=${quiet}"\\nNext: honestweek replay ${quiet}\\n$`));
   const words = await json('find', ['date', 'filter']);
   const display = words.elsewhere.results.find((r) => r.group === 'display' && r.inWindow);
   assert.ok(display, 'the demo week has a display-only session in the window');
   const d1 = await json('problems', ['--session', display.session]);
-  assert.deepEqual([d1.session.checked, d1.session.group, d1.patterns.length], [false, 'display', 0]);
+  assert.deepEqual([d1.session.checked, d1.session.group, d1.patterns.length, d1.session.findings, d1.session.worthALook], [false, 'display', 0, null, null], 'a session the checks don\'t read has no count, never a zero');
   const d2 = await asked('problems', ['--session', display.session]);
   assert.match(d2.out, /\n\nThe checks don't read this session: it's in a display-only repository, so there's nothing to show for it\.\n/);
+  assert.doesNotMatch(d2.out, /Not looked for/);
+  assert.ok(d2.out.includes(`\nOpen it on the page: honestweek view --demo --page "${d1.session.page}"\n`), 'it opens on its replay, not an empty Problems page');
 });
 
 test('problems --session and replay take the id in a session\'s own log, and say when the window holds none', async () => {
@@ -478,6 +489,8 @@ test('problems --session and replay take the id in a session\'s own log, and say
   assert.equal(p.session.session, key);
   const none = await asked('problems', ['--session', 'cc-zzzzzzzzzzzz']);
   assert.equal(none.code, 1);
+  const short = await asked('problems', ['--session', key.slice(0, SESSION_PREFIX_MIN - 1)]);
+  assert.equal(short.err, `honestweek problems: give at least ${SESSION_PREFIX_MIN} characters of a session's id.\n`);
   assert.equal(none.err, `honestweek problems: no session between ${WEEK.from} and ${WEEK.to} has that id. If it's outside these dates, try --days, or --from with --to.\n`);
   assert.throws(() => parseAskArgs('find', ['--session', key]), /unknown option "--session"/, '--session is problems\' alone');
   assert.throws(() => parseAskArgs('replay', ['--session', key]), /unknown option "--session"/);
