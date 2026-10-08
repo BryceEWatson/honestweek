@@ -363,6 +363,20 @@ test('every session, step, finding and goal names its page on view, one view --p
   assert.match(t.out, new RegExp(`\\nOpen it on the page: honestweek view --demo --page "${r.page.replace(/[.?]/g, '\\$&')}"\\nNext: `));
   const f = await asked('find', ['#12']);
   assert.ok(f.out.includes(`10:25  page ${answers.find.reference.sessions[0].page}\n`), f.out);
+  // A goal's or a branch's page shows on its row, and opens the answer when nothing else does.
+  const goalOnly = await json('find', ['publish']);
+  assert.deepEqual([goalOnly.words.goals.length, goalOnly.words.sessions.length, goalOnly.words.branches.length, goalOnly.words.prompts.length], [1, 0, 0, 0], 'the demo week has a word only a goal title holds');
+  const gt = await asked('find', ['publish']);
+  const goalPageOf = goalOnly.words.goals[0].page;
+  assert.ok(gt.out.includes(`(matched in its title)  page ${goalPageOf}\n`), gt.out);
+  assert.ok(gt.out.includes(`\nOpen it on the page: honestweek view --demo --page "${goalPageOf}"\n`), gt.out);
+  const branchOnly = await json('find', ['since-flag']);
+  assert.deepEqual([branchOnly.words.goals.length, branchOnly.words.sessions.length, branchOnly.words.branches.length, branchOnly.words.prompts.length], [0, 0, 1, 0], 'and a word only a branch name holds');
+  const bt = await asked('find', ['since-flag']);
+  const bs = branchOnly.words.branches[0].sessions;
+  for (const x of bs) assert.ok(bt.out.includes(`\n    ${x.session}${x.event ? `  step ${x.event}` : ''}  page ${x.page}\n`), bt.out);
+  assert.ok(bt.out.includes(`\nOpen it on the page: honestweek view --demo --page "${bs[0].page}"\n`), bt.out);
+
   const pr = await asked('problems');
   const first = answers.problems.patterns[0].findings[0];
   assert.ok(pr.out.includes(`  page ${first.page}\n`), pr.out.slice(0, 800));

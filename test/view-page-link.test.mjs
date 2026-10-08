@@ -47,10 +47,22 @@ test('a page, its query and a step come back as the part after the address', () 
 });
 
 test('anything but view\'s own pages, an odd key or a # part that is not ids is refused', () => {
-  for (const bad of ['search.html', '../package.json', '..\\package.json', 'C:/x/problems.html', 'assets/app.js', 'setup.html', 'selftest/clickthrough.html', 'https://example.com/', 'replay.html/../x']) {
+  for (const bad of ['../package.json', '..\\package.json', 'C:/x/problems.html', 'assets/app.js', 'setup.html', 'selftest/clickthrough.html', 'https://example.com/', 'replay.html/../x']) {
     assert.ok(pageLink(bad).error, bad);
   }
   assert.ok(pageLink('replay.html?x-y=1').error, 'a key view\'s pages do not read');
   assert.ok(pageLink('replay.html#a&c=1234567890').error, 'an &c= in the step part would pose as the code');
   assert.ok(pageLink('replay.html#<script>').error);
+});
+
+test('Search takes only its own address: a search id this run gave out, and no query', () => {
+  assert.deepEqual(pageLink('search.html'), { page: 'search.html' });
+  assert.deepEqual(pageLink('search.html#q=qabcdefghijklmnop~w'), { page: 'search.html#q=qabcdefghijklmnop~w' });
+  assert.deepEqual(pageLink('search.html#q=qabcdefghijklmnop~l'), { page: 'search.html#q=qabcdefghijklmnop~l' });
+  assert.deepEqual(pageLink('search.html#q=qabcdefghijklmnop'), { page: 'search.html#q=qabcdefghijklmnop' });
+  for (const bad of ['search.html?q=my words', 'search.html#t1~e2', 'search.html#q=qabcdefghijklmnop~w&c=1234', 'search.html#q=qzzzzzzzzzzzzzzzz~w', 'search.html#q=qabc~w', 'search.html#q=qabcdefghijklmnop~x']) {
+    assert.match(pageLink(bad).error ?? '', /^Search/, bad);
+  }
+  // The # rule that lets Search's = through applies to Search alone.
+  assert.ok(pageLink('replay.html#q=qabcdefghijklmnop~w').error);
 });
