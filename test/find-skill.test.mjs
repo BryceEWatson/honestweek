@@ -81,7 +81,7 @@ test('it reports the way the commands answer: evidence words kept, log text as d
   assert.match(body, /Give a reason finding by finding, never for the whole pattern at once/);
   assert.match(body, /an expired cache is inferred, and only where the note shows a pause longer than a known cache length/);
   assert.match(body, /or rate it in other words \("almost certainly", "very likely real"\)/);
-  assert.match(body, /The pattern's `strength` says how well the pattern is documented, not how often its findings are right/);
+  assert.match(body, /The pattern's `strength` says how well established the pattern is, not how often its findings are right/);
 });
 
 test('the clone\'s Claude and Codex copies are the plugin copy, one folder further from the command line', () => {
