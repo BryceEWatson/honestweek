@@ -408,6 +408,8 @@ test('a session is found by its key, the id in its own log, or the start of eith
 test('problems --session on logs that aren\'t read yet says why, never "no session"', async () => {
   const building = { sessionMatch: () => null, status: () => ({ state: 'building' }), route: async () => ({ status: 503, body: { error: 'building' } }) };
   await assert.rejects(answerProblems(building, { '--session': 'cc-aaaabbbbcccc' }, { from: '2026-10-01', to: '2026-10-07' }), (err) => !/no session between/.test(err.message) && /building/.test(err.message));
+  const failed = { sessionMatch: () => null, status: () => ({ state: 'failed' }), route: async () => ({ status: 503, body: { error: 'failed', status: { failed: 'a log was unreadable' } } }) };
+  await assert.rejects(answerProblems(failed, { '--session': 'cc-aaaabbbbcccc' }, { from: '2026-10-01', to: '2026-10-07' }), /the logs couldn't be read: a log was unreadable/);
 });
 
 test('problems --session lists only that session\'s findings, counted over them, and says whether the checks read it', async () => {
@@ -456,6 +458,7 @@ test('problems --session lists only that session\'s findings, counted over them,
   assert.ok(display, 'the demo week has a display-only session in the window');
   const d1 = await json('problems', ['--session', display.session]);
   assert.deepEqual([d1.session.checked, d1.session.group, d1.patterns.length, d1.session.findings, d1.session.worthALook], [false, 'display', 0, null, null], 'a session the checks don\'t read has no count, never a zero');
+  assert.equal(d1.session.findingsPage, null, 'nor a link to a Problems page with nothing on it');
   const d2 = await asked('problems', ['--session', display.session]);
   assert.match(d2.out, /\n\nThe checks don't read this session: it's in a display-only repository, so there's nothing to show for it\.\n/);
   assert.doesNotMatch(d2.out, /Not looked for/);
