@@ -7,7 +7,7 @@
 
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 
@@ -16,7 +16,7 @@ import { DEMO_TERM } from '../lib/view.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { createViewData } from '../lib/view/data.mjs';
 import { createSaver } from '../lib/saved/saver.mjs';
-import { DAYS_SUB, loadSaved, readHistoryDay } from '../lib/saved/history.mjs';
+import { DAYS_SUB, loadSaved, readHistoryDay, saveHistory } from '../lib/saved/history.mjs';
 import { SAVED_DIR, savedDays } from '../lib/saved/store.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 
@@ -105,6 +105,28 @@ test('a saved step says its log is gone instead of checking a line it can no lon
   }
 });
 
+test('a session saved by a run that also had saved sessions keeps its ids hashed once, so it still joins', async () => {
+  const keys = fresh.sessions.map((s) => s.key);
+  const back = await withoutLogs([keys[0]], () => buildWorkHistory({ ...OPTS, saved: exported([keys[0]]), saving: true }));
+  for (const k of keys.slice(1)) {
+    const a = fresh.exportSession(k);
+    const b = back.exportSession(k);
+    for (const f of ['uuids', 'sentMessages', 'receivedMessages']) assert.deepEqual(b.joins[f], a.joins[f], `${k} ${f}`);
+  }
+});
+
+test("a saved day that can't be read is left as it is, not written over", () => {
+  const dir = makeTempDir('hw-saved-unreadable-');
+  mkdirSync(join(dir, DAYS_SUB), { recursive: true });
+  const day = '2025-03-13';
+  const file = join(dir, DAYS_SUB, `${day}.json.gz`);
+  writeFileSync(file, 'not gzip');
+  const out = saveHistory({ dir, config: CONFIG, h: fresh, keepDays: 36500, now: NOW });
+  assert.equal(out.days.includes(day), false);
+  assert.equal(readFileSync(file, 'utf8'), 'not gzip');
+  assert.ok(out.days.includes('2025-03-12'), 'the other days are saved');
+});
+
 /** A config folder with the demo week saved through view's saver, as view saves it. */
 async function savedWeek(config = CONFIG) {
   const dir = makeTempDir('hw-saved-history-');
@@ -139,6 +161,17 @@ test('with history off only check results are saved, and nothing comes back', as
   assert.equal(saver.load({ from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots }), null);
 });
 
+test('with history turned off later, days saved while it was on are still deleted once past keepDays', async () => {
+  const { saved } = await savedWeek();
+  const config = { ...CONFIG, saveResults: { on: true, keepDays: 1, history: false } };
+  const saver = createSaver({ configDir: () => join(saved, '..'), config: () => config, now: () => NOW });
+  const data = createViewData({ config, roots: d.roots, from: d.week.from, to: d.week.to, timezone: d.week.timezone, goalRecord: d.goalRecord, onChecked: saver.onChecked, savedLoad: (w) => saver.load({ ...w, roots: d.roots }), now: () => NOW });
+  await data.start();
+  for (let i = 0; i < 100 && savedDays(saved, DAYS_SUB).length; i++) await new Promise((r) => setTimeout(r, 20));
+  data.stop();
+  assert.deepEqual(savedDays(saved, DAYS_SUB), []);
+});
+
 test('a session whose log is gone stays on the page: listed, replayable, its findings as saved, and labelled', async () => {
   const { saver } = await savedWeek();
   const key = keyOfLog(SESSION_IDS.windowsCi);
@@ -163,6 +196,16 @@ test('a session whose log is gone stays on the page: listed, replayable, its fin
     const other = list.days.flatMap((x) => x.rows).find((r) => r.session !== key);
     assert.equal('saved' in other, false);
     data.stop();
+  });
+});
+
+test('a saved session the checks read and found nothing in keeps that answer, so the checks never run on it again', async () => {
+  const { saved } = await savedWeek();
+  const clean = savedDays(saved, 'checks').flatMap((day) => JSON.parse(readFileSync(join(saved, 'checks', `${day}.json`), 'utf8')).sessions).find((x) => x.checked === true && x.findings === 0);
+  assert.ok(clean, 'the demo week has a checked session with no findings');
+  await withoutLogs([clean.key], async () => {
+    const out = loadSaved({ dir: saved, from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots });
+    assert.deepEqual(out.findings.get(clean.key), []);
   });
 });
 
@@ -212,4 +255,36 @@ test('a later run keeps a saved day it reads again, and a session whose log is g
   assert.ok(kept, 'the gone session is still saved');
   assert.equal(kept.savedAt, new Date(NOW).toISOString());
   assert.deepEqual(loadSaved({ dir: saved, from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots }).sessions, [], 'every log is back on disk: nothing comes back as saved');
+});
+
+test('only configured repositories\' history is saved, unless otherSessions says to keep the rest', async () => {
+  const days = (saved) => savedDays(saved, DAYS_SUB).flatMap((day) => readHistoryDay(saved, day).sessions);
+  const { saved } = await savedWeek();
+  const kept = days(saved);
+  assert.ok(kept.length > 0);
+  assert.equal(kept.some((x) => x.record.private), false, 'no display-only or outside session by default');
+  const privateKeys = fresh.sessions.filter((s) => s.private).map((s) => s.key);
+  assert.ok(privateKeys.length > 0, 'the demo week has display-only and outside sessions');
+  const all = await savedWeek({ ...CONFIG, saveResults: { ...CONFIG.saveResults, otherSessions: true } });
+  assert.deepEqual(new Set(days(all.saved).filter((x) => x.record.private).map((x) => x.key)), new Set(privateKeys.filter((k) => fresh.sessions.find((s) => s.key === k).firstAt)));
+});
+
+test('a saved session that named a log file this run did not read keeps its fuller saved copy', async () => {
+  const { saved, saver } = await savedWeek();
+  const before = savedDays(saved, DAYS_SUB).flatMap((day) => readHistoryDay(saved, day).sessions);
+  const x = before.find((s) => s.sources.length > 1 && !s.record.private);
+  assert.ok(x, 'a configured session with a sub-agent');
+  const sub = [...fresh.sourceFiles].find(([src]) => src === x.sources.find((s) => s.role !== 'session').key)[1];
+  renameSync(sub, `${sub}.away`);
+  try {
+    const data = viewOf(saver);
+    await data.start();
+    for (let i = 0; i < 100; i++) await new Promise((r) => setTimeout(r, 10));
+    data.stop();
+  } finally {
+    renameSync(`${sub}.away`, sub);
+  }
+  const after = savedDays(saved, DAYS_SUB).flatMap((day) => readHistoryDay(saved, day).sessions).find((s) => s.key === x.key);
+  assert.deepEqual(after.sources.map((s) => s.key), x.sources.map((s) => s.key), 'both of its files are still in its saved copy');
+  assert.equal(after.events.length, x.events.length);
 });
