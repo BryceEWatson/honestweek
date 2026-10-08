@@ -104,9 +104,9 @@ Both work only while Include /insights is on, and each asks you to confirm first
 
 ## The find skill and its four questions
 
-`find`, `replay`, `problems` and `goals` answer the questions the page does and print the answer. Run in a terminal, nothing reaches an AI. When Claude or Codex runs them, through the find skill or because you asked, it reads what they print: session titles, your prompts and step descriptions, file names and findings, redacted the way the page shows them with Show private text off. They have no option for private text, and they write nothing to disk.
+`find`, `replay`, `problems` and `goals` answer the questions the page does and print the answer. Run in a terminal, nothing reaches an AI. When Claude or Codex runs them, through the find skill or because you asked, it reads what they print: session titles, your prompts and step descriptions, file names and findings, redacted the way the page shows them with Show private text off. They have no option for private text, and they write nothing to disk, apart from `--demo`'s made-up week, which goes in a temporary folder they remove.
 
-The find skill lets Claude run those four without asking each time, and nothing else: starting the page for a link (`view`) asks you first, and it never runs `init`, `build` or anything that writes. In Codex, the same text goes to OpenAI's model instead of Claude.
+In Claude Code, the find skill lets Claude run those four without asking each time, and nothing else: starting the page for a link (`view`) asks you first, and it never runs `init`, `build` or anything that writes. In Codex, the skill tells it the same, but your Codex approval settings decide what it runs without asking, and the same text goes to OpenAI's model instead of Claude.
 
 ## What honestweek itself sends
 

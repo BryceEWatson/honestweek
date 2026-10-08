@@ -128,7 +128,7 @@ The same rule runs through all of it: honestweek states nothing without its evid
 
 ## Install
 
-honestweek runs locally and has no dependencies to install. Pick whichever path you prefer. The plugin, the plain skill and the Codex route each give you the weekly-summary skill, under the name each section below says, and the find skill: a read-only skill Claude or Codex starts on its own when you ask which session made a pull request, what happened in a session, or where your sessions went wrong. I checked each route from a fresh setup on 7 October 2026 (Claude Code 2.1.292, Codex 0.144.6). Through the skill, Claude can also start the browser page (`view`) for you; to run it yourself, use the standalone command.
+honestweek runs locally and has no dependencies to install. Pick whichever path you prefer. The plugin, the plain skill and the Codex route each give you the weekly-summary skill, under the name each section below says, and the find skill: a read-only skill Claude or Codex starts on its own when you ask which session made a pull request, what happened in a session, or where your sessions went wrong. I checked each route for the weekly skill from a fresh setup on 7 October 2026 (Claude Code 2.1.292, Codex 0.144.6), and the same day that Claude Code lists the find skill from the plugin, the plain skill and a clone. I haven't checked Codex's listing of the find skill yet. Through the skill, Claude can also start the browser page (`view`) for you; to run it yourself, use the standalone command.
 
 ### As a Claude Code plugin (recommended for the weekly summary)
 
@@ -158,7 +158,7 @@ git clone https://github.com/BryceEWatson/honestweek ~/.claude/skills/honestweek
 
 You get `/honestweek`, and the find skill as `honestweek:honestweek-find`. If you also have the plugin, you get both names, since the plugin's is set apart by its prefix.
 
-With the plugin or the plain skill, the skill runs its bundled CLI by an **absolute path inside the skill's own folder** (`${CLAUDE_SKILL_DIR}/bin/honestweek.mjs`). That's why the commands work from *your own* project directory.
+With the plugin or the plain skill, the weekly skill runs its bundled CLI by an **absolute path inside the skill's own folder** (`${CLAUDE_SKILL_DIR}/bin/honestweek.mjs`), and the find skill reaches the same CLI two folders up from its own (`${CLAUDE_SKILL_DIR}/../../bin/honestweek.mjs`). That's why the commands work from *your own* project directory.
 
 ### In a clone of this repository
 

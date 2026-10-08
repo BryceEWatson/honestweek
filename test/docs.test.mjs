@@ -181,8 +181,8 @@ test('clean-room: README contains no real personal data', () => {
 
 // The repo's own .claude/ folder holds local working files (hand-offs, research, test logs,
 // prototypes built from real sessions). None of it may be committed, so the root ignore file
-// covers the whole folder. The one exception is the honestweek project skill; any other skill
-// folder under .claude/skills/ stays ignored.
+// covers the whole folder. The exceptions are the honestweek and honestweek-find project skills;
+// any other skill folder under .claude/skills/ stays ignored.
 test('the local .claude/ working folder is ignored, and only its project skills are tracked', () => {
   const lines = GITIGNORE.split(/\r?\n/).map((l) => l.trim());
   assert.ok(lines.includes('/.claude/*'), '.gitignore ignores everything in the root .claude/ folder');
