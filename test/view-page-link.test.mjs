@@ -2,8 +2,39 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { LINK_PAGES, pageLink } from '../lib/view/page-link.mjs';
+import { goalPage, LINK_PAGES, PAGE_IDS, pageLink, replayPage } from '../lib/view/page-link.mjs';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+test('a session, a step and a goal get the link the page builds for them, which view --page takes as it is', () => {
+  const session = 'cc-hccfcndehggh';
+  const thread = 'th-dojflncnnk';
+  assert.equal(replayPage({ session }), `replay.html?session=${session}`);
+  assert.equal(replayPage({ session, thread }), `replay.html?session=${session}#${thread}`);
+  assert.equal(replayPage({ session, thread, event: `${session}.54.0` }), `replay.html?session=${session}#${thread}~${session}.54.0`);
+  assert.equal(replayPage({ session, event: 'git-mfccaldmecgg.pr.12' }), `replay.html?session=${session}#~git-mfccaldmecgg.pr.12`, 'a step with no thread, as Problems links one');
+  assert.equal(goalPage('giidnmknfnknioim'), 'goal.html#giidnmknfnknioim');
+  for (const page of [replayPage({ session, thread, event: `${session}.54.0` }), goalPage('giidnmknfnknioim')]) assert.deepEqual(pageLink(page), { page });
+  // Anything that isn't one of the page's ids gets no link, and a bad thread or step is left off.
+  assert.equal(replayPage({ session: '../x' }), null);
+  assert.equal(replayPage({ session: 'Some Title' }), null);
+  assert.equal(replayPage({}), null);
+  assert.equal(replayPage({ session, thread: 'th-x&c=1', event: 'a b' }), `replay.html?session=${session}`);
+  assert.equal(goalPage('goal one'), null);
+});
+
+test('the ids a link may hold are the ones the page itself reads', () => {
+  const common = readFileSync(join(ROOT, 'lib', 'view', 'assets', 'common.js'), 'utf8');
+  // Its patterns hold braces of their own ({4,64}), so the block ends at the line that closes it.
+  const block = /const ID = \{\n([\s\S]*?)\n\s*\};/.exec(common)?.[1];
+  assert.ok(block, 'common.js names its ids');
+  const page = Object.fromEntries([...block.matchAll(/(\w+): \/(.+)\/,/g)].map((m) => [m[1], m[2]]));
+  assert.deepEqual(Object.fromEntries(Object.entries(PAGE_IDS).map(([k, re]) => [k, re.source])), page);
+});
 
 test('a page, its query and a step come back as the part after the address', () => {
   assert.deepEqual(pageLink(''), { page: '' }, 'nothing means the Problems page');

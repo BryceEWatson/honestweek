@@ -13,6 +13,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { askHelp, parseAskArgs, runAsk, TEXT_NOTE, QUOTED_NOTE } from '../lib/ask.mjs';
+import { pageLink } from '../lib/view/page-link.mjs';
 import { setConfigLookup } from '../lib/config-lookup.mjs';
 import { buildDemoWeek } from '../lib/demo/week.mjs';
 import { setCommandForm } from '../lib/invocation.mjs';
@@ -326,6 +327,44 @@ test('goals lists each goal with its member sessions and how each joins it; one 
 });
 const goalKeyOfFirst = (o) => o.goals.find((g) => g.title.quoted === d.goalRecord.goals[0].title.replace(new RegExp(DEMO_TERM, 'gi'), '[redacted:term]'))?.key;
 
+// ---- links to the page (issue 198) --------------------------------------------------------------
+
+test('every session, step, finding and goal names its page on view, one view --page takes as it is', async () => {
+  const answers = { find: await json('find', ['#12']), words: await json('find', ['date', 'filter']), replay: await json('replay', ['cc-hccfcndehggh']), problems: await json('problems'), goals: await json('goals') };
+  let pages = 0;
+  for (const [name, o] of Object.entries(answers)) {
+    for (const [obj, path] of walk(o)) {
+      if (!('page' in obj)) continue;
+      const at = `${name}: ${path.join('.')}`;
+      if (obj.page === null) {
+        // Only a session outside the window, which the page can't open, goes without one.
+        assert.equal(obj.inWindow, false, at);
+        continue;
+      }
+      pages += 1;
+      assert.deepEqual(pageLink(obj.page), { page: obj.page }, at);
+      if (typeof obj.session === 'string') assert.ok(obj.page.startsWith(`replay.html?session=${obj.session}`), `${at}: ${obj.page}`);
+    }
+  }
+  assert.ok(pages > 50, `pages were found (${pages})`);
+  const r = answers.replay;
+  assert.equal(r.page, `replay.html?session=cc-hccfcndehggh#${r.thread.id}`);
+  for (const e of r.steps) if (e.session) assert.equal(e.page, `replay.html?session=${e.session}#${r.thread.id}~${e.id}`);
+  for (const p of answers.problems.patterns) for (const f of p.findings) assert.ok(f.page?.includes(`#${f.thread}~${f.event}`), f.key);
+  for (const g of answers.goals.goals) assert.equal(g.page, `goal.html#${g.key}`);
+
+  // In text, each row ends with its page, and the line before Next opens it on the same week.
+  const t = await asked('replay', ['cc-hccfcndehggh']);
+  assert.ok(t.out.includes(`\nIts page: ${r.page}. Each step's is that with ~ and the step's id after it, such as ${r.steps[0].page}.\n`), t.out.slice(0, 600));
+  assert.match(t.out, new RegExp(`\\nOpen it on the page: honestweek view --demo --page "${r.page.replace(/[.?]/g, '\\$&')}"\\nNext: `));
+  const f = await asked('find', ['#12']);
+  assert.ok(f.out.includes(`10:25  page ${answers.find.reference.sessions[0].page}\n`), f.out);
+  const pr = await asked('problems');
+  const first = answers.problems.patterns[0].findings[0];
+  assert.ok(pr.out.includes(`  page ${first.page}\n`), pr.out.slice(0, 800));
+  assert.ok(pr.out.includes(`\nOpen it on the page: honestweek view --demo --page "${first.page}"\nNext: honestweek replay ${first.session}`));
+});
+
 test('goals without a goal list says how to give one', async () => {
   const out = [];
   const err = [];
@@ -393,6 +432,8 @@ test('with your own config, the commands read the window and goal list the way v
     const r = await run('replay', ['cc-hccfcndehggh', '--from', '2025-03-10', '--to', '2025-03-16']);
     assert.equal(r.code, 0, r.err);
     assert.match(r.out, /^honestweek replay: session cc-hccfcndehggh/);
+    // A thread's id can change with the window, so the page is opened on the same dates, not view's default.
+    assert.match(r.out, /\nOpen it on the page: honestweek view --from 2025-03-10 --to 2025-03-16 --timezone UTC --page "replay\.html\?session=cc-hccfcndehggh#th-[a-p]+"\n/);
     for (const bad of [['--days', 'many'], ['--timezone', 'Mars/Olympus'], ['--goals', 'nope.json']]) {
       const b = await run('problems', bad);
       assert.equal(b.code, 1, bad.join(' '));
@@ -423,8 +464,9 @@ test('the commands run from the package entry point with --demo alone, and refus
 
 test('every existing command\'s help is byte-identical when run as honestweek', () => {
   // sha256 of each command's --help as it was before the form was printed (main after PR 188), with
-  // this run's form put back to `honestweek`.
-  const PINNED = { init: 'ab19e2612ef4f30d', discover: '2f8a956d47782695', validate: '89aae3507378c98d', build: '98c962f4eae39b1a', history: '4ea17a3d41f0650c', harvest: '7ef53b3059eaccb3', prompts: '722a9ce168f5fa1c', digest: 'abed4b6419559f18', preview: 'f612271257e1dba6', mine: '677f622dcb6493c0', view: 'dcad8e4bd18a03f8', status: 'c264bc08328fb0b2' };
+  // this run's form put back to `honestweek`. view's was pinned again when it gained --page and
+  // the typed link command (issue 198).
+  const PINNED = { init: 'ab19e2612ef4f30d', discover: '2f8a956d47782695', validate: '89aae3507378c98d', build: '98c962f4eae39b1a', history: '4ea17a3d41f0650c', harvest: '7ef53b3059eaccb3', prompts: '722a9ce168f5fa1c', digest: 'abed4b6419559f18', preview: 'f612271257e1dba6', mine: '677f622dcb6493c0', view: '0fa7b4f9fc3679cf', status: 'c264bc08328fb0b2' };
   const env = withoutUserConfig();
   // From a folder outside the repository, the form names the entry point by its whole path.
   const outside = makeTempDir('hw-ask-help-');
