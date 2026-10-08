@@ -19,6 +19,8 @@ import { DAYS_SUB, loadSaved, RECENT_MS } from '../lib/saved/history.mjs';
 import { SAVED_DIR } from '../lib/saved/store.mjs';
 import { pathKey } from '../lib/replay/ids.mjs';
 import { fileFingerprint } from '../lib/replay/saved-sessions.mjs';
+import { countsFromSaved } from '../lib/saved/checks.mjs';
+import { runProblems, trendCounts } from '../lib/problems/index.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const CONFIG_OF = (d) => ({ ...d.config, redaction: { ...d.config.redaction, terms: [DEMO_TERM] }, saveResults: { on: true, keepDays: 36500 } });
@@ -176,3 +178,23 @@ test('a session with a log file its saved copy does not name is read again', asy
   assert.equal(h.exportSession(loaded.sessions.find((s) => s.key !== x.key).key), null, 'one taken back unread is kept as it was saved');
 });
 
+
+test('the trend counts a saved window as reading its logs would, and reads it when it can not', async () => {
+  const w = await savedWeek();
+  const saved = join(w.dir, SAVED_DIR);
+  const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+  const args = { dir: saved, from: w.d.week.from, to: w.d.week.to, timezone: w.d.week.timezone, roots: w.d.roots, version };
+  const h = await buildWorkHistory({ config: w.config, roots: w.d.roots, from: w.d.week.from, to: w.d.week.to, timezone: w.d.week.timezone, scope: 'all', updates: true, hiddenSessions: 'redacted', usage: true, keepRaw: true });
+  assert.deepEqual(countsFromSaved(args), trendCounts(runProblems(h, { builtT: NOW })));
+  assert.equal(countsFromSaved({ ...args, from: '2025-03-09' }), null, 'a day never saved: read the logs');
+  assert.equal(countsFromSaved({ ...args, version: '9.9.9' }), null, 'saved by another version with its logs on disk: read them');
+  // With every log gone, another version's counts stand.
+  const files = readdirSync(w.d.roots.claude[0], { recursive: true }).filter((f) => f.endsWith('.jsonl')).map((f) => join(w.d.roots.claude[0], f));
+  const codex = readdirSync(w.d.roots.codex[0], { recursive: true }).filter((f) => f.endsWith('.jsonl')).map((f) => join(w.d.roots.codex[0], f));
+  for (const f of [...files, ...codex]) renameSync(f, `${f}.away`);
+  try {
+    assert.deepEqual(countsFromSaved({ ...args, version: '9.9.9' }), countsFromSaved(args));
+  } finally {
+    for (const f of [...files, ...codex]) renameSync(`${f}.away`, f);
+  }
+});
