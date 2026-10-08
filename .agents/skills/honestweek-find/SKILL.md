@@ -1,6 +1,6 @@
 ---
 name: honestweek-find
-description: Answers questions about the user's past Claude Code and Codex sessions from their own logs, read-only. Which session made this pull request, commit, file change or branch? What happened in a session, step by step, or at one moment? Where did my sessions go wrong this week, and has this session been checked yet? What caused one of those problems, how do I fix it, are we sure it is one, and when did it happen? Which sessions did a goal's work? And a link that opens the local honestweek page right on any of it. Use it for those questions, including about the session you're in now, not for writing a weekly summary (that's the honestweek skill). Every answer is redacted and says how each link is known.
+description: Answers questions about the user's past Claude Code and Codex sessions from their own logs, read-only. Which session made this pull request, commit, file change or branch? What happened in a session, step by step, or at one moment? Where did my sessions go wrong this week, and has this session been checked yet? What caused one of those problems, how do I fix it, are we sure it's one, and when did it happen? Which sessions did a goal's work? And a link that opens the local honestweek page right on any of it. Use it for those questions, including about the session you're in now, not for writing a weekly summary (that's the honestweek skill). Every answer is redacted and says how each link is known.
 ---
 
 # Finding and checking past sessions

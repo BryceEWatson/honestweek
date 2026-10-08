@@ -203,3 +203,17 @@ test('/api/problems?pattern= answers an id the catalog has, and refuses one it h
   assert.equal(r.code, 1);
   assert.match(r.err, /no pattern's id or name has that in it/);
 });
+
+test("a fix test's setup prints as the steps before and after, and an unlooked pattern says how a check would detect it", async () => {
+  const setup = loadCatalog().patterns.find((p) => p.id === 'context-bloat').testSetup;
+  const t = await asked(['--pattern', 'context-bloat']);
+  assert.equal(t.code, 0, t.err);
+  assert.doesNotMatch(t.out, /\[object Object\]/);
+  assert.ok(t.out.includes(`    First: ${setup.do}\n    After: ${setup.undo}\n`));
+  assert.match(t.out, /\n {2}General, how it's detected \(/);
+  assert.match(t.out, /\n {2}Ready-made fix \(hook\): /);
+  const u = await asked(['--pattern', 'sycophancy']);
+  assert.match(u.out, /\n {2}General, how a check would detect it \(/);
+  assert.doesNotMatch(u.out, /how it's detected/);
+  assert.doesNotMatch(u.out, / a instruction/);
+});
