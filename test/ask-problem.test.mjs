@@ -213,7 +213,13 @@ test("a fix test's setup prints as the steps before and after, and an unlooked p
   assert.match(t.out, /\n {2}General, how it's detected \(/);
   assert.match(t.out, /\n {2}Ready-made fix \(hook\): /);
   const u = await asked(['--pattern', 'sycophancy']);
+  assert.equal(u.code, 0, u.err);
   assert.match(u.out, /\n {2}General, how a check would detect it \(/);
   assert.doesNotMatch(u.out, /how it's detected/);
   assert.doesNotMatch(u.out, / a instruction/);
+  // Logs can't show this one, so its text never says a check would detect it.
+  const n = await asked(['--pattern', 'plausible-but-wrong-fix']);
+  assert.equal(n.code, 0, n.err);
+  assert.match(n.out, /\n {2}General, why logs can't show it, and what a later check could use \(not-detectable\): /);
+  assert.doesNotMatch(n.out, /a check would detect it|how it's detected/);
 });
