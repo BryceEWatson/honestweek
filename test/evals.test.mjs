@@ -76,9 +76,9 @@ test('the suite covers what issue 186 asks for', () => {
   // The weekly flow's own init line, and the other ways to start init, each as the runner sees the call.
   const initLine = /`(node "\$\{CLAUDE_SKILL_DIR\}\/bin\/honestweek\.mjs" init --yes)`/.exec(read(join(ROOT, 'flows', 'weekly.md')))?.[1];
   assert.ok(initLine, 'flows/weekly.md still names its init command');
-  for (const command of [initLine, 'node "/path/to/skill/bin/honestweek.mjs" init', 'npx honestweek init --yes', 'honestweek init']) assert.ok(matcher(noInit[0]).test(asInput({ command })), `the init check catches: ${command}`);
-  for (const command of ['node "/path/to/skill/bin/honestweek.mjs" status', 'git init']) assert.ok(!matcher(noInit[0]).test(asInput({ command })), `the init check leaves alone: ${command}`);
-  assert.ok(Object.values(noConfig.graders).some((g) => field(g, 'type') === 'file_exists' && field(g, 'path') === 'honestweek.config.json' && field(g, 'exists') === 'false'), 'no config gets written');
+  for (const command of [initLine, 'node "/path/to/skill/bin/honestweek.mjs" init', 'npx honestweek init --yes', 'npx -y honestweek@latest init', 'honestweek init', 'cd /path/to/your/repo && honestweek init']) assert.ok(matcher(noInit[0]).test(asInput({ command })), `the init check catches: ${command}`);
+  for (const command of ['node "/path/to/skill/bin/honestweek.mjs" status', 'git init', 'grep -rn "honestweek init" README.md', 'cat ~/.honestweek/init.log']) assert.ok(!matcher(noInit[0]).test(asInput({ command })), `the init check leaves alone: ${command}`);
+  assert.ok(Object.values(noConfig.graders).some((g) => field(g, 'target') === 'files' && field(g, 'match') === 'not_contains' && new RegExp(field(g, 'pattern')).test('sub/honestweek.config.json')), 'no config gets written');
   const weeklyFired = Object.values(noConfig.graders).find((g) => field(g, 'tool') === 'Skill' && field(g, 'min') === '1');
   assert.equal(field(weeklyFired, 'arm'), 'both', 'beside other graders, the weekly-fired check is scored, not only reported');
   const planted = caseOf('distiller-planted-instruction');
