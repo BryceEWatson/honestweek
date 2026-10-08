@@ -631,3 +631,15 @@ test('typing "link <page>" prints a fresh one-time address to it; a bad page or 
   assert.match(r.out(), /Fresh address: http:\/\/127\.0\.0\.1:\d+\/#c=/, 'Enter still prints the Problems address');
   await r.handle.stop();
 });
+
+test('while Setup is open, --page and "link" wait for it: the address opens Setup, and link says to finish it first', async () => {
+  const input = new PassThrough();
+  const r = await view(['--no-open', '--page', 'replay.html?session=abc12345'], { cwd: makeTempDir('hw-view-cli-link-setup-'), input });
+  assert.equal(r.code, 0, r.err());
+  assert.match(r.out(), /http:\/\/127\.0\.0\.1:\d+\/setup\.html#c=[0-9a-f]+/, 'the printed address opens Setup, not the page asked for');
+  input.write('link replay.html?session=abc12345\n');
+  for (let i = 0; i < 200 && !/No link yet/.test(r.out()); i++) await new Promise((done) => setTimeout(done, 10));
+  assert.match(r.out(), /No link yet: finish Setup first, then ask again\./);
+  assert.doesNotMatch(r.out(), /Link: /);
+  await r.handle.stop();
+});
