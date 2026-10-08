@@ -70,6 +70,18 @@ test('it reports the way the commands answer: evidence words kept, log text as d
   assert.match(body, /`replay \$\{CLAUDE_SESSION_ID\}`/);
   assert.match(body, /`problems --session \$\{CLAUDE_SESSION_ID\}`/);
   assert.match(body, /False means the checks don't read that session/);
+  // Asked about one problem, it under-claims: no cause stated as fact, no certainty (issue 206 evals).
+  assert.match(body, /Don't open with a cause stated as fact/);
+  assert.match(body, /Don't tell the user they can be sure or confident, or call a finding certain/);
+  assert.match(body, /never give a confidence number or a percentage for how likely a finding is right/);
+  assert.match(body, /never the finding's `evidence` word, which says how the finding is known, not why it happened/);
+  assert.match(body, /Where the note says what the reason rests on isn't recorded, give no reason/);
+  assert.match(body, /names it as the cause, with the word that rule or signal gives it/);
+  assert.match(body, /never give one of them as the reason/);
+  assert.match(body, /Give a reason finding by finding, never for the whole pattern at once/);
+  assert.match(body, /an expired cache is inferred, and only where the note shows a pause longer than a known cache length/);
+  assert.match(body, /or rate it in other words \("almost certainly", "very likely real"\)/);
+  assert.match(body, /The pattern's `strength` says how well established the pattern is, not how often its findings are right/);
 });
 
 test('the clone\'s Claude and Codex copies are the plugin copy, one folder further from the command line', () => {
