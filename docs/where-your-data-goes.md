@@ -11,6 +11,7 @@ A few terms used below:
 - A **display-only** repository is one your config marks `display`. honestweek never runs git in it, and its sessions are kept private.
 - Your **config** is `honestweek.config.json`, the file that lists your email, your repositories and the private words to hide.
 - The **skill** is the set of instructions Claude follows when you type `/honestweek`, or when you ask it in words for a weekly summary, weekly update or work report. A scheduled task can start it too.
+- The **find skill** is a second, read-only set of instructions that Claude or Codex can start on its own when you ask about past sessions: which session made a pull request, what happened in one, where sessions went wrong.
 - **Include /insights** is a switch on the `view` page that lets its two AI buttons run. It's off until you turn it on.
 - **Your plan** is your own Claude or OpenAI subscription, which those programs sign in with.
 
@@ -20,6 +21,7 @@ A few terms used below:
 | --- | --- | --- |
 | `honestweek view` (the page, with its Setup and Settings) | Your session logs and repositories, into memory on your machine | No, unless you turn on Include /insights and press Run |
 | `/honestweek` (the weekly summary in Claude Code) | A redacted draft of last week's Claude Code sessions, plus what each command prints | Yes: Claude reads all of it and writes the summary from the draft |
+| `find`, `replay`, `problems`, `goals`, and the find skill | Your session logs, goal list and repositories, into memory on your machine | Only when an agent runs them: it reads what they print, redacted the way the page shows it |
 | `init`, `discover`, `build` on their own | Your git settings, repositories and logs | No. Run through `/honestweek`, Claude sees what they print |
 
 ## `honestweek view`: nothing goes to an AI unless you ask
@@ -99,6 +101,12 @@ A session in a display-only repository, or in a folder your config doesn't list,
 | Run with Codex | Your own `codex`, in its read-only sandbox (a limit that stops it changing files), from an empty folder, keeping no log of its own | Up to 10 Codex sessions a run that it hasn't judged yet: ones in the window that you started, in a repository your config lists and doesn't mark display-only. Each goes as a condensed text, with every string redacted: your prompts, its replies and the command or file each step named, not the steps' output, cut to 60,000 characters. | OpenAI, or the endpoint your Codex is set to use, on your plan |
 
 Both work only while Include /insights is on, and each asks you to confirm first. Each program gets only the environment variables it needs to start and sign in, not your other tokens. Codex's read-only sandbox can't change files, but it can still read any file you can read. The page shows part of what comes back for the sessions in your window, apart from honestweek's own counts, labelled as written by an AI.
+
+## The find skill and its four questions
+
+`find`, `replay`, `problems` and `goals` answer the questions the page does and print the answer. Run in a terminal, nothing reaches an AI. When Claude or Codex runs them, through the find skill or because you asked, it reads what they print: session titles, your prompts and step descriptions, file names and findings, redacted the way the page shows them with Show private text off. They have no option for private text, and they write nothing to disk.
+
+The find skill lets Claude run those four without asking each time, and nothing else: starting the page for a link (`view`) asks you first, and it never runs `init`, `build` or anything that writes. In Codex, the same text goes to OpenAI's model instead of Claude.
 
 ## What honestweek itself sends
 

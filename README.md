@@ -128,7 +128,7 @@ The same rule runs through all of it: honestweek states nothing without its evid
 
 ## Install
 
-honestweek runs locally and has no dependencies to install. Pick whichever path you prefer. The plugin, the plain skill and the Codex route each give you the weekly-summary skill, under the name each section below says; I checked each one from a fresh setup on 7 October 2026 (Claude Code 2.1.292, Codex 0.144.6). Through the skill, Claude can also start the browser page (`view`) for you; to run it yourself, use the standalone command.
+honestweek runs locally and has no dependencies to install. Pick whichever path you prefer. The plugin, the plain skill and the Codex route each give you the weekly-summary skill, under the name each section below says, and the find skill: a read-only skill Claude or Codex starts on its own when you ask which session made a pull request, what happened in a session, or where your sessions went wrong. I checked each route from a fresh setup on 7 October 2026 (Claude Code 2.1.292, Codex 0.144.6). Through the skill, Claude can also start the browser page (`view`) for you; to run it yourself, use the standalone command.
 
 ### As a Claude Code plugin (recommended for the weekly summary)
 
@@ -146,7 +146,7 @@ claude plugin marketplace add BryceEWatson/honestweek
 claude plugin install honestweek@honestweek
 ```
 
-You get `/honestweek:honestweek` inside Claude Code, with versioned updates via `/plugin marketplace update`. Claude Code names a plugin's skill with the plugin's name in front, so it isn't plain `/honestweek` here. The plugin is for Claude Code only: Claude Code's plugin docs say claude.ai and Cowork don't install a plugin with a top-level `bin/` folder, and this one has one.
+You get `/honestweek:honestweek` inside Claude Code, and the find skill as `honestweek:honestweek-find`, with versioned updates via `/plugin marketplace update`. Claude Code names a plugin's skill with the plugin's name in front, so it isn't plain `/honestweek` here. The plugin is for Claude Code only: Claude Code's plugin docs say claude.ai and Cowork don't install a plugin with a top-level `bin/` folder, and this one has one.
 
 ### As a plain skill
 
@@ -156,13 +156,13 @@ Clone into your personal skills directory:
 git clone https://github.com/BryceEWatson/honestweek ~/.claude/skills/honestweek
 ```
 
-You get `/honestweek`. If you also have the plugin, you get both names, since the plugin's is set apart by its prefix.
+You get `/honestweek`, and the find skill as `honestweek:honestweek-find`. If you also have the plugin, you get both names, since the plugin's is set apart by its prefix.
 
 With the plugin or the plain skill, the skill runs its bundled CLI by an **absolute path inside the skill's own folder** (`${CLAUDE_SKILL_DIR}/bin/honestweek.mjs`). That's why the commands work from *your own* project directory.
 
 ### In a clone of this repository
 
-Working inside a clone of honestweek itself, `/honestweek` is already there with nothing to install: the repository carries a project skill in `.claude/skills/honestweek/` that points Claude at the root `SKILL.md` and the repository's own `bin/honestweek.mjs`. It only applies inside this repository; for your other projects, use the plugin or the plain skill above. If you've also installed the plain skill, Claude Code runs that one, since a personal skill wins over a project skill with the same name. For Codex, the clone carries the same pointer in `.agents/skills/honestweek/`.
+Working inside a clone of honestweek itself, `/honestweek` is already there with nothing to install: the repository carries a project skill in `.claude/skills/honestweek/` that points Claude at the root `SKILL.md` and the repository's own `bin/honestweek.mjs`. It only applies inside this repository; for your other projects, use the plugin or the plain skill above. If you've also installed the plain skill, Claude Code runs that one, since a personal skill wins over a project skill with the same name. The find skill is there too, in `.claude/skills/honestweek-find/`, as `honestweek-find`. For Codex, the clone carries both in `.agents/skills/`.
 
 ### In Codex
 
@@ -172,7 +172,7 @@ Clone into Codex's skills folder:
 git clone https://github.com/BryceEWatson/honestweek ~/.codex/skills/honestweek
 ```
 
-Codex lists it as `honestweek:honestweek`, which lets it start the skill when you ask for a weekly summary. It also lists `honestweek:honestweek-contract`, the rules for writing the summary's items, which it can load by its description when it works on them. Codex has no subagents here, so it writes the items itself under those rules. If you've set `CODEX_HOME`, clone into its `skills` folder instead. Codex doesn't fill in `${CLAUDE_SKILL_DIR}`, so the skill tells it to run the CLI from the folder its `SKILL.md` is in. I've checked that Codex finds the skill there; I haven't run a whole weekly summary through Codex yet.
+Codex lists it as `honestweek:honestweek`, which lets it start the skill when you ask for a weekly summary. It also lists `honestweek:honestweek-find`, the find skill, which it starts by its description when you ask about past sessions, and `honestweek:honestweek-contract`, the rules for writing the summary's items, which it can load by its description when it works on them. Codex has no subagents here, so it writes the items itself under those rules. If you've set `CODEX_HOME`, clone into its `skills` folder instead. Codex doesn't fill in `${CLAUDE_SKILL_DIR}`, so the skill tells it to run the CLI from the folder its `SKILL.md` is in. I've checked that Codex finds the skill there; I haven't run a whole weekly summary through Codex yet.
 
 ### As a standalone CLI
 
@@ -264,7 +264,7 @@ Name it with `--goals <file>`, or once with `goalsFile` in the config. It's a di
 
 ## Asking from a terminal or a chat (`find`, `replay`, `problems`, `goals`)
 
-These ask the questions `view` answers, and print the answer as text, or as JSON with `--json`, so an agent in any chat that can run a command can ask them too:
+These ask the questions `view` answers, and print the answer as text, or as JSON with `--json`, so an agent in any chat that can run a command can ask them too. With the plugin, the plain skill, a clone of this repository or Codex, the find skill lets the agent run them on its own when you ask about past sessions ([what that sends](docs/where-your-data-goes.md#the-find-skill-and-its-four-questions)):
 
 ```bash
 honestweek find '#42'                      # the sessions and goals behind a pull request
