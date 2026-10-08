@@ -204,7 +204,7 @@ npx github:BryceEWatson/honestweek --help
 npm install -g github:BryceEWatson/honestweek   # or install that code as the honestweek command
 ```
 
-The CLI surface is twelve subcommands: `init`, `discover`, `prompts`, `digest`, `validate`, `build`, `harvest`, `preview`, `mine`, `history`, `view`, and `status`. Every one answers `--help` without touching your files. `honestweek view` is the browser page, described [next](#finding-and-replaying-your-work-in-the-browser-view). `honestweek init`, `honestweek discover`, `honestweek validate` and `honestweek build` make the weekly summary ([The flow](#the-flow-an-honest-weekly-summary)). `honestweek digest` adds one review of the week's prompts, ideas, techniques, decisions, reversals and next steps to `page` or `site` output, and `honestweek prompts` keeps your private prompt inbox. `honestweek harvest` suggests words to keep private, `honestweek preview` shows the built output on a local-only (`127.0.0.1`) page, `honestweek mine` finds [solved problems worth publishing](#mining-solved-problems-worth-publishing-mine), and `honestweek history` lists what landed in a period, for a [client report](#a-report-for-a-client-client-mode).
+The CLI surface is sixteen subcommands: `init`, `discover`, `prompts`, `digest`, `validate`, `build`, `harvest`, `preview`, `mine`, `history`, `view`, `status`, `find`, `replay`, `problems`, and `goals`. Every one answers `--help` without touching your files. `honestweek view` is the browser page, described [next](#finding-and-replaying-your-work-in-the-browser-view), and `honestweek find`, `honestweek replay`, `honestweek problems` and `honestweek goals` answer its questions in a terminal or a chat ([Asking from a terminal or a chat](#asking-from-a-terminal-or-a-chat-find-replay-problems-goals)). `honestweek init`, `honestweek discover`, `honestweek validate` and `honestweek build` make the weekly summary ([The flow](#the-flow-an-honest-weekly-summary)). `honestweek digest` adds one review of the week's prompts, ideas, techniques, decisions, reversals and next steps to `page` or `site` output, and `honestweek prompts` keeps your private prompt inbox. `honestweek harvest` suggests words to keep private, `honestweek preview` shows the built output on a local-only (`127.0.0.1`) page, `honestweek mine` finds [solved problems worth publishing](#mining-solved-problems-worth-publishing-mine), and `honestweek history` lists what landed in a period, for a [client report](#a-report-for-a-client-client-mode).
 
 ## Finding and replaying your work in the browser (`view`)
 
@@ -262,9 +262,25 @@ Name it with `--goals <file>`, or once with `goalsFile` in the config. It's a di
 
   `--demo` builds its made-up week in a temporary folder and deletes it when you stop. When it starts, it also removes its own leftover demo folders older than a day whose run has stopped.
 
+## Asking from a terminal or a chat (`find`, `replay`, `problems`, `goals`)
+
+These ask the questions `view` answers, and print the answer as text, or as JSON with `--json`, so an agent in any chat that can run a command can ask them too:
+
+```bash
+honestweek find '#42'                      # the sessions and goals behind a pull request
+honestweek find commit:abc1234             # or a commit, file:src/app.js, branch:my-branch
+honestweek find "date filter"              # or some words
+honestweek replay cc-abcdefghijkl          # one session's steps, in order
+honestweek replay cc-abcdefghijkl --at 2026-10-05T14:30:00Z
+honestweek problems                        # where sessions went wrong, highest priority first
+honestweek goals                           # your goals and the sessions behind each one
+```
+
+Each reads the same week `view` does: the config honestweek finds, and the dates `--days`, `--from` with `--to`, or the config's "history" name. Add `--demo` to try any of them on the made-up week, with nothing set up. Every answer is redacted the way the page shows it with Show private text off, and no option shows private text: the page's switch is still the only way, and it's yours. Every row keeps its evidence word (recorded, derived, inferred, missing or ambiguous), so an inferred link never reads as a recorded one. Text copied from your logs or your goal list, and a step's description or a finding's note that carries it, is marked, so an agent can tell it from honestweek's own words and treat it as data: in JSON it sits inside `{"quoted": "..."}`, and in text it's in double quotes or on a line that starts with `>`. A text answer that found something ends with a command to try next, written the way you ran this one. They write nothing to disk, except that `--demo` builds its made-up week in a temporary folder and deletes it before it exits.
+
 ## Replaying how the work happened (the engine underneath)
 
-`honestweek view` runs on a work-history engine (`lib/replay/`) that rebuilds how work happened from the same local logs: prompts, the sub-agents an agent started, each command and its recorded result, tests, interruptions, and what git says happened to each commit. Every step says how it's known, and it never invents working time or reasons. It only reads, and it never runs git against a display-only repository. A developer tool in a clone of this repository prints the history level by level and looks up the sessions behind a pull request, a commit, a file or a goal from the command line (`node tools/replay-inspect.mjs --demo lookup '#7'` tries it on made-up sessions). [docs/work-history-engine.md](docs/work-history-engine.md) explains the event model, the lookups, how a session joins a goal, and what it can't reconstruct yet.
+`honestweek view` runs on a work-history engine (`lib/replay/`) that rebuilds how work happened from the same local logs: prompts, the sub-agents an agent started, each command and its recorded result, tests, interruptions, and what git says happened to each commit. Every step says how it's known, and it never invents working time or reasons. It only reads, and it never runs git against a display-only repository. The commands above are its published face. A developer tool in a clone of this repository also prints the history level by level (`node tools/replay-inspect.mjs --demo walk`). [docs/work-history-engine.md](docs/work-history-engine.md) explains the event model, the lookups, how a session joins a goal, and what it can't reconstruct yet.
 
 ## The flow: an honest weekly summary
 
