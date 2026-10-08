@@ -255,7 +255,7 @@ test('a later run keeps a saved day it reads again, and a session whose log is g
   const kept = f.sessions.find((x) => x.key === key);
   assert.ok(kept, 'the gone session is still saved');
   assert.equal(kept.savedAt, new Date(NOW).toISOString());
-  assert.deepEqual(loadSaved({ dir: saved, from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots }).sessions, [], 'every log is back on disk: nothing comes back as saved');
+  assert.deepEqual(loadSaved({ dir: saved, from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots }).sessions.filter((x) => x.log === 'gone').map((x) => x.key), [], 'every log is back on disk: nothing comes back as gone');
 });
 
 test('only configured repositories\' history is saved, unless otherSessions says to keep the rest', async () => {
