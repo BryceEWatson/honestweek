@@ -6,7 +6,7 @@
 
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { appendFileSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gunzipSync, gzipSync } from 'node:zlib';
 
@@ -15,8 +15,11 @@ import { DEMO_TERM } from '../lib/view.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { createViewData } from '../lib/view/data.mjs';
 import { createSaver } from '../lib/saved/saver.mjs';
-import { DAYS_SUB, loadSaved, RECENT_MS } from '../lib/saved/history.mjs';
-import { SAVED_DIR } from '../lib/saved/store.mjs';
+import { DAYS_SUB, loadSaved, RECENT_MS, SAVED_LOG_RATIO, savedDayFiles, withSavedDays } from '../lib/saved/history.mjs';
+import { LOCK_STALE_MS, SAVED_DIR, withSavedLock } from '../lib/saved/store.mjs';
+import { runAsk } from '../lib/ask.mjs';
+import { planWindow } from '../lib/view/window.mjs';
+import { logIdHash } from '../lib/replay/saved-sessions.mjs';
 import { pathKey } from '../lib/replay/ids.mjs';
 import { fileFingerprint } from '../lib/replay/saved-sessions.mjs';
 import { countsFromSaved } from '../lib/saved/checks.mjs';
@@ -40,6 +43,22 @@ async function savedWeek() {
   first.stop();
   const load = (more = {}) => loadSaved({ dir: join(dir, SAVED_DIR), from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots, config, now: NOW, ...more });
   return { d, config, dir, saver, view, load };
+}
+
+/** The key of the session a log id names, from what was saved. */
+const keyOf = (w, id) => w.load().sessions.find((x) => x.logId === logIdHash(id))?.key;
+/** The log files of one Claude Code session (its own and its sub-agents'), by its id. */
+function logsOf(d, id) {
+  const hits = [];
+  const walk = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith('.jsonl') && p.includes(id)) hits.push(p);
+    }
+  };
+  walk(d.roots.claude[0]);
+  return hits;
 }
 
 /** Every answer a page reads for the week, as JSON, to compare two builds by. */
@@ -202,4 +221,76 @@ test('the trend counts a saved window as reading its logs would, and reads it wh
   } finally {
     for (const f of [...files, ...codex]) renameSync(`${f}.away`, f);
   }
+});
+
+test('two runs on one config folder save one at a time, and a lock left by a stopped run is taken over', async () => {
+  const w = await savedWeek();
+  const saved = join(w.dir, SAVED_DIR);
+  const lock = join(saved, '.lock');
+  let payload = null;
+  const data = createViewData({ config: w.config, roots: w.d.roots, from: w.d.week.from, to: w.d.week.to, timezone: w.d.week.timezone, goalRecord: w.d.goalRecord, onChecked: (x) => (payload = x), now: () => NOW + 60000 });
+  await data.start();
+  for (let i = 0; i < 100 && !payload; i++) await new Promise((r) => setTimeout(r, 10));
+  data.stop();
+  writeFileSync(lock, String(NOW + 50000));
+  assert.equal(w.saver.onChecked({ ...payload, builtT: NOW + 60000 }), null, 'another run holds the lock');
+  assert.match(w.saver.info().error, /another honestweek view was saving/);
+  assert.ok(readFileSync(lock, 'utf8'), 'the other run keeps its lock');
+  writeFileSync(lock, String(NOW - LOCK_STALE_MS - 1));
+  const saver = createSaver({ configDir: () => w.dir, config: () => w.config, now: () => NOW });
+  assert.ok(saver.onChecked({ ...payload, builtT: NOW + 60000 }), 'a stale lock is taken over');
+  assert.equal(existsSync(lock), false, 'and let go after the save');
+  assert.equal(withSavedLock(saved, () => 'ran', NOW), 'ran');
+});
+
+test('find, replay and problems read saved history as the page does, and a full log id finds a saved session', async () => {
+  const w = await savedWeek();
+  const key = keyOf(w, SESSION_IDS.windowsCi);
+  const logs = logsOf(w.d, SESSION_IDS.windowsCi);
+  for (const f of logs) renameSync(f, `${f}.away`);
+  try {
+    const out = [];
+    const err = [];
+    const week = { config: w.config, roots: w.d.roots, from: w.d.week.from, to: w.d.week.to, timezone: w.d.week.timezone, goalRecord: w.d.goalRecord, demo: false, savedDir: join(w.dir, SAVED_DIR) };
+    const code = await runAsk({ command: 'replay', argv: [SESSION_IDS.windowsCi, '--json'], week, io: { out: (s) => out.push(s), err: (s) => err.push(s) }, now: () => NOW });
+    assert.equal(code, 0, err.join(''));
+    const o = JSON.parse(out.join(''));
+    assert.equal(o.session, key, 'its full log id finds it, by the hash it was saved under');
+    assert.ok(o.steps.length > 0);
+    assert.equal(o.sessions.find((s) => s.key === key).group, 'configured');
+  } finally {
+    for (const f of logs) renameSync(`${f}.away`, f);
+  }
+});
+
+test('a saved day with no log left counts in the window plan and the memory check, as the logs it stands for', async () => {
+  const w = await savedWeek();
+  const saved = join(w.dir, SAVED_DIR);
+  const logs = [{ day: '2025-03-12', size: 100 }];
+  const days = savedDayFiles(saved, logs);
+  assert.deepEqual(days.map((x) => x.day), ['2025-03-10', '2025-03-11', '2025-03-13', '2025-03-14', '2025-03-15', '2025-03-16']);
+  for (const x of days) assert.equal(x.size, statSync(join(saved, DAYS_SUB, `${x.day}.json.gz`)).size * SAVED_LOG_RATIO);
+  assert.deepEqual(withSavedDays(logs, saved).length, 7);
+  const all = planWindow({ all: true }, { files: withSavedDays([], saved), timezone: 'UTC', now: NOW, maxBytes: 1e12 });
+  assert.equal(all.from, '2025-03-10', 'all history reaches back to the oldest saved day');
+});
+
+test('the trend reads the week before from saved results when every day of it is saved', async () => {
+  const d = buildDemoWeek();
+  after(() => rmSync(d.root, { recursive: true, force: true }));
+  const config = CONFIG_OF(d);
+  const dir = makeTempDir('hw-saved-trend-');
+  const saver = createSaver({ configDir: () => dir, config: () => config, now: () => NOW });
+  // Two weeks saved: the demo week and the empty week before it.
+  const two = createViewData({ config, roots: d.roots, from: '2025-03-03', to: d.week.to, timezone: d.week.timezone, onChecked: saver.onChecked, now: () => NOW });
+  await two.start();
+  for (let i = 0; i < 100 && !existsSync(join(dir, SAVED_DIR, DAYS_SUB, `${d.week.to}.json.gz`)); i++) await new Promise((r) => setTimeout(r, 20));
+  two.stop();
+  const one = createViewData({ config, roots: d.roots, from: d.week.from, to: d.week.to, timezone: d.week.timezone, savedCounts: (x) => saver.counts({ ...x, roots: d.roots }), now: () => NOW });
+  await one.start();
+  const t = (await one.route('/api/problems', new URLSearchParams({ trend: '1' }))).body;
+  one.stop();
+  assert.equal(t.earlier.saved, true);
+  assert.equal(t.earlier.from, '2025-03-03');
+  assert.equal(t.earlier.sessions, 0);
 });
