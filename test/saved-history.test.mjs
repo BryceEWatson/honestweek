@@ -17,7 +17,7 @@ import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { createViewData } from '../lib/view/data.mjs';
 import { createSaver } from '../lib/saved/saver.mjs';
 import { DAYS_SUB, loadSaved, readHistoryDay, saveHistory } from '../lib/saved/history.mjs';
-import { SAVED_DIR, savedDays } from '../lib/saved/store.mjs';
+import { SAVED_DIR, savedDays, writeSaved } from '../lib/saved/store.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const d = buildDemoWeek();
@@ -268,6 +268,40 @@ test('only configured repositories\' history is saved, unless otherSessions says
   assert.ok(privateKeys.length > 0, 'the demo week has display-only and outside sessions');
   const all = await savedWeek({ ...CONFIG, saveResults: { ...CONFIG.saveResults, otherSessions: true } });
   assert.deepEqual(new Set(days(all.saved).filter((x) => x.record.private).map((x) => x.key)), new Set(privateKeys.filter((k) => fresh.sessions.find((s) => s.key === k).firstAt)));
+});
+
+test('with otherSessions turned off later, the other sessions saved while it was on stop coming back and leave each day saved again', async () => {
+  const on = { ...CONFIG, saveResults: { ...CONFIG.saveResults, otherSessions: true } };
+  const { saved } = await savedWeek(on);
+  const priv = savedDays(saved, DAYS_SUB).flatMap((day) => readHistoryDay(saved, day).sessions).filter((x) => x.record.private).map((x) => x.key);
+  assert.ok(priv.length > 0);
+  const saver = createSaver({ configDir: () => join(saved, '..'), config: () => CONFIG, now: () => NOW });
+  await withoutLogs(priv, async () => {
+    assert.equal(saver.load({ from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots }), null, 'none comes back with the box off');
+    const data = viewOf(saver);
+    await data.start();
+    for (let i = 0; i < 100; i++) await new Promise((r) => setTimeout(r, 10));
+    data.stop();
+  });
+  assert.equal(savedDays(saved, DAYS_SUB).flatMap((day) => readHistoryDay(saved, day).sessions).some((x) => x.record.private), false);
+});
+
+test("a saved check result whose log moved (an archived Codex log) is replaced, not kept as if it were fuller", async () => {
+  const { saved, saver } = await savedWeek();
+  const day = savedDays(saved, 'checks').find((x) => JSON.parse(readFileSync(join(saved, 'checks', `${x}.json`), 'utf8')).sessions.some((s) => s.checked && s.files.length === 1));
+  const file = JSON.parse(readFileSync(join(saved, 'checks', `${day}.json`), 'utf8'));
+  const entry = file.sessions.find((s) => s.checked && s.files.length === 1);
+  const real = entry.files[0];
+  entry.files = ['moved-elsewhere'];
+  entry.savedAt = '2000-01-01T00:00:00.000Z';
+  writeSaved(saved, ['checks', `${day}.json`], file);
+  const data = viewOf(saver);
+  await data.start();
+  for (let i = 0; i < 100; i++) await new Promise((r) => setTimeout(r, 10));
+  data.stop();
+  const after = JSON.parse(readFileSync(join(saved, 'checks', `${day}.json`), 'utf8')).sessions.find((s) => s.key === entry.key);
+  assert.deepEqual(after.files, [real]);
+  assert.notEqual(after.savedAt, '2000-01-01T00:00:00.000Z');
 });
 
 test('a saved session that named a log file this run did not read keeps its fuller saved copy', async () => {
