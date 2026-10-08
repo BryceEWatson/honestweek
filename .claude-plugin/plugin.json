@@ -6,5 +6,5 @@
   "homepage": "https://github.com/BryceEWatson/honestweek",
   "license": "MIT",
   "keywords": ["weekly-summary", "git", "claude-code", "privacy", "changelog", "skill"],
-  "skills": ["./", "./skills/honestweek-contract"]
+  "skills": ["./", "./skills/honestweek-contract", "./skills/honestweek-find"]
 }
