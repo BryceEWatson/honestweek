@@ -146,12 +146,36 @@ test('a pattern no check looks for still answers its cause, fix and certainty, w
   assert.deepEqual(o.findings, []);
   assert.equal(o.cause.general.looksLike, none.looksLike);
   assert.equal(o.pattern.count, null, 'not looked for is no count, not a zero');
+  assert.equal(o.pattern.workedOut, null);
+  assert.equal(o.pattern.possible, null);
   assert.equal(o.timeline.byDay, null);
   const t = await asked(['--pattern', none.id]);
   assert.match(t.out, /This pattern is not looked for: there's no check for it yet\./);
   assert.match(t.out, /What the log shows: nothing, since no check looks for it\./);
   assert.match(t.out, /No check looks for this pattern, so there's no count to show\./);
   assert.doesNotMatch(t.out, /Per day:|No finding in this window/);
+});
+
+test('a pattern checked with nothing found counts zero on every day, and says so', async () => {
+  const o = await json(['--pattern', 'busy-polling']);
+  assert.equal(o.pattern.status, 'clear');
+  assert.equal(o.pattern.count, 0);
+  assert.deepEqual(o.pattern.workedOut, { count: 0, worthALook: 0 });
+  assert.ok(o.timeline.byDay.length === 7 && o.timeline.byDay.every((x) => x.findings === 0));
+  const t = await asked(['--pattern', 'busy-polling']);
+  assert.match(t.out, /This pattern is checked, with nothing found in this window\./);
+  assert.match(t.out, /What the log shows: nothing in this window\./);
+  assert.match(t.out, /\n {2}Per day: 03-10 0, /);
+  assert.match(t.out, /\n {2}No finding in this window\.\n/);
+});
+
+test('the header names the findings worth a look, the ones the priority rests on', async () => {
+  const o = await json(['--pattern', 'premature-stop']);
+  const look = o.pattern.workedOut.worthALook + o.pattern.possible.worthALook;
+  assert.equal(look, o.findings.filter((f) => f.severity === 'look').length);
+  const t = await asked(['--pattern', 'premature-stop']);
+  assert.ok(t.out.includes(`; ${look} worth a look. `), 'the count beside the priority');
+  assert.match(t.out, / priority, from the findings worth a look, /);
 });
 
 test('the text answer has its four parts, labels general text, and says check precision is unmeasured', async () => {
