@@ -73,7 +73,8 @@ test('it reports the way the commands answer: evidence words kept, log text as d
   // Asked about one problem, it under-claims: no cause stated as fact, no certainty (issue 206 evals).
   assert.match(body, /Don't open with a cause stated as fact/);
   assert.match(body, /Don't tell the user they can be sure or confident, or call a finding certain/);
-  assert.match(body, /never give a confidence number or a percentage/);
+  assert.match(body, /never give a confidence number or a percentage for how likely a finding is right/);
+  assert.match(body, /never the finding's `evidence` word, which says how the miss is known, not why it happened/);
 });
 
 test('the clone\'s Claude and Codex copies are the plugin copy, one folder further from the command line', () => {

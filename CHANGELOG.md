@@ -2,6 +2,12 @@
 
 What changed in each version of honestweek, newest first. Numbers in parentheses are the pull requests on GitHub.
 
+## Unreleased
+
+### Changed
+
+- Asked what caused a problem, the find skill opens with what your log shows rather than a cause stated as fact, and gives a likely reason only labelled inferred, and only where the log shows a pause longer than a known cache length. Asked whether it's sure, it never tells you a finding is certain or that you can be sure, and gives no percentage for how likely a finding is right; a share of tokens is still a measurement it can give. The two eval cases for those questions grade the same way. (#210, issue #206)
+
 ## 0.3.0 (8 October 2026)
 
 ### Added
