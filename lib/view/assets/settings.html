@@ -83,6 +83,19 @@
       <h2 id="longH"><label for="longLimit">Long-session limit</label> <span id="longHelp"></span></h2>
       <input class="setup-input" id="longLimit" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="Off">
     </section>
+    <section class="setup-part" aria-labelledby="saveH">
+      <h2 id="saveH"><label><input type="checkbox" id="saveOn" autocomplete="off"> Save results between runs</label> <span id="saveHelp"></span></h2>
+      <div class="setup-inline">
+        <label for="saveKeep">Keep saved days for</label>
+        <input id="saveKeep" type="number" min="1" max="36500" autocomplete="off">
+        <span>days</span>
+      </div>
+      <label class="fine"><input type="checkbox" id="saveHistory" autocomplete="off"> Each day's history too, for Replay</label>
+      <label class="fine"><input type="checkbox" id="saveOthers" autocomplete="off"> Also display-only and outside sessions' history</label>
+      <p class="fine muted" id="savedLine"></p>
+      <button type="button" class="btn" id="forgetBtn" hidden>Forget saved results</button>
+      <p class="fine" id="forgetNote" role="status" hidden></p>
+    </section>
     <div class="setup-inline setup-actions">
       <button type="button" class="btn" id="previewBtn">Review changes</button>
       <button type="button" class="btn primary" id="saveBtn">Save</button>

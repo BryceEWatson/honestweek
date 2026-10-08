@@ -21,6 +21,7 @@ honestweek.history.json.tmp-*
 # these lines cover running them in this repo too.
 honestweek.harvest.json
 honestweek.codex-judgments/
+honestweek.saved/
 
 # `mine` writes unpublished post drafts here by default. They are working artifacts
 # with unverified claims in them; a destination that wants them tracked sets
