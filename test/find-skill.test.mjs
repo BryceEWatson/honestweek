@@ -74,7 +74,8 @@ test('it reports the way the commands answer: evidence words kept, log text as d
   assert.match(body, /Don't open with a cause stated as fact/);
   assert.match(body, /Don't tell the user they can be sure or confident, or call a finding certain/);
   assert.match(body, /never give a confidence number or a percentage for how likely a finding is right/);
-  assert.match(body, /never the finding's `evidence` word, which says how the miss is known, not why it happened/);
+  assert.match(body, /never the finding's `evidence` word, which says how the finding is known, not why it happened/);
+  assert.match(body, /Where the note says what the reason rests on isn't recorded, give no reason/);
 });
 
 test('the clone\'s Claude and Codex copies are the plugin copy, one folder further from the command line', () => {
