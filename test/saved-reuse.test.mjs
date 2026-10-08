@@ -381,3 +381,29 @@ test('the trend reads the logs for a day saved before it ended, or a log changed
   appendFileSync(log, '\n');
   assert.equal(countsFromSaved(args), null, 'a grown log: read it');
 });
+
+test('findings saved under another long-session limit are not taken back, and the trend reads the logs', async () => {
+  const w = await savedWeek();
+  const all = w.load().reuse.size;
+  assert.ok(all > 0);
+  const other = { ...w.config, longSessionTokens: (w.config.longSessionTokens ?? 150000) + 1000 };
+  assert.equal(w.load({ config: other }).reuse.size, 0, 'every session is read again under the new limit');
+  const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+  const args = { dir: join(w.dir, SAVED_DIR), from: w.d.week.from, to: w.d.week.to, timezone: w.d.week.timezone, roots: w.d.roots, version };
+  assert.ok(countsFromSaved({ ...args, config: w.config }), 'the same settings: counted from saved results');
+  assert.equal(countsFromSaved({ ...args, config: other }), null, 'another limit, its logs on disk: read them');
+});
+
+test('when every session taken back is read after all (it may have launched one read now), shared ids are hashed once when saved again', async () => {
+  const w = await savedWeek();
+  const opts = { config: w.config, roots: w.d.roots, from: w.d.week.from, to: w.d.week.to, timezone: w.d.week.timezone, scope: 'all', updates: true, hiddenSessions: 'redacted', usage: true, keepRaw: true, saving: true };
+  const plain = await buildWorkHistory(opts);
+  const launched = plain.sessions.find((s) => s.launchedBy?.session);
+  assert.ok(launched, 'the demo week has a session another one launched');
+  const loaded = w.load();
+  const launcher = loaded.sessions.find((x) => x.key === launched.launchedBy.session);
+  assert.ok(launcher && loaded.reuse.has(launcher.key), 'the launcher was saved and is unchanged');
+  const h = await buildWorkHistory({ ...opts, saved: [launcher], reuse: new Set([launcher.key]) });
+  assert.equal(h.reusedSessions.size, 0, 'the launcher is read after all');
+  for (const key of [launcher.key, launched.key]) assert.deepEqual(h.exportSession(key).joins.uuids, plain.exportSession(key).joins.uuids, key);
+});
