@@ -252,3 +252,23 @@ What's left for me is the list above, plus a ruleset on `v*` tags that blocks mo
 > - **Stronger privacy.** `git` never runs against a display-only repository, even in `mine`, `init` and `discover`. The redactor catches a private term inside longer names and web addresses, a Windows home folder inside JSON text, and many more forms of password and token fields, in everything honestweek writes.
 >
 > The full list is in [CHANGELOG.md](https://github.com/BryceEWatson/honestweek/blob/main/CHANGELOG.md).
+
+## 0.3.0 release notes
+
+> **honestweek 0.3.0**
+>
+> This release lets an agent ask honestweek about your past sessions, and keeps what it found after Claude Code deletes old logs. Run `npx honestweek@0.3.0 problems --demo` to see the new answers on a made-up week. It still has no dependencies, runs only on your own machine, and never publishes anything for you. You need Node 18 or later and `git` 2.24 or later.
+>
+> **What's new**
+>
+> - **Ask from a terminal or any chat.** `honestweek find`, `replay`, `problems` and `goals` answer the questions the page does, as text or as JSON with `--json`: which sessions are behind a pull request, a commit, a file, a branch or some words; what happened in a session, step by step or at one moment; where your sessions went wrong; and which sessions did each goal's work. Every answer is redacted the way the page shows it, keeps how each link is known, and marks text copied from your logs so an agent treats it as data.
+> - **Ask about one problem.** `honestweek problems --pattern <id or name>` answers what caused a problem, how to fix it, how sure honestweek is, and when it happened, with a link that opens the replay zoomed to each finding. It keeps honestweek's general description of a problem apart from what your log shows, never gives a reason the log doesn't record, and says plainly that how often each check is right hasn't been measured yet. `problems --session` says whether one session was checked and what was found.
+> - **A find skill agents start on their own.** With the plugin, the plain skill, a clone or Codex, Claude Code or Codex picks it up when you ask about past sessions, runs only these read-only commands, and asks before it starts the local page. "Last week" means the last 7 days.
+> - **A link straight to a step.** `view --page <page>` opens the local page on one session or one step, and typing `link` and a page in the terminal where `view` runs prints a fresh one-time address to it.
+> - **Save results between runs, off until you turn it on.** In Settings, it keeps what the Problems checks found and each day's history beside your config, git-ignored, with private words hidden and, on Linux and macOS, readable only by you. A session in one of your repositories whose log Claude Code deleted stays on the page, marked as saved, and a later run skips most logs that haven't changed since.
+> - **Your config from any folder.** Every command finds `honestweek.config.json` in the folder it runs in, else the one `HONESTWEEK_CONFIG` names, else your user-level config, and writes its files beside the config it read. `honestweek status` says where the weekly summary stands and what to run next.
+> - **The weekly summary.** Claude can start it when you ask in words ("write up my week"), and with the plugin, its one model step now runs in a helper with file tools only, so a line in a log written to steer an agent can't make it run a command. The skill's honesty rules come first, and each flow has its own file.
+> - **Install routes that say what they give.** The README names what each route gives, adds a Codex route, and a new page, [Where your data goes](https://github.com/BryceEWatson/honestweek/blob/main/docs/where-your-data-goes.md), says which step an AI sees and what it receives.
+> - **Privacy.** `init` keeps your old config's private words and display-only folders when it rewrites it, stops before running git when the config there can't be read, and never asks git about a repository that holds a display-only folder. `init`, Setup and Settings now git-ignore your config from the start, not only once it lists private words, and `preview` stops on its own after 30 minutes with no visits.
+>
+> The full list is in [CHANGELOG.md](https://github.com/BryceEWatson/honestweek/blob/main/CHANGELOG.md).
