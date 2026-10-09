@@ -204,6 +204,10 @@ test('a squash with no log near its landing reads further back, then says what i
   const tf = briefText(noFiles, 'honestweek');
   assert.match(tf, /commits unknown \(missing\), files unknown \(missing\)\./, tf);
   assert.match(tf, /Files no edit in its steps touched: unknown, since its files aren't known\./, tf);
+  // A log names a commit git here can't read: its message wasn't read either.
+  const notInGit = { ...o, change: { ...o.change, commits: { ...o.change.commits, total: 1, items: [{ sha: 'abc1234def', subject: null, at: null, inGit: false, evidence: 'missing', via: 'pushed', loggedBy: [] }] } } };
+  const tg = briefText(notInGit, 'honestweek');
+  assert.match(tg, /named in its pull-request body or landing commit; none of its commits is in git here to read\./, tg);
 });
 
 test('the start-unknown note says only what it read: a merge is not called a squash, and named commits git cannot date are not "none"', () => {
