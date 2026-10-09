@@ -138,6 +138,11 @@ test('what it can\'t read is refused with a reason, never guessed', () => {
   assert.throws(() => resolvePr({ h, config: fx.config, query: '#999' }), (e) => e instanceof BriefError && /more than one configured repository/.test(e.message));
   // Named, it answers.
   assert.equal(resolvePr({ h, config: fx.config, query: '#999', repo: 'example/your-project' }).repo.chosenBy, 'given');
+  // The repository the default window's dates came from is the one read, and it says so.
+  const landed = resolvePr({ h, config: fx.config, query: '#999', landedIn: 'your-project' }).repo;
+  assert.deepEqual([landed.label, landed.chosenBy], ['your-project', 'landed']);
+  // A label that isn't configured changes nothing: it still asks.
+  assert.throws(() => resolvePr({ h, config: fx.config, query: '#999', landedIn: 'not-configured' }), (e) => e instanceof BriefError && /more than one configured repository/.test(e.message));
 });
 
 /** Every child process started while `fn` runs. */

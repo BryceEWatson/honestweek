@@ -42,7 +42,7 @@ A claim pairs with the latest check after the last edit before it, in the same s
 
 ## Limits
 
-- Its default window is the pull request's own dates, from 3 days before its first commit to 2 days after it landed. A pull request with no landing commit and no `--head` reads your usual window.
+- Its default window is the pull request's own dates, from 3 days before its first commit to 2 days after it landed. A pull request with no landing commit and no `--head` reads your usual window. When you have more than one repository configured and don't name one, the dates come from the only one where that number landed, and the brief reads that same repository and says so. If you meant another, name it with `--repo` or as `your-repo#N`.
 - It reads every log in that window, as `find` does, so a long window takes a while; a later version reads only the sessions that could matter.
 - Earlier reviews' ranges, CI results printed in a session, and a Review page in `view` aren't in this first version.
 

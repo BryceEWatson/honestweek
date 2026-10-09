@@ -51,8 +51,10 @@ test('the JSON names its schema, says it is no verdict, and gives every list a t
   assert.equal(o.command, 'brief');
   assert.match(o.notice, /isn't a review and gives no verdict/);
   assert.match(o.about, /\{"quoted": \.\.\.\}/);
-  const lists = [o.change.commits, o.change.files, o.asked.issues, o.asked.related, o.asked.prompts, o.sessions, o.checks, o.rerun, o.readFirst, o.claims, o.tests.tampering, o.tests.files, o.tests.noVerify, o.tests.forcePush, o.problems.listed, o.problems.leftOut, o.steppedIn, o.unexplained.commits, o.unexplained.files, o.cantKnow];
-  for (const l of lists) assert.equal(l.total, (l.items ?? l.list).length);
+  const lists = [o.change.commits, o.change.files, o.asked.issues, o.asked.related, o.asked.prompts, o.sessions, o.checks, o.rerun, o.readFirst, o.claims, o.tests.tampering, o.tests.files, o.tests.noVerify, o.tests.forcePush, o.problems.listed, o.problems.leftOut, o.steppedIn, o.unexplained.commits, o.unexplained.files, o.cantKnow, o.notes];
+  for (const l of lists) assert.equal(l.total, l.items.length);
+  assert.equal(o.change.commits.list, undefined);
+  assert.equal(o.change.files.list, undefined);
   assert.ok(o.sessions.total >= 3 && o.checks.total >= 2 && o.claims.total >= 1);
 });
 
@@ -131,7 +133,7 @@ test('--head, --base, --issue and --repo reach the brief; other commands refuse 
   assert.equal(o.change.head.sha, fx.git.e2);
   assert.equal(o.change.head.evidence, 'recorded');
   assert.deepEqual(o.asked.issues.items.map((x) => [x.number, x.evidence]), [[30, 'recorded']]);
-  assert.ok(o.notes.some((n) => n.kind === 'head-differs'));
+  assert.ok(o.notes.items.some((n) => n.kind === 'head-differs'));
   for (const opt of [['--head', 'abc1234'], ['--evidence-only'], ['--repo', 'x']]) {
     const r = await asked(['#20', ...opt], FX_WEEK, 'find');
     assert.equal(r.code, 1);
