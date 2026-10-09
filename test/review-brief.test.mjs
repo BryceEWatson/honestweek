@@ -10,7 +10,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { runAsk } from '../lib/ask.mjs';
-import { briefText, prWindow } from '../lib/ask-brief.mjs';
+import { briefText, prWindow, startUnknownNote } from '../lib/ask-brief.mjs';
 import { buildDemoWeek, DEMO_TERM } from '../lib/demo/week.mjs';
 import { BRIEF_SCHEMA } from '../lib/review/make.mjs';
 import { at, writeReviewLogs, WINDOW } from './fixtures/replay/review-pr.mjs';
@@ -196,11 +196,23 @@ test('a squash with no log near its landing reads further back, then says what i
   assert.match(t, /Commits no session made or printed: unknown, since its commits aren't known\./, t);
   assert.match(t, /Files no edit in its steps touched: [1-9]/, t);
   assert.match(t, /no log from 2024-05-28 on names its commits/, t);
+  // With its commits unknown, no message of theirs was read, so the no-issue line says so.
+  assert.equal(o.asked.issues.total, 0);
+  assert.match(t, /named in its pull-request body or landing commit; its commits aren't known\./, t);
   // The files case: a list git couldn't read is unknown in the text too.
   const noFiles = { ...o, change: { ...o.change, files: { ...o.change.files, evidence: 'missing', total: 0, items: [] } } };
   const tf = briefText(noFiles, 'honestweek');
   assert.match(tf, /commits unknown \(missing\), files unknown \(missing\)\./, tf);
   assert.match(tf, /Files no edit in its steps touched: unknown, since its files aren't known\./, tf);
+});
+
+test('the start-unknown note says only what it read: a merge is not called a squash, and named commits git cannot date are not "none"', () => {
+  const merge = startUnknownNote({ kind: 'merge', named: false, from: '2024-05-28', widened: true });
+  assert.doesNotMatch(merge, /squash/);
+  assert.match(merge, /^Git can't list the commits it brought in, so it can't say when its work started, and no log from 2024-05-28 on names its commits\./);
+  const named = startUnknownNote({ kind: 'squash', named: true, from: '2024-05-28', widened: false });
+  assert.doesNotMatch(named, /names its commits/);
+  assert.match(named, /no log from 2024-05-28 on names a commit of it that git here can date \(no earlier log fits in memory\)\./);
 });
 
 test('with not every commit message read, no issue found is said as such', async () => {
