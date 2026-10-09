@@ -143,6 +143,10 @@ test('what it can\'t read is refused with a reason, never guessed', () => {
   assert.deepEqual([landed.label, landed.chosenBy], ['your-project', 'landed']);
   // A label that isn't configured changes nothing: it still asks.
   assert.throws(() => resolvePr({ h, config: fx.config, query: '#999', landedIn: 'not-configured' }), (e) => e instanceof BriefError && /more than one configured repository/.test(e.message));
+  // The sessions point at one repository and the landing at another: they disagree, so it asks.
+  const two = { ...fx.config, repos: [...fx.config.repos, { ...fx.config.repos[0], label: 'other-project' }] };
+  assert.throws(() => resolvePr({ h, config: two, query: '#20', landedIn: 'other-project', git: false }), (e) => e instanceof BriefError && /other-project, your-project/.test(e.message));
+  assert.equal(resolvePr({ h, config: two, query: '#20', landedIn: 'your-project', git: false }).repo.chosenBy, 'landed');
 });
 
 /** Every child process started while `fn` runs. */
