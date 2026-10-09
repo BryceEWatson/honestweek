@@ -6,7 +6,8 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 
 ### Added
 
-- Git helpers that read one pull request's shape from local git alone: a commit or branch's full id, where the pull request starts, its commits (capped at 500), the files it changes, each commit's files, each worktree's branch, the commit a pull request landed as, and a capped test-file diff. Each refuses an option-shaped id before git runs and starts no diff program a repository names. Nothing calls them yet; the coming `brief` command builds on them. (issue #216)
+- Engine hooks for the coming `brief` command, with no output change: each Claude Code step keeps the branch its log line recorded, in memory only; a history names each repository's checkouts, in memory only; and a new `backingCheck` says which check backs an agent's claim, or names the gap, deciding it the same way the done-claim and claim-against-evidence checks do (a test holds them to the same answer on every turn they look at). A pinned test shows `find`, `replay` and `problems` answer byte for byte as before. (issue #217)
+- Git helpers that read one pull request's shape from local git alone: a commit or branch's full id, where the pull request starts, its commits (capped at 500), the files it changes, each commit's files, each worktree's branch, the commit a pull request landed as, and a capped test-file diff. Each refuses an option-shaped id before git runs and starts no diff program a repository names. Nothing calls them yet; the coming `brief` command builds on them. (#228, issue #216)
 
 ### Changed
 
