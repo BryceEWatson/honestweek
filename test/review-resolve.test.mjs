@@ -329,8 +329,9 @@ test('a squash landed after the default branch moved on: the logged commit with 
   const pr = resolvePr({ h: squashSession(r), config, query: '#6' });
   assert.equal(pr.landed.sha, r.squash);
   assert.deepEqual({ sha: pr.head.sha, via: pr.head.via, rule: pr.head.rule }, { sha: r.tip, via: 'same-tree', rule: 'brief.head-same-tree' });
-  // Git read the range, so a logged commit outside it (one git lacks) isn't added to it.
+  // Git read the range, so a logged commit outside it (one git lacks) isn't added to it, and it's counted.
   assert.deepEqual(pr.commits.list.map((c) => c.sha), [r.tip]);
+  assert.ok(pr.notes.some((n) => n.kind === 'pushed-outside-range' && /^1 commit\(s\)/.test(n.text)));
 });
 
 test('a squash whose change no logged commit has: head the last commit before the last push', () => {
@@ -358,7 +359,7 @@ test('a head older than the logs\' says so, and one on another line says neither
   assert.deepEqual([older.headCheck.relation, older.headCheck.newer, older.headCheck.older], ['older', 0, 1]);
   assert.ok(older.notes.some((n) => n.kind === 'head-differs' && /The logs' head is 1 commit\(s\) past the one you gave/.test(n.text)));
   const other = ask('#21', { head: G.d1 });
-  assert.equal(other.headCheck.relation, 'diverged');
+  assert.deepEqual([other.headCheck.relation, other.headCheck.newer, other.headCheck.older], ['diverged', null, null], 'counts not read stay unknown');
   assert.ok(other.notes.some((n) => n.kind === 'head-differs' && /Neither is past the other/.test(n.text)));
 });
 
@@ -371,6 +372,10 @@ test('only the pull request body names the issue it closes, never its title', ()
   assert.deepEqual(pr.issues.related.map((x) => x.number), [21]);
   assert.equal(prBodyOf('gh pr create --title x --body-file -  <<\'EOF\'\nFixes #3.\nEOF'), 'Fixes #3.');
   assert.equal(prBodyOf('gh pr create --title x --body-file notes.md'), null, 'a body on disk is not in the log');
+  assert.equal(prBodyOf('gh pr create --title x --body "$(cat <<\'EOF\'\nUses "q"\nCloses #5\nEOF\n)"'), 'Uses "q"\nCloses #5');
+  // An earlier command's message or branch name isn't the pull request's body.
+  assert.equal(prBodyOf('git commit -F - <<\'EOF\'\nFixes #5\nEOF\ngh pr create --fill'), null);
+  assert.equal(prBodyOf('git checkout -b "fixes #3" && gh pr create --title t --body "Closes #4"'), 'Closes #4');
 });
 
 test("an open pull request with no branch to read: head the last headRefOid gh printed for it, never another one's", () => {
