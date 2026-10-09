@@ -210,7 +210,18 @@ test('the pull-request range helpers start no program a repository\'s config or 
   clearMarker();
   assert.match(diffText(repo, from, to, ['a.txt']).text, /^\+two$/m);
   assert.deepEqual(changedFiles(repo, from, to), [{ status: 'M', path: 'a.txt' }]);
+  assert.deepEqual(filesOfCommit(repo, to), [{ status: 'M', path: 'a.txt' }]);
+  assert.equal(commitRange(repo, from, to).commits[0].sha, to);
   assert.ok(!ran(), 'a diff helper started a program');
+
+  // A branch name that is really a file in the work tree is a bad revision, never a path: no
+  // work-tree diff, so no clean filter the repository names runs.
+  writeFileSync(join(repo, '.gitattributes'), '*.txt diff=conv filter=evil\n');
+  git(repo, ['config', 'filter.evil.clean', hook]);
+  writeFileSync(join(repo, 'a.txt'), 'three\n');
+  assert.equal(changedFiles(repo, from, 'a.txt'), null);
+  assert.equal(changedFiles(repo, 'a.txt', to), null);
+  assert.ok(!ran(), 'changedFiles read a branch name as a path');
 });
 
 // ---- commit ids that aren't commit ids ------------------------------------------------------
