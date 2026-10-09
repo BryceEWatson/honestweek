@@ -21,7 +21,8 @@ const commitEnv = () => {
 };
 const git = (dir, args) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env: commitEnv() }).trim();
 const fwd = (p) => p.replace(/\\/g, '/');
-const same = (a, b) => fwd(realpathSync(a)).toLowerCase() === fwd(realpathSync(b)).toLowerCase();
+// The native resolver expands a Windows short (8.3) folder name, as a CI runner's temp folder can be.
+const same = (a, b) => fwd(realpathSync.native(a)).toLowerCase() === fwd(realpathSync.native(b)).toLowerCase();
 
 function write(dir, file, text) {
   mkdirSync(join(dir, file, '..'), { recursive: true });
