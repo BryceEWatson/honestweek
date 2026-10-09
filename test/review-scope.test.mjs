@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { resolvePr } from '../lib/review/resolve.mjs';
-import { branchMade, branchSwitched, commandFolder, folderAt, scopeSteps } from '../lib/review/scope.mjs';
+import { branchMade, branchSwitched, commandFolder, folderAt, quotedCommands, scopeSteps } from '../lib/review/scope.mjs';
 import { BRIEF_RULES } from '../lib/review/rules.mjs';
 import { writeReviewLogs, WINDOW } from './fixtures/replay/review-pr.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
@@ -119,6 +119,13 @@ test('the command readers: a folder, a cd, a branch made', () => {
   assert.deepEqual(branchMade('git worktree add ../wt existing'), { branch: 'existing', path: '../wt' });
   assert.deepEqual(branchMade('git switch -c feature/y'), { branch: 'feature/y', path: null });
   assert.equal(branchMade('git switch main'), null);
+  // A quoted path or branch is read whole, as the shell reads it.
+  assert.deepEqual(branchMade('git worktree add "C:/My Work/wt one" -b feature/x'), { branch: 'feature/x', path: 'C:/My Work/wt one' });
+  assert.deepEqual(branchMade("cd repo && git worktree add '../wt two' -b 'feature/y'"), { branch: 'feature/y', path: '../wt two' });
+  assert.deepEqual(branchMade('git -C "a b" worktree add wt -b feature/z'), { branch: 'feature/z', path: 'wt' });
+  // A line with a heredoc is still read, the engine's way.
+  assert.deepEqual(branchMade("git worktree add wt -b feature/h && cat <<'EOF'\nnotes\nEOF"), { branch: 'feature/h', path: 'wt' });
+  assert.deepEqual(quotedCommands('a "b c" && d \'e\'; f|g'), [['a', 'b c'], ['d', 'e'], ['f'], ['g']]);
   assert.equal(branchMade('git worktree add ../wt origin/main'), null, 'a remote-tracking start point is no branch');
   assert.equal(branchMade('git worktree add --detach ../wt feature/x'), null);
 });
