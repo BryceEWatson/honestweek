@@ -55,7 +55,7 @@ A list of problems, from `problems`, reads like this:
 4. One line for what wasn't found, from `statusCounts`: how many patterns were checked with nothing found (`clear`), weren't checked (`unchecked`: no check yet, or its check couldn't run on these logs), or can't be seen in logs (`undetectable`). The ids are in `notFound`.
 5. Last, where to look first: the highest `priority.tier` among rows with something worth a look, in the answer's order (if no row has one, say there's nothing to act on), with its `priority.reason` in its words and no reason of your own, then the questions that go deeper: its cause, how to fix it, are we sure, its timeline.
 
-For one session (`--session`), a row's place and counts are that session's, but its priority and reason are the window's (`priority.of` says so): say that, give `priority.reason` as the window's words, and leave out the line in step 3. There's no `statusCounts` then: give only the `notFound` lists it has.
+For one session (`--session`), a row's place and counts are that session's, but its priority and reason are the window's (`priority.of` says so): say that, give `priority.reason` as the window's words, and in step 3 leave out where a possible problem's high priority comes from (it can come from other sessions), but keep that how often a check is right hasn't been measured, so any finding can be wrong. There's no `statusCounts` then: give only the `notFound` lists it has.
 
 Don't count sessions from the findings an answer lists: it lists at most 25 of each kind per pattern (`findingsListed` is the whole count), so a count from them is short. Keep "general" (honestweek's catalog, the same on every machine) apart from what this user's log shows, and say which is which.
 
