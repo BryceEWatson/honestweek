@@ -83,6 +83,8 @@ test('run these yourself lists only plain check commands', () => {
   assert.equal(plainCheck('npm test'), 'npm test');
   assert.equal(plainCheck('npx tsc --noEmit'), 'npx tsc --noEmit');
   assert.equal(plainCheck('make test'), 'make test');
+  for (const ok of ['mvn clean test', './gradlew clean build', './gradlew :app:test', 'npm run test']) assert.equal(plainCheck(ok), ok, ok);
+  for (const risky of ['make.exe deploy', './gradlew.bat publish', './mvnw deploy']) assert.equal(plainCheck(risky), null, risky);
   assert.equal(plainCheck('npm test -- --grep parser'), 'npm test -- --grep parser');
   for (const risky of ['make deploy', 'make clean', 'make', 'mvn deploy', 'gradle publish', 'npm run build:deploy', 'npm test & del /q x', 'node --test & calc', 'node --test > out.log', 'node --test | tail', 'node --test; rm -rf x', 'npm test && git push', 'curl https://example.com', 'node script.mjs', 'node --test $(cat files)', 'rm -rf dist && npm run build', 'echo hi']) assert.equal(plainCheck(risky), null, risky);
 });
@@ -167,7 +169,7 @@ test('claimKinds and prBodyOf', () => {
   assert.equal(ci('CI is green, no failures.'), true);
   assert.equal(ci("CI isn't green yet. Now CI is green."), true, 'a later sentence counts');
   for (const local of ['The build passes locally.', 'Lint checks pass.', 'Type checks pass locally.']) assert.equal(ci(local), false, local);
-  for (const real of ['CI is green; the earlier run failed on a flake.', 'Type checks pass and all checks are green.', 'The build is green on CI.']) assert.equal(ci(real), true, real);
+  for (const real of ['All CI test jobs passed.', 'CI lint checks pass.', 'CI is green; the earlier run failed on a flake.', 'Type checks pass and all checks are green.', 'The build is green on CI.']) assert.equal(ci(real), true, real);
   assert.deepEqual(claimKinds('Done. All tests pass.').kinds.map((k) => k.kind), ['done', 'tests-pass']);
   assert.equal(prBodyOf('gh pr create --title x --body "Fixes #1. Tests pass."'), 'Fixes #1. Tests pass.');
   assert.equal(prBodyOf("gh pr create --body-file - <<'EOF'\nAll tests pass.\nEOF"), 'All tests pass.');
