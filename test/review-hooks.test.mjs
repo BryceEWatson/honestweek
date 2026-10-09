@@ -7,11 +7,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildWorkHistory } from '../lib/replay/index.mjs';
+import { keyPath } from '../lib/replay/ids.mjs';
 import { REVIEW_PATTERNS, PATTERN_CHECKS } from '../lib/problems/index.mjs';
 import { buildCorpus } from './fixtures/replay/corpus.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
@@ -21,7 +21,6 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BIN = join(ROOT, 'bin', 'honestweek.mjs');
 const fx = buildCorpus();
 const build = (extra = {}) => buildWorkHistory({ config: fx.config, from: '2024-06-10', to: '2024-06-16', roots: { claude: [fx.claudeRoot], codex: [fx.codexRoot] }, ...extra });
-const fwd = (p) => realpathSync(p).replace(/\\/g, '/').toLowerCase();
 
 test('each Claude Code step keeps its line\'s branch, hidden, and no output carries it', async () => {
   const h = await build({ keepRaw: true });
@@ -57,7 +56,8 @@ test('the history names a repository\'s checkouts, hidden, and nothing for a dis
   assert.ok(!Object.keys(h).includes('_repoRoots'));
   const roots = h._repoRoots('your-project');
   assert.ok(Array.isArray(roots) && roots.length >= 1);
-  assert.ok(roots.includes(fwd(fx.repoDir ?? fx.config.repos.find((r) => r.label === 'your-project').resolvedPath)) || roots.some((r) => r.endsWith('/your-project')));
+  const mine = fx.config.repos.find((r) => r.label === 'your-project');
+  assert.ok(roots.includes(keyPath(mine.resolvedPath ?? mine.path)), 'the configured folder is one of them');
   const display = fx.config.repos.find((r) => r.role === 'display');
   assert.ok(display, 'the corpus has a display-only repository (the test can fail)');
   assert.equal(h._repoRoots(display.label), null);
