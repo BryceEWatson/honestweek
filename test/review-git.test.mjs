@@ -6,7 +6,7 @@
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { branchTip, changedFiles, commitRange, diffText, filesOfCommit, isRefName, landedPr, mergeBase, revParse, worktreeBranches } from '../lib/git.mjs';
@@ -83,9 +83,18 @@ before(() => {
   bTip = commitFiles(wtB, 'B one', { 'lib/b.mjs': 'export const b = 1;\n' });
 });
 
-test('isRefName takes branch names and refuses options, ranges and reflog lookups', () => {
-  for (const ok of ['main', 'feature/a', 'refs/heads/feature/b', 'v1.2.3', 'you+x_y-z']) assert.ok(isRefName(ok), ok);
-  for (const bad of ['', '-p', '--output=x', 'a..b', 'HEAD@{1}', 'a//b', 'a/', 'a.lock', '.hidden', 'a b', 'a\nb', 'a:b', 'a~1', 'a^', null, 7]) assert.ok(!isRefName(bad), String(bad));
+test('isRefName follows git\'s naming rules: any letters, but no option, range or reflog lookup', () => {
+  for (const ok of ['main', 'feature/a', 'refs/heads/feature/b', 'v1.2.3', 'you+x_y-z', 'feature/café', 'feature/日本語', 'a@b', `feature/${'x'.repeat(300)}`]) assert.ok(isRefName(ok), ok);
+  for (const bad of ['', '@', '-p', '--output=x', 'a..b', 'HEAD@{1}', 'a//b', 'a/', 'a.', 'a.lock', 'x/a.lock/y', '.hidden', 'x/.hidden', '/a', 'a b', 'a\nb', 'a\tb', 'a\u007fb', 'a:b', 'a~1', 'a^', 'a?', 'a*', 'a[b', 'a\\b', 'x'.repeat(1025), null, 7]) assert.ok(!isRefName(bad), JSON.stringify(bad));
+  // The names it takes are ones git takes too.
+  for (const ok of ['feature/café', 'a@b', 'you+x_y-z']) assert.equal(execFileSync('git', ['check-ref-format', '--branch', ok], { encoding: 'utf8' }).trim(), ok);
+});
+
+test('a branch with a non-ASCII name resolves', () => {
+  git(repo, ['branch', 'feature/café', baseA]);
+  assert.equal(revParse(repo, 'feature/café'), baseA);
+  assert.deepEqual(branchTip(repo, 'feature/café'), { sha: baseA, ref: 'refs/heads/feature/café' });
+  git(repo, ['branch', '-D', 'feature/café']);
 });
 
 test('revParse resolves a commit id or branch name to its full id, else null', () => {
@@ -158,6 +167,14 @@ test('worktreeBranches names each checkout\'s branch and head', () => {
   assert.equal(worktreeBranches(repo).find((w) => same(w.path, wtB)).detached, true);
   assert.equal(worktreeBranches(repo).find((w) => same(w.path, wtB)).branch, null);
   git(wtB, ['switch', '-q', 'feature/b']);
+  assert.equal(wts.find((w) => same(w.path, wtB)).prunable, false);
+  // A worktree whose folder was deleted without `git worktree remove` keeps its record, marked.
+  const gone = join(parent, 'wt-gone');
+  git(repo, ['worktree', 'add', '-q', '-b', 'feature/gone', gone]);
+  rmSync(gone, { recursive: true, force: true });
+  const g = worktreeBranches(repo).find((w) => fwd(w.path).toLowerCase().endsWith('/wt-gone'));
+  assert.deepEqual({ branch: g.branch, prunable: g.prunable }, { branch: 'feature/gone', prunable: true });
+  git(repo, ['worktree', 'prune']);
   assert.deepEqual(worktreeBranches(join(parent, 'not-a-repo')), []);
 });
 
@@ -175,7 +192,14 @@ test('landedPr finds a squash merge and a merge commit by number, and nothing fo
   assert.equal(landedPr(repo, 120).subject, 'Bigger number (#120)');
   assert.equal(landedPr(repo, 1), null, '#1 only appears inside #12 and #120');
   assert.equal(landedPr(repo, 999), null);
-  for (const bad of ['--all', -1, 0, 1.5, '12; rm', null]) assert.equal(landedPr(repo, bad), null, String(bad));
+  // "Couldn't tell" is never "not landed".
+  for (const bad of ['--all', -1, 0, 1.5, '12; rm', null]) assert.deepEqual(landedPr(repo, bad), { unreadable: true }, String(bad));
+  assert.deepEqual(landedPr(join(parent, 'not-a-repo'), 12), { unreadable: true });
+  const bare = join(parent, 'no-default');
+  mkdirSync(bare);
+  git(bare, ['init', '-q', '--template=']);
+  git(bare, ['symbolic-ref', 'HEAD', 'refs/heads/topic']);
+  assert.deepEqual(landedPr(bare, 12), { unreadable: true }, 'no default branch to read');
 });
 
 test('diffText reads a capped diff for literal paths only', () => {
