@@ -82,7 +82,9 @@ test('run these yourself lists only plain check commands', () => {
   assert.equal(plainCheck('cd .claude/worktrees/pr-23 && node --test'), 'node --test');
   assert.equal(plainCheck('npm test'), 'npm test');
   assert.equal(plainCheck('npx tsc --noEmit'), 'npx tsc --noEmit');
-  for (const risky of ['npm test & del /q x', 'node --test & calc', 'node --test > out.log', 'node --test | tail', 'node --test; rm -rf x', 'npm test && git push', 'curl https://example.com', 'node script.mjs', 'node --test $(cat files)', 'rm -rf dist && npm run build', 'echo hi']) assert.equal(plainCheck(risky), null, risky);
+  assert.equal(plainCheck('make test'), 'make test');
+  assert.equal(plainCheck('npm test -- --grep parser'), 'npm test -- --grep parser');
+  for (const risky of ['make deploy', 'make clean', 'make', 'mvn deploy', 'gradle publish', 'npm run build:deploy', 'npm test & del /q x', 'node --test & calc', 'node --test > out.log', 'node --test | tail', 'node --test; rm -rf x', 'npm test && git push', 'curl https://example.com', 'node script.mjs', 'node --test $(cat files)', 'rm -rf dist && npm run build', 'echo hi']) assert.equal(plainCheck(risky), null, risky);
 });
 
 test('a session that only looked the pull request up adds no check and no claim', () => {
@@ -173,7 +175,7 @@ test('claimKinds and prBodyOf', () => {
 });
 
 /** By hand: steps in one session 's', in order; `ambiguous` holds the indexes on the boundary. */
-function handPair(spec, { ambiguous = [], files = ['lib/a.mjs'] } = {}) {
+function handPair(spec, { ambiguous = [], files = ['lib/a.mjs'], commits = [], made = [] } = {}) {
   const events = [];
   const steps = new Map();
   let seq = 0;
@@ -192,8 +194,9 @@ function handPair(spec, { ambiguous = [], files = ['lib/a.mjs'] } = {}) {
   const ctx = { steps, byId: new Map(events.map((e) => [e.id, e])), seqOf: new Map(events.map((e, i) => [e.id, i + 1])), sessionsByKey: new Map([['s', { key: 's', tool: 'claude-code' }]]) };
   const amb = new Set(ambiguous.map((i) => events[i].id));
   const scope = { inScope: new Set(events.filter((e) => !amb.has(e.id)).map((e) => e.id)), ambiguous: amb, branchOf: () => null, sessions: [{ key: 's', role: 'author' }] };
-  const pr = { branch: { name: 'feature/x' }, files: { list: files.map((path) => ({ path })) }, commits: { list: [] }, events: { creates: [] } };
-  return pairClaims({ h: { events }, ctx, pr, scope });
+  const pr = { branch: { name: 'feature/x' }, files: { list: files.map((path) => ({ path })) }, commits: { list: commits }, events: { creates: [] } };
+  const commitRefs = made.map(([i, sha]) => ({ sha, event: events[i], via: 'harness-commit' }));
+  return pairClaims({ h: { events, _refIndex: () => ({ commitRefs }) }, ctx, pr, scope });
 }
 const EDIT = (path = '/r/lib/a.mjs') => ({ kind: 'action', step: { cat: 'edit', result: 'ok', edit: { kind: 'code', key: 'k' } }, input: { file_path: path } });
 const TEST_RUN = { kind: 'action', cmd: 'npm test', step: { cat: 'shell', result: 'ok', check: 'test', test: 'passed' } };
@@ -210,6 +213,14 @@ test('an ambiguous edit between a check and a claim leaves the claim unbacked an
   // A check after the ambiguous edit still backs it.
   const after = handPair([EDIT(), EDIT(), TEST_RUN, { kind: 'message', text: 'Tests pass.' }], { ambiguous: [1] });
   assert.deepEqual([after.claims[0].backing.status, after.claims[0].backing.result], ['checked', 'passed']);
+});
+
+test('a commit is placed by the step that made it, not by its author date', () => {
+  // A rebased commit keeps an author date from before the check; the step that made it came after.
+  const commits = [{ sha: 'c'.repeat(40), at: new Date(0).toISOString(), loggedBy: ['other'] }];
+  const out = handPair([TEST_RUN, { kind: 'action', cmd: 'git commit -m x', step: { cat: 'shell', result: 'ok' } }], { commits, made: [[1, 'c'.repeat(40)]] });
+  assert.deepEqual([out.checks[0].currency.state, out.checks[0].currency.why], ['stale', 'commit']);
+  assert.equal(handPair([TEST_RUN], { commits }).checks[0].currency.state, 'current', 'by the author date alone it came before');
 });
 
 test('a Codex patch to the pull request\'s files makes an earlier check stale', () => {
