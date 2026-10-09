@@ -77,6 +77,11 @@ test('it reports the way the commands answer: evidence words kept, log text as d
   assert.match(body, /\*\*Found in the log\*\*/);
   assert.match(body, /\*\*Possible, so check these yourself\*\*/);
   assert.match(body, /Don't count sessions from the findings an answer lists/);
+  // ...and under-claims: no row read as worked out when it isn't, no tier read as confirmation.
+  assert.match(body, /or because none of its findings is worth a look/);
+  assert.match(body, /Where worth a look is 0, say the row is routine notes only/);
+  assert.match(body, /comes from how often its rule fired or how many tokens it may cost/);
+  assert.match(body, /with its `priority.reason` in its words and no reason of your own/);
   assert.match(body, /Don't tell the user they can be sure or confident, or call a finding certain/);
   assert.match(body, /never give a confidence number or a percentage for how likely a finding is right/);
   assert.match(body, /never the finding's `evidence` word, which says how the finding is known, not why it happened/);
