@@ -128,6 +128,15 @@ test('the command readers: a folder, a cd, a branch made', () => {
   assert.deepEqual(quotedCommands('a "b c" && d \'e\'; f|g'), [['a', 'b c'], ['d', 'e'], ['f'], ['g']]);
   assert.equal(branchMade('git worktree add ../wt origin/main'), null, 'a remote-tracking start point is no branch');
   assert.equal(branchMade('git worktree add --detach ../wt feature/x'), null);
+  // A variable setting, an env word, a subshell or a redirection still leaves the command read.
+  assert.deepEqual(branchMade('MSYS_NO_PATHCONV=1 git worktree add ../wt -b feature/x'), { branch: 'feature/x', path: '../wt' });
+  assert.deepEqual(branchMade('A=1 env git switch -c feature/y'), { branch: 'feature/y', path: null });
+  assert.deepEqual(branchMade('(cd /r && git switch -c feat)'), { branch: 'feat', path: null });
+  assert.deepEqual(branchMade('git worktree add ../wt -b feature/x 2>&1 | tail -3'), { branch: 'feature/x', path: '../wt' });
+  assert.deepEqual(branchMade('git worktree add ../wt 2>&1'), null);
+  assert.deepEqual(branchMade('git -C "/my dir" switch -c feat'), { branch: 'feat', path: null });
+  // Beside a command substitution, a quoted path is unread, never a path named "".
+  assert.equal(branchMade('git worktree add "$(pwd)/wt" -b feature/x'), null);
 });
 
 // ---- by hand: what the fixture's shape can't show --------------------------------------------------
@@ -229,6 +238,19 @@ test("a folder's branch isn't read back past the branch being made there, nor fr
   assert.equal(branchSwitched('git switch feature/nine'), 'feature/nine');
   assert.equal(branchSwitched('git checkout README.md'), null, "a file's name is no branch");
   assert.equal(branchSwitched('git switch -'), null);
+  // A detached checkout is on no branch, and a quoted word is read whole or not at all.
+  assert.equal(branchSwitched('git checkout abc1234'), null);
+  assert.equal(branchSwitched('git checkout origin/main'), null);
+  assert.equal(branchSwitched('git switch "feature/nine"'), 'feature/nine');
+  assert.equal(branchSwitched("git checkout 'src/a b.js'"), null);
+  assert.equal(branchSwitched('git checkout "$(git rev-parse --abbrev-ref HEAD)"'), null);
+  // A switch that failed leaves the folder where it was.
+  const pushed = ev('action', { facts: { category: 'shell' }, command: 'cd /w/wt4 && git push origin feature/ten', cwd: '/w/r', turn: 't0' });
+  const failed = ev('action', { facts: { category: 'shell', result: 'error' }, command: 'cd /w/wt4 && git switch feature/nine', cwd: '/w/r', turn: 't1' });
+  const work = ev('action', { facts: { category: 'shell' }, command: 'cd /w/wt4 && npm test', cwd: '/w/r', turn: 't2' });
+  const sc4 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [pushed, failed, work] }), pr: pr9, git: false });
+  assert.equal(where(sc4, work), 'out');
+  assert.equal(sc4.laneOf(work.id), 'folder on branch feature/ten');
 });
 
 test("another repository's pull request with the same number is another lane", () => {
@@ -239,6 +261,10 @@ test("another repository's pull request with the same number is another lane", (
   const sc = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [theirs, ours], prRefs }), pr, git: false });
   assert.deepEqual([theirs, ours].map((e) => where(sc, e)), ['out', 'in']);
   assert.equal(sc.laneOf(theirs.id), 'pull request someone/else#9');
+  // Nor does reviewing it make a review of this one.
+  const rev = ev('action', { facts: { category: 'shell' }, command: 'gh pr review 9 -R someone/else --approve', cwd: '/w/r', branch: 'main', turn: 'z' });
+  const sc2 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [rev, ours], prRefs: [{ session: 's', event: rev, number: 9, owner: 'someone', repo: 'else' }, prRefs[1]] }), pr: { ...pr, sessions: ['s'] }, git: false });
+  assert.notEqual(sc2.sessions[0].role, 'review');
 });
 
 test('the issue opening ends at the first step tied to the pull request at all', () => {
@@ -258,6 +284,7 @@ test('with its own commits unknown, another recorded commit ends the stretch', (
   const push2 = ev('action', { facts: { category: 'shell' }, command: 'git push origin feature/nine', cwd: '/w/r', branch: 'main', turn: 'c' });
   const sc = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [push1, commit, push2], commitRefs: [{ session: 's', event: commit, sha: 'abcdef1234567', via: 'harness-commit' }] }), pr: pr9, git: false });
   assert.deepEqual([push1, commit, push2].map((e) => where(sc, e)), ['in', 'out', 'in']);
+  assert.equal(sc.laneOf(commit.id), 'commit abcdef1 (its own commits unknown)');
 });
 
 test('a review run started by an ambiguous step is ambiguous whole, never in', () => {
@@ -269,4 +296,20 @@ test('a review run started by an ambiguous step is ambiguous whole, never in', (
   assert.equal(where(sc, both), 'ambiguous');
   const row = sc.sessions.find((r) => r.key === 'c');
   assert.deepEqual([row.role, row.in, row.ambiguous], ['review', 0, 1]);
+  // Even when the run points at this pull request itself.
+  const sc2 = scopeSteps({ h: h2, pr: { ...pr9, sessions: ['s', 'c'] }, git: false });
+  const row2 = sc2.sessions.find((r) => r.key === 'c');
+  assert.deepEqual([row2.role, row2.in, row2.ambiguous], ['review', 0, 1]);
+});
+
+test("a stacked pull request's base branch ties a folder to no pull request, like main", () => {
+  const sent = ev('action', { facts: { category: 'shell' }, command: 'cd /w/wt5 && git push origin feature/parent', cwd: '/w/r', turn: 'a' });
+  const work = ev('action', { facts: { category: 'shell' }, command: 'cd /w/wt5 && npm test', cwd: '/w/r', turn: 'b' });
+  const h5 = handHistory({ sessions: [{ key: 's' }], events: [sent, work] });
+  const plainSc = scopeSteps({ h: h5, pr: pr9, git: false });
+  assert.equal(plainSc.laneOf(work.id), 'folder on branch feature/parent');
+  for (const ref of ['origin/feature/parent', 'refs/heads/feature/parent']) {
+    const sc = scopeSteps({ h: h5, pr: { ...pr9, base: { ref } }, git: false });
+    assert.notEqual(sc.laneOf(work.id), 'folder on branch feature/parent', ref);
+  }
 });
