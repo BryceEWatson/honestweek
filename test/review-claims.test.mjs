@@ -164,7 +164,8 @@ test('claimKinds and prBodyOf', () => {
   assert.equal(ci('Once the checks pass, I will merge.'), false);
   assert.equal(ci('CI is green, no failures.'), true);
   assert.equal(ci("CI isn't green yet. Now CI is green."), true, 'a later sentence counts');
-  for (const local of ['The build passes locally.', 'Lint checks pass.', 'Type checks pass locally.', 'Two checks are passing, one failed.']) assert.equal(ci(local), false, local);
+  for (const local of ['The build passes locally.', 'Lint checks pass.', 'Type checks pass locally.']) assert.equal(ci(local), false, local);
+  for (const real of ['CI is green; the earlier run failed on a flake.', 'Type checks pass and all checks are green.', 'The build is green on CI.']) assert.equal(ci(real), true, real);
   assert.deepEqual(claimKinds('Done. All tests pass.').kinds.map((k) => k.kind), ['done', 'tests-pass']);
   assert.equal(prBodyOf('gh pr create --title x --body "Fixes #1. Tests pass."'), 'Fixes #1. Tests pass.');
   assert.equal(prBodyOf("gh pr create --body-file - <<'EOF'\nAll tests pass.\nEOF"), 'All tests pass.');
@@ -206,6 +207,9 @@ test('an ambiguous edit between a check and a claim leaves the claim unbacked an
   const out = handPair([EDIT(), TEST_RUN, EDIT(), { kind: 'message', text: 'Tests pass.' }], { ambiguous: [2] });
   assert.deepEqual([out.claims[0].backing.status, out.claims[0].backing.gap], ['gap', 'ambiguous-edit']);
   assert.deepEqual([out.checks[0].currency.state, out.checks[0].currency.why], ['stale', 'edit']);
+  // A check after the ambiguous edit still backs it.
+  const after = handPair([EDIT(), EDIT(), TEST_RUN, { kind: 'message', text: 'Tests pass.' }], { ambiguous: [1] });
+  assert.deepEqual([after.claims[0].backing.status, after.claims[0].backing.result], ['checked', 'passed']);
 });
 
 test('a Codex patch to the pull request\'s files makes an earlier check stale', () => {
@@ -217,6 +221,8 @@ test('a CI claim after a failed CI read is failed, and after a later push it is 
   const read = (result) => ({ kind: 'action', cmd: 'gh pr checks 5', facts: { result }, step: { cat: 'shell', result } });
   const failed = handPair([read('error'), { kind: 'message', text: 'CI is green.' }]).claims.find((c) => c.kind === 'ci-green');
   assert.deepEqual([failed.backing.status, failed.backing.failed], ['ci-read', true]);
+  const stopped = handPair([read('interrupted'), { kind: 'message', text: 'CI is green.' }]).claims.find((c) => c.kind === 'ci-green');
+  assert.equal(stopped.backing.failed, true);
   const stale = handPair([read('ok'), EDIT(), { kind: 'action', cmd: 'git push', step: { cat: 'shell', result: 'ok' } }, { kind: 'message', text: 'CI is green.' }]).claims.find((c) => c.kind === 'ci-green');
   assert.deepEqual([stale.backing.status, stale.backing.gap], ['gap', 'ci-read-stale']);
   const fresh = handPair([read('ok'), { kind: 'message', text: 'CI is green.' }]).claims.find((c) => c.kind === 'ci-green');
