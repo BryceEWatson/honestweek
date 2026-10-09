@@ -28,10 +28,11 @@ test("a squash-merged pull request: head the logged commit with the squash's fil
   assert.equal(pr.landed.sha, G.squash);
   assert.equal(pr.landed.kind, 'squash');
   assert.deepEqual({ sha: pr.head.sha, evidence: pr.head.evidence, via: pr.head.via, rule: pr.head.rule }, { sha: G.s2, evidence: 'inferred', via: 'same-tree', rule: 'brief.head-same-tree' });
-  assert.deepEqual({ sha: pr.base.sha, evidence: pr.base.evidence, via: pr.base.via }, { sha: G.start, evidence: 'derived', via: 'squash-parent' });
+  assert.deepEqual({ sha: pr.base.sha, evidence: pr.base.evidence, via: pr.base.via }, { sha: G.start, evidence: 'inferred', via: 'squash-parent' }, 'the landing is read from its subject, so what rests on it is too');
+  assert.deepEqual([pr.landed.evidence, pr.landed.rule, pr.base.rule], ['inferred', 'brief.landed-subject', 'brief.landed-subject']);
   assert.deepEqual(pr.commits.list.map((c) => c.sha), [G.s1, G.s2]);
   assert.ok(pr.commits.list.every((c) => c.evidence === 'inferred' && c.loggedBy.includes(fx.key.author)), 'the weakest of head and base');
-  assert.deepEqual(pr.files, { list: [{ status: 'M', path: 'lib/parser.mjs' }, { status: 'M', path: 'test/parser.test.mjs' }], evidence: 'recorded', via: 'landing-commit' });
+  assert.deepEqual(pr.files, { list: [{ status: 'M', path: 'lib/parser.mjs' }, { status: 'M', path: 'test/parser.test.mjs' }], evidence: 'inferred', via: 'landing-commit', rule: 'brief.landed-subject' });
   assert.equal(pr.branch.name, 'feature/stream');
   assert.equal(pr.branch.ambiguous, false);
   assert.deepEqual(pr.branch.sources.map((s) => s.via).sort(), ['printed', 'push-before-create']);
@@ -63,13 +64,15 @@ test('issueRefs reads closing words, a list after one, and other repositories', 
   assert.deepEqual(issueRefs('Fixes other/thing#9, issue 10', slug), { closes: [], named: [10] });
   assert.deepEqual(issueRefs('Title (#20)', slug, 20), { closes: [], named: [] }, "a pull request's own number is neither");
   assert.deepEqual(issueRefs('a&#39;b x#12', slug), { closes: [], named: [] }, 'an entity or a word glued to # is no reference');
+  assert.deepEqual(issueRefs('see issue 2026-10-09, issue 3.', slug), { closes: [], named: [3] }, 'a date after "issue" is no issue');
 });
 
 test('pushedBranch reads a push command\'s branch', () => {
   assert.equal(pushedBranch('git push -u origin feature/docs'), 'feature/docs');
   assert.equal(pushedBranch('cd x && git push origin HEAD:feature/a'), 'feature/a');
   assert.equal(pushedBranch('git -C wt push origin +refs/heads/b'), 'b');
-  for (const none of ['git push', 'git push origin', 'git push origin v1:refs/tags/v1', 'git push origin HEAD', 'echo git push origin x']) assert.equal(pushedBranch(none), null, none);
+  assert.equal(pushedBranch('git push -o ci.skip origin feature/x'), 'feature/x', "an option's value isn't the remote");
+  for (const none of ['git push', 'git push origin', 'git push origin v1:refs/tags/v1', 'git push origin HEAD', 'echo git push origin x', 'git push origin --delete feature/old', 'git push -d origin feature/old', 'git push origin :feature/old']) assert.equal(pushedBranch(none), null, none);
 });
 
 test('an open pull request: head from the local branch, base its merge-base', () => {
@@ -77,6 +80,7 @@ test('an open pull request: head from the local branch, base its merge-base', ()
   assert.equal(pr.landed, null);
   assert.deepEqual({ sha: pr.head.sha, evidence: pr.head.evidence, via: pr.head.via, ref: pr.head.ref }, { sha: G.e1, evidence: 'inferred', via: 'local-branch', ref: 'refs/heads/feature/parser-errors' });
   assert.deepEqual({ sha: pr.base.sha, evidence: pr.base.evidence, via: pr.base.via }, { sha: G.squash, evidence: 'inferred', via: 'merge-base' });
+  assert.equal(pr.base.rule, 'brief.head-local-branch | brief.base-default-branch');
   assert.deepEqual(pr.commits.list.map((c) => c.sha), [G.e1]);
   assert.deepEqual(pr.files.list.map((f) => f.path), ['lib/errors.mjs', 'test/errors.test.mjs']);
   assert.deepEqual(pr.branch.sources.map((s) => s.via).sort(), ['head-option', 'printed', 'push-before-create']);
@@ -85,7 +89,7 @@ test('an open pull request: head from the local branch, base its merge-base', ()
 test('a head the reviewer gives is recorded, and a newer one than the logs\' is counted', () => {
   const pr = ask('#21', { head: G.e2 });
   assert.deepEqual({ sha: pr.head.sha, evidence: pr.head.evidence, via: pr.head.via }, { sha: G.e2, evidence: 'recorded', via: 'given' });
-  assert.deepEqual(pr.headCheck, { given: G.e2, derived: G.e1, derivedVia: 'local-branch', same: false, newer: 1, unlogged: 1 });
+  assert.deepEqual(pr.headCheck, { given: G.e2, derived: G.e1, derivedVia: 'local-branch', same: false, newer: 1, unlogged: 1, truncated: false });
   assert.ok(pr.notes.some((n) => n.kind === 'head-differs'));
   assert.deepEqual(pr.commits.list.map((c) => [c.sha, c.loggedBy.length]), [[G.e1, 1], [G.e2, 0]]);
   // The same head as the logs': no difference to report.
@@ -110,6 +114,12 @@ test('a Codex session\'s pull request, and one named by its branch', () => {
     assert.deepEqual(pr.issues.closes.map((x) => x.number), [31], q);
     assert.deepEqual(pr.commits.list.map((c) => [c.sha, c.loggedBy.join()]), [[G.d1, fx.key.codex]], q);
   }
+  assert.equal(ask('your-project#22').repo.chosenBy, 'query');
+  assert.equal(ask('example/your-project#22').repo.chosenBy, 'query');
+  // Named by its branch, the number is a reading, and so is everything that rests on it.
+  const byBranch = ask('branch:feature/docs');
+  assert.deepEqual(byBranch.numberFrom, { evidence: 'inferred', rule: 'brief.number-create-after-push' });
+  assert.equal(ask('#22').numberFrom, null);
   // A push command the harness didn't record is read by a named rule.
   assert.ok(ask('#22').events.pushes.some((p) => p.branch === 'feature/docs' && p.rule === 'brief.push-command'));
 });
@@ -117,6 +127,7 @@ test('a Codex session\'s pull request, and one named by its branch', () => {
 test('what it can\'t read is refused with a reason, never guessed', () => {
   for (const [opts, re] of [
     [{ query: 'hello world' }, /doesn't name a pull request/],
+    [{ query: 'feature/docs' }, /doesn't name a pull request/],
     [{ query: '#20', head: '--output=x' }, /--head takes/],
     [{ query: '#20', base: 'a..b' }, /--base takes/],
     [{ query: '#20', issue: 'nineteen' }, /--issue takes/],
@@ -177,6 +188,8 @@ test('git: false reads no git and says so', () => {
   assert.equal(result.head.evidence, 'missing');
   assert.equal(result.branch.name, 'feature/stream', 'the logs still name the branch');
   assert.ok(result.notes.some((n) => n.kind === 'git-not-read'));
+  const withHead = resolvePr({ h, config: fx.config, query: '#20', git: false, head: 'f'.repeat(40) });
+  assert.ok(!withHead.notes.some((n) => n.kind === 'head-not-in-git'), "git wasn't asked, so it isn't said to lack the head");
 });
 
 // ---- by hand: a merge commit, and branch names that disagree ------------------------------------
@@ -206,9 +219,9 @@ function handRepo() {
 }
 
 /** A history with only what resolvePr reads, for one session in the repository. */
-function handHistory(events, prRefs, branchRefs = []) {
+function handHistory(events, prRefs, branchRefs = [], commitRefs = []) {
   const hh = { events, record: () => [] };
-  Object.defineProperty(hh, '_refIndex', { value: () => ({ prRefs, commitRefs: [], branchRefs, fileRefs: [] }) });
+  Object.defineProperty(hh, '_refIndex', { value: () => ({ prRefs, commitRefs, branchRefs, fileRefs: [] }) });
   Object.defineProperty(hh, '_sessionRepo', { value: () => 'r' });
   return hh;
 }
@@ -248,4 +261,92 @@ test('every brief rule says what it reads and where', () => {
     assert.ok(BRIEF_RULE_SOURCES[id], `${id} names where it reads`);
   }
   assert.deepEqual(Object.keys(BRIEF_RULE_SOURCES).sort(), [...BRIEF_RULES.keys()].sort());
+});
+
+/** Every inferred value in a result, outside the engine's own events, by where it sits. */
+function inferredNodes(v, at = '', out = []) {
+  if (!v || typeof v !== 'object') return out;
+  if (v.evidence === 'inferred') out.push({ at, rule: v.rule });
+  for (const [k, x] of Object.entries(v)) if (k !== 'events') inferredNodes(x, `${at}.${k}`, out);
+  return out;
+}
+
+test('every inferred value names the brief rules it rests on', () => {
+  const results = [ask('#20'), ask('#21'), ask('#21', { head: G.e2 }), ask('#22'), ask('branch:feature/docs')];
+  let n = 0;
+  for (const r of results) {
+    for (const { at, rule } of inferredNodes(r)) {
+      n++;
+      assert.ok(rule, `${at} is inferred with no rule`);
+      for (const id of String(rule).split(' | ')) assert.ok(BRIEF_RULES.has(id), `${at}: ${id}`);
+    }
+  }
+  assert.ok(n > 10, 'the walk found inferred values (the test can fail)');
+});
+
+/** A squash-merged pull request whose landing has a file its branch never had: main moved first. */
+function squashRepo() {
+  const dir = join(makeTempDir('hw-resolve-squash-'), 'r');
+  mkdirSync(dir, { recursive: true });
+  const env = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^GIT_/i.test(k))), GIT_AUTHOR_NAME: 'Dev', GIT_AUTHOR_EMAIL: 'you@example.com', GIT_COMMITTER_NAME: 'Dev', GIT_COMMITTER_EMAIL: 'you@example.com', GIT_AUTHOR_DATE: '2024-06-11T15:00:00Z', GIT_COMMITTER_DATE: '2024-06-11T15:00:00Z' };
+  const git = (...args) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env, stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  git('init', '-q', '--template=');
+  git('symbolic-ref', 'HEAD', 'refs/heads/main');
+  git('config', 'commit.gpgsign', 'false');
+  writeFileSync(join(dir, 'a.txt'), 'a\n');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'Start');
+  git('switch', '-q', '-c', 'feature/x');
+  writeFileSync(join(dir, 'b.txt'), 'b\n');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'Add b');
+  const tip = git('rev-parse', 'HEAD');
+  git('switch', '-q', 'main');
+  writeFileSync(join(dir, 'c.txt'), 'c\n');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'Unrelated on main');
+  const parent = git('rev-parse', 'HEAD');
+  writeFileSync(join(dir, 'b.txt'), 'b\n');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'Add b (#6)');
+  git('branch', '-q', '-D', 'feature/x');
+  return { dir, tip, parent, squash: git('rev-parse', 'HEAD') };
+}
+
+test('a squash whose files no logged commit has: head the last commit before the last push, and a commit git lacks is missing', () => {
+  const r = squashRepo();
+  const config = { identity: { authorEmails: ['you@example.com'] }, repos: [{ label: 'r', path: r.dir, role: 'featured' }] };
+  const gone = 'a'.repeat(40);
+  const c0 = { id: 's.0.0', session: 's', kind: 'action', t: 1, facts: {} };
+  const c1 = { id: 's.1.0', session: 's', kind: 'action', t: 2, facts: {} };
+  const push = { id: 's.2.0', session: 's', kind: 'action', t: 3, facts: { git: { push: { branch: 'feature/x' } } } };
+  const create = { id: 's.3.0', session: 's', kind: 'action', t: 4, facts: {}, _command: 'gh pr create --title x --body y' };
+  const commits = [{ session: 's', event: c0, sha: gone, via: 'harness-commit' }, { session: 's', event: c1, sha: r.tip, via: 'harness-commit' }];
+  const hh = handHistory([c0, c1, push, create], [{ session: 's', event: create, number: 6, owner: null, repo: null, via: 'gh-pr-command' }], [{ session: 's', event: push, branch: 'feature/x', via: 'push' }], commits);
+  const pr = resolvePr({ h: hh, config, query: '#6' });
+  assert.equal(pr.landed.sha, r.squash);
+  assert.deepEqual({ sha: pr.head.sha, evidence: pr.head.evidence, via: pr.head.via, rule: pr.head.rule }, { sha: r.tip, evidence: 'inferred', via: 'last-push', rule: 'brief.head-last-push' });
+  assert.equal(pr.base.sha, r.parent);
+  const missing = pr.commits.list.find((c) => c.sha === gone);
+  assert.deepEqual({ inGit: missing.inGit, evidence: missing.evidence, via: missing.via }, { inGit: false, evidence: 'missing', via: 'pushed' });
+  assert.equal(pr.commits.evidence, 'missing', 'the list reads no stronger than its weakest row');
+});
+
+test("an open pull request with no branch to read: head the last headRefOid gh printed for it, never another one's", () => {
+  const r = handRepo();
+  const config = { identity: { authorEmails: ['you@example.com'] }, repos: [{ label: 'r', path: r.dir, role: 'featured' }] };
+  const view = { id: 's.1.0', session: 's', kind: 'action', t: 1, facts: {}, end: { ref: 'v7' }, _command: 'gh pr view 7 --json headRefOid,number' };
+  const other = { id: 's.2.0', session: 's', kind: 'action', t: 2, facts: {}, end: { ref: 'v8' }, _command: 'gh pr view 8 --json headRefOid,number' };
+  const printed = { v7: `{"headRefOid":"${r.tip}","number":7}`, v8: `{"headRefOid":"${r.merge}","number":8}` };
+  const hh = handHistory([view, other], [{ session: 's', event: view, number: 7, owner: null, repo: null, via: 'gh-pr-command' }]);
+  hh.record = (ref) => [{ record: { message: { content: [{ type: 'tool_result', content: printed[ref] }] } } }];
+  const pr = resolvePr({ h: hh, config, query: '#7' });
+  assert.equal(pr.landed, null);
+  assert.deepEqual({ sha: pr.head.sha, evidence: pr.head.evidence, via: pr.head.via, rule: pr.head.rule }, { sha: r.tip, evidence: 'inferred', via: 'printed', rule: 'brief.head-printed' });
+});
+
+test('one configured repository is the one', () => {
+  const r = handRepo();
+  const config = { identity: { authorEmails: ['you@example.com'] }, repos: [{ label: 'r', path: r.dir, role: 'featured' }] };
+  assert.equal(resolvePr({ h: handHistory([], []), config, query: '#5' }).repo.chosenBy, 'only');
 });
