@@ -82,7 +82,7 @@ test('run these yourself lists only plain check commands', () => {
   assert.equal(plainCheck('cd .claude/worktrees/pr-23 && node --test'), 'node --test');
   assert.equal(plainCheck('npm test'), 'npm test');
   assert.equal(plainCheck('npx tsc --noEmit'), 'npx tsc --noEmit');
-  for (const risky of ['node --test > out.log', 'node --test | tail', 'node --test; rm -rf x', 'npm test && git push', 'curl https://example.com', 'node script.mjs', 'node --test $(cat files)', 'rm -rf dist && npm run build', 'echo hi']) assert.equal(plainCheck(risky), null, risky);
+  for (const risky of ['npm test & del /q x', 'node --test & calc', 'node --test > out.log', 'node --test | tail', 'node --test; rm -rf x', 'npm test && git push', 'curl https://example.com', 'node script.mjs', 'node --test $(cat files)', 'rm -rf dist && npm run build', 'echo hi']) assert.equal(plainCheck(risky), null, risky);
 });
 
 test('a session that only looked the pull request up adds no check and no claim', () => {
@@ -107,7 +107,9 @@ test('tests and hooks: test files, net assertions and skips, a skipped hook', ()
   assert.deepEqual(b23.tests.files.map((f) => [f.path, f.status]), [['test/errors.test.mjs', 'A']]);
   assert.deepEqual([b23.tests.assertions, b23.tests.skips], [{ added: 1, removed: 0 }, { added: 1, removed: 0 }]);
   assert.equal(b23.tests.noVerify.length, 1);
-  assert.equal(b23.tests.noVerify[0].evidence, 'recorded');
+  assert.deepEqual([b23.tests.noVerify[0].evidence, b23.tests.noVerify[0].rule], ['inferred', 'problems.risky-command']);
+  assert.deepEqual([b23.tests.diffEvidence, b23.tests.diffRule], ['inferred', 'brief.test-diff']);
+  assert.ok(b23.rules['brief.test-diff']);
   assert.deepEqual(b23.tests.forcePush, []);
 });
 
@@ -160,34 +162,72 @@ test('claimKinds and prBodyOf', () => {
   assert.equal(ci('Waiting until CI is green.'), false);
   assert.equal(ci("CI isn't green yet."), false);
   assert.equal(ci('Once the checks pass, I will merge.'), false);
+  assert.equal(ci('CI is green, no failures.'), true);
+  assert.equal(ci("CI isn't green yet. Now CI is green."), true, 'a later sentence counts');
+  for (const local of ['The build passes locally.', 'Lint checks pass.', 'Type checks pass locally.', 'Two checks are passing, one failed.']) assert.equal(ci(local), false, local);
   assert.deepEqual(claimKinds('Done. All tests pass.').kinds.map((k) => k.kind), ['done', 'tests-pass']);
   assert.equal(prBodyOf('gh pr create --title x --body "Fixes #1. Tests pass."'), 'Fixes #1. Tests pass.');
   assert.equal(prBodyOf("gh pr create --body-file - <<'EOF'\nAll tests pass.\nEOF"), 'All tests pass.');
   assert.equal(prBodyOf('gh pr create --title x'), null);
 });
 
-test('a sub-agent\'s check backs its parent session\'s later claim', () => {
-  // By hand: a main agent edits, a sub-agent runs the tests, the main agent claims.
+/** By hand: steps in one session 's', in order; `ambiguous` holds the indexes on the boundary. */
+function handPair(spec, { ambiguous = [], files = ['lib/a.mjs'] } = {}) {
   const events = [];
   const steps = new Map();
   let seq = 0;
-  const add = (kind, agent, extra = {}) => {
-    const e = { id: `s.${++seq}.0`, session: 's', agent, kind, t: seq, at: null, facts: {}, inferred: [], ...extra.e };
-    if (extra.text) Object.defineProperty(e, '_raw', { value: { text: extra.text } });
+  for (const x of spec) {
+    const agent = x.agent ?? 's:main';
+    const e = { id: `s.${++seq}.0`, session: 's', agent, kind: x.kind, t: seq, at: null, facts: x.facts ?? {}, inferred: [] };
+    if (x.text || x.input) Object.defineProperty(e, '_raw', { value: { text: x.text, input: x.input } });
+    if (x.cmd) Object.defineProperty(e, '_command', { value: x.cmd });
     events.push(e);
-    if (extra.step) steps.set(e.id, { ev: e.id, seq, t: seq, session: 's', agent, ...extra.step });
-    return e;
-  };
-  add('action', 's:main', { step: { cat: 'edit', result: 'ok', edit: { kind: 'code', key: 'k' } } });
-  add('action', 's:sub', { step: { cat: 'shell', result: 'ok', check: 'test', test: 'passed' } });
-  add('message', 's:main', { text: 'Tests pass.' });
+    if (x.step) {
+      const s = { ev: e.id, seq, t: seq, session: 's', agent, ...x.step };
+      if (x.paths) Object.defineProperty(s.edit, 'paths', { value: x.paths, enumerable: false });
+      steps.set(e.id, s);
+    }
+  }
   const ctx = { steps, byId: new Map(events.map((e) => [e.id, e])), seqOf: new Map(events.map((e, i) => [e.id, i + 1])), sessionsByKey: new Map([['s', { key: 's', tool: 'claude-code' }]]) };
-  const scope = { inScope: new Set(events.map((e) => e.id)), ambiguous: new Set(), branchOf: () => null, sessions: [{ key: 's', role: 'author' }] };
-  const pr = { branch: { name: 'feature/x' }, files: { list: [] }, commits: { list: [] }, events: { creates: [] } };
-  const hh = { events };
-  const out = pairClaims({ h: hh, ctx, pr, scope });
-  assert.equal(out.claims.length, 1);
-  assert.deepEqual([out.claims[0].backing.status, out.claims[0].backing.result], ['checked', 'passed']);
+  const amb = new Set(ambiguous.map((i) => events[i].id));
+  const scope = { inScope: new Set(events.filter((e) => !amb.has(e.id)).map((e) => e.id)), ambiguous: amb, branchOf: () => null, sessions: [{ key: 's', role: 'author' }] };
+  const pr = { branch: { name: 'feature/x' }, files: { list: files.map((path) => ({ path })) }, commits: { list: [] }, events: { creates: [] } };
+  return pairClaims({ h: { events }, ctx, pr, scope });
+}
+const EDIT = (path = '/r/lib/a.mjs') => ({ kind: 'action', step: { cat: 'edit', result: 'ok', edit: { kind: 'code', key: 'k' } }, input: { file_path: path } });
+const TEST_RUN = { kind: 'action', cmd: 'npm test', step: { cat: 'shell', result: 'ok', check: 'test', test: 'passed' } };
+
+test('a sub-agent\'s check backs its parent session\'s later claim, and a sub-agent\'s own claim is marked as one', () => {
+  const out = handPair([EDIT(), { ...TEST_RUN, agent: 's:sub' }, { kind: 'message', text: 'Tests pass.' }, { kind: 'message', agent: 's:sub', text: 'All tests pass.' }]);
+  assert.deepEqual(out.claims.map((c) => [c.source, c.backing.status, c.backing.result]), [['message', 'checked', 'passed'], ['sub-agent message', 'checked', 'passed']]);
+});
+
+test('an ambiguous edit between a check and a claim leaves the claim unbacked and the check stale', () => {
+  const out = handPair([EDIT(), TEST_RUN, EDIT(), { kind: 'message', text: 'Tests pass.' }], { ambiguous: [2] });
+  assert.deepEqual([out.claims[0].backing.status, out.claims[0].backing.gap], ['gap', 'ambiguous-edit']);
+  assert.deepEqual([out.checks[0].currency.state, out.checks[0].currency.why], ['stale', 'edit']);
+});
+
+test('a Codex patch to the pull request\'s files makes an earlier check stale', () => {
+  const out = handPair([TEST_RUN, { kind: 'action', step: { cat: 'edit', result: 'ok', edit: { kind: 'code', key: 'k' } }, input: { input: '*** Begin Patch' }, paths: ['/r/README.md', '/r/lib/a.mjs'] }]);
+  assert.deepEqual([out.checks[0].currency.state, out.checks[0].currency.why], ['stale', 'edit']);
+});
+
+test('a CI claim after a failed CI read is failed, and after a later push it is a gap', () => {
+  const read = (result) => ({ kind: 'action', cmd: 'gh pr checks 5', facts: { result }, step: { cat: 'shell', result } });
+  const failed = handPair([read('error'), { kind: 'message', text: 'CI is green.' }]).claims.find((c) => c.kind === 'ci-green');
+  assert.deepEqual([failed.backing.status, failed.backing.failed], ['ci-read', true]);
+  const stale = handPair([read('ok'), EDIT(), { kind: 'action', cmd: 'git push', step: { cat: 'shell', result: 'ok' } }, { kind: 'message', text: 'CI is green.' }]).claims.find((c) => c.kind === 'ci-green');
+  assert.deepEqual([stale.backing.status, stale.backing.gap], ['gap', 'ci-read-stale']);
+  const fresh = handPair([read('ok'), { kind: 'message', text: 'CI is green.' }]).claims.find((c) => c.kind === 'ci-green');
+  assert.deepEqual([fresh.backing.status, fresh.backing.failed ?? null], ['ci-read', null]);
+});
+
+test('branch names, file paths and lanes pass the redactor', () => {
+  const b = brief('#21', { redact: (s) => redactor.redact(s).replace(/parser-errors|errors\.test/g, '[hidden]') });
+  const out = JSON.stringify({ change: b.change.branch, files: b.change.files, sessions: b.sessions.map((s) => s.lanes), tests: b.tests.files, unexplained: b.unexplained.files, notes: [b.cantKnow, b.notes] });
+  assert.ok(!/parser-errors|errors\.test/.test(out), out);
+  assert.match(out, /\[hidden\]/);
 });
 
 test('the landing commit keeps its own evidence word and rule in the brief', () => {
