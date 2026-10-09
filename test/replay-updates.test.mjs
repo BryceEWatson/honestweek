@@ -339,13 +339,14 @@ test('written outputs: the discover draft keeps exactly the thinking notes Repla
 test('written outputs: no command but view and the questions it answers can reach the code that reads updates', () => {
   // Every subcommand's module and everything it imports, statically or by a literal import().
   // A quoted path that names no file is text in a module (the demo week writes code), not an
-  // import: a real one would fail to load. find, replay, problems and goals (lib/ask.mjs) print
-  // what the view page shows and write no file, so they may reach it; nothing else may.
+  // import: a real one would fail to load. find, replay, problems, goals and brief (lib/ask.mjs)
+  // print what the view page shows and write no file, so they may reach it; nothing else may.
   const bin = readFileSync(join(ROOT, 'bin', 'honestweek.mjs'), 'utf8');
   const commands = JSON.parse(bin.match(/const SUBCOMMANDS = (\[[^\]]*\])/)[1].replaceAll("'", '"'));
   const moduleOf = JSON.parse(bin.match(/const MODULE = (\{[^}]*\})/)[1].replace(/(\w+):/g, '"$1":').replaceAll("'", '"'));
-  const SHOWS_VIEW = new Set(['view', 'find', 'replay', 'problems', 'goals']);
-  assert.doesNotMatch(readFileSync(join(ROOT, 'lib', 'ask.mjs'), 'utf8'), /writeFileSync|appendFileSync|atomicWrite|createWriteStream|mkdirSync/, 'the question commands write no file');
+  const SHOWS_VIEW = new Set(['view', 'find', 'replay', 'problems', 'goals', 'brief']);
+  for (const f of ['ask.mjs', 'ask-brief.mjs', 'ask-shape.mjs']) assert.doesNotMatch(readFileSync(join(ROOT, 'lib', f), 'utf8'), /writeFileSync|appendFileSync|atomicWrite|createWriteStream|mkdirSync/, `the question commands write no file (${f})`);
+  for (const f of ['resolve.mjs', 'scope.mjs', 'claims.mjs', 'brief.mjs', 'make.mjs', 'rules.mjs']) assert.doesNotMatch(readFileSync(join(ROOT, 'lib', 'review', f), 'utf8'), /writeFileSync|appendFileSync|atomicWrite|createWriteStream|mkdirSync/, `the brief writes no file (${f})`);
   assert.ok(commands.includes('discover') && commands.includes('view'));
   const reach = (start) => {
     const seen = new Set();
