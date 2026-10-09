@@ -60,7 +60,10 @@ test('backingCheck agrees with the done-claim check on every turn it looks at', 
           backed++;
           continue;
         }
-        // Not flagged with a gap: the turn's last message is no claim, admits no check, or isn't readable.
+        // Not flagged with a gap: nothing after the edit was a check or a sub-agent start, and the
+        // turn's last message is no claim, admits no check, or isn't readable.
+        const rest = turn.steps.slice(turn.steps.indexOf(last) + 1);
+        assert.ok(!rest.some((x) => x.check && x.result !== 'refused') && !rest.some((x) => x.cat === 'delegate'), `${name}: a gap turn ran no check`);
         const text = rawText(c.finalMessage(turn));
         const fl = text == null ? null : classifyAgentText(text);
         assert.ok(text == null || fl.admitsNoCheck || (!fl.flat && !fl.hedged), `${name}: an unflagged gap turn made no claim`);
@@ -75,6 +78,7 @@ test('backingCheck agrees with the claim-against-evidence check on every turn it
   let looked = 0;
   let failedTurns = 0;
   let flagged = 0;
+  let withEdit = 0;
   for (const [name, c] of all) {
     const { findings } = run(c, 'claim-contradicts-evidence');
     const byCheck = new Map(findings.filter((f) => f.kind === 'claims success').map((f) => [`${f.session}|${f.related}`, f]));
@@ -88,6 +92,18 @@ test('backingCheck agrees with the claim-against-evidence check on every turn it
         assert.equal(b.clear, clear.at(-1), `${name}: the last clear check`);
         const failed = clear.at(-1).test ? clear.at(-1).test === 'failed' : clear.at(-1).result === 'error';
         assert.equal(b.failed, failed, `${name}: its verdict`);
+        // The brief's call, from the last edit to the turn's last message, reads the same check.
+        const fin = c.finalMessage(turn);
+        const before = fin ? c.seqOf.get(fin.id) : null;
+        const edit = lastEditBefore(turn.steps, before);
+        if (edit) {
+          const e = backingCheck(c, { steps: turn.steps, events: turn.events, session: s.key, after: edit, before });
+          assert.equal(e.clear, clear.filter((x) => before == null || x.seq < before).at(-1) ?? null, `${name}: the last clear check, after an edit`);
+          if (e.clear === b.clear) {
+            withEdit++;
+            assert.equal(e.failed, b.failed, `${name}: its verdict, after an edit`);
+          }
+        }
         if (b.failed) failedTurns++;
         const f = byCheck.get(`${s.key}|${b.clear.ev}`);
         if (f) {
@@ -103,7 +119,8 @@ test('backingCheck agrees with the claim-against-evidence check on every turn it
     }
   }
   assert.ok(looked >= 10, `turns looked at: ${looked}`);
-  assert.ok(failedTurns >= 2 && flagged >= 1, `failed ${failedTurns}, flagged ${flagged} (the test can fail)`);
+  assert.ok(failedTurns >= 2 && flagged >= 1 && failedTurns - flagged >= 1, `failed ${failedTurns}, flagged ${flagged} (the test can fail both ways)`);
+  assert.ok(withEdit >= 5, `turns read from the last edit too: ${withEdit}`);
 });
 
 // ---- the brief's own cases, on steps written by hand ------------------------------------------
@@ -151,4 +168,32 @@ test('with no edit to start from, the gap still splits quiet from other steps', 
   const d = backingCheck(ctx(), { steps: [edit(), step('delegate'), testRun('passed')], events: [], session: 's1' });
   assert.equal(d.status, 'delegated');
   assert.equal(d.failed, false, 'a delegated answer still says what the last clear check did');
+});
+
+test('the gap and check wording never names an edit there wasn\'t, and a check is a rule\'s reading', () => {
+  const r = step('read');
+  for (const steps of [[r], [step('shell')], [testRun('passed')], [step('delegate')]]) {
+    const b = backingCheck(ctx(), { steps, events: [{ id: steps[0].ev, kind: 'action' }], session: 's1' });
+    assert.doesNotMatch(b.how, /edit/, b.how);
+  }
+  const e = edit();
+  const t = testRun('passed');
+  const b = backingCheck(ctx(), { steps: [e, t], events: [], session: 's1', after: e });
+  assert.deepEqual([b.status, b.level], ['checked', 'inferred']);
+  assert.match(b.how, /problems\.check-step/);
+});
+
+test('left without events, a gap is never worked out as quiet', () => {
+  const r = step('read');
+  assert.equal(backingCheck(ctx(), { steps: [r], session: 's1' }).gap, 'other-steps');
+  const e = edit();
+  assert.equal(backingCheck(ctx(), { steps: [e, step('read')], session: 's1', after: e }).gap, 'other-steps');
+});
+
+test('an edit that isn\'t in the steps, or comes after the claim, is refused rather than read from the start', () => {
+  const t = testRun('passed');
+  const r = step('read');
+  assert.throws(() => backingCheck(ctx(), { steps: [t, r], events: [], session: 's1', after: edit() }), /not one of/);
+  const e = edit();
+  assert.throws(() => backingCheck(ctx(), { steps: [t, e], events: [], session: 's1', after: e, before: t.seq }), /after the claim/);
 });
