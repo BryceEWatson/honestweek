@@ -10,10 +10,10 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { runAsk } from '../lib/ask.mjs';
-import { prWindow } from '../lib/ask-brief.mjs';
+import { briefText, prWindow } from '../lib/ask-brief.mjs';
 import { buildDemoWeek, DEMO_TERM } from '../lib/demo/week.mjs';
 import { BRIEF_SCHEMA } from '../lib/review/make.mjs';
-import { writeReviewLogs, WINDOW } from './fixtures/replay/review-pr.mjs';
+import { at, writeReviewLogs, WINDOW } from './fixtures/replay/review-pr.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 import { withoutUserConfig } from './helpers/no-user-config.mjs';
 
@@ -158,13 +158,58 @@ test('by default it reads the pull request\'s own dates', () => {
   const file = join(dir, 'honestweek.config.json');
   writeFileSync(file, JSON.stringify({ identity: { authorEmails: ['you@example.com'] }, week: { startsOn: 'monday', timezone: 'UTC' }, repos: [{ path: fx.repo, label: 'your-project', role: 'featured' }], redaction: { codenames: [], names: [], terms: [] }, output: { mode: 'digest', file: 'x.md' } }));
   const now = Date.parse('2024-07-01T00:00:00Z');
-  // Squash-merged on 11 June: 3 days before its first commit to 2 days after it landed.
-  assert.deepEqual(prWindow({ configFile: file, query: '#20', values: {}, now }), { from: '2024-06-08', to: '2024-06-13' });
+  // Squash-merged on 11 June: a squash keeps no first commit, so 3 days before it landed to 2 days
+  // after, marked so the command can read further back.
+  assert.deepEqual(prWindow({ configFile: file, query: '#20', values: {}, now }), { from: '2024-06-08', to: '2024-06-13', startUnknown: true, landedAt: Date.parse(at(40)) });
   // Open, with the head given: from its first commit, to today.
   assert.deepEqual(prWindow({ configFile: file, query: '#21', values: { '--head': fx.git.e2 }, now }), { from: '2024-06-08', to: '2024-07-01' });
   // Open with nothing to go on: the usual window.
   assert.equal(prWindow({ configFile: file, query: '#21', values: {}, now }), null);
   assert.equal(prWindow({ configFile: file, query: 'branch:x', values: {}, now }), null);
+});
+
+test('a squash with no log near its landing reads further back, then says what it could not find', async () => {
+  const dir = makeTempDir('hw-brief-squash-');
+  const file = join(dir, 'honestweek.config.json');
+  writeFileSync(file, JSON.stringify({ identity: { authorEmails: ['you@example.com'] }, week: { startsOn: 'monday', timezone: 'UTC' }, repos: [{ path: fx.repo, label: 'your-project', role: 'featured' }], redaction: { codenames: [], names: [], terms: [] }, output: { mode: 'digest', file: 'x.md' } }));
+  // No logs at all: nothing names pull request 20's commits, near its landing or before.
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: join(dir, 'claude'), CODEX_HOME: join(dir, 'codex') };
+  const run = async (argv) => {
+    const out = [];
+    const err = [];
+    const code = await runAsk({ command: 'brief', argv: [...argv, '--config', file], cwd: dir, env, now: () => Date.parse('2024-07-01T00:00:00Z'), io: { out: (s) => out.push(s), err: (s) => err.push(s) } });
+    return { code, out: out.join(''), err: err.join('') };
+  };
+  const r = await run(['#20', '--json']);
+  assert.equal(r.code, 0, r.err);
+  const o = JSON.parse(r.out);
+  // 14 days before it landed on 11 June, to 2 days after.
+  assert.deepEqual([o.window.from, o.window.to], ['2024-05-28', '2024-06-13']);
+  const note = o.notes.items.find((n) => n.kind === 'squash-start-unknown');
+  assert.match(note.text, /landed as a squash, so git can't say when its work started, and no log from 2024-05-28 on names its commits/);
+  assert.equal(o.notes.total, o.notes.items.length);
+  // Its commits aren't known, so none being unexplained says nothing; its files come from the
+  // landing commit, so they are.
+  assert.deepEqual([o.change.commits.evidence, o.unexplained.commits.known, o.unexplained.files.known], ['missing', false, true]);
+  const t = (await run(['#20'])).out;
+  assert.match(t, /commits unknown \(missing\), [1-9]\d* file\(s\) \(/, t);
+  assert.match(t, /Commits no session made or printed: unknown, since its commits aren't known\./, t);
+  assert.match(t, /Files no edit in its steps touched: [1-9]/, t);
+  assert.match(t, /no log from 2024-05-28 on names its commits/, t);
+  // The files case: a list git couldn't read is unknown in the text too.
+  const noFiles = { ...o, change: { ...o.change, files: { ...o.change.files, evidence: 'missing', total: 0, items: [] } } };
+  const tf = briefText(noFiles, 'honestweek');
+  assert.match(tf, /commits unknown \(missing\), files unknown \(missing\)\./, tf);
+  assert.match(tf, /Files no edit in its steps touched: unknown, since its files aren't known\./, tf);
+});
+
+test('with not every commit message read, no issue found is said as such', async () => {
+  const o = await json(['#21']);
+  assert.equal(o.unexplained.commits.known, true);
+  const cut = { ...o, asked: { ...o.asked, issues: { total: 0, items: [] } }, notes: { total: 1, items: [{ kind: 'messages-cut', text: 'Only the first 50 of its 60 commit messages were read for the issue it closes.' }] } };
+  assert.match(briefText(cut, 'honestweek'), /No issue it closes is named in its pull-request body, its landing commit or the commit messages read, and not all of them were read\./);
+  const whole = { ...cut, notes: { total: 0, items: [] } };
+  assert.match(briefText(whole, 'honestweek'), /No issue it closes is named in its pull-request body, commits or landing commit\./);
 });
 
 test('brief --help keeps its options to itself, and the command runs from the package', () => {

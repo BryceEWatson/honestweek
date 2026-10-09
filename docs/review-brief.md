@@ -42,7 +42,8 @@ A claim pairs with the latest check after the last edit before it, in the same s
 
 ## Limits
 
-- Its default window is the pull request's own dates, from 3 days before its first commit to 2 days after it landed. A pull request with no landing commit and no `--head` reads your usual window. When you have more than one repository configured and don't name one, the dates come from the only readable one where git shows that number landed, and the brief reads that same repository and says so. If the sessions point at a different one, it asks instead. If you meant another, name it with `--repo` or as `your-repo#N`.
+- Its default window is the pull request's own dates, from 3 days before its first commit to 2 days after it landed. A pull request with no landing commit and no `--head` reads your usual window. A squash keeps no trace of its first commit, so it starts 3 days before the squash landed; if no log there names its commits, it reads once more from 14 days before, and if that finds none either, it says how far back it read. Name its latest commit with `--head`, or read earlier with `--from`.
+- A commit or file list git couldn't read is shown as unknown, never as zero, and so are the commits or files no session explains. When you have more than one repository configured and don't name one, the dates come from the only readable one where git shows that number landed, and the brief reads that same repository and says so. If the sessions point at a different one, it asks instead. If you meant another, name it with `--repo` or as `your-repo#N`.
 - It reads every log in that window, as `find` does, so a long window takes a while; a later version reads only the sessions that could matter.
 - Earlier reviews' ranges, CI results printed in a session, and a Review page in `view` aren't in this first version.
 
