@@ -11,7 +11,7 @@ import { syncBuiltinESMExports } from 'node:module';
 import { join, resolve } from 'node:path';
 
 import { buildWorkHistory } from '../lib/replay/index.mjs';
-import { BriefError, issueRefs, pushedBranch, resolvePr } from '../lib/review/resolve.mjs';
+import { BriefError, issueRefs, prBodyOf, pushedBranch, resolvePr } from '../lib/review/resolve.mjs';
 import { BRIEF_RULES, BRIEF_RULE_SOURCES } from '../lib/review/rules.mjs';
 import { writeReviewLogs, WINDOW } from './fixtures/replay/review-pr.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
@@ -89,7 +89,7 @@ test('an open pull request: head from the local branch, base its merge-base', ()
 test('a head the reviewer gives is recorded, and a newer one than the logs\' is counted', () => {
   const pr = ask('#21', { head: G.e2 });
   assert.deepEqual({ sha: pr.head.sha, evidence: pr.head.evidence, via: pr.head.via }, { sha: G.e2, evidence: 'recorded', via: 'given' });
-  assert.deepEqual(pr.headCheck, { given: G.e2, derived: G.e1, derivedVia: 'local-branch', same: false, newer: 1, unlogged: 1, truncated: false });
+  assert.deepEqual(pr.headCheck, { given: G.e2, derived: G.e1, derivedVia: 'local-branch', same: false, relation: 'newer', newer: 1, older: 0, unlogged: 1, truncated: false });
   assert.ok(pr.notes.some((n) => n.kind === 'head-differs'));
   assert.deepEqual(pr.commits.list.map((c) => [c.sha, c.loggedBy.length]), [[G.e1, 1], [G.e2, 0]]);
   // The same head as the logs': no difference to report.
@@ -285,7 +285,7 @@ test('every inferred value names the brief rules it rests on', () => {
 });
 
 /** A squash-merged pull request whose landing has a file its branch never had: main moved first. */
-function squashRepo() {
+function squashRepo({ extra = false } = {}) {
   const dir = join(makeTempDir('hw-resolve-squash-'), 'r');
   mkdirSync(dir, { recursive: true });
   const env = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^GIT_/i.test(k))), GIT_AUTHOR_NAME: 'Dev', GIT_AUTHOR_EMAIL: 'you@example.com', GIT_COMMITTER_NAME: 'Dev', GIT_COMMITTER_EMAIL: 'you@example.com', GIT_AUTHOR_DATE: '2024-06-11T15:00:00Z', GIT_COMMITTER_DATE: '2024-06-11T15:00:00Z' };
@@ -306,30 +306,71 @@ function squashRepo() {
   git('add', '-A');
   git('commit', '-q', '-m', 'Unrelated on main');
   const parent = git('rev-parse', 'HEAD');
-  writeFileSync(join(dir, 'b.txt'), 'b\n');
+  writeFileSync(join(dir, 'b.txt'), extra ? 'b, fixed up on GitHub\n' : 'b\n');
   git('add', '-A');
   git('commit', '-q', '-m', 'Add b (#6)');
   git('branch', '-q', '-D', 'feature/x');
   return { dir, tip, parent, squash: git('rev-parse', 'HEAD') };
 }
 
-test('a squash whose files no logged commit has: head the last commit before the last push, and a commit git lacks is missing', () => {
-  const r = squashRepo();
-  const config = { identity: { authorEmails: ['you@example.com'] }, repos: [{ label: 'r', path: r.dir, role: 'featured' }] };
-  const gone = 'a'.repeat(40);
+/** The squash repository's one session: a commit (one git lacks by default), the branch's tip, a push, the create. */
+function squashSession(r, shas = [null, r.tip]) {
   const c0 = { id: 's.0.0', session: 's', kind: 'action', t: 1, facts: {} };
   const c1 = { id: 's.1.0', session: 's', kind: 'action', t: 2, facts: {} };
   const push = { id: 's.2.0', session: 's', kind: 'action', t: 3, facts: { git: { push: { branch: 'feature/x' } } } };
   const create = { id: 's.3.0', session: 's', kind: 'action', t: 4, facts: {}, _command: 'gh pr create --title x --body y' };
-  const commits = [{ session: 's', event: c0, sha: gone, via: 'harness-commit' }, { session: 's', event: c1, sha: r.tip, via: 'harness-commit' }];
-  const hh = handHistory([c0, c1, push, create], [{ session: 's', event: create, number: 6, owner: null, repo: null, via: 'gh-pr-command' }], [{ session: 's', event: push, branch: 'feature/x', via: 'push' }], commits);
-  const pr = resolvePr({ h: hh, config, query: '#6' });
+  const commits = [{ session: 's', event: c0, sha: shas[0] ?? 'a'.repeat(40), via: 'harness-commit' }, ...(shas[1] ? [{ session: 's', event: c1, sha: shas[1], via: 'harness-commit' }] : [])];
+  return handHistory([c0, c1, push, create], [{ session: 's', event: create, number: 6, owner: null, repo: null, via: 'gh-pr-command' }], [{ session: 's', event: push, branch: 'feature/x', via: 'push' }], commits);
+}
+
+test('a squash landed after the default branch moved on: the logged commit with the same change is its head', () => {
+  const r = squashRepo();
+  const config = { identity: { authorEmails: ['you@example.com'] }, repos: [{ label: 'r', path: r.dir, role: 'featured' }] };
+  const pr = resolvePr({ h: squashSession(r), config, query: '#6' });
   assert.equal(pr.landed.sha, r.squash);
+  assert.deepEqual({ sha: pr.head.sha, via: pr.head.via, rule: pr.head.rule }, { sha: r.tip, via: 'same-tree', rule: 'brief.head-same-tree' });
+  // Git read the range, so a logged commit outside it (one git lacks) isn't added to it.
+  assert.deepEqual(pr.commits.list.map((c) => c.sha), [r.tip]);
+});
+
+test('a squash whose change no logged commit has: head the last commit before the last push', () => {
+  const r = squashRepo({ extra: true });
+  const config = { identity: { authorEmails: ['you@example.com'] }, repos: [{ label: 'r', path: r.dir, role: 'featured' }] };
+  const pr = resolvePr({ h: squashSession(r), config, query: '#6' });
   assert.deepEqual({ sha: pr.head.sha, evidence: pr.head.evidence, via: pr.head.via, rule: pr.head.rule }, { sha: r.tip, evidence: 'inferred', via: 'last-push', rule: 'brief.head-last-push' });
   assert.equal(pr.base.sha, r.parent);
+  assert.ok(!pr.commits.list.some((c) => !c.inGit));
+});
+
+test('with no head to read a range from, the commits pushed are listed, and one git lacks is missing', () => {
+  const r = squashRepo({ extra: true });
+  const config = { identity: { authorEmails: ['you@example.com'] }, repos: [{ label: 'r', path: r.dir, role: 'featured' }] };
+  const gone = 'a'.repeat(40);
+  const pr = resolvePr({ h: squashSession(r, [gone, null]), config, query: '#6' });
+  assert.equal(pr.head.sha, null);
   const missing = pr.commits.list.find((c) => c.sha === gone);
   assert.deepEqual({ inGit: missing.inGit, evidence: missing.evidence, via: missing.via }, { inGit: false, evidence: 'missing', via: 'pushed' });
   assert.equal(pr.commits.evidence, 'missing', 'the list reads no stronger than its weakest row');
+});
+
+test('a head older than the logs\' says so, and one on another line says neither is past the other', () => {
+  const older = ask('#21', { head: G.squash });
+  assert.deepEqual([older.headCheck.relation, older.headCheck.newer, older.headCheck.older], ['older', 0, 1]);
+  assert.ok(older.notes.some((n) => n.kind === 'head-differs' && /The logs' head is 1 commit\(s\) past the one you gave/.test(n.text)));
+  const other = ask('#21', { head: G.d1 });
+  assert.equal(other.headCheck.relation, 'diverged');
+  assert.ok(other.notes.some((n) => n.kind === 'head-differs' && /Neither is past the other/.test(n.text)));
+});
+
+test('only the pull request body names the issue it closes, never its title', () => {
+  const r = handRepo();
+  const config = { identity: { authorEmails: ['you@example.com'] }, repos: [{ label: 'r', path: r.dir, role: 'featured' }] };
+  const create = { id: 's.1.0', session: 's', kind: 'action', t: 1, facts: {}, _command: "gh pr create --title 'Fixes #19' --body 'Closes #20, see #21' && echo 'Resolves #22'" };
+  const pr = resolvePr({ h: handHistory([create], [{ session: 's', event: create, number: 9, owner: null, repo: null, via: 'harness-git-pr' }]), config, query: '#9' });
+  assert.deepEqual(pr.issues.closes.map((x) => x.number), [20]);
+  assert.deepEqual(pr.issues.related.map((x) => x.number), [21]);
+  assert.equal(prBodyOf('gh pr create --title x --body-file -  <<\'EOF\'\nFixes #3.\nEOF'), 'Fixes #3.');
+  assert.equal(prBodyOf('gh pr create --title x --body-file notes.md'), null, 'a body on disk is not in the log');
 });
 
 test("an open pull request with no branch to read: head the last headRefOid gh printed for it, never another one's", () => {
