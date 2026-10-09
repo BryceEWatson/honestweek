@@ -224,6 +224,16 @@ test("a folder's branch isn't read back past the branch being made there, nor fr
   assert.equal(branchSwitched('git switch -'), null);
 });
 
+test("another repository's pull request with the same number is another lane", () => {
+  const theirs = ev('action', { facts: { category: 'shell' }, command: 'gh pr view 9 -R someone/else', cwd: '/w/r', branch: 'main', turn: 'x' });
+  const ours = ev('action', { facts: { category: 'shell' }, command: 'gh pr checks 9', cwd: '/w/r', branch: 'main', turn: 'y' });
+  const pr = { ...pr9, repo: { label: 'r', slug: 'you/r' } };
+  const prRefs = [{ session: 's', event: theirs, number: 9, owner: 'someone', repo: 'else' }, { session: 's', event: ours, number: 9, owner: null, repo: null }];
+  const sc = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [theirs, ours], prRefs }), pr, git: false });
+  assert.deepEqual([theirs, ours].map((e) => where(sc, e)), ['out', 'in']);
+  assert.equal(sc.laneOf(theirs.id), 'pull request someone/else#9');
+});
+
 test('the issue opening ends at the first step tied to the pull request at all', () => {
   const ask = ev('prompt', { facts: { text: 'Do issue 5.' }, turn: 'a' });
   const create = ev('action', { facts: { category: 'shell' }, command: 'gh pr create --body "Closes #5"', cwd: '/w/r', branch: 'main', turn: 'a' });
