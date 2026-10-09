@@ -189,3 +189,10 @@ test('a sub-agent\'s check backs its parent session\'s later claim', () => {
   assert.equal(out.claims.length, 1);
   assert.deepEqual([out.claims[0].backing.status, out.claims[0].backing.result], ['checked', 'passed']);
 });
+
+test('the landing commit keeps its own evidence word and rule in the brief', () => {
+  const b20 = brief('#20');
+  assert.deepEqual([b20.change.landed.evidence, b20.change.landed.rule], ['inferred', 'brief.landed-subject']);
+  assert.equal(b20.change.files.rule, 'brief.landed-subject');
+  assert.ok(b20.rules['brief.landed-subject']);
+});

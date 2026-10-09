@@ -396,3 +396,10 @@ test('one configured repository is the one', () => {
   const config = { identity: { authorEmails: ['you@example.com'] }, repos: [{ label: 'r', path: r.dir, role: 'featured' }] };
   assert.equal(resolvePr({ h: handHistory([], []), config, query: '#5' }).repo.chosenBy, 'only');
 });
+
+test('a head older than the logs\' says so, the other way round', () => {
+  const pr = ask('#21', { head: G.squash });
+  assert.equal(pr.headCheck.newer, 0);
+  assert.equal(pr.headCheck.older, 1);
+  assert.ok(pr.notes.some((n) => n.kind === 'head-differs' && /The logs' head is 1 commit\(s\) past the one you gave/.test(n.text)));
+});
