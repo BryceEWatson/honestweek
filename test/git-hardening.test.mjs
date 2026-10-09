@@ -13,16 +13,24 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  changedFiles,
   commitMessage,
+  commitRange,
   commitReachableFrom,
   commitsInWindow,
+  diffText,
+  filesOfCommit,
   gitEnv,
   GIT_HARDENING,
   landedCommitsInWindow,
+  landedPr,
   lookupCommit,
+  mergeBase,
   repoMetricsInWindow,
+  revParse,
   runGit,
   verifyItems,
+  worktreeBranches,
 } from '../lib/git.mjs';
 import { findRepos, runInit } from '../lib/init.mjs';
 import { normalizeConfig } from '../lib/config.mjs';
@@ -171,6 +179,49 @@ test('the commit lookups start no program a repository\'s config names', () => {
   assert.equal(lookupCommit(join(parent, 'partial'), '1'.repeat(40), [ME]).resolved, false);
   assert.equal(repoMetricsInWindow(join(parent, 'partial'), [ME], '2024-01-01T00:00:00Z', '2025-01-01T00:00:00Z'), null);
   assert.ok(!ran(), 'a lookup in the partial clone fetched');
+});
+
+test('the pull-request range helpers start no program a repository\'s config or attributes name', () => {
+  clearMarker();
+  assert.equal(revParse(signedRepo, 'main'), signedSha);
+  assert.equal(mergeBase(signedRepo, signedSha, 'main'), signedSha);
+  assert.deepEqual(commitRange(signedRepo, signedSha, 'main'), { commits: [], truncated: false });
+  assert.deepEqual(filesOfCommit(signedRepo, signedSha), []);
+  assert.equal(worktreeBranches(signedRepo)[0].branch, 'main');
+  assert.equal(landedPr(signedRepo, 7, [ME]).sha, signedSha);
+  assert.ok(!ran(), 'a range helper started a program');
+
+  // A repository whose diff settings name `hook` as the external diff and as a text converter.
+  const hook = hookProgram(parent);
+  const repo = newRepo(join(parent, 'diffy'));
+  writeFileSync(join(repo, '.gitattributes'), '*.txt diff=conv\n');
+  writeFileSync(join(repo, 'a.txt'), 'one\n');
+  git(repo, ['add', '-A']);
+  const from = commit(repo, 'one');
+  writeFileSync(join(repo, 'a.txt'), 'two\n');
+  git(repo, ['add', '-A']);
+  const to = commit(repo, 'two');
+  git(repo, ['config', 'diff.external', hook]);
+  git(repo, ['config', 'diff.conv.textconv', hook]);
+  git(repo, ['config', 'diff.conv.command', hook]);
+  // Failing-path partner: plain git does run the converter.
+  try { git(repo, ['diff', from, to]); } catch { /* the hook exits 1 */ }
+  assert.ok(ran(), 'plain git diff ran no program (the test can fail)');
+  clearMarker();
+  assert.match(diffText(repo, from, to, ['a.txt']).text, /^\+two$/m);
+  assert.deepEqual(changedFiles(repo, from, to), [{ status: 'M', path: 'a.txt' }]);
+  assert.deepEqual(filesOfCommit(repo, to), [{ status: 'M', path: 'a.txt' }]);
+  assert.equal(commitRange(repo, from, to).commits[0].sha, to);
+  assert.ok(!ran(), 'a diff helper started a program');
+
+  // A branch name that is really a file in the work tree is a bad revision, never a path: no
+  // work-tree diff, so no clean filter the repository names runs.
+  writeFileSync(join(repo, '.gitattributes'), '*.txt diff=conv filter=evil\n');
+  git(repo, ['config', 'filter.evil.clean', hook]);
+  writeFileSync(join(repo, 'a.txt'), 'three\n');
+  assert.equal(changedFiles(repo, from, 'a.txt'), null);
+  assert.equal(changedFiles(repo, 'a.txt', to), null);
+  assert.ok(!ran(), 'changedFiles read a branch name as a path');
 });
 
 // ---- commit ids that aren't commit ids ------------------------------------------------------
