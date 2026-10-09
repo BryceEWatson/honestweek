@@ -168,7 +168,7 @@ test('claimKinds and prBodyOf', () => {
   assert.equal(ci('Once the checks pass, I will merge.'), false);
   assert.equal(ci('CI is green, no failures.'), true);
   assert.equal(ci("CI isn't green yet. Now CI is green."), true, 'a later sentence counts');
-  for (const local of ['The build passes locally.', 'Lint checks pass.', 'Type checks pass locally.', 'I fixed the CI workflow and type checks pass.', 'I edited ci.yml; lint checks pass.', 'Lint checks pass; I pushed and CI will tell.']) assert.equal(ci(local), false, local);
+  for (const local of ['The build passes locally.', 'Lint checks pass.', 'Type checks pass locally.', 'I fixed the CI workflow and type checks pass.', 'I edited ci.yml; lint checks pass.', 'Lint checks pass; I pushed and CI will tell.', 'Fixed CI\nlint checks pass']) assert.equal(ci(local), false, local);
   for (const real of ['CI is green and I will merge.', 'All CI test jobs passed.', 'The GitHub Actions unit test jobs passed.', 'CI lint checks pass.', 'CI is green; the earlier run failed on a flake.', 'Type checks pass and all checks are green.', 'The build is green on CI.']) assert.equal(ci(real), true, real);
   assert.deepEqual(claimKinds('Done. All tests pass.').kinds.map((k) => k.kind), ['done', 'tests-pass']);
   assert.equal(prBodyOf('gh pr create --title x --body "Fixes #1. Tests pass."'), 'Fixes #1. Tests pass.');
