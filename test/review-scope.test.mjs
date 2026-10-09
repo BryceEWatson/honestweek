@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { resolvePr } from '../lib/review/resolve.mjs';
-import { branchMade, commandFolder, folderAt, scopeSteps } from '../lib/review/scope.mjs';
+import { branchMade, branchSwitched, commandFolder, folderAt, scopeSteps } from '../lib/review/scope.mjs';
 import { BRIEF_RULES } from '../lib/review/rules.mjs';
 import { writeReviewLogs, WINDOW } from './fixtures/replay/review-pr.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
@@ -141,6 +141,7 @@ const ev = (kind, extra = {}) => {
   if (extra.cwd) Object.defineProperty(e, '_lineCwd', { value: extra.cwd });
   if (extra.file) Object.defineProperty(e, '_raw', { value: { input: { file_path: extra.file } } });
   if (extra.branch) Object.defineProperty(e, '_lineBranch', { value: extra.branch });
+  if (extra.turn) e.turn = extra.turn;
   return e;
 };
 
@@ -159,21 +160,96 @@ test('one command that pushes two pull requests\' branches is ambiguous', () => 
   // pushedBranch reads the first push only, so the second branch comes from a recorded push.
   const sc = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [both], branchRefs: [] }), pr: pr9, git: false });
   assert.equal(sc.inScope.has(both.id), true, 'one push it can read');
-  const two = ev('action', { facts: { category: 'shell', git: { push: { branch: 'feature/ten' } } }, command: 'cd /w/wt9 && git push origin feature/ten', cwd: '/w/r' });
   const made = ev('action', { facts: { category: 'shell' }, command: 'git worktree add /w/wt9 -b feature/nine', cwd: '/w/r' });
+  const two = ev('action', { facts: { category: 'shell', git: { push: { branch: 'feature/ten' } } }, command: 'cd /w/wt9 && git push origin feature/ten', cwd: '/w/r' });
   const sc2 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, two] }), pr: pr9, git: false });
   assert.equal(sc2.ambiguous.has(two.id), true, "a push to another branch from this pull request's folder");
 });
 
 test('a saved session is scoped by its pointers only, and the brief says so', () => {
-  const link = ev('link');
-  const other = ev('message', { facts: { text: 'x' } });
-  const sc = scopeSteps({ h: handHistory({ sessions: [{ key: 's', saved: { at: '2024-06-11', log: 'gone' } }], events: [link, other], prRefs: [{ session: 's', event: link, number: 9 }] }), pr: pr9, git: false });
+  const ask = ev('prompt', { facts: { text: 'Do issue 5.' }, turn: 'a' });
+  const said = ev('message', { facts: { text: 'On it.' }, turn: 'b' });
+  const commit = ev('message', { facts: { text: 'Committed.' }, turn: 'b' });
+  const other = ev('message', { facts: { text: 'x' }, turn: 'c' });
+  const events = [ask, said, commit, other];
+  const pr = { ...pr9, commits: { list: [{ sha: 'abcdef1234567' }], evidence: 'recorded' } };
+  const sc = scopeSteps({ h: handHistory({ sessions: [{ key: 's', saved: { at: '2024-06-11', log: 'gone' } }], events, commitRefs: [{ session: 's', event: commit, sha: 'abcdef1234567', via: 'harness-commit' }] }), pr, git: false });
   assert.equal(sc.sessions[0].saved, true);
+  assert.equal(sc.sessions[0].role, 'author');
   assert.ok(sc.notes.some((x) => x.kind === 'saved-sessions'));
+  // The commit's turn is in; the prompt naming its issue ties nothing in a saved session.
+  assert.deepEqual(events.map((e) => where(sc, e)), ['out', 'in', 'in', 'out']);
 });
 
-test('a display-only pull request scopes nothing', () => {
-  const sc = scopeSteps({ h: handHistory({ sessions: [], events: [] }), pr: { ...pr9, display: true } });
+test('a display-only pull request scopes nothing, and reads neither the history nor git', () => {
+  const untouchable = new Proxy({}, { get: (_, k) => { throw new Error(`read ${String(k)}`); } });
+  const sc = scopeSteps({ h: untouchable, pr: { ...pr9, display: true }, repoPath: makeTempDir('hw-scope-display-') });
   assert.deepEqual([sc.inScope.size, sc.sessions.length], [0, 0]);
+});
+
+test("the issue opening stops at another pull request's step, and never takes it", () => {
+  const steps = [
+    ev('prompt', { facts: { text: 'Look at issue 5.' } }),
+    ev('action', { facts: { category: 'shell' }, command: 'gh issue view 5', cwd: '/w/r', branch: 'main' }),
+    ev('action', { facts: { category: 'shell' }, command: 'gh pr view 21', cwd: '/w/r', branch: 'main' }),
+    ev('message', { facts: { text: 'Now nine.' }, turn: 't2' }),
+    ev('action', { facts: { category: 'shell' }, command: 'git push origin feature/nine', cwd: '/w/r', branch: 'main', turn: 't2' }),
+  ];
+  const sc = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: steps, prRefs: [{ session: 's', event: steps[2], number: 21 }] }), pr: pr9, git: false });
+  assert.deepEqual(steps.map((e) => where(sc, e)), ['in', 'in', 'out', 'ambiguous', 'in']);
+  assert.equal(sc.laneOf(steps[2].id), 'pull request #21');
+});
+
+test("a folder's branch isn't read back past the branch being made there, nor from a command that never ran", () => {
+  const before = ev('action', { facts: { category: 'shell' }, command: 'cd /w/wt && npm test', cwd: '/w/r', turn: 't0' });
+  const sw = ev('action', { facts: { category: 'shell' }, command: 'cd /w/wt && git switch -c feature/nine', cwd: '/w/r' });
+  const after = ev('action', { facts: { category: 'shell' }, command: 'cd /w/wt && npm test', cwd: '/w/r' });
+  const sc = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [before, sw, after] }), pr: pr9, git: false });
+  assert.deepEqual([before, sw, after].map((e) => where(sc, e)), ['out', 'in', 'in']);
+  // A refused switch to this branch leaves the folder on the one it was made with.
+  const made = ev('action', { facts: { category: 'shell' }, command: 'cd /w/wt2 && git switch -c feature/ten', cwd: '/w/r' });
+  const refused = ev('action', { facts: { category: 'shell', result: 'rejected' }, command: 'cd /w/wt2 && git checkout -b feature/nine', cwd: '/w/r' });
+  const later = ev('action', { facts: { category: 'shell' }, command: 'cd /w/wt2 && npm test', cwd: '/w/r' });
+  const sc2 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, refused, later] }), pr: pr9, git: false });
+  assert.equal(where(sc2, later), 'out');
+  assert.equal(sc2.laneOf(later.id), 'folder on branch feature/ten');
+  // A plain switch to a branch that already exists ends the backward read too.
+  const early = ev('action', { facts: { category: 'shell' }, command: 'cd /w/wt3 && npm run build', cwd: '/w/r', turn: 't0' });
+  const plain = ev('action', { facts: { category: 'shell' }, command: 'cd /w/wt3 && git switch feature/nine', cwd: '/w/r', turn: 't2' });
+  const sent = ev('action', { facts: { category: 'shell' }, command: 'cd /w/wt3 && git push origin feature/nine', cwd: '/w/r', turn: 't3' });
+  const sc3 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [early, plain, sent] }), pr: pr9, git: false });
+  assert.deepEqual([early, plain, sent].map((e) => where(sc3, e)), ['out', 'in', 'in']);
+  assert.equal(branchSwitched('git switch feature/nine'), 'feature/nine');
+  assert.equal(branchSwitched('git checkout README.md'), null, "a file's name is no branch");
+  assert.equal(branchSwitched('git switch -'), null);
+});
+
+test('the issue opening ends at the first step tied to the pull request at all', () => {
+  const ask = ev('prompt', { facts: { text: 'Do issue 5.' }, turn: 'a' });
+  const create = ev('action', { facts: { category: 'shell' }, command: 'gh pr create --body "Closes #5"', cwd: '/w/r', branch: 'main', turn: 'a' });
+  const next = ev('prompt', { facts: { text: 'Now tidy the docs.' }, turn: 'b' });
+  const docs = ev('action', { facts: { category: 'shell' }, command: 'npm run docs', cwd: '/w/r', branch: 'main', turn: 'b' });
+  const events = [ask, create, next, docs];
+  const sc = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events, prRefs: [{ session: 's', event: create, number: 9 }] }), pr: pr9, git: false });
+  assert.equal(sc.sessions[0].role, 'author');
+  assert.deepEqual(events.map((e) => where(sc, e)), ['in', 'in', 'out', 'out']);
+});
+
+test('with its own commits unknown, another recorded commit ends the stretch', () => {
+  const push1 = ev('action', { facts: { category: 'shell' }, command: 'git push origin feature/nine', cwd: '/w/r', branch: 'main', turn: 'a' });
+  const commit = ev('action', { facts: { category: 'shell' }, command: 'git commit -m other', cwd: '/w/r', branch: 'main', turn: 'b' });
+  const push2 = ev('action', { facts: { category: 'shell' }, command: 'git push origin feature/nine', cwd: '/w/r', branch: 'main', turn: 'c' });
+  const sc = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [push1, commit, push2], commitRefs: [{ session: 's', event: commit, sha: 'abcdef1234567', via: 'harness-commit' }] }), pr: pr9, git: false });
+  assert.deepEqual([push1, commit, push2].map((e) => where(sc, e)), ['in', 'out', 'in']);
+});
+
+test('a review run started by an ambiguous step is ambiguous whole, never in', () => {
+  const both = ev('action', { facts: { category: 'shell' }, command: 'git push origin feature/nine && claude -p "/review-loop"', cwd: '/w/r', branch: 'main' });
+  const launch = both;
+  const child = { id: 'c.1.0', session: 'c', kind: 'prompt', t: 99, turn: 'u', facts: { text: '/review-loop' }, inferred: [] };
+  const h2 = handHistory({ sessions: [{ key: 's' }, { key: 'c' }], events: [both, child], prRefs: [{ session: 's', event: both, number: 10 }], links: [{ type: 'program-launch', from: launch.id, to: 'c', evidence: 'recorded', rule: 'x' }] });
+  const sc = scopeSteps({ h: h2, pr: pr9, git: false });
+  assert.equal(where(sc, both), 'ambiguous');
+  const row = sc.sessions.find((r) => r.key === 'c');
+  assert.deepEqual([row.role, row.in, row.ambiguous], ['review', 0, 1]);
 });
