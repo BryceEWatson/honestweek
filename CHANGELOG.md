@@ -6,6 +6,7 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 
 ### Changed
 
+- Asked what problems you've had, the find skill runs `problems` and answers in the chat as two tables, problems found in the log and possible ones to check yourself, each with its priority, findings and how many are worth a look, saying which rows are routine notes only and which findings are only possible, then what wasn't found and where to look first, by honestweek's own priority and reason. It no longer hands you the command to run. (#211, issue #206)
 - Asked what caused a problem, the find skill opens with what your log shows rather than a cause stated as fact, and gives a likely reason only where honestweek's own answer names one as the cause, labelled the way the answer labels that reason (never the finding's own evidence word), finding by finding, and none where what the reason rests on isn't recorded. For a cache miss, that's an expired cache, labelled inferred, and only where the log shows a pause longer than a known cache length. Asked whether it's sure, it never tells you a finding is certain or that you can be sure, doesn't rate it in other words like "very likely", and gives no percentage for how likely a finding is right or how often the check is; a share of tokens is still a measurement it can give. The two eval cases for those questions grade the same way. (#210, issue #206)
 
 ## 0.3.0 (8 October 2026)
