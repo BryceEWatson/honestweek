@@ -4,6 +4,10 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 
 ## Unreleased
 
+### Added
+
+- Git helpers that read one pull request's shape from local git alone: a commit or branch's full id, where the pull request starts, its commits (capped at 500), the files it changes, each commit's files, each worktree's branch, the commit a pull request landed as, and a capped test-file diff. Each refuses an option-shaped id before git runs and starts no diff program a repository names. Nothing calls them yet; the coming `brief` command builds on them. (issue #216)
+
 ### Changed
 
 - Asked what problems you've had, the find skill runs `problems` and answers in the chat as two tables, problems found in the log and possible ones to check yourself, each with its priority, findings and how many are worth a look, saying which rows are routine notes only and which findings are only possible, then what wasn't found and where to look first, by honestweek's own priority and reason. It no longer hands you the command to run. (#211, issue #206)
