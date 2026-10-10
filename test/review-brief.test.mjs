@@ -13,6 +13,7 @@ import { runAsk } from '../lib/ask.mjs';
 import { briefText, prWindow, startUnknownNote } from '../lib/ask-brief.mjs';
 import { buildDemoWeek, DEMO_TERM } from '../lib/demo/week.mjs';
 import { BRIEF_SCHEMA } from '../lib/review/make.mjs';
+import { issueViewedAlone } from '../lib/review/brief.mjs';
 import { at, writeReviewLogs, WINDOW } from './fixtures/replay/review-pr.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 import { withoutUserConfig } from './helpers/no-user-config.mjs';
@@ -226,6 +227,26 @@ test('with not every commit message read, no issue found is said as such', async
   assert.match(briefText(cut, 'honestweek'), /No issue it closes is named in its pull-request body, its landing commit or the commit messages read, and not all of them were read\./);
   const whole = { ...cut, notes: { total: 0, items: [] } };
   assert.match(briefText(whole, 'honestweek'), /No issue it closes is named in its pull-request body, commits or landing commit\./);
+});
+
+test("an issue's text comes only from a line that printed it alone", () => {
+  assert.equal(issueViewedAlone('gh issue view 19'), 19);
+  assert.equal(issueViewedAlone('cd /path/to/your/repo && gh issue view #19 --comments'), 19);
+  // Failing-path partners: another command's output, or a pipe that changes the text.
+  assert.equal(issueViewedAlone('git log --oneline -3 && gh issue view 19'), null);
+  assert.equal(issueViewedAlone('gh issue view 19 --json body -q .body | sed -n 1,20p'), null);
+});
+
+test('the text says how many steps came after it landed, and when a check ran on a branch made from its own', async () => {
+  const o = await json(['#20']);
+  const s = o.sessions.items[0];
+  const later = { ...o, sessions: { ...o.sessions, items: [{ ...s, lanes: [...s.lanes, { lane: 'after it landed', steps: 4 }] }, ...o.sessions.items.slice(1)] } };
+  assert.match(briefText(later, 'honestweek'), /; 4 came after it landed\./);
+  const k = o.checks.items.at(-1);
+  const tracked = { ...o, checks: { ...o.checks, items: [...o.checks.items.slice(0, -1), { ...k, folder: 'tracking-branch' }] } };
+  const t = briefText(tracked, 'honestweek');
+  assert.match(t, /on a branch made from or pushed to its branch \(inferred, brief\.tracks-branch\)/);
+  for (const line of t.split('\n').filter((l) => !/^\s*>/.test(l))) assert.doesNotMatch(line.replace(/"(?:[^"\\]|\\.)*"/g, '""'), VERDICT, line);
 });
 
 test('brief --help keeps its options to itself, and the command runs from the package', () => {
