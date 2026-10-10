@@ -1,7 +1,7 @@
 ---
 name: honestweek
 description: Turn a completed week of your AI coding sessions into an honest, git-verified, private-by-default work summary. Use it when the user types /honestweek or explicitly asks for a weekly summary, weekly update or work report ("write up my week", "draft my weekly update"), not for a question about today's commits or for finding a session. It discovers the week's sessions into a redacted digest, distils it into reviewable work items with a status badge and receipt, builds them with verify-or-abort, and leaves a draft the user reviews and publishes themselves. With no config it stops and asks before writing one. Automatic session-derived digest items carry receipts without claiming work status. honestweek never auto-publishes.
-argument-hint: "[weekly | client <from> <to> | mine | view | digest]"
+argument-hint: "[weekly | client <from> <to> | mine | view | digest | brief <PR>]"
 allowed-tools: Bash(node "${CLAUDE_SKILL_DIR}/bin/honestweek.mjs" *)
 ---
 
@@ -72,6 +72,7 @@ The text after the skill's name, if any, is `$ARGUMENTS`. Its first word picks t
 | `mine` | Solved problems in the user's logs worth writing up | [flows/mine.md](flows/mine.md) |
 | `view` | Finding and replaying sessions, in the local page or with `find`, `replay`, `problems` and `goals` | [flows/view.md](flows/view.md) |
 | `digest` | The balanced digest lane, for `page` or `site` output with no goals registry | [flows/digest.md](flows/digest.md) |
+| `brief` | How one pull request was made, for whoever reviews it, such as `brief #42` | [flows/brief.md](flows/brief.md) |
 
 The distillation contract and the safety invariants above apply to every flow.
 
