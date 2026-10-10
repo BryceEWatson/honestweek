@@ -327,6 +327,10 @@ test('a branch made from its branch, or one pushed to it by name, is read as on 
   const sc = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, ran, sent] }), pr: pr9, git: false });
   assert.deepEqual([sc.tracks('review/nine'), sc.branchOf(ran.id), where(sc, made), where(sc, ran)], [true, 'review/nine', 'in', 'in']);
   assert.match(sc.why.get(ran.id).rule, /brief\.tracks-branch/);
+  // A step there that only mentions a push isn't one: the branch still carries its work.
+  const said = ['grep -n "git push" lib/a.mjs', 'git commit -am "Document git push HEAD:x"'].map((c) => ev('action', { facts: { category: 'shell' }, command: `cd /w/rev && ${c}`, cwd: '/w/r', turn: 'a' }));
+  const scSaid = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, ran, ...said, sent] }), pr: pr9, git: false });
+  assert.deepEqual([scSaid.tracks('review/nine'), where(scSaid, ran)], [true, 'in']);
   assert.deepEqual(branchMade('git worktree add /w/rev -b review/nine origin/feature/nine'), { branch: 'review/nine', path: '/w/rev', from: 'feature/nine' });
   assert.deepEqual(branchMade('git switch -c review/nine feature/nine'), { branch: 'review/nine', path: null, from: 'feature/nine' });
   // A folder on its own branch that pushes HEAD to the pull request's branch.

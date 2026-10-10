@@ -459,6 +459,13 @@ test('a body passed with --body-file is read back from the writes and edits that
     ['a write to the same name under another spelling', step('action', { tool: 'Write', input: { file_path: '/tmp/body.md', content: 'Closes #9.' } })],
     ['an edit cut off part way', step('action', { tool: 'Write', input: { file_path: 'C:/tmp/body.md', content: 'Closes #9.' }, result: 'interrupted' })],
   ]) assert.equal(prBodyAt({ events: [write, between, create] }, create), null, what);
+  // A command that names it but was turned down or blocked wrote nothing.
+  for (const result of ['rejected', 'refused']) {
+    const blocked = step('action', { command: "sed -i 's/7/8/' C:/tmp/body.md", result });
+    assert.equal(prBodyAt({ events: [write, blocked, create] }, create)?.text, 'Adds a parser.\n\nCloses #7.', result);
+  }
+  // In this session, a brace pattern could name it too.
+  assert.equal(prBodyAt({ events: [write, step('action', { command: "sed -i 's/7/8/' C:/tmp/{body,notes}.md" }), create] }, create), null);
   // A variable or pattern whose file name can't be this one leaves the body known.
   for (const command of ['S=/c/tmp; node -e "x" "$S/b210.json"', 'cat "$S"/notes.md > "$S/out.txt"', 'rm -f C:/tmp/*.json']) {
     assert.equal(prBodyAt({ events: [write, step('action', { command }), create] }, create)?.text, 'Adds a parser.\n\nCloses #7.', command);
