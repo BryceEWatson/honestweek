@@ -21,7 +21,7 @@ A few terms used below:
 | --- | --- | --- |
 | `honestweek view` (the page, with its Setup and Settings) | Your session logs and repositories, into memory on your machine | No, unless you turn on Include /insights and press Run |
 | `/honestweek` (the weekly summary in Claude Code) | A redacted draft of last week's Claude Code sessions, plus what each command prints | Yes: Claude reads all of it and writes the summary from the draft |
-| `find`, `replay`, `problems`, `goals`, and the find skill | Your session logs, goal list and repositories, into memory on your machine | Only when an agent runs them: it reads what they print, redacted the way the page shows it |
+| `find`, `replay`, `problems`, `goals`, `brief`, and the find skill | Your session logs, goal list and repositories, into memory on your machine | Only when an agent runs them: it reads what they print, redacted the way the page shows it |
 | `init`, `discover`, `build` on their own | Your git settings, repositories and logs | No. Run through `/honestweek`, Claude sees what they print |
 
 ## `honestweek view`: nothing goes to an AI unless you ask
@@ -106,6 +106,8 @@ Both work only while Include /insights is on, and each asks you to confirm first
 ## The find skill and its four questions
 
 `find`, `replay`, `problems` and `goals` answer the questions the page does and print the answer. Run in a terminal, nothing reaches an AI. When Claude or Codex runs them, through the find skill or because you asked, it reads what they print: session titles, your prompts and step descriptions, file names and findings, redacted the way the page shows them with Show private text off. They have no option for private text, and they write nothing to disk, apart from `--demo`'s made-up week, which goes in a temporary folder they remove.
+
+`brief` works the same way for one pull request. Run in a terminal, nothing reaches an AI. An agent that runs it reads the brief, redacted the same way: the pull request's commits and files, your prompts and the agent's claims among its steps, the checks they ran, and its findings. It has no option for private text, reads git only on your machine, and writes nothing apart from `--demo`'s made-up week, as above. No skill runs it yet.
 
 In Claude Code, the find skill lets Claude run those four without asking each time, and nothing else: starting the page for a link (`view`) asks you first, and it never runs `init`, `build` or anything that writes. In Codex, the skill tells it the same, but your Codex approval settings decide what it runs without asking, and the same text goes to OpenAI's model instead of Claude.
 

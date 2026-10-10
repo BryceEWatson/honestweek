@@ -272,3 +272,18 @@ What's left for me is the list above, plus a ruleset on `v*` tags that blocks mo
 > - **Privacy.** `init` keeps your old config's private words and display-only folders when it rewrites it, stops before running git when the config there can't be read, and never asks git about a repository that holds a display-only folder. `init`, Setup and Settings now git-ignore your config from the start, not only once it lists private words, and `preview` stops on its own after 30 minutes with no visits.
 >
 > The full list is in [CHANGELOG.md](https://github.com/BryceEWatson/honestweek/blob/main/CHANGELOG.md).
+
+## 0.4.0 release notes
+
+> **honestweek 0.4.0**
+>
+> This release adds a brief for whoever reviews a pull request: how the change was made, from your own session logs and local git. Run `npx honestweek@0.4.0 brief '#14' --demo` to see one on a made-up week. It still has no dependencies, runs only on your own machine, and never publishes anything for you. You need Node 18 or later and `git` 2.24 or later.
+>
+> **What's new**
+>
+> - **A brief for a pull request's reviewer.** `honestweek brief <PR>` takes a pull request by its number, its address or its branch and prints, in no more than about 80 lines however large it is, the change (its latest commit, where it starts, its branch, commits and files), what was asked (the issue it closes, with its text when a session printed it, and your prompts), the sessions that wrote and reviewed it, the checks their steps ran and whether each still holds at its latest commit, and each claim the agent made ("done", "tests pass", "CI is green") next to the check behind it or the gap. Then come plain check commands to run yourself, weakened tests and skipped hooks, other problems in its steps, where you stepped in, changes no session explains, and what it can't know. `--json` gives everything as `honestweek.brief/1`.
+> - **It keeps one pull request's steps apart from the rest.** A session that worked on several pull requests, reaching each worktree with `cd`, gives each one only its own steps. Steps after a pull request landed are left out. A review worktree on a branch made from the pull request's branch, or pushed to it, counts as on it.
+> - **It gives no verdict.** The brief never says a change is good or ready. Every row says how it's known, it reads nothing over the network, and `--head`, `--base` and `--issue` take what GitHub knows when you have it. `--evidence-only` leaves the author agent's own words out.
+> - **The find skill answers in the chat.** Asked what problems you've had, it answers as two tables (problems found in the log, and possible ones to check yourself) instead of handing you a command. Asked what caused a problem, it opens with what your log shows, gives a likely reason only where honestweek's own answer names one, and never tells you a finding is certain.
+>
+> The full list is in [CHANGELOG.md](https://github.com/BryceEWatson/honestweek/blob/main/CHANGELOG.md).

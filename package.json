@@ -1,6 +1,6 @@
 {
   "name": "honestweek",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Find, replay and check your Claude Code and Codex sessions on your own machine, and turn a week of them into an honest, git-checked summary.",
   "type": "module",
   "bin": {
