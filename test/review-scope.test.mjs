@@ -418,6 +418,13 @@ test('a branch made from its branch counts only while every commit made on it is
   // commit with nothing recorded leaves it unproven unless it's pushed to its branch.
   const printed = handHistory({ sessions: [{ key: 's' }], events: [made, ran, commit], commitRefs: [{ session: 's', event: commit, sha: 'bbbbbbb2222222', via: 'printed-output' }] });
   assert.equal(scopeSteps({ h: printed, pr: own, git: false }).tracks('feature/stacked'), false);
+  const printedOwn = handHistory({ sessions: [{ key: 's' }], events: [made, ran, commit], commitRefs: [{ session: 's', event: commit, sha: 'aaaaaaa1111111', via: 'printed-output' }] });
+  assert.equal(scopeSteps({ h: printedOwn, pr: own, git: false }).tracks('feature/stacked'), true);
+  // So does a commit another git command made, with nothing recorded.
+  for (const command of ['cd /w/st && git cherry-pick 1234567', 'cd /w/st && git merge feature/other', 'cd /w/st && git -c core.hooksPath=x commit -m next', 'cd /w/st && git am ../p.patch']) {
+    const other = ev('action', { facts: { category: 'shell' }, command, cwd: '/w/r', turn: 's1' });
+    assert.equal(scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, ran, other] }), pr: own, git: false }).tracks('feature/stacked'), false, command);
+  }
   assert.equal(scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, ran, commit] }), pr: own, git: false }).tracks('feature/stacked'), false);
   assert.equal(scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, commit, sent] }), pr: own, git: false }).tracks('feature/stacked'), true);
 });
