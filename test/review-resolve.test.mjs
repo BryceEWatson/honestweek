@@ -454,10 +454,15 @@ test('a body passed with --body-file is read back from the writes and edits that
     ['another edit tool', step('action', { tool: 'NotebookEdit', input: { file_path: 'C:/tmp/body.md', new_source: 'x' } })],
     ['another session writing it', other],
     ['a command that names it by a pattern', step('action', { command: "sed -i 's/7/8/' C:/tmp/*.md" })],
+    ['a command that names it by a variable', step('action', { command: 'node fix.mjs "$F"' })],
     ['git putting files back', step('action', { command: 'cd C:/tmp && git checkout -- .' })],
     ['a write to the same name under another spelling', step('action', { tool: 'Write', input: { file_path: '/tmp/body.md', content: 'Closes #9.' } })],
     ['an edit cut off part way', step('action', { tool: 'Write', input: { file_path: 'C:/tmp/body.md', content: 'Closes #9.' }, result: 'interrupted' })],
   ]) assert.equal(prBodyAt({ events: [write, between, create] }, create), null, what);
+  // A variable or pattern whose file name can't be this one leaves the body known.
+  for (const command of ['S=/c/tmp; node -e "x" "$S/b210.json"', 'cat "$S"/notes.md > "$S/out.txt"', 'rm -f C:/tmp/*.json']) {
+    assert.equal(prBodyAt({ events: [write, step('action', { command }), create] }, create)?.text, 'Adds a parser.\n\nCloses #7.', command);
+  }
   // An edit that failed changed nothing; with no Write logged, the body isn't known.
   const failedEdit = step('action', { tool: 'Edit', input: { file_path: 'C:/tmp/body.md', old_string: 'Closes', new_string: 'Mentions' }, result: 'error' });
   assert.equal(prBodyAt({ events: [write, failedEdit, create] }, create)?.text, 'Adds a parser.\n\nCloses #7.');
