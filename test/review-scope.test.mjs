@@ -409,4 +409,15 @@ test('a branch made from its branch counts only while every commit made on it is
   // Failing-path partners: a commit there that isn't (unpushed stacked work), or its commits unknown.
   assert.equal(scopeSteps({ h: hh('bbbbbbb2222222'), pr: own, git: false }).tracks('feature/stacked'), false);
   assert.equal(scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, ran] }), pr: pr9, git: false }).tracks('feature/stacked'), false);
+  // A review branch whose fix is pushed to its branch still counts, with its commits unknown too.
+  const sent = ev('action', { facts: { category: 'shell' }, command: 'cd /w/st && git push origin HEAD:feature/nine', cwd: '/w/r', turn: 's1' });
+  const fixed = handHistory({ sessions: [{ key: 's' }], events: [made, commit, sent], commitRefs: [{ session: 's', event: commit, sha: 'ccccccc3333333', via: 'harness-commit' }] });
+  assert.equal(scopeSteps({ h: fixed, pr: pr9, git: false }).tracks('feature/stacked'), true);
+  assert.equal(scopeSteps({ h: fixed, pr: { ...pr9, commits: { list: [{ sha: 'ccccccc3333333' }], evidence: 'recorded' } }, git: false }).tracks('feature/stacked'), true);
+  // A commit read only from its printed output (a Codex commit) counts against it too, and a
+  // commit with nothing recorded leaves it unproven unless it's pushed to its branch.
+  const printed = handHistory({ sessions: [{ key: 's' }], events: [made, ran, commit], commitRefs: [{ session: 's', event: commit, sha: 'bbbbbbb2222222', via: 'printed-output' }] });
+  assert.equal(scopeSteps({ h: printed, pr: own, git: false }).tracks('feature/stacked'), false);
+  assert.equal(scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, ran, commit] }), pr: own, git: false }).tracks('feature/stacked'), false);
+  assert.equal(scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, commit, sent] }), pr: own, git: false }).tracks('feature/stacked'), true);
 });
