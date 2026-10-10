@@ -252,8 +252,11 @@ test('the text says how many steps came after it landed, and when a check ran on
 test('brief --help keeps its options to itself, and the command runs from the package', () => {
   const r = spawnSync(process.execPath, [BIN, 'brief', '--help'], { encoding: 'utf8', env: withoutUserConfig() });
   assert.equal(r.status, 0);
-  for (const s of ['--head', '--base', '--issue', '--repo', '--evidence-only', 'gh pr view N --json headRefOid,baseRefOid,closingIssuesReferences', "It isn't a review and gives no verdict"]) assert.ok(r.stdout.includes(s), s);
+  for (const s of ['--head', '--base', '--issue', '--repo', '--evidence-only', 'gh pr view N --json headRefOid,baseRefOid,closingIssuesReferences', "It isn't a review and gives no verdict", 'When it finds a session behind the pull request, the text answer ends with']) assert.ok(r.stdout.includes(s), s);
+  // The brief's rows carry no page of their own, so its help doesn't say they do.
+  assert.doesNotMatch(r.stdout, /names its page/);
   const demo = spawnSync(process.execPath, [BIN, 'brief', '#14', '--demo', '--json'], { encoding: 'utf8', env: withoutUserConfig(), timeout: 120e3 });
   assert.equal(demo.status, 0, demo.stderr);
   assert.equal(JSON.parse(demo.stdout).schema, BRIEF_SCHEMA);
+  assert.doesNotMatch(demo.stdout, /"page"|replay\.html/);
 });
