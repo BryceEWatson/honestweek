@@ -11,7 +11,7 @@ import { syncBuiltinESMExports } from 'node:module';
 import { join, resolve } from 'node:path';
 
 import { buildWorkHistory } from '../lib/replay/index.mjs';
-import { BriefError, issueRefs, prBodyOf, pushedBranch, resolvePr } from '../lib/review/resolve.mjs';
+import { BriefError, bodyFileOf, commandsWithTargets, issueRefs, prBodyAt, prBodyOf, pushedBranch, pushSpec, resolvePr } from '../lib/review/resolve.mjs';
 import { BRIEF_RULES, BRIEF_RULE_SOURCES } from '../lib/review/rules.mjs';
 import { writeReviewLogs, WINDOW } from './fixtures/replay/review-pr.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
@@ -411,4 +411,81 @@ test('a head older than the logs\' says so, the other way round', () => {
   assert.equal(pr.headCheck.newer, 0);
   assert.equal(pr.headCheck.older, 1);
   assert.ok(pr.notes.some((n) => n.kind === 'head-differs' && /The logs' head is 1 commit\(s\) past the one you gave/.test(n.text)));
+});
+
+test('a body passed with --body-file is read back from the writes and edits that made the file', () => {
+  assert.equal(bodyFileOf('gh pr create --title x --body-file notes.md'), 'notes.md');
+  assert.equal(bodyFileOf('cd /w/r && MSYS_NO_PATHCONV=1 gh pr create -R you/r --body-file "C:/tmp/pr body.md"'), 'C:/tmp/pr body.md');
+  assert.equal(bodyFileOf('gh pr create -F=body.md'), 'body.md');
+  assert.equal(bodyFileOf('gh pr create --body-file - <<EOF\nx\nEOF'), null, 'standard input is the heredoc prBodyOf reads');
+  assert.equal(bodyFileOf('git commit -F notes.md'), null);
+  assert.equal(bodyFileOf('gh pr create -t "support -F notes.md" --body-file body.md'), 'body.md', 'a -F in the title is the title');
+  let n = 0;
+  const step = (kind, { command, cwd = '/w/r', tool, input, result, session = 's' } = {}) => {
+    const e = { id: `s.${++n}.0`, session, kind, t: n, facts: { category: tool ? 'edit' : 'shell', ...(result ? { result } : {}) } };
+    if (command) Object.defineProperty(e, '_command', { value: command });
+    Object.defineProperty(e, '_lineCwd', { value: cwd });
+    if (tool) Object.defineProperty(e, '_raw', { value: { tool, input } });
+    return e;
+  };
+  const write = step('action', { tool: 'Write', input: { file_path: 'C:\\tmp\\body.md', content: 'Adds a parser.\n\nCloses #7.' } });
+  const edit = step('action', { tool: 'Edit', input: { file_path: 'C:/tmp/body.md', old_string: 'a parser', new_string: 'a streaming parser' } });
+  const grep = step('action', { command: 'grep -n "—" "C:/tmp/body.md"; echo done' });
+  const create = step('action', { command: 'gh pr create --title t --body-file "C:/tmp/body.md"' });
+  const other = step('action', { tool: 'Write', input: { file_path: 'C:/tmp/body.md', content: 'Closes #8.' }, session: 'o' });
+  const h = { events: [write, edit, grep, create] };
+  assert.deepEqual(prBodyAt(h, create), { text: 'Adds a streaming parser.\n\nCloses #7.', via: 'body-file' });
+  // An edit the person turned down changed nothing.
+  const turnedDown = step('action', { tool: 'Edit', input: { file_path: 'C:/tmp/body.md', old_string: 'Closes #7.', new_string: 'Closes #12.' }, result: 'rejected' });
+  assert.equal(prBodyAt({ events: [write, turnedDown, create] }, create)?.text, 'Adds a parser.\n\nCloses #7.');
+  // A body on the command line wins, as before.
+  const inline = step('action', { command: 'gh pr create --title t --body "Fixes #9"' });
+  assert.deepEqual(prBodyAt({ events: [write, inline] }, inline), { text: 'Fixes #9', via: 'command' });
+  // A relative path is the create step's folder's.
+  const rel = step('action', { command: 'cd /w/r && gh pr create --body-file notes/body.md', cwd: '/w' });
+  const relWrite = step('action', { tool: 'Write', input: { file_path: '/w/r/notes/body.md', content: 'Fixes #3' } });
+  assert.equal(prBodyAt({ events: [relWrite, rel] }, rel)?.text, 'Fixes #3');
+  // Failing-path partners: anything that could have changed the file in between makes it unknown.
+  for (const [what, between] of [
+    ['a redirect into it', step('action', { command: 'echo "Closes #1" > "C:/tmp/body.md"' })],
+    ['a command that may write it', step('action', { command: 'sed -i s/7/8/ C:/tmp/body.md' })],
+    ['a command line it can\'t split', step('action', { command: 'cat "$(echo C:/tmp/body.md)"' })],
+    ['an edit that did not apply', step('action', { tool: 'Edit', input: { file_path: 'C:/tmp/body.md', old_string: 'not there', new_string: 'x' } })],
+    ['another edit tool', step('action', { tool: 'NotebookEdit', input: { file_path: 'C:/tmp/body.md', new_source: 'x' } })],
+    ['another session writing it', other],
+    ['a command that names it by a pattern', step('action', { command: "sed -i 's/7/8/' C:/tmp/*.md" })],
+    ['a command that names it by a variable', step('action', { command: 'node fix.mjs "$F"' })],
+    ['git putting files back', step('action', { command: 'cd C:/tmp && git checkout -- .' })],
+    ['a write to the same name under another spelling', step('action', { tool: 'Write', input: { file_path: '/tmp/body.md', content: 'Closes #9.' } })],
+    ['an edit cut off part way', step('action', { tool: 'Write', input: { file_path: 'C:/tmp/body.md', content: 'Closes #9.' }, result: 'interrupted' })],
+  ]) assert.equal(prBodyAt({ events: [write, between, create] }, create), null, what);
+  // A command that names it but was turned down or blocked wrote nothing.
+  for (const result of ['rejected', 'refused']) {
+    const blocked = step('action', { command: "sed -i 's/7/8/' C:/tmp/body.md", result });
+    assert.equal(prBodyAt({ events: [write, blocked, create] }, create)?.text, 'Adds a parser.\n\nCloses #7.', result);
+  }
+  // In this session, a brace pattern could name it too.
+  assert.equal(prBodyAt({ events: [write, step('action', { command: "sed -i 's/7/8/' C:/tmp/{body,notes}.md" }), create] }, create), null);
+  // A variable or pattern whose file name can't be this one leaves the body known.
+  for (const command of ['S=/c/tmp; node -e "x" "$S/b210.json"', 'cat "$S"/notes.md > "$S/out.txt"', 'rm -f C:/tmp/*.json']) {
+    assert.equal(prBodyAt({ events: [write, step('action', { command }), create] }, create)?.text, 'Adds a parser.\n\nCloses #7.', command);
+  }
+  // An edit that failed changed nothing; with no Write logged, the body isn't known.
+  const failedEdit = step('action', { tool: 'Edit', input: { file_path: 'C:/tmp/body.md', old_string: 'Closes', new_string: 'Mentions' }, result: 'error' });
+  assert.equal(prBodyAt({ events: [write, failedEdit, create] }, create)?.text, 'Adds a parser.\n\nCloses #7.');
+  assert.equal(prBodyAt({ events: [edit, create] }, create), null);
+});
+
+test('the command splitter keeps quoted words whole and finds what a line writes into', () => {
+  assert.deepEqual(commandsWithTargets('grep -n "a|b" "my file.md" 2>&1; echo "x" >> out.txt'), [{ words: ['grep', '-n', 'a|b', 'my file.md'], into: [] }, { words: ['echo', 'x'], into: ['out.txt'] }]);
+  assert.deepEqual(commandsWithTargets('cmd 2>/dev/null && cat a>b'), [{ words: ['cmd'], into: ['/dev/null'] }, { words: ['cat', 'a'], into: ['b'] }]);
+  assert.equal(commandsWithTargets('cat <<EOF\nx\nEOF'), null);
+  assert.equal(commandsWithTargets('echo "open'), null);
+});
+
+test('pushSpec reads what a push sends from as well as where to', () => {
+  assert.deepEqual(pushSpec('git push origin HEAD:feature/x'), { branch: 'feature/x', from: 'HEAD' });
+  assert.deepEqual(pushSpec('git push -u origin review/x:refs/heads/feature/x'), { branch: 'feature/x', from: 'review/x' });
+  assert.deepEqual(pushSpec('git push origin feature/x'), { branch: 'feature/x', from: null });
+  assert.equal(pushedBranch('git push origin HEAD:feature/x'), 'feature/x');
 });

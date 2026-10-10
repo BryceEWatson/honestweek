@@ -77,7 +77,12 @@ test('a review run started by a step in scope is in whole, and a reader only by 
   const rev = sc.sessions.find((s) => s.key === fx.key.review);
   assert.deepEqual({ role: rev.role, steps: rev.steps, in: rev.in, rule: rev.roleRule }, { role: 'review', steps: 5, in: 5, rule: 'brief.review-session' });
   assert.equal(rev.launchedBy.event, stepBy('claude -p --session-id').id);
-  const reader = sc.sessions.find((s) => s.key === fx.key.reader);
+  // The reader looked it up only after it landed, so none of its steps are how it was made.
+  const late = sc.sessions.find((s) => s.key === fx.key.reader);
+  assert.deepEqual([late.in, late.lanes.some((l) => l.lane === 'after it landed')], [0, true]);
+  // Read as not landed, its one step that names the pull request is in, and nothing else.
+  const { pr } = scope('#20');
+  const reader = scopeSteps({ h, pr: { ...pr, landed: null }, repoPath: fx.repo }).sessions.find((s) => s.key === fx.key.reader);
   assert.equal(reader.role, 'mentioned');
   assert.equal(reader.in, 1);
   // The review run belongs to pull request 20: started by its step, on its branch. Not 21's.
@@ -312,4 +317,114 @@ test("a stacked pull request's base branch ties a folder to no pull request, lik
     const sc = scopeSteps({ h: h5, pr: { ...pr9, base: { ref } }, git: false });
     assert.notEqual(sc.laneOf(work.id), 'folder on branch feature/parent', ref);
   }
+});
+
+test('a branch made from its branch, or one pushed to it by name, is read as on its branch', () => {
+  // A review worktree made from the pull request's branch: a test there ran on its work.
+  const made = ev('action', { facts: { category: 'shell' }, command: 'git worktree add /w/rev -b review/nine origin/feature/nine', cwd: '/w/r', turn: 'a' });
+  const ran = ev('action', { facts: { category: 'shell' }, command: 'cd /w/rev && npm test', cwd: '/w/r', turn: 'a' });
+  const sent = ev('action', { facts: { category: 'shell' }, command: 'cd /w/rev && git push origin HEAD:feature/nine', cwd: '/w/r', turn: 'a' });
+  const sc = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, ran, sent] }), pr: pr9, git: false });
+  assert.deepEqual([sc.tracks('review/nine'), sc.branchOf(ran.id), where(sc, made), where(sc, ran)], [true, 'review/nine', 'in', 'in']);
+  assert.match(sc.why.get(ran.id).rule, /brief\.tracks-branch/);
+  // A step there that only mentions a push isn't one: the branch still carries its work.
+  const said = ['grep -n "git push" lib/a.mjs', 'git commit -am "Document git push HEAD:x"'].map((c) => ev('action', { facts: { category: 'shell' }, command: `cd /w/rev && ${c}`, cwd: '/w/r', turn: 'a' }));
+  const scSaid = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, ran, ...said, sent] }), pr: pr9, git: false });
+  assert.deepEqual([scSaid.tracks('review/nine'), where(scSaid, ran)], [true, 'in']);
+  assert.deepEqual(branchMade('git worktree add /w/rev -b review/nine origin/feature/nine'), { branch: 'review/nine', path: '/w/rev', from: 'feature/nine' });
+  assert.deepEqual(branchMade('git switch -c review/nine feature/nine'), { branch: 'review/nine', path: null, from: 'feature/nine' });
+  // A folder on its own branch that pushes HEAD to the pull request's branch.
+  const work = ev('action', { facts: { category: 'shell' }, command: 'npm test', cwd: '/w/rv2', branch: 'review/x', turn: 'b' });
+  const push = ev('action', { facts: { category: 'shell' }, command: 'git push origin HEAD:feature/nine', cwd: '/w/rv2', branch: 'review/x', turn: 'b' });
+  const sc2 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [work, push] }), pr: pr9, git: false });
+  assert.deepEqual([sc2.tracks('review/x'), where(sc2, work)], [true, 'in']);
+  // Failing-path partners: made from main, or pushed to another branch, carries none of its work.
+  const fromMain = ev('action', { facts: { category: 'shell' }, command: 'git worktree add /w/o -b review/y origin/main', cwd: '/w/r', turn: 'c' });
+  const elsewhere = ev('action', { facts: { category: 'shell' }, command: 'git push origin HEAD:feature/ten', cwd: '/w/rv3', branch: 'review/z', turn: 'c' });
+  const failed = ev('action', { facts: { category: 'shell', result: 'error' }, command: 'git push origin HEAD:feature/nine', cwd: '/w/rv4', branch: 'review/w', turn: 'c' });
+  const sc3 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [fromMain, elsewhere, failed] }), pr: pr9, git: false });
+  assert.deepEqual(['review/y', 'review/z', 'review/w', 'main', null].map((b) => sc3.tracks(b)), [false, false, false, false, false]);
+  // A stacked pull request's branch is made from its branch too, but it's pushed under its own
+  // name and opened as its own pull request: its work is never this one's.
+  const stack = ev('action', { facts: { category: 'shell' }, command: 'git switch -c feature/two feature/nine', cwd: '/w/r', branch: 'feature/nine', turn: 'd' });
+  const editTwo = ev('action', { facts: { category: 'edit' }, file: '/w/r/lib/b.mjs', cwd: '/w/r', branch: 'feature/two', turn: 'd' });
+  const pushTwo = ev('action', { facts: { category: 'shell' }, command: 'git push -u origin feature/two', cwd: '/w/r', branch: 'feature/two', turn: 'e' });
+  const openTwo = ev('action', { facts: { category: 'shell' }, command: 'gh pr create --base feature/nine --title two', cwd: '/w/r', branch: 'feature/two', turn: 'e' });
+  const sc4 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [stack, editTwo, pushTwo, openTwo] }), pr: pr9, git: false });
+  assert.deepEqual([sc4.tracks('feature/two'), where(sc4, editTwo), where(sc4, openTwo)], [false, 'out', 'out']);
+  // Opened with --head and never pushed in the logs counts the same.
+  const sc5 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [stack, editTwo, ev('action', { facts: { category: 'shell' }, command: 'gh pr create --head feature/two --base feature/nine', cwd: '/w/x', turn: 'e' })] }), pr: pr9, git: false });
+  assert.equal(sc5.tracks('feature/two'), false);
+});
+
+test("a step after the pull request landed isn't its own; one that's another's keeps that lane", () => {
+  // Run from the main checkout, which records main: no folder ties a step to a pull request.
+  const push = ev('action', { facts: { category: 'shell' }, command: 'git push origin feature/nine', cwd: '/w/r', branch: 'main', turn: 'a' });
+  const merge = ev('action', { facts: { category: 'shell' }, command: 'gh pr merge 9 --squash', cwd: '/w/r', branch: 'main', turn: 'a' });
+  const ask = ev('prompt', { facts: { text: 'Sum up what was done.' }, turn: 'b' });
+  const look = ev('action', { facts: { category: 'shell' }, command: 'gh pr view 9', cwd: '/w/r', branch: 'main', turn: 'b' });
+  const next = ev('action', { facts: { category: 'shell' }, command: 'gh pr view 21', cwd: '/w/r', branch: 'main', turn: 'c' });
+  const events = [push, merge, ask, look, next];
+  const prRefs = [{ session: 's', event: merge, number: 9 }, { session: 's', event: look, number: 9 }, { session: 's', event: next, number: 21 }];
+  const hh = handHistory({ sessions: [{ key: 's' }], events, prRefs });
+  // Landed between the merge command and the prompt (a step's t is its time in ms).
+  const landed = { ...pr9, landed: { at: new Date(merge.t).toISOString() } };
+  const sc = scopeSteps({ h: hh, pr: landed, git: false });
+  assert.deepEqual(events.map((e) => where(sc, e)), ['in', 'in', 'out', 'out', 'out']);
+  assert.deepEqual([sc.laneOf(ask.id), sc.laneOf(look.id), sc.laneOf(next.id)], ['after it landed', 'after it landed', 'pull request #21']);
+  assert.ok(sc.sessions[0].lanes.some((l) => l.lane === 'after it landed' && l.steps === 2));
+  // Failing-path partner: not landed, the later look is its own as before.
+  const open = scopeSteps({ h: hh, pr: pr9, git: false });
+  assert.equal(where(open, look), 'in');
+  // A session that only looked it up keeps the same cutoff.
+  const before = ev('action', { facts: { category: 'shell' }, command: 'gh pr view 9', cwd: '/w/r', branch: 'main', turn: 'm' });
+  const cut = ev('action', { facts: { category: 'shell' }, command: 'gh pr merge 9 --squash', cwd: '/w/x', branch: 'main', turn: 'x' });
+  const after = ev('action', { facts: { category: 'shell' }, command: 'gh pr view 9', cwd: '/w/r', branch: 'main', turn: 'm' });
+  for (const e of [before, after]) e.session = 'm';
+  const mh = handHistory({ sessions: [{ key: 's' }, { key: 'm' }], events: [before, cut, after], prRefs: [{ session: 'm', event: before, number: 9 }, { session: 'm', event: after, number: 9 }, { session: 's', event: cut, number: 9 }] });
+  const msc = scopeSteps({ h: mh, pr: { ...pr9, sessions: ['s', 'm'], landed: { at: new Date(cut.t).toISOString() } }, git: false });
+  assert.deepEqual([where(msc, before), where(msc, after), msc.laneOf(after.id)], ['in', 'out', 'after it landed']);
+});
+
+test('a long prompt names its issue anywhere in it, not only in its shortened copy', () => {
+  const ask = ev('prompt', { facts: { text: 'Here is the plan for today' }, turn: 'a' });
+  Object.defineProperty(ask, '_raw', { value: { text: `Here is the plan for today. ${'Context. '.repeat(200)}It fixes issue 5.` } });
+  const push = ev('action', { facts: { category: 'shell' }, command: 'git push origin feature/nine', cwd: '/w/r', turn: 'b' });
+  const sc = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [ask, push] }), pr: pr9, git: false });
+  assert.equal(where(sc, ask), 'in');
+  // Failing-path partner: a prompt that never names it stays out.
+  const plain = ev('prompt', { facts: { text: 'Here is the plan for today' }, turn: 'a' });
+  const sc2 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [plain, push] }), pr: pr9, git: false });
+  assert.equal(where(sc2, plain), 'out');
+});
+
+test('a branch made from its branch counts only while every commit made on it is one of its own', () => {
+  const made = ev('action', { facts: { category: 'shell' }, command: 'git worktree add /w/st -b feature/stacked origin/feature/nine', cwd: '/w/r', turn: 's1' });
+  const ran = ev('action', { facts: { category: 'shell' }, command: 'cd /w/st && npm test', cwd: '/w/r', turn: 's1' });
+  const commit = ev('action', { facts: { category: 'shell' }, command: 'cd /w/st && git commit -m "next piece"', cwd: '/w/r', turn: 's1' });
+  const own = { ...pr9, commits: { list: [{ sha: 'aaaaaaa1111111' }], evidence: 'recorded' } };
+  const hh = (sha) => handHistory({ sessions: [{ key: 's' }], events: [made, ran, commit], commitRefs: [{ session: 's', event: commit, sha, via: 'harness-commit' }] });
+  // A commit there that's one of its own: still its work.
+  assert.equal(scopeSteps({ h: hh('aaaaaaa1111111'), pr: own, git: false }).tracks('feature/stacked'), true);
+  // Failing-path partners: a commit there that isn't (unpushed stacked work), or its commits unknown.
+  assert.equal(scopeSteps({ h: hh('bbbbbbb2222222'), pr: own, git: false }).tracks('feature/stacked'), false);
+  assert.equal(scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, ran] }), pr: pr9, git: false }).tracks('feature/stacked'), false);
+  // A review branch whose fix is pushed to its branch still counts, with its commits unknown too.
+  const sent = ev('action', { facts: { category: 'shell' }, command: 'cd /w/st && git push origin HEAD:feature/nine', cwd: '/w/r', turn: 's1' });
+  const fixed = handHistory({ sessions: [{ key: 's' }], events: [made, commit, sent], commitRefs: [{ session: 's', event: commit, sha: 'ccccccc3333333', via: 'harness-commit' }] });
+  assert.equal(scopeSteps({ h: fixed, pr: pr9, git: false }).tracks('feature/stacked'), true);
+  assert.equal(scopeSteps({ h: fixed, pr: { ...pr9, commits: { list: [{ sha: 'ccccccc3333333' }], evidence: 'recorded' } }, git: false }).tracks('feature/stacked'), true);
+  // A commit read only from its printed output (a Codex commit) counts against it too, and a
+  // commit with nothing recorded leaves it unproven unless it's pushed to its branch.
+  const printed = handHistory({ sessions: [{ key: 's' }], events: [made, ran, commit], commitRefs: [{ session: 's', event: commit, sha: 'bbbbbbb2222222', via: 'printed-output' }] });
+  assert.equal(scopeSteps({ h: printed, pr: own, git: false }).tracks('feature/stacked'), false);
+  const printedOwn = handHistory({ sessions: [{ key: 's' }], events: [made, ran, commit], commitRefs: [{ session: 's', event: commit, sha: 'aaaaaaa1111111', via: 'printed-output' }] });
+  assert.equal(scopeSteps({ h: printedOwn, pr: own, git: false }).tracks('feature/stacked'), true);
+  // So does a commit another git command made, with nothing recorded.
+  for (const command of ['cd /w/st && git cherry-pick 1234567', 'cd /w/st && git merge feature/other', 'cd /w/st && git -c core.hooksPath=x commit -m next', 'cd /w/st && git am ../p.patch']) {
+    const other = ev('action', { facts: { category: 'shell' }, command, cwd: '/w/r', turn: 's1' });
+    assert.equal(scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, ran, other] }), pr: own, git: false }).tracks('feature/stacked'), false, command);
+  }
+  assert.equal(scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, ran, commit] }), pr: own, git: false }).tracks('feature/stacked'), false);
+  assert.equal(scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, commit, sent] }), pr: own, git: false }).tracks('feature/stacked'), true);
 });
