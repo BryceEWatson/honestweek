@@ -419,6 +419,7 @@ test('a body passed with --body-file is read back from the writes and edits that
   assert.equal(bodyFileOf('gh pr create -F=body.md'), 'body.md');
   assert.equal(bodyFileOf('gh pr create --body-file - <<EOF\nx\nEOF'), null, 'standard input is the heredoc prBodyOf reads');
   assert.equal(bodyFileOf('git commit -F notes.md'), null);
+  assert.equal(bodyFileOf('gh pr create -t "support -F notes.md" --body-file body.md'), 'body.md', 'a -F in the title is the title');
   let n = 0;
   const step = (kind, { command, cwd = '/w/r', tool, input, result, session = 's' } = {}) => {
     const e = { id: `s.${++n}.0`, session, kind, t: n, facts: { category: tool ? 'edit' : 'shell', ...(result ? { result } : {}) } };
@@ -432,8 +433,11 @@ test('a body passed with --body-file is read back from the writes and edits that
   const grep = step('action', { command: 'grep -n "—" "C:/tmp/body.md"; echo done' });
   const create = step('action', { command: 'gh pr create --title t --body-file "C:/tmp/body.md"' });
   const other = step('action', { tool: 'Write', input: { file_path: 'C:/tmp/body.md', content: 'Closes #8.' }, session: 'o' });
-  const h = { events: [write, edit, grep, other, create] };
+  const h = { events: [write, edit, grep, create] };
   assert.deepEqual(prBodyAt(h, create), { text: 'Adds a streaming parser.\n\nCloses #7.', via: 'body-file' });
+  // An edit the person turned down changed nothing.
+  const turnedDown = step('action', { tool: 'Edit', input: { file_path: 'C:/tmp/body.md', old_string: 'Closes #7.', new_string: 'Closes #12.' }, result: 'rejected' });
+  assert.equal(prBodyAt({ events: [write, turnedDown, create] }, create)?.text, 'Adds a parser.\n\nCloses #7.');
   // A body on the command line wins, as before.
   const inline = step('action', { command: 'gh pr create --title t --body "Fixes #9"' });
   assert.deepEqual(prBodyAt({ events: [write, inline] }, inline), { text: 'Fixes #9', via: 'command' });
@@ -448,6 +452,11 @@ test('a body passed with --body-file is read back from the writes and edits that
     ['a command line it can\'t split', step('action', { command: 'cat "$(echo C:/tmp/body.md)"' })],
     ['an edit that did not apply', step('action', { tool: 'Edit', input: { file_path: 'C:/tmp/body.md', old_string: 'not there', new_string: 'x' } })],
     ['another edit tool', step('action', { tool: 'NotebookEdit', input: { file_path: 'C:/tmp/body.md', new_source: 'x' } })],
+    ['another session writing it', other],
+    ['a command that names it by a pattern', step('action', { command: "sed -i 's/7/8/' C:/tmp/*.md" })],
+    ['git putting files back', step('action', { command: 'cd C:/tmp && git checkout -- .' })],
+    ['a write to the same name under another spelling', step('action', { tool: 'Write', input: { file_path: '/tmp/body.md', content: 'Closes #9.' } })],
+    ['an edit cut off part way', step('action', { tool: 'Write', input: { file_path: 'C:/tmp/body.md', content: 'Closes #9.' }, result: 'interrupted' })],
   ]) assert.equal(prBodyAt({ events: [write, between, create] }, create), null, what);
   // An edit that failed changed nothing; with no Write logged, the body isn't known.
   const failedEdit = step('action', { tool: 'Edit', input: { file_path: 'C:/tmp/body.md', old_string: 'Closes', new_string: 'Mentions' }, result: 'error' });

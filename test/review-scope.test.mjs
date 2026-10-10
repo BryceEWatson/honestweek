@@ -335,6 +335,17 @@ test('a branch made from its branch, or one pushed to it by name, is read as on 
   const failed = ev('action', { facts: { category: 'shell', result: 'error' }, command: 'git push origin HEAD:feature/nine', cwd: '/w/rv4', branch: 'review/w', turn: 'c' });
   const sc3 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [fromMain, elsewhere, failed] }), pr: pr9, git: false });
   assert.deepEqual(['review/y', 'review/z', 'review/w', 'main', null].map((b) => sc3.tracks(b)), [false, false, false, false, false]);
+  // A stacked pull request's branch is made from its branch too, but it's pushed under its own
+  // name and opened as its own pull request: its work is never this one's.
+  const stack = ev('action', { facts: { category: 'shell' }, command: 'git switch -c feature/two feature/nine', cwd: '/w/r', branch: 'feature/nine', turn: 'd' });
+  const editTwo = ev('action', { facts: { category: 'edit' }, file: '/w/r/lib/b.mjs', cwd: '/w/r', branch: 'feature/two', turn: 'd' });
+  const pushTwo = ev('action', { facts: { category: 'shell' }, command: 'git push -u origin feature/two', cwd: '/w/r', branch: 'feature/two', turn: 'e' });
+  const openTwo = ev('action', { facts: { category: 'shell' }, command: 'gh pr create --base feature/nine --title two', cwd: '/w/r', branch: 'feature/two', turn: 'e' });
+  const sc4 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [stack, editTwo, pushTwo, openTwo] }), pr: pr9, git: false });
+  assert.deepEqual([sc4.tracks('feature/two'), where(sc4, editTwo), where(sc4, openTwo)], [false, 'out', 'out']);
+  // Opened with --head and never pushed in the logs counts the same.
+  const sc5 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [stack, editTwo, ev('action', { facts: { category: 'shell' }, command: 'gh pr create --head feature/two --base feature/nine', cwd: '/w/x', turn: 'e' })] }), pr: pr9, git: false });
+  assert.equal(sc5.tracks('feature/two'), false);
 });
 
 test("a step after the pull request landed isn't its own; one that's another's keeps that lane", () => {
