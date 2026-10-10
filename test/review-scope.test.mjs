@@ -77,7 +77,12 @@ test('a review run started by a step in scope is in whole, and a reader only by 
   const rev = sc.sessions.find((s) => s.key === fx.key.review);
   assert.deepEqual({ role: rev.role, steps: rev.steps, in: rev.in, rule: rev.roleRule }, { role: 'review', steps: 5, in: 5, rule: 'brief.review-session' });
   assert.equal(rev.launchedBy.event, stepBy('claude -p --session-id').id);
-  const reader = sc.sessions.find((s) => s.key === fx.key.reader);
+  // The reader looked it up only after it landed, so none of its steps are how it was made.
+  const late = sc.sessions.find((s) => s.key === fx.key.reader);
+  assert.deepEqual([late.in, late.lanes.some((l) => l.lane === 'after it landed')], [0, true]);
+  // Read as not landed, its one step that names the pull request is in, and nothing else.
+  const { pr } = scope('#20');
+  const reader = scopeSteps({ h, pr: { ...pr, landed: null }, repoPath: fx.repo }).sessions.find((s) => s.key === fx.key.reader);
   assert.equal(reader.role, 'mentioned');
   assert.equal(reader.in, 1);
   // The review run belongs to pull request 20: started by its step, on its branch. Not 21's.
@@ -367,6 +372,14 @@ test("a step after the pull request landed isn't its own; one that's another's k
   // Failing-path partner: not landed, the later look is its own as before.
   const open = scopeSteps({ h: hh, pr: pr9, git: false });
   assert.equal(where(open, look), 'in');
+  // A session that only looked it up keeps the same cutoff.
+  const before = ev('action', { facts: { category: 'shell' }, command: 'gh pr view 9', cwd: '/w/r', branch: 'main', turn: 'm' });
+  const cut = ev('action', { facts: { category: 'shell' }, command: 'gh pr merge 9 --squash', cwd: '/w/x', branch: 'main', turn: 'x' });
+  const after = ev('action', { facts: { category: 'shell' }, command: 'gh pr view 9', cwd: '/w/r', branch: 'main', turn: 'm' });
+  for (const e of [before, after]) e.session = 'm';
+  const mh = handHistory({ sessions: [{ key: 's' }, { key: 'm' }], events: [before, cut, after], prRefs: [{ session: 'm', event: before, number: 9 }, { session: 'm', event: after, number: 9 }, { session: 's', event: cut, number: 9 }] });
+  const msc = scopeSteps({ h: mh, pr: { ...pr9, sessions: ['s', 'm'], landed: { at: new Date(cut.t).toISOString() } }, git: false });
+  assert.deepEqual([where(msc, before), where(msc, after), msc.laneOf(after.id)], ['in', 'out', 'after it landed']);
 });
 
 test('a long prompt names its issue anywhere in it, not only in its shortened copy', () => {
