@@ -397,3 +397,16 @@ test('a long prompt names its issue anywhere in it, not only in its shortened co
   const sc2 = scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [plain, push] }), pr: pr9, git: false });
   assert.equal(where(sc2, plain), 'out');
 });
+
+test('a branch made from its branch counts only while every commit made on it is one of its own', () => {
+  const made = ev('action', { facts: { category: 'shell' }, command: 'git worktree add /w/st -b feature/stacked origin/feature/nine', cwd: '/w/r', turn: 's1' });
+  const ran = ev('action', { facts: { category: 'shell' }, command: 'cd /w/st && npm test', cwd: '/w/r', turn: 's1' });
+  const commit = ev('action', { facts: { category: 'shell' }, command: 'cd /w/st && git commit -m "next piece"', cwd: '/w/r', turn: 's1' });
+  const own = { ...pr9, commits: { list: [{ sha: 'aaaaaaa1111111' }], evidence: 'recorded' } };
+  const hh = (sha) => handHistory({ sessions: [{ key: 's' }], events: [made, ran, commit], commitRefs: [{ session: 's', event: commit, sha, via: 'harness-commit' }] });
+  // A commit there that's one of its own: still its work.
+  assert.equal(scopeSteps({ h: hh('aaaaaaa1111111'), pr: own, git: false }).tracks('feature/stacked'), true);
+  // Failing-path partners: a commit there that isn't (unpushed stacked work), or its commits unknown.
+  assert.equal(scopeSteps({ h: hh('bbbbbbb2222222'), pr: own, git: false }).tracks('feature/stacked'), false);
+  assert.equal(scopeSteps({ h: handHistory({ sessions: [{ key: 's' }], events: [made, ran] }), pr: pr9, git: false }).tracks('feature/stacked'), false);
+});
