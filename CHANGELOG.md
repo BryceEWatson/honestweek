@@ -2,6 +2,14 @@
 
 What changed in each version of honestweek, newest first. Numbers in parentheses are the pull requests on GitHub.
 
+## Unreleased
+
+### Added
+
+- Asked where your sessions went wrong, the find skill ends its answer with one word to say, `links`. On your yes it starts the local page once, in the background, and gives you a link from each problem to its zoomed timeline: the problem's first finding worth a look, else its first, with "more on the page" when there are several, each keeping its evidence word. A finding with no timeline says so instead of linking. Each link is on `127.0.0.1` and works once. (issue #240)
+- `honestweek view` takes `--page` more than once and prints one one-time address per page, in order, each on its own line; the browser opens on the first. One `--page` prints what it always has. (issue #240)
+- Each finding in a `problems` answer's JSON names the replay zoomed to its steps (`zoomPage`), as `--pattern` and `--finding` already did. The fields it had are unchanged, and so is the text answer. (issue #240)
+
 ## 0.4.0 (10 October 2026)
 
 ### Added

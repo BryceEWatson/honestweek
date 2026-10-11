@@ -15,7 +15,7 @@ import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
-import { HELP, parseViewPort, resolveViewWindow, runView } from '../lib/view.mjs';
+import { HELP, MAX_PAGES, parseViewPort, resolveViewWindow, runView } from '../lib/view.mjs';
 import { setCommandForm } from '../lib/invocation.mjs';
 import { CODE_HEADER, CODE_TTL_MS, KEY_HEADER } from '../lib/view/server.mjs';
 import { createLeakCounter } from '../lib/view/leaks.mjs';
@@ -600,6 +600,74 @@ test('--page opens and prints a one-time address to that page, and keeps a step 
   assert.ok(key, 'the code works');
   assert.equal(await claim(link.port, link.code), null, 'once');
   assert.match(await (await fetch(`http://127.0.0.1:${link.port}/replay.html`)).text(), /<body data-page="replay">/);
+  await r.handle.stop();
+});
+
+// Issue 240: --page more than once, so an agent can hand out a link per problem after one start.
+const ZOOM_A = 'replay.html?session=cc-abcdefgh#th-abcdefgh~zoom~pf-abcdefghijkl';
+const ZOOM_B = 'replay.html?session=cx-ponmlkji#th-ponmlkji~zoom~pf-ponmlkjihgfe';
+
+test('--page given twice prints one one-time address per page, in order, each on its own line, on 127.0.0.1 only', async () => {
+  const r = await view(['--no-open', ...RANGE, '--page', ZOOM_A, '--page', ZOOM_B]);
+  assert.equal(r.code, 0, r.err());
+  assert.match(r.handle.url, /^http:\/\/127\.0\.0\.1:\d+\/$/, 'served on loopback');
+  const lines = r.out().split('\n');
+  const at = lines.indexOf('Open these addresses in your browser, one for each --page, in order:');
+  assert.ok(at >= 0, r.out());
+  const [a, b] = [lines[at + 1], lines[at + 2]].map((l) => linksIn(l));
+  assert.equal(a.length, 1, 'the first address has a line of its own');
+  assert.equal(b.length, 1, 'and so does the second');
+  assert.deepEqual([a[0].page, a[0].fragment], ['replay.html?session=cc-abcdefgh', 'th-abcdefgh~zoom~pf-abcdefghijkl']);
+  assert.deepEqual([b[0].page, b[0].fragment], ['replay.html?session=cx-ponmlkji', 'th-ponmlkji~zoom~pf-ponmlkjihgfe']);
+  assert.equal(linksIn(r.out()).length, 2, 'no other address is printed');
+  assert.doesNotMatch(r.out(), /Open this address in your browser/);
+  assert.notEqual(a[0].code, b[0].code, 'each page has its own code');
+  // Each code works once, in either order, and gives the run's key, which no address holds.
+  const kb = await claim(b[0].port, b[0].code);
+  const ka = await claim(a[0].port, a[0].code);
+  assert.ok(ka && kb, 'both codes work');
+  assert.equal(ka, kb, 'for the same run');
+  assert.equal(await claim(a[0].port, a[0].code), null, 'the first code works once');
+  assert.equal(await claim(b[0].port, b[0].code), null, 'and so does the second');
+  assert.ok(!r.out().includes(ka) && !r.err().includes(ka), 'the key is never printed');
+  assert.ok(!process.argv.some((x) => x.includes(ka)), 'nor in a process argument');
+  assert.match(await (await fetch(`http://127.0.0.1:${a[0].port}/replay.html`)).text(), /<body data-page="replay">/);
+  await r.handle.stop();
+});
+
+test('with several --page and a browser, the browser opens on the first; one --page prints as it always has', async () => {
+  const r = await view([...RANGE, '--page', ZOOM_A, '--page', ZOOM_B]);
+  assert.equal(r.code, 0, r.err());
+  assert.equal(r.opened.length, 1);
+  const redirect = readFileSync(r.opened[0].file, 'utf8');
+  assert.match(redirect, /url=http:\/\/127\.0\.0\.1:\d+\/replay\.html\?session=cc-abcdefgh#th-abcdefgh~zoom~pf-abcdefghijkl&amp;c=[0-9a-f]+"/);
+  assert.equal(linksIn(r.out()).length, 2, 'and both addresses are printed');
+  await r.handle.stop();
+  const one = await view(['--no-open', ...RANGE, '--page', ZOOM_A]);
+  assert.equal(one.code, 0, one.err());
+  assert.match(one.out(), /\nOpen this address in your browser: http:\/\/127\.0\.0\.1:\d+\/replay\.html\?session=cc-abcdefgh#th-abcdefgh~zoom~pf-abcdefghijkl&c=[0-9a-f]+\nEach address works once, within 15 minutes\. Press Enter here to print a fresh one\.\n/);
+  assert.doesNotMatch(one.out(), /Open these addresses/);
+  await one.handle.stop();
+});
+
+test('--page refuses more pages than one run takes, and a bad one among several, before anything is served', async () => {
+  const many = Array.from({ length: MAX_PAGES + 1 }, () => ['--page', ZOOM_A]).flat();
+  const r = await view(['--no-open', ...RANGE, ...many]);
+  assert.equal(r.code, 1);
+  assert.match(r.err(), new RegExp(`^view: --page is given ${MAX_PAGES + 1} times; one run takes at most ${MAX_PAGES}\\.\\n$`));
+  assert.equal(r.handle, null);
+  const bad = await view(['--no-open', ...RANGE, '--page', ZOOM_A, '--page', '../package.json']);
+  assert.equal(bad.code, 1);
+  assert.match(bad.err(), /^view: --page: "\.\.\/package\.json" isn't one of view's pages/);
+  assert.equal(bad.handle, null);
+});
+
+test('while Setup is open, several --page print one Setup address and say to ask for each page after it', async () => {
+  const r = await view(['--no-open', '--page', ZOOM_A, '--page', ZOOM_B], { cwd: makeTempDir('hw-view-cli-pages-setup-') });
+  assert.equal(r.code, 0, r.err());
+  assert.equal(linksIn(r.out()).length, 1);
+  assert.match(r.out(), /http:\/\/127\.0\.0\.1:\d+\/setup\.html#c=[0-9a-f]+/);
+  assert.ok(r.out().includes(`\nSetup comes first. Once it's saved, type link and a page here for an address to it, one at a time: ${ZOOM_A}, ${ZOOM_B}.\n`), r.out());
   await r.handle.stop();
 });
 

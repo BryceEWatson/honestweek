@@ -93,7 +93,20 @@ test('find, replay and problems answer byte-for-byte as before the hooks', () =>
     for (const json of [false, true]) {
       const r = spawnSync(process.execPath, [BIN, ...q, '--demo', ...(json ? ['--json'] : [])], { cwd: outside, env, encoding: 'utf8', maxBuffer: 1 << 28, timeout: 120e3 });
       assert.equal(r.status, 0, r.stderr);
-      got[`${q.join(' ')}${json ? ' --json' : ''}`] = createHash('sha256').update(r.stdout.split(form).join('honestweek')).digest('hex').slice(0, 16);
+      let out = r.stdout;
+      // problems --json gained each finding's zoomPage (issue 240), its only new field: without
+      // it, the answer is still byte-for-byte what it was.
+      if (json && q[0] === 'problems') {
+        const o = JSON.parse(out);
+        for (const p of o.patterns) {
+          for (const f of p.findings) {
+            assert.ok('zoomPage' in f, `${f.key} has its zoomPage`);
+            delete f.zoomPage;
+          }
+        }
+        out = `${JSON.stringify(o, null, 2)}\n`;
+      }
+      got[`${q.join(' ')}${json ? ' --json' : ''}`] = createHash('sha256').update(out.split(form).join('honestweek')).digest('hex').slice(0, 16);
     }
   }
   assert.deepEqual(got, PINNED);

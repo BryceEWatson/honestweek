@@ -132,6 +132,7 @@ test('problems --session answers from saved results outside the window, and says
     assert.ok(was, f.key);
     assert.equal(f.evidence, was.verdictEvidence, 'each finding keeps its evidence word');
     assert.equal(f.page, null);
+    assert.equal(f.zoomPage, null, 'nor a zoomed one');
   }
   for (const p of o.patterns) assert.equal(p.priority, null, 'no window to rank it in');
   const t = await ask(['--session', key], { saved });

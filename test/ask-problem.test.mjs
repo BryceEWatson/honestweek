@@ -123,6 +123,34 @@ test('--finding answers one finding, the same as it reads in its pattern', async
   assert.ok(t.out.includes(`--page "${want.zoomPage}"`), 'opens on the finding, zoomed');
 });
 
+// Issue 240: the general answer gives each finding its zoomed page too, as a field added after
+// the ones it had, so those are unchanged, and the text answer reads as it did.
+test('plain problems gives each finding the zoomPage --pattern gives it, after its old fields, which are unchanged', async () => {
+  const o = await json([]);
+  const OLD = ['key', 'check', 'checkTitle', 'severity', 'evidence', 'basis', 'rule', 'session', 'title', 'thread', 'event', 'at', 'note', 'text', 'steps', 'estimate', 'page'];
+  const all = o.patterns.flatMap((x) => x.findings);
+  assert.ok(all.length > 0);
+  for (const f of all) {
+    assert.deepEqual(Object.keys(f), [...OLD, 'zoomPage'], f.key);
+    assert.equal(f.page, f.event ? `replay.html?session=${f.session}#${f.thread}~${f.event}` : f.page, 'page is still the step');
+  }
+  // Each one the same zoomed page its pattern's own answer gives, and a page view takes.
+  for (const x of o.patterns.slice(0, 4)) {
+    const p = await json(['--pattern', x.id]);
+    const byKey = new Map(p.findings.map((f) => [f.key, f]));
+    for (const f of x.findings) {
+      assert.equal(f.zoomPage, byKey.get(f.key)?.zoomPage ?? null, f.key);
+      if (f.zoomPage) assert.deepEqual(pageLink(f.zoomPage), { page: f.zoomPage });
+      // Every field it had before reads as --pattern's does.
+      for (const k of OLD) assert.deepEqual(f[k], byKey.get(f.key)?.[k], `${f.key}.${k}`);
+    }
+  }
+  assert.ok(all.some((f) => f.zoomPage), 'the demo has findings with a timeline');
+  const t = await asked([]);
+  assert.equal(t.code, 0, t.err);
+  assert.doesNotMatch(t.out, /~zoom~/, 'the text answer still links each finding to its step');
+});
+
 test('--pattern and --finding refuse each other, --session, a malformed key, and a key the window has not', async () => {
   for (const [argv, re] of [
     [['--pattern', 'cache-miss', '--finding', 'pf-aaaaaaaaaaaa'], /--pattern and --finding can't be combined/],
