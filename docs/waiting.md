@@ -10,7 +10,7 @@ Four kinds of row, asks first, newest first within each kind (an old ask is the 
 
 | Kind | What it means | How it's known |
 | --- | --- | --- |
-| ask | A session's turn ended asking me something, and I typed nothing in its thread after it. | Inferred by a rule over the session's last message. Recorded when it asked through its question tool, or asked me to approve a plan, and the log holds no answer; those are listed at any age. |
+| ask | A session's turn ended asking me something, and I typed nothing in its thread after it. | Inferred by a rule over the session's last message. Recorded when it asked through its question tool, or asked me to approve a plan, and the log holds no answer; those are listed at once, without waiting out the quiet time, and a session that closed with one still open shows too. |
 | stalled | A session's log ends on a step with no result, or on a message of mine it never answered, and it has been quiet for 6 hours. | Recorded: the log's own last record. |
 | pr | A pull request a session opened or linked, that no session has named for 6 hours, and that git doesn't show landed. | Derived from the logs and local git; recorded as open only from a `gh pr list` file I hand it. |
 | unpushed | A commit a session made, in a repository with a remote, that no remote branch holds and that's still on a local branch. | Derived from local git, without fetching. |
@@ -49,7 +49,7 @@ honestweek doesn't reach GitHub, so it can't see a pull request closed after the
 gh pr list --state all --json number,headRefName,state,url > prs.json
 ```
 
-run in each repository, the lists joined into one array. Without a file, a pull request git doesn't show landed is "last seen open", and one in a display-only repository or a folder outside the config isn't checked at all, only counted.
+run in each repository, the lists joined into one array. Without a file, a pull request git doesn't show landed is "last seen open", and one in a display-only repository or a folder outside the config isn't checked at all, only counted. Neither is one in a repository whose GitHub name holds a private word: the logs carry that name redacted, and every private word redacts to the same mark, so it can't be told apart from another repository that differs only in that word.
 
 ## The JSON shape: `honestweek.waiting/1`
 
@@ -86,7 +86,7 @@ On 11 October 2026 I ran it on the build machine's last 7 days (335 sessions in 
 - **The other 14, as the session that built this read them** (inferred, not yet checked by me): 8 still waiting, 2 settled elsewhere (work the ask was about has since shipped), 4 it couldn't tell.
 - **Against the hand-kept list** (7 items): it caught 4. Of the 3 it missed, 1 was stale on the hand-kept list (the session had since said nothing needed me), 1 was open items listed inside a report with no ask cue (a real miss), and 1 came from an email, not a session. It also listed 4 more asks that session read as still waiting that the hand-kept list didn't have.
 
-These figures are in-sample: the ask rule's cues were written while reading the same week's logs they were checked on, so they say how well the rule fits that week, not how it does on the next.
+These figures came from the first version, before question-tool and plan-approval asks were listed without waiting out the quiet time, so the ask count may differ now. They are also in-sample: the ask rule's cues were written while reading the same week's logs they were checked on, so they say how well the rule fits that week, not how it does on the next.
 
 The stalled-promise rule (`--promises`) is off by default: on the same week it listed nothing extra, and how often it's right hasn't been judged. A hand-judged sample of 30 rows from a later week, scored by me, is still to do before any rule's precision is quoted as a number.
 

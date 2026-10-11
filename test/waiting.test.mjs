@@ -299,16 +299,18 @@ test('a pull request git shows landed on the default branch is not an orphan, on
   const config = { repos: [{ label: 'your-project', role: 'featured', path: work }], identity: { authorEmails: ['you@example.com'] } };
   const rows = findWaiting({ h, config, now: NOW }).rows;
   assert.deepEqual(rows.map((r) => [r.pr.number, r.pr.state, r.pr.stateFrom, r.evidence]), [[2, 'last-seen-open', 'git', 'derived']]);
-  // The logs carry the redacted GitHub name: git's and the --prs file's are compared redacted,
-  // and no raw name reaches a row.
-  const redact = (x) => String(x).replace(/your-project/g, '[redacted:term]');
+  // A name the redactor changed can't be told apart from another repository's that differs only
+  // in a private word (configured or not), so neither git nor the --prs file answers it: each is
+  // counted as not checked, no ask is marked settled from it, and no raw name reaches a row.
+  const redact = (x) => String(x).replace(/your-project|other-project/g, '[redacted:term]');
   const hidden = 'you/[redacted:term]';
   const asks = session('cc-xxxxxxxxxxxy', { repo: '[redacted:term]' });
   const h2 = history([s, asks], [link(s.key, NOW - 20 * HOUR, 1, hidden), link(s.key, NOW - 20 * HOUR, 2, hidden), link(s.key, NOW - 20 * HOUR, 3, hidden), say(asks.key, NOW - 10 * HOUR, 'Reply `go` once PR 1 is in.')]);
-  const prs = readPrsFile(JSON.stringify([{ number: 3, state: 'OPEN', url: 'https://github.com/you/your-project/pull/3' }]), 'T');
+  const prs = readPrsFile(JSON.stringify([{ number: 3, state: 'OPEN', url: 'https://github.com/you/other-project/pull/3' }]), 'T');
   const w = findWaiting({ h: h2, config, now: NOW, redact, prs });
-  assert.deepEqual(w.rows.map((r) => [r.kind, r.pr?.number ?? null, r.pr?.stateFrom ?? null, r.settled?.pr.repo ?? null]), [['ask', null, null, hidden], ['pr', 2, 'git', null], ['pr', 3, 'prs-file', null]]);
-  assert.doesNotMatch(JSON.stringify(w.rows.map((r) => [r.pr, r.settled])), /your-project/);
+  assert.deepEqual(w.rows.map((r) => [r.kind, r.settled ?? null]), [['ask', null]]);
+  assert.deepEqual(w.notes.filter((n) => n.kind === 'prs-not-checked'), [{ kind: 'prs-not-checked', count: 3 }]);
+  assert.doesNotMatch(JSON.stringify(w), /your-project|other-project/);
 });
 
 // ---- the desktop app's session files -------------------------------------------------------------
