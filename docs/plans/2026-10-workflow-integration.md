@@ -40,7 +40,7 @@ Items 1, 2 and 4 depend on each other: 4 is what makes 1 and 2 cheap enough to s
 
 - the session ended its last turn asking me something, and I never replied (an *unanswered ask*);
 - the session said it would do something next and then went quiet for longer than a set time (a *stalled promise*);
-- a pull request a session opened that's still open in git's view, with no session touching it since (an *orphan pull request*; honestweek reads no network, so "still open" comes from what `gh` printed or from `--prs <file>`, the same way the brief takes `gh` output);
+- a pull request a session opened that no session has touched since, and that nothing shows was merged or closed (an *orphan pull request*). honestweek reads no network, so it can say "open" only from a current `--prs <file>` (the output of `gh pr list` I hand it, the same way the brief takes `gh` output). Without one, the row says "last seen open" with the time a session last printed it, since it may have closed since;
 - commits a session made that never reached a remote branch.
 
 Each row links to the moment on the local page, says how it's known, and quotes the ask. A kit change then has the Needs-you page start from this list instead of from a hand sweep, and the coordinating session judges only the rows, never re-reads the sessions.
