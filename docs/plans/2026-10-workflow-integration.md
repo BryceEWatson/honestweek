@@ -30,11 +30,11 @@ When I asked a session to review a day's mistakes on 10 October, what I wanted b
 | 5 | Pull-request reviews start from the brief | Claims a diff-only reviewer misses | Already planned | Low | `keep order` |
 | 6 | Session ids in commit messages | Turns guessed links into recorded ones | Small | Low | `trailer` or `skip` |
 
-Items 1, 2 and 4 depend on each other: 4 is what makes 1 and 2 cheap enough to show every morning. Item 5 is already approved work; this plan only files its kit half.
+Items 1, 2 and 4 depend on each other: 4 is what makes 1 and 2 cheap enough to show every morning. Item 5 is already approved work; this plan only files its kit half (the *kit* is the shared skills and instructions every one of my Claude sessions inherits).
 
 ### 1. A "what's waiting on me" sweep from the logs
 
-**What it replaces.** On 10 October one coordinating session read the ends of about 50 other sessions through helper agents to find questions I never answered, promises nobody kept, pull requests nobody owned and work nobody pushed, then rebuilt my "Needs you" page by hand. (The *Needs you page* is a local HTML page listing everything waiting on my word, built from a hand-written list.) The kit has no detector for an unanswered question or a stalled promise: the status brief lists items carrying an ask label, but nothing finds an ask a session made in its own chat and I never saw. honestweek already reads every session and knows which turns I typed, so it can do this sweep in seconds, for no model tokens.
+**What it replaces.** On 10 October one coordinating session read the ends of about 50 other sessions through helper agents to find questions I never answered, promises nobody kept, pull requests nobody owned and work nobody pushed, then rebuilt my "Needs you" page by hand. (The *Needs you page* is a local HTML page listing everything waiting on my word, built from a hand-written list.) The kit has no detector for an unanswered question or a stalled promise: the status brief (the summary every session prints when it starts) lists items carrying an ask label, but nothing finds an ask a session made in its own chat and I never saw. honestweek already reads every session and knows which turns I typed, so it can do this sweep in seconds, for no model tokens.
 
 **What it would do.** A new answer, `honestweek waiting`, lists per session:
 
@@ -45,9 +45,9 @@ Items 1, 2 and 4 depend on each other: 4 is what makes 1 and 2 cheap enough to s
 
 Each row links to the moment on the local page, says how it's known, and quotes the ask. A kit change then has the Needs-you page start from this list instead of from a hand sweep, and the coordinating session judges only the rows, never re-reads the sessions.
 
-**Evidence.** In the 14 days from 27 September, 5 sessions ran a sweep like this by hand, each with between 3 and 25 helper agents and between 22 and 126 reads of other sessions' logs (derived: counted from prompts asking for a cross-session review plus tool calls reading other transcripts, so a proxy for sweeps, and the helper counts are floors). Between sweeps I check sessions one at a time: about 66 of my prompts in those 14 days ask a session for its status, about 4.7 a day (derived, a phrase search I then read through). And the asks pile up: of the 159 sessions I typed in or launched whose last word was the agent's, 51 end on an ask-shaped message and 45 of those are more than a day old (derived, a phrase rule over the last message, so an upper bound: some were settled from another session). The 10 October sweep's own page names four orphan pull requests and seven open asks, all found by reading sessions.
+**Evidence.** From 27 September to 11 October, 5 sessions ran a sweep like this by hand, each with between 3 and 25 helper agents and between 22 and 126 reads of other sessions' logs (derived, a proxy for sweeps; helper counts are floors). Between sweeps I check sessions one at a time: about 66 of my prompts in that window ask a session for its status, about 4.7 a day (derived). And the asks pile up: of the 159 sessions I typed in or launched whose last word was the agent's, 51 end on an ask-shaped message and 45 of those are more than a day old (derived, an upper bound, since some were settled from another session). How each was counted is under [How the numbers were taken](#how-the-numbers-were-taken). The 10 October sweep's own page names four orphan pull requests and seven open asks, all found by reading sessions.
 
-**Cost of the current way.** A coordinating session that messages an idle session to ask its state wakes it, and a woken session re-sends its whole conversation (see item 2). Of the 65 cache misses in the last 14 days, 15 sit next to a message from another session, about 7.3 million tokens re-sent (derived; which event woke the session is honestweek's positional guess, inferred).
+**Cost of the current way.** A coordinating session that messages an idle session to ask its state wakes it, and a woken session re-sends its whole conversation (see item 2). Of the 65 cache-miss findings in the last 14 days, 15 sit next to a message from another session, about 7.3 million tokens re-sent (derived; the cause is honestweek's positional guess, inferred).
 
 **Effort.** Medium. honestweek already records a question asked through Claude Code's question prompt and whether I answered it, but most of my sessions ask in plain text ("reply `merge` to land it"), so an ask in the last message needs a new rule, and so does a stalled promise. Both stay deliberately narrow, and its precision has to be measured before the page trusts it (issue [#148](https://github.com/BryceEWatson/honestweek/issues/148)'s judging buttons would cover it).
 
@@ -59,7 +59,18 @@ Each row links to the moment on the local page, says how it's known, and quotes 
 
 **What it replaces.** Guessing why sessions are expensive. honestweek's cache check already finds a session that re-sent its cached conversation at full price after a pause longer than the cache lasts (one hour for these sessions). It doesn't say what woke it, so the fix isn't obvious.
 
-**Evidence.** Over 28 September to 11 October: 65 cache misses in 41 sessions re-sent about 37.6 million tokens at the full rate (derived: honestweek's estimate, summed over every finding). Nearest event to each miss, from honestweek's own positional guess (inferred): a message from another session, 15 misses and 7.3 million tokens; a prompt I typed, 7 and 5.9 million (two were a bare "merge" after a wait for my word); a background task finishing, 4 and 1.5 million; the rest are next to tool calls, which means the event that woke them isn't the nearest step. Claude Code's own `/usage` screen now names likely cache-miss causes for one session at a time ([costs docs](https://code.claude.com/docs/en/costs)), so honestweek's value is the cross-session total by cause, over weeks, for Claude Code and Codex alike.
+**Evidence.** Over 28 September to 11 October, honestweek made 65 cache-miss findings in 41 sessions, covering 125 full-price re-sends and about 37.6 million tokens (derived: honestweek's estimate, summed over every finding; one finding groups a session's re-sends, so a finding isn't one miss). Each finding's nearest step, from honestweek's positional guess (inferred):
+
+| Nearest step | Findings | Re-sends | Tokens re-sent |
+|---|---|---|---|
+| A message from another session | 15 | 23 | 7.3M |
+| A prompt I typed (two were my merge word, after a wait for it) | 7 | 18 | 5.9M |
+| A background task finishing | 4 | 4 | 1.4M |
+| A tool call, so the real cause is unknown | 23 | 52 | 12.6M |
+| Something else (a pull-request link, a queue change, a prompt hook) | 16 | 28 | 10.4M |
+| **Total** | **65** | **125** | **37.6M** |
+
+Claude Code's own `/usage` screen now names likely cache-miss causes for one session at a time ([costs docs](https://code.claude.com/docs/en/costs)), so honestweek's value is the cross-session total by cause, over weeks, for Claude Code and Codex alike.
 
 **What it would do.** Each cache-miss finding names the event that started the turn (my reply, a message from another session, a background task, a scheduled wake) as recorded where the log says so, and `problems --pattern cache-miss` totals tokens by cause. Then I can decide on facts: if waiting for my merge word is the main cause, the fix is in my landing rule; if coordinating sessions are, it's item 1.
 
@@ -97,11 +108,11 @@ Each row links to the moment on the local page, says how it's known, and quotes 
 
 ### 5. Pull-request reviews start from the brief
 
-**What it replaces.** Reviewers that see only the diff and the author's summary. In 14 days my repositories merged 222 pull requests (measured from GitHub, across the 8 repositories in my kit's list). `honestweek brief` on one merged pull request took 28 seconds and listed 6 claims, 4 with no check behind them (measured, on one pull request; a sample of one).
+**What it replaces.** Reviewers that see only the diff and the author's summary. The *brief* is honestweek's record of how one pull request was made: the sessions behind it, the checks they ran, and each claim they made with whether a check backs it. From 27 September to 11 October my repositories merged 222 pull requests (measured from GitHub, across the 8 repositories in my kit's list). `honestweek brief` on one merged pull request took 28 seconds and listed 6 claims, 4 with no check behind them (measured, on one pull request; a sample of one).
 
-**Status.** Already planned and approved: the review skill is [#225](https://github.com/BryceEWatson/honestweek/issues/225), and [#226](https://github.com/BryceEWatson/honestweek/issues/226) measures whether the brief helps before the Review page ([#214](https://github.com/BryceEWatson/honestweek/issues/214)) is built. What wasn't filed is the kit half: the review loop giving the brief to its execution check and one claims reviewer, as decided in [#227](https://github.com/BryceEWatson/honestweek/issues/227). I've filed that in my kit's tracker, waiting on #225.
+**Status.** Already planned and approved, in this order: first a review skill that hands reviewers the brief ([#225](https://github.com/BryceEWatson/honestweek/issues/225)); then a measurement of whether the brief actually helps a reviewer ([#226](https://github.com/BryceEWatson/honestweek/issues/226)); and only then a Review page, a local page for reading a brief ([#214](https://github.com/BryceEWatson/honestweek/issues/214)). What wasn't filed is the kit half, decided in [#227](https://github.com/BryceEWatson/honestweek/issues/227): my review loop gives the brief to its execution check (the step that runs the tests) and to one reviewer that checks the author's claims. I've filed that in my kit's tracker, waiting on #225.
 
-**Decision.** Reply `keep order` to leave it behind #225 and #226.
+**Decision.** Reply `keep order` to keep that sequence. The alternative is building the Review page before #226 shows the brief helps, which I don't recommend.
 
 ### 6. Session ids in commit messages
 
@@ -142,11 +153,13 @@ None of the tools I found does item 1: none reads a fleet of sessions to say whi
 
 - All runs used honestweek at commit `59b301d` (main after #241) with my user-level config, on 11 October.
 - `problems --days 14 --json` with `node --max-old-space-size=12288`: 290 sessions, 41,324 model calls (recorded), 28 September to 11 October. With the default heap the same run loaded only 3 to 11 October and printed the memory note.
-- `problems --days 14 --pattern cache-miss --json`: 65 findings, 41 sessions, `estimate` summed to 37,629,859 tokens. The cause split groups each finding's `text` (the step `problems` places nearest the miss) by its kind.
+- `problems --days 14 --pattern cache-miss --json`: 65 findings, 41 sessions, `estimate` summed to 37,629,859 tokens, and `steps` (the re-sends each finding groups) summed to 125. The cause split groups each finding's `text` (the step `problems` places nearest the miss) by its kind; a finding's tokens and re-sends all go to that one step's kind.
 - Claim checks: `unverified-done-claim` 21 findings, all listed, in 9 sessions; `claim-contradicts-evidence` 40 findings, and the 25 listed fall in 15 sessions, so "15 sessions" is a floor.
 - `brief BryceEWatson/honestweek#241`: 28.6 s, 6 claims, 4 with no check after the last edit that didn't fail.
 - Merged pull requests: `gh pr list --state merged --search "merged:>=2026-09-27"` per repository in the kit's list, summed.
 - Transcript counts (sweeps, status prompts, asks, corrections): a streaming pass over every Claude Code project folder and the desktop app's no-folder sessions active from 27 September to 11 October, 556 session files. A typed prompt is a user record that isn't a tool result, meta or sidechain line, compaction summary, notification, scheduled task, message from another session, or chip launch; 1,361 after removing forked copies. Codex had 7 logs in the window and none held a typed prompt.
+- Hand sweeps: sessions with a prompt asking for a review across other sessions, counted with their tool calls that read other sessions' transcripts. A proxy for sweeps; helper-agent counts are floors.
+- Status prompts: a phrase search over typed prompts, then read through by hand.
 - Asks: a session whose last assistant message comes after my last typed prompt and whose last 700 characters end in a question or a reply cue ("reply `x`", "your call", "want me to"), excluding a message that opens "Nothing needs you".
 
 ### Where each item lands
