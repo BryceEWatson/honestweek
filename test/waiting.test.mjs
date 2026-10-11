@@ -12,8 +12,10 @@ import { askOf, findWaiting, promiseOf, readPrsFile, WAITING_RULES, WAITING_SCHE
 import { appSessionsRoot, readAppSessions } from '../lib/app-sessions.mjs';
 import { runAsk } from '../lib/ask.mjs';
 import { buildDemoWeek } from '../lib/demo/week.mjs';
+import { buildWorkHistory } from '../lib/replay/index.mjs';
+import { createRedactor } from '../lib/redact.mjs';
 import { DEMO_TERM } from '../lib/view.mjs';
-import { refsContaining, hasRemote } from '../lib/git.mjs';
+import { refsContaining, remoteState } from '../lib/git.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -49,6 +51,10 @@ test('askOf reads a reply word, a lead that says something waits on you, and a c
   // A backticked word after other text in the same sentence isn't a reply.
   assert.deepEqual(askOf('Reply `go` after checking `src/file.js` and PR `12`.').words, ['go']);
   assert.deepEqual(askOf('Reply `go`. Then `npm test` runs.').words, ['go']);
+  assert.deepEqual(askOf('Reply `yes` and I will build and `npm publish` it.').words, ['yes']);
+  assert.deepEqual(askOf('Say `go` and `npm publish` runs with 2FA.').words, ['go']);
+  assert.deepEqual(askOf('Reply `go`, `npm test` passed already.').words, ['go']);
+  assert.deepEqual(askOf('Reply `merge` or `hold` to wait.').words, ['merge', 'hold']);
   assert.deepEqual(askOf('It works.\n\nWhen you say `ship`, I will cut the release.').words, ['ship']);
   assert.deepEqual(askOf('Summary here.\n\nStill open, ranked:\n- `daily`: refresh each morning.\n- `build wake`: name what woke it.').words, ['daily', 'build wake']);
   assert.equal(askOf('Waiting on you: three steps.\n1. Quit the app.\n2. Run the script.').form, 'waiting-on-you');
@@ -230,12 +236,23 @@ test('a pull request a Codex session opened, known only from printed output, is 
   const s = session('cx-yyyyyyyyyyyy', { tool: 'codex' });
   const run = ev(s.key, 'action', NOW - 20 * HOUR, { facts: { category: 'shell' } });
   const h = history([s], [run]);
-  Object.defineProperty(h, 'prJoins', { value: [{ session: s.key, event: run.id, repo: 'you/your-project', number: 7, action: 'created', evidence: 'inferred' }], enumerable: false });
+  // The engine's pointer index names repositories raw and lowercased; waiting redacts each.
+  const refs = (more = []) => () => ({ prRefs: [{ session: s.key, event: run, number: 7, owner: 'you', repo: 'your-project', via: 'printed-output', evidence: 'inferred' }, ...more] });
+  Object.defineProperty(h, '_refIndex', { value: refs(), enumerable: false });
   const prs = { at: null, rows: [{ number: 7, state: 'OPEN', repo: 'you/your-project' }] };
   const [r] = waiting(h, { prs }).rows;
   assert.equal(r.kind, 'pr');
   assert.equal(r.evidence, 'inferred');
   assert.equal(r.pr.number, 7);
+  // A later `gh pr view 7` in the session's own repository names it recently, so it's not forgotten.
+  const view = ev(s.key, 'action', NOW - 1 * HOUR, { facts: { category: 'shell' } });
+  const h2 = history([s], [run, view]);
+  Object.defineProperty(h2, '_refIndex', { value: refs([{ session: s.key, event: view, number: 7, owner: null, repo: 'your-project', via: 'gh-pr-command', evidence: 'inferred' }]), enumerable: false });
+  assert.deepEqual(waiting(h2, { prs }).rows, []);
+  // Its repository's name is redacted before it's compared or printed.
+  const hidden = waiting(h, { prs, redact: (x) => String(x).replace(/your-project/g, '[redacted:term]') });
+  assert.deepEqual(hidden.rows, []);
+  assert.deepEqual(hidden.notes, [{ kind: 'prs-not-checked', count: 1 }]);
 });
 
 test('without a --prs file a pull request git cannot check is counted, never listed as open', () => {
@@ -282,13 +299,13 @@ test('a commit on a local branch no remote holds is unpushed; a pushed or local-
   const pushedSha = git(work, 'rev-parse', 'main');
   assert.deepEqual(refsContaining(work, unpushedSha), { remote: false, heads: [{ name: 'feature/a', gone: false }] });
   assert.equal(refsContaining(work, pushedSha).remote, true);
-  assert.equal(hasRemote(work), true);
-  // A remote that was never fetched from still counts as a remote.
+  assert.equal(remoteState(work), 'fetched');
+  // A remote this clone never fetched from is told apart from no remote at all.
   const fresh = join(dirname(work), 'fresh');
   git(dirname(work), 'init', '-q', fresh);
-  assert.equal(hasRemote(fresh), false);
+  assert.equal(remoteState(fresh), 'none');
   git(fresh, 'remote', 'add', 'origin', 'https://github.com/you/your-project.git');
-  assert.equal(hasRemote(fresh), true);
+  assert.equal(remoteState(fresh), 'unfetched');
   assert.equal(refsContaining(work, '--all'), null);
 
   const s = session('cc-wwwwwwwwwwww');
@@ -306,10 +323,17 @@ test('a commit on a local branch no remote holds is unpushed; a pushed or local-
   assert.deepEqual(findWaiting({ h: redactedLabel, config: acme, now: NOW, redact: (x) => String(x).replace(/Acme/g, '[redacted:term]') }).rows.map((r) => r.commit.repo), ['[redacted:term]-project']);
   // A display-only repository is never read by git, so nothing is listed from it.
   assert.deepEqual(findWaiting({ h, config: { ...config, repos: [{ ...config.repos[0], role: 'display' }] }, now: NOW }).rows, []);
+  // A remote this clone never fetched from can't say what's pushed: counted, not listed.
+  for (const ref of git(work, 'for-each-ref', '--format=%(refname)', 'refs/remotes').split(/\r?\n/).filter(Boolean)) git(work, 'update-ref', '-d', ref);
+  assert.equal(remoteState(work), 'unfetched');
+  const unfetched = findWaiting({ h, config, now: NOW });
+  assert.deepEqual(unfetched.rows, []);
+  assert.deepEqual(unfetched.notes, [{ kind: 'commits-not-checked', count: 2 }]);
   // A repository with no remote at all is local by design.
   git(work, 'remote', 'remove', 'origin');
-  assert.equal(hasRemote(work), false);
-  assert.deepEqual(findWaiting({ h, config, now: NOW }).rows, []);
+  assert.equal(remoteState(work), 'none');
+  const local = findWaiting({ h, config, now: NOW });
+  assert.deepEqual([local.rows, local.notes], [[], []]);
 });
 
 test('a pull request git shows landed on the default branch is not an orphan, one it does not is last seen open', () => {
@@ -388,6 +412,19 @@ test('waiting --json on the demo week prints the honestweek.waiting/1 shape', as
   assert.ok(Array.isArray(o.limits) && o.limits.length);
   // The demo never reads this machine's desktop app files.
   assert.equal(o.rows.some((row) => row.titleFrom === 'app'), false);
+});
+
+test('on the demo week built from its logs, a Codex pull request is inferred and an unfetched remote lists no commit', async () => {
+  // Without the demo's own private word, so its repository's GitHub name can be checked.
+  const h = await buildWorkHistory({ config: d.config, from: d.week.from, to: d.week.to, timezone: d.week.timezone, roots: d.roots, scope: 'all', hiddenSessions: 'redacted' });
+  const prs = { at: 'T', rows: [{ number: 13, state: 'OPEN', url: 'https://github.com/example/lantern/pull/13', repo: 'example/lantern' }] };
+  const w = findWaiting({ h, config: d.config, now: Date.parse(d.week.to) + 24 * HOUR, redact: createRedactor(d.config).redact, prs });
+  // A Codex session opened #13 (known from what gh printed); a later Claude session named it last.
+  const codex = w.rows.filter((r) => r.kind === 'pr' && r.pr.number === 13);
+  assert.deepEqual(codex.map((r) => [r.pr.repo, r.pr.number, r.pr.state, r.evidence]), [['example/lantern', 13, 'open', 'inferred']]);
+  // The demo's clone has a remote it never fetched from: its branch commits are counted, not listed.
+  assert.equal(w.counts.unpushed, 0);
+  assert.ok(w.notes.some((n) => n.kind === 'commits-not-checked' && n.count > 0));
 });
 
 test('waiting text stays under 60 lines and ends on the page to open', async () => {
