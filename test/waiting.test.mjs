@@ -279,6 +279,9 @@ test('a commit on a local branch no remote holds is unpushed; a pushed or local-
   const named = history([s], [ev(s.key, 'outcome', NOW - 20 * HOUR, { actor: 'git', agent: null, refs: [{ sha: unpushedSha }], facts: { outcome: 'commit-exists', repo: 'Acme-project', sha: unpushedSha.slice(0, 12), subject: 'x', authoredByConfiguredIdentity: true, onDefaultBranch: false, nominatedBy: 'e1' } })]);
   const acme = { ...config, repos: [{ ...config.repos[0], label: 'Acme-project' }] };
   assert.deepEqual(findWaiting({ h: named, config: acme, now: NOW, redact: (x) => String(x).replace(/Acme/g, '[redacted:term]') }).rows.map((r) => r.commit.repo), ['[redacted:term]-project']);
+  // The engine redacts the label on the outcome itself, so the redacted form is matched too.
+  const redactedLabel = history([s], [ev(s.key, 'outcome', NOW - 20 * HOUR, { actor: 'git', agent: null, refs: [{ sha: unpushedSha }], facts: { outcome: 'commit-exists', repo: '[redacted:term]-project', sha: unpushedSha.slice(0, 12), subject: 'x', authoredByConfiguredIdentity: true, onDefaultBranch: false, nominatedBy: 'e1' } })]);
+  assert.deepEqual(findWaiting({ h: redactedLabel, config: acme, now: NOW, redact: (x) => String(x).replace(/Acme/g, '[redacted:term]') }).rows.map((r) => r.commit.repo), ['[redacted:term]-project']);
   // A display-only repository is never read by git, so nothing is listed from it.
   assert.deepEqual(findWaiting({ h, config: { ...config, repos: [{ ...config.repos[0], role: 'display' }] }, now: NOW }).rows, []);
   // A repository with no remote at all is local by design.
