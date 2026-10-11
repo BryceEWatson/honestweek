@@ -621,6 +621,7 @@ test('--page given twice prints one one-time address per page, in order, each on
   assert.deepEqual([b[0].page, b[0].fragment], ['replay.html?session=cx-ponmlkji', 'th-ponmlkji~zoom~pf-ponmlkjihgfe']);
   assert.equal(linksIn(r.out()).length, 2, 'no other address is printed');
   assert.doesNotMatch(r.out(), /Open this address in your browser/);
+  assert.ok(r.out().includes('\nEach address works once, within 15 minutes. Press Enter here for a fresh one to the first page, or type link and a page for any other.\n'), 'Enter refreshes the first page only, and the terminal says so');
   assert.notEqual(a[0].code, b[0].code, 'each page has its own code');
   // Each code works once, in either order, and gives the run's key, which no address holds.
   const kb = await claim(b[0].port, b[0].code);
@@ -648,6 +649,11 @@ test('with several --page and a browser, the browser opens on the first; one --p
   assert.match(one.out(), /\nOpen this address in your browser: http:\/\/127\.0\.0\.1:\d+\/replay\.html\?session=cc-abcdefgh#th-abcdefgh~zoom~pf-abcdefghijkl&c=[0-9a-f]+\nEach address works once, within 15 minutes\. Press Enter here to print a fresh one\.\n/);
   assert.doesNotMatch(one.out(), /Open these addresses/);
   await one.handle.stop();
+});
+
+test('one run takes a --page for every problem pattern, so a problems answer always fits one start', () => {
+  const catalog = JSON.parse(readFileSync(join(ROOT, 'lib', 'problems', 'catalog.json'), 'utf8'));
+  assert.ok(catalog.patterns.length <= MAX_PAGES, `the catalog has ${catalog.patterns.length} patterns; MAX_PAGES is ${MAX_PAGES}`);
 });
 
 test('--page refuses more pages than one run takes, and a bad one among several, before anything is served', async () => {

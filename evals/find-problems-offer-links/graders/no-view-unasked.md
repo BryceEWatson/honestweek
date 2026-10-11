@@ -1,7 +1,8 @@
 ---
 type: tool_used
 tool: Bash
-input_match: '\bhonestweek(?:\.mjs)?(?:\\")?\s+view\b'
+input_match: '(?:honestweek\.mjs\\?"?|npx\s+(?:-y\s+)?honestweek(?:@[\w.-]+)?|(?::"|[\s;&|])honestweek)\s+view\b'
+min: 0
 max: 0
 ---
 

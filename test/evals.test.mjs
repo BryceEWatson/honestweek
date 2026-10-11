@@ -130,8 +130,9 @@ test('a case checks that a list of problems offers links and starts no page befo
   assert.ok(matcher(fired).test(skillCall('honestweek:honestweek-find')));
   const noView = Object.values(c.graders).filter((g) => field(g, 'tool') === 'Bash' && field(g, 'max') === '0');
   assert.equal(noView.length, 1, 'one check that view is not started');
+  assert.equal(field(noView[0], 'min'), '0', 'the view check passes a run with no view call');
   const node = 'node "/path/to/skill/skills/honestweek-find/../../bin/honestweek.mjs"';
-  for (const command of [`${node} view --no-open --demo --page "replay.html?session=cc-abcd#th-abcd~zoom~pf-abcdefghijkl"`, 'npx honestweek view --demo', 'honestweek view --no-open']) assert.ok(matcher(noView[0]).test(asInput({ command })), `the view check catches: ${command}`);
+  for (const command of [`${node} view --no-open --demo --page "replay.html?session=cc-abcd#th-abcd~zoom~pf-abcdefghijkl"`, 'npx honestweek view --demo', 'npx -y honestweek@0.4.0 view --demo', 'honestweek view --no-open']) assert.ok(matcher(noView[0]).test(asInput({ command })), `the view check catches: ${command}`);
   for (const command of [`${node} problems --demo --json`, `${node} problems --pattern cache-miss --demo --json`, 'grep -n "view" README.md']) assert.ok(!matcher(noView[0]).test(asInput({ command })), `the view check leaves alone: ${command}`);
   const judged = Object.values(c.graders).filter((g) => field(g, 'type') === 'llm');
   assert.equal(judged.length, 1, 'the answer is judged');
