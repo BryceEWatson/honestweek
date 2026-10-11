@@ -1,11 +1,12 @@
 ---
 name: honestweek-find
-description: Answers questions about the user's past Claude Code and Codex sessions from their own logs, read-only. Which session made this pull request, commit, file change or branch? What happened in a session, step by step, or at one moment? Where did my sessions go wrong this week, and has this session been checked yet? What caused one of those problems, how do I fix it, are we sure it's one, and when did it happen? Which sessions did a goal's work? And a link that opens the local honestweek page right on any of it. Use it for those questions, including about the session you're in now, not for writing a weekly summary (that's the honestweek skill). Every answer is redacted and says how each link is known.
+description: Answers questions about the user's past Claude Code and Codex sessions from their own logs, read-only. Which session made this pull request, commit, file change or branch? What happened in a session, step by step, or at one moment? Where did my sessions go wrong this week, and has this session been checked yet? What caused one of those problems, how do I fix it, are we sure it's one, and when did it happen? Which sessions did a goal's work? What's waiting on me: which sessions asked me something I never answered, stopped mid-work, or left a pull request or a commit behind? And a link that opens the local honestweek page right on any of it. Use it for those questions, including about the session you're in now, not for writing a weekly summary (that's the honestweek skill). Every answer is redacted and says how each link is known.
 allowed-tools:
   - Bash(node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" find *)
   - Bash(node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" replay *)
   - Bash(node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" problems *)
   - Bash(node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" goals *)
+  - Bash(node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" waiting *)
 ---
 
 # Finding and checking past sessions
@@ -25,6 +26,7 @@ node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" problems --session <sessi
 node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" problems --pattern <pattern> --json  # one pattern: its cause, fix, certainty and timeline
 node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" problems --finding <finding> --json  # the same for one finding, by its pf- key
 node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" goals --json                     # each goal and the sessions that did its work
+node "${CLAUDE_SKILL_DIR}/../../../bin/honestweek.mjs" waiting --json                   # what is waiting on the user, across every project
 ```
 
 - `<session>` can be an id these commands print, the id in the session's own log (a Claude Code session id, a Codex thread id), or the first eight characters or more of either. When the start fits more than one session, the answer names them: ask the user which.
@@ -64,6 +66,16 @@ A list of problems, from `problems`, reads like this:
 For one session (`--session`), a row's place and counts are that session's, but its priority and reason are the window's (`priority.of` says so): say that, give `priority.reason` as the window's words, and in step 3 leave out where a possible problem's high priority comes from (it can come from other sessions), but keep that how often a check is right hasn't been measured, so any finding can be wrong. There's no `statusCounts` then: give only the `notFound` lists it has.
 
 Don't count sessions from the findings an answer lists: it lists at most 25 of each kind per pattern (`findingsListed` is the whole count), so a count from them is short. Keep "general" (honestweek's catalog, the same on every machine) apart from what this user's log shows, and say which is which.
+
+## What's waiting on me
+
+"What's waiting on me?", "what needs me?" or "which sessions asked me something?": run `waiting --json` here and answer in the chat, never hand the user the command. It reads the last 7 days of every project's sessions, so it can take a minute. Answer like this:
+
+1. One line first: how many things, by kind, from `counts`, and the dates from `window`.
+2. Then one line per row, in the answer's order (asks first, newest first): the session's `title` (the desktop app's sidebar title when `titleFrom` is `app`), its `repo`, how old it is (`ageHours`), what it asks for (`asked` in backticks, or for an ask with none, a few words from `quote`; a `form` of `question-tool` or `plan-approval` means it asked through its question tool or put a plan to you, so say that and don't guess what it asked), and its `evidence` word. An ask is inferred by a rule unless it's `recorded`: say "looks like it asks", never that it does. A pull request row says `last-seen-open` unless a `--prs` file said `open`: say it may have closed since.
+3. Then what it can't see, from `notes` and `limits`, in one or two lines: sessions left out (archived, or not in the app's sidebar), pull requests it couldn't check, and that an ask answered somewhere else still shows.
+
+Offer a link for any row the same way as below. Don't run `gh` to check a pull request from here; the user can make a `--prs` file with the command `waiting --help` gives and ask again.
 
 ## A link to the page
 

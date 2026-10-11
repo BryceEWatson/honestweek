@@ -14,7 +14,7 @@ const read = (p) => readFileSync(join(ROOT, p), 'utf8').replace(/\r\n/g, '\n');
 const PLUGIN_COPY = read('skills/honestweek-find/SKILL.md');
 const PROJECT_COPY = read('.claude/skills/honestweek-find/SKILL.md');
 const CODEX_COPY = read('.agents/skills/honestweek-find/SKILL.md');
-const READ_ONLY = ['find', 'replay', 'problems', 'goals'];
+const READ_ONLY = ['find', 'replay', 'problems', 'goals', 'waiting'];
 
 /** The front matter's lines and the body, split at the closing ---. */
 function parts(text) {
