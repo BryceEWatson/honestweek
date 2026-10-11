@@ -171,6 +171,26 @@ test('every quote passes the redactor', () => {
   const [r] = waiting(h, { redact: (x) => String(x).replace(/Acme/g, '[redacted:term]') }).rows;
   assert.doesNotMatch(r.quote, /Acme/);
   assert.match(r.quote, /\[redacted:term\]/);
+  // A reply word is copied from the raw message too, so it's redacted as the quote is.
+  const t = session('cc-rrrrrrrrrrrs');
+  const [w] = waiting(history([t], [say(t.key, NOW - 10 * HOUR, 'Reply `Acme-go` to send it.')]), { redact: (x) => String(x).replace(/Acme/g, '[redacted:term]') }).rows;
+  assert.deepEqual(w.asked, ['[redacted:term]-go']);
+});
+
+test('a question or a plan put to you with no answer is an ask at any age; a cut-off call waits for the quiet time', () => {
+  const pending = (key, category) => {
+    const s = session(key, { endState: 'last-record-is-a-call-without-result', lastAt: iso(NOW - HOUR) });
+    return [s, [prompt(s.key, NOW - 2 * HOUR), ev(s.key, 'action', NOW - HOUR, { facts: { category } })]];
+  };
+  const [q, qe] = pending('cc-q1q1q1q1q1q1', 'question');
+  const [p, pe] = pending('cc-p1p1p1p1p1p1', 'plan-approval');
+  const [c, ce] = pending('cc-c1c1c1c1c1c1', 'shell');
+  const rows = waiting(history([q, p, c], [...qe, ...pe, ...ce])).rows;
+  assert.deepEqual(rows.map((r) => [r.session, r.kind, r.rule, r.form, r.evidence]).sort(), [[p.key, 'ask', 'waiting.question-tool', 'plan-approval', 'recorded'], [q.key, 'ask', 'waiting.question-tool', 'question-tool', 'recorded']]);
+  // A question already answered, in a session a helper's step left without a result, isn't one.
+  const [a, ae] = pending('cc-a1a1a1a1a1a1', 'question');
+  ae[1].end = { at: iso(NOW - HOUR), t: NOW - HOUR };
+  assert.deepEqual(waiting(history([a], ae)).rows, []);
 });
 
 // ---- pull requests ---------------------------------------------------------------------------------
@@ -255,6 +275,10 @@ test('a commit on a local branch no remote holds is unpushed; a pushed or local-
   const config = { repos: [{ label: 'your-project', role: 'featured', path: work }], identity: { authorEmails: ['you@example.com'] } };
   const rows = findWaiting({ h, config, now: NOW });
   assert.deepEqual(rows.rows.map((r) => [r.kind, r.commit.sha, r.commit.branches]), [['unpushed', unpushedSha.slice(0, 12), ['feature/a']]]);
+  // A label the redactor changes is still matched, and printed redacted.
+  const named = history([s], [ev(s.key, 'outcome', NOW - 20 * HOUR, { actor: 'git', agent: null, refs: [{ sha: unpushedSha }], facts: { outcome: 'commit-exists', repo: 'Acme-project', sha: unpushedSha.slice(0, 12), subject: 'x', authoredByConfiguredIdentity: true, onDefaultBranch: false, nominatedBy: 'e1' } })]);
+  const acme = { ...config, repos: [{ ...config.repos[0], label: 'Acme-project' }] };
+  assert.deepEqual(findWaiting({ h: named, config: acme, now: NOW, redact: (x) => String(x).replace(/Acme/g, '[redacted:term]') }).rows.map((r) => r.commit.repo), ['[redacted:term]-project']);
   // A display-only repository is never read by git, so nothing is listed from it.
   assert.deepEqual(findWaiting({ h, config: { ...config, repos: [{ ...config.repos[0], role: 'display' }] }, now: NOW }).rows, []);
   // A repository with no remote at all is local by design.
@@ -271,7 +295,17 @@ test('a pull request git shows landed on the default branch is not an orphan, on
   const h = history([s], [link(s.key, NOW - 20 * HOUR, 1), link(s.key, NOW - 20 * HOUR, 2)]);
   const config = { repos: [{ label: 'your-project', role: 'featured', path: work }], identity: { authorEmails: ['you@example.com'] } };
   const rows = findWaiting({ h, config, now: NOW }).rows;
-  assert.deepEqual(rows.map((r) => [r.pr.number, r.pr.state, r.evidence]), [[2, 'last-seen-open', 'derived']]);
+  assert.deepEqual(rows.map((r) => [r.pr.number, r.pr.state, r.pr.stateFrom, r.evidence]), [[2, 'last-seen-open', 'git', 'derived']]);
+  // The logs carry the redacted GitHub name: git's and the --prs file's are compared redacted,
+  // and no raw name reaches a row.
+  const redact = (x) => String(x).replace(/your-project/g, '[redacted:term]');
+  const hidden = 'you/[redacted:term]';
+  const asks = session('cc-xxxxxxxxxxxy', { repo: '[redacted:term]' });
+  const h2 = history([s, asks], [link(s.key, NOW - 20 * HOUR, 1, hidden), link(s.key, NOW - 20 * HOUR, 2, hidden), link(s.key, NOW - 20 * HOUR, 3, hidden), say(asks.key, NOW - 10 * HOUR, 'Reply `go` once PR 1 is in.')]);
+  const prs = readPrsFile(JSON.stringify([{ number: 3, state: 'OPEN', url: 'https://github.com/you/your-project/pull/3' }]), 'T');
+  const w = findWaiting({ h: h2, config, now: NOW, redact, prs });
+  assert.deepEqual(w.rows.map((r) => [r.kind, r.pr?.number ?? null, r.pr?.stateFrom ?? null, r.settled?.pr.repo ?? null]), [['ask', null, null, hidden], ['pr', 2, 'git', null], ['pr', 3, 'prs-file', null]]);
+  assert.doesNotMatch(JSON.stringify(w.rows.map((r) => [r.pr, r.settled])), /your-project/);
 });
 
 // ---- the desktop app's session files -------------------------------------------------------------

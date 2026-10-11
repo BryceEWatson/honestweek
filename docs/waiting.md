@@ -10,9 +10,9 @@ Four kinds of row, asks first, newest first within each kind (an old ask is the 
 
 | Kind | What it means | How it's known |
 | --- | --- | --- |
-| ask | A session's turn ended asking me something, and I typed nothing in its thread after it. | Inferred by a rule over the session's last message. Recorded when it asked through Claude Code's question tool and the log holds no answer. |
+| ask | A session's turn ended asking me something, and I typed nothing in its thread after it. | Inferred by a rule over the session's last message. Recorded when it asked through its question tool, or asked me to approve a plan, and the log holds no answer; those are listed at any age. |
 | stalled | A session's log ends on a step with no result, or on a message of mine it never answered, and it has been quiet for 6 hours. | Recorded: the log's own last record. |
-| pr | A pull request a session opened, that no session has named for 6 hours, and that git doesn't show landed. | Derived from the logs and local git; recorded as open only from a `gh pr list` file I hand it. |
+| pr | A pull request a session opened or linked, that no session has named for 6 hours, and that git doesn't show landed. | Derived from the logs and local git; recorded as open only from a `gh pr list` file I hand it. |
 | unpushed | A commit a session made, in a repository with a remote, that no remote branch holds and that's still on a local branch. | Derived from local git, without fetching. |
 
 A *thread* is a group of sessions the logs connect, such as a session and the copy that resumed it. An ask counts as answered when I typed anything in any session of its thread after it.
@@ -68,9 +68,9 @@ run in each repository, the lists joined into one array. Without a file, a pull 
 | `rows[].title`, `.titleFrom`, `.sidebar` | `{ "quoted": ... }`; `app`, `log` or `first-prompt`; true, false or null (not a Claude Code session, or no app data). |
 | `rows[].tool`, `.repo`, `.group` | `claude-code` or `codex`; the project's label; `configured`, `display` or `outside`. |
 | `rows[].at`, `.ageHours` | When the asking message (or last step) was written, and its age in hours. |
-| `rows[].asked`, `.form`, `.quote` | The reply words, each `{ "quoted": ... }`; `reply-word`, `waiting-on-you` or `question`; the asking paragraph, redacted and cut to 300 characters. |
+| `rows[].asked`, `.form`, `.quote` | The reply words, each `{ "quoted": ... }`; `reply-word`, `waiting-on-you`, `question`, `question-tool` or `plan-approval`; the asking paragraph, redacted and cut to 300 characters. |
 | `rows[].settled` | Present when an ask names a pull request merged or closed since: `{ pr: { repo, number, state, from } }`. |
-| `rows[].pr` | On a `pr` row: `{ repo, number, state: "open" or "last-seen-open", stateFrom, fileAt? }`. |
+| `rows[].pr` | On a `pr` row: `{ repo, number, state: "open" or "last-seen-open", stateFrom: "prs-file" or "git", fileAt? }`. Git can't see a pull request rebase-merged, or merged since this checkout last fetched, so either can show as last seen open. |
 | `rows[].commit` | On an `unpushed` row: `{ repo, sha, subject, branches }`. |
 | `notes[]` | What was left out or couldn't be checked, each `{ kind, count }` or `{ kind, repo, sha }`. |
 | `rules`, `limits` | Each rule a row used, in plain words, and what the answer can't see. |
@@ -83,10 +83,12 @@ On 11 October 2026 I ran it on the build machine's last 7 days (335 sessions in 
 
 - **What it listed** (measured): 18 asks, no stalled sessions, no orphan pull requests, no unpushed commits. 19 archived sessions and 221 sessions the app doesn't list were left out, and 15 pull requests in repositories git can't read and the file didn't cover weren't checked.
 - **Asks naming a merged pull request** (measured against `gh pr list`): 4 of the 18, each correctly flagged and sorted last.
-- **The other 14, as I read them** (inferred, judged by the session that built this, not yet by me): 8 still waiting, 2 settled elsewhere (work the ask was about has since shipped), 4 I couldn't tell.
-- **Against the hand-kept list** (7 items): it caught 4. Of the 3 it missed, 1 was stale on the hand-kept list (the session had since said nothing needed me), 1 was open items listed inside a report with no ask cue (a real miss), and 1 came from an email, not a session. It also listed 4 more asks I read as still waiting that the hand-kept list didn't have.
+- **The other 14, as the session that built this read them** (inferred, not yet checked by me): 8 still waiting, 2 settled elsewhere (work the ask was about has since shipped), 4 it couldn't tell.
+- **Against the hand-kept list** (7 items): it caught 4. Of the 3 it missed, 1 was stale on the hand-kept list (the session had since said nothing needed me), 1 was open items listed inside a report with no ask cue (a real miss), and 1 came from an email, not a session. It also listed 4 more asks that session read as still waiting that the hand-kept list didn't have.
 
-The stalled-promise rule (`--promises`) is off by default: on the same week it listed nothing extra, and how often it's right hasn't been judged. A hand-judged sample of 30 rows, scored by me, is still to do before any rule's precision is quoted as a number.
+These figures are in-sample: the ask rule's cues were written while reading the same week's logs they were checked on, so they say how well the rule fits that week, not how it does on the next.
+
+The stalled-promise rule (`--promises`) is off by default: on the same week it listed nothing extra, and how often it's right hasn't been judged. A hand-judged sample of 30 rows from a later week, scored by me, is still to do before any rule's precision is quoted as a number.
 
 ## Implementation detail
 
