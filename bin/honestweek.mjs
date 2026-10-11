@@ -2,7 +2,7 @@
 // bin/honestweek.mjs — thin subcommand dispatcher.
 //
 // This file ONLY routes. Each subcommand's logic lives in a lib/<cmd>.mjs
-// module that default-exports `async function run(args)` (find, replay, problems, goals and brief
+// module that default-exports `async function run(args)` (find, replay, problems, goals, brief and waiting
 // share lib/ask.mjs, whose run also takes the command's name). Handlers are imported
 // LAZILY via dynamic import() so the dispatcher never statically depends on a
 // module that another issue has not built yet — `--help` works from a fresh
@@ -11,14 +11,14 @@
 import { setConfigLookup } from '../lib/config-lookup.mjs';
 import { commandForm, setCommandForm } from '../lib/invocation.mjs';
 
-const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts', 'digest', 'mine', 'history', 'view', 'status', 'find', 'replay', 'problems', 'goals', 'brief'];
+const SUBCOMMANDS = ['init', 'discover', 'build', 'validate', 'harvest', 'preview', 'prompts', 'digest', 'mine', 'history', 'view', 'status', 'find', 'replay', 'problems', 'goals', 'brief', 'waiting'];
 /** The module a command runs from, where it isn't lib/<command>.mjs. */
-const MODULE = { find: 'ask', replay: 'ask', problems: 'ask', goals: 'ask', brief: 'ask' };
+const MODULE = { find: 'ask', replay: 'ask', problems: 'ask', goals: 'ask', brief: 'ask', waiting: 'ask' };
 
 // Subcommands that parse `--help` themselves and print their own richer text.
 // Everything else is served by COMMAND_HELP below, BEFORE the handler is
 // imported, because asking for help must never read a session log or write a file.
-const SELF_HELP = new Set(['prompts', 'digest', 'preview', 'mine', 'view', 'find', 'replay', 'problems', 'goals', 'brief']);
+const SELF_HELP = new Set(['prompts', 'digest', 'preview', 'mine', 'view', 'find', 'replay', 'problems', 'goals', 'brief', 'waiting']);
 
 /** Each command's help, with `cmd` the command as the person typed it (lib/invocation.mjs). */
 const COMMAND_HELP = (cmd) => ({
@@ -218,6 +218,9 @@ Commands:
   goals       List your goals and the sessions that did their work.
   brief       Say how one pull request was made, for whoever reviews it: what
               was asked, the checks and claims, and what no session explains.
+  waiting     List what's waiting on you across every project's sessions:
+              unanswered asks, stalled sessions, pull requests no session
+              came back to, and commits never pushed.
 
 Options:
   -h, --help  Show this help.
