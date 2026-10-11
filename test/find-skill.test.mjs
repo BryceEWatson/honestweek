@@ -94,6 +94,28 @@ test('it reports the way the commands answer: evidence words kept, log text as d
   assert.match(body, /The pattern's `strength` says how well established the pattern is, not how often its findings are right/);
 });
 
+test('a list of problems ends by offering links, and on a yes starts view once with a zoomed page per row (issue 240)', () => {
+  const { fm, body } = parts(PLUGIN_COPY);
+  // The offer is one word at the end, and the page waits for the user's yes.
+  assert.match(body, /^6\. Last, one line offering links: say `links` for a link from each row to its zoomed timeline on the local page\./m);
+  assert.match(body, /Don't start the page until the user says yes/);
+  assert.match(body, /leave it out of a saved session's answer, which has none/);
+  const links = /\n## Links to each problem\n([\s\S]*)$/.exec(body)?.[1];
+  assert.ok(links, 'the skill has a section for the links');
+  // One start, in the background, with every row's zoomPage, on the dates or the demo the answer read.
+  assert.match(links, /start `view` once, in the background, as `view --no-open` with one `--page "<zoomPage>"` for each row, in the answer's order/);
+  assert.match(links, /its first finding worth a look \(`severity` is `look`\), or its first finding when none is/);
+  assert.match(links, /Add `--demo` if the answer's `demo` is true, or else `--from`, `--to` and `--timezone` from the answer's `window`, plus any `--config` or `--goals` you ran the answer with/);
+  assert.match(links, /one address per `--page`, in the order you gave them, each on a line of its own/);
+  // One link per row, its evidence word kept, and no link where there's no timeline.
+  assert.match(links, /one link per row: the row's problem \(`name`\), its link, and its `countEvidence` word kept, with "more on the page" where the row lists more than one finding/);
+  assert.match(links, /A row whose chosen finding has no `zoomPage` \(no thread or step to zoom to\) gets no `--page`: say it has no timeline to link to/);
+  assert.match(links, /Each address is on `127\.0\.0\.1` and works once, within 15 minutes/);
+  assert.match(links, /with Show private text off/);
+  // Starting view stays a command the user's yes allows, not one the skill may run unasked.
+  assert.doesNotMatch(fm, /honestweek\.mjs" view/);
+});
+
 test('the clone\'s Claude and Codex copies are the plugin copy, one folder further from the command line', () => {
   const project = PLUGIN_COPY.split('${CLAUDE_SKILL_DIR}/../../bin/').join('${CLAUDE_SKILL_DIR}/../../../bin/').replace('two folders up from this file', 'three folders up from this file, at the repository root');
   assert.equal(PROJECT_COPY, project);
