@@ -91,24 +91,33 @@ async function everyAnswer(priv) {
 const redactedAnswers = await everyAnswer(false);
 const privateAnswers = await everyAnswer(true);
 
-// A search's id is random letters a to p, which can spell a planted word ("dana") by
-// chance. It never holds text, and the redactor and the leak counter leave ids alone too,
-// so a planted value is looked for in everything but those ids.
-const QUERY_ID_TOKEN = /\bq[a-p]{16}\b/g;
+// honestweek's ids are letters a to p (letterHash in lib/replay/ids.mjs), which can spell a
+// planted word ("dana") by chance: a search's id (q and 16 letters), a goal's key (g and 15),
+// and a session key (cc-, cx- or git- and 12 letters, hashed from the log's path, which is a
+// fresh temp folder each run), with the thread ids (th-), event ids (a session key, then
+// .line.sub) and finding keys (pf-) built the same way. An id never holds text, and the
+// redactor and the leak counter leave ids alone too, so a planted value is looked for in
+// everything but them (issue 238).
+const ID_TOKEN = /\b(?:q[a-p]{16}|g[a-p]{15}|[a-z]{2,4}-[a-p]{8,16})\b/g;
 const literalHits = (answer, values) => {
   const hits = [];
   for (const s of stringsIn(answer)) {
-    const text = s.replace(QUERY_ID_TOKEN, ' ').toLowerCase();
+    const text = s.replace(ID_TOKEN, ' ').toLowerCase();
     for (const v of values) if (text.includes(String(v).toLowerCase())) hits.push(v);
   }
   return hits;
 };
 
-test("the planted-value check skips a search id that spells a planted word by chance, and nothing else", () => {
+test("the planted-value check skips an id that spells a planted word by chance, and nothing else", () => {
   const id = `qhdana${'p'.repeat(11)}`;
   assert.match(id, /^q[a-p]{16}$/, 'shaped like the ids the server makes');
   assert.deepEqual(literalHits({ queryId: id, note: `search.html#q=${id}~w` }, ['Dana']), []);
-  for (const s of ['Ask Dana first', 'see /home/dana/notes', `${id}a`, `x${id}`]) assert.deepEqual(literalHits({ s }, ['Dana']), ['Dana'], s);
+  // A session key, its event and thread ids, a finding key and a goal key, each spelling it.
+  const key = 'cc-bdanaccccccc';
+  for (const s of [key, `${key}.56.0`, `replay.html?session=${key}#th-pdanapppp`, 'pf-ddanaddddddd', `g${'danaa'.repeat(3)}`]) assert.deepEqual(literalHits({ s }, ['Dana']), [], s);
+  for (const s of ['Ask Dana first', 'see /home/dana/notes', `${id}a`, `x${id}`, `${key}x`, 'my-dana-notes', 'cc-dana']) assert.deepEqual(literalHits({ s }, ['Dana']), ['Dana'], s);
+  // No planted value is shaped like an id, so skipping ids can never hide one.
+  for (const v of [...PRIVATE_WORDS, ...Object.values(SECRETS), 'Dana']) assert.equal(String(v).replace(ID_TOKEN, ''), String(v), v);
 });
 
 // ---- privacy everywhere -----------------------------------------------------------------
