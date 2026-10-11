@@ -12,7 +12,7 @@ Four kinds of row, asks first, newest first within each kind (an old ask is the 
 | --- | --- | --- |
 | ask | A session's turn ended asking me something, and I typed nothing in its thread after it. | Inferred by a rule over the session's last message. Recorded when it asked through its question tool, or asked me to approve a plan, and the log holds no answer; those are listed at once, without waiting out the quiet time, and a session that closed with one still open shows too. |
 | stalled | A session's log ends on a step with no result, or on a message of mine it never answered, and it has been quiet for 6 hours. | Recorded: the log's own last record. |
-| pr | A pull request a session opened or linked, that no session has named for 6 hours, and that git doesn't show landed. | Derived from the logs and local git; recorded as open only from a `gh pr list` file I hand it. |
+| pr | A pull request a session opened or linked, that no session has named for 6 hours, and that git doesn't show landed. | Derived from the logs and local git; recorded as open only from a `gh pr list` file I hand it. One a Codex session opened is read from what `gh` printed, so it's inferred. |
 | unpushed | A commit a session made, in a repository with a remote, that no remote branch holds and that's still on a local branch. | Derived from local git, without fetching. |
 
 A *thread* is a group of sessions the logs connect, such as a session and the copy that resumed it. An ask counts as answered when I typed anything in any session of its thread after it.
@@ -92,7 +92,7 @@ The stalled-promise rule (`--promises`) is off by default: on the same week it l
 
 ## Implementation detail
 
-- `lib/waiting.mjs`: `findWaiting` over a history `buildWorkHistory` made with `scope: 'all'` and `hiddenSessions: 'redacted'` (the page's redacted build); `askOf` and `promiseOf` are the text rules; `prStates` reads the `--prs` file, then `landedPr` for configured, non-display repositories; `refsContaining` and `hasRemoteBranch` (in `lib/git.mjs`) answer the unpushed check.
+- `lib/waiting.mjs`: `findWaiting` over a history `buildWorkHistory` made with `scope: 'all'` and `hiddenSessions: 'redacted'` (the page's redacted build); `askOf` and `promiseOf` are the text rules; `prStates` reads the `--prs` file, then `landedPr` for configured, non-display repositories; `refsContaining` and `hasRemote` (in `lib/git.mjs`) answer the unpushed check.
 - `lib/app-sessions.mjs`: `readAppSessions` reads `cliSessionId`, `title` and `isArchived` from `local_*.json` two folders under the app's `claude-code-sessions` folder; `HONESTWEEK_APP_SESSIONS` names another folder.
 - `lib/ask-waiting.mjs`: the command's options, JSON shape and text form. `lib/view/data.mjs` exposes `waiting()` over the redacted build to this process only; no data route answers it.
 - Tests: `test/waiting.test.mjs`.
