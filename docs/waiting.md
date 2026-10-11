@@ -49,7 +49,7 @@ honestweek doesn't reach GitHub, so it can't see a pull request closed after the
 gh pr list --state all --json number,headRefName,state,url > prs.json
 ```
 
-run in each repository, the lists joined into one array. Without a file, a pull request git doesn't show landed is "last seen open", and one in a display-only repository or a folder outside the config isn't checked at all, only counted. Neither is one in a repository whose GitHub name holds a private word: the logs carry that name redacted, and every private word redacts to the same mark, so it can't be told apart from another repository that differs only in that word.
+run in each repository, the lists joined into one array. Without a file, a pull request git doesn't show landed is "last seen open", and one in a display-only repository or a folder outside the config isn't checked at all, only counted. With or without a file, neither is one in a repository whose GitHub name holds a private word: the logs carry that name redacted, and every private word redacts to the same mark, so it can't be told apart from another repository that differs only in that word. If your GitHub user or organization name is a private word, that's every pull request.
 
 ## The JSON shape: `honestweek.waiting/1`
 
