@@ -287,3 +287,18 @@ What's left for me is the list above, plus a ruleset on `v*` tags that blocks mo
 > - **The find skill answers in the chat.** Asked what problems you've had, it answers as two tables (problems found in the log, and possible ones to check yourself) instead of handing you a command. Asked what caused a problem, it opens with what your log shows, gives a likely reason only where honestweek's own answer names one, and never tells you a finding is certain.
 >
 > The full list is in [CHANGELOG.md](https://github.com/BryceEWatson/honestweek/blob/main/CHANGELOG.md).
+
+## 0.5.0 release notes
+
+> **honestweek 0.5.0**
+>
+> This release adds `honestweek waiting`: one list of what your sessions are waiting on you for, across every project on your machine. Run `npx honestweek@0.5.0 waiting --demo` to see it on a made-up week. It still has no dependencies, runs only on your own machine, and never publishes anything for you. You need Node 18 or later and `git` 2.24 or later.
+>
+> **What's new**
+>
+> - **What's waiting on you.** `honestweek waiting` reads the last 7 days of every Claude Code and Codex session and lists four kinds of thing, asks first: a question a session asked that you never answered, a session that stopped mid-step or never answered your last message, and, in the repositories you list, a pull request no session came back to that git doesn't show landed and a commit no remote branch holds. Each row gives the session's title, its project, how old it is, the words it asked for and how it's known. `--json` prints the `honestweek.waiting/1` shape.
+> - **It doesn't guess about GitHub.** honestweek makes no network call, so a pull request counts as open only when you hand it a `--prs` file from `gh pr list`. Without one it says "last seen open". A session you archived in the Claude desktop app is left out, and the only things it reads from the app's files are each session's log, title and archived flag.
+> - **The find skill answers "what's waiting on me?"** from it, in the chat.
+> - **Links from each problem to its timeline.** Asked where your sessions went wrong, the find skill now ends with one word to say, `links`. Say it and it starts the local page once and gives you a link from each problem to its zoomed timeline, each on `127.0.0.1` and good once. `honestweek view` takes `--page` more than once to print those addresses.
+>
+> The full list is in [CHANGELOG.md](https://github.com/BryceEWatson/honestweek/blob/main/CHANGELOG.md).
