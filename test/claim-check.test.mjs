@@ -14,6 +14,7 @@ import { runProblems } from '../lib/problems/index.mjs';
 import { READ_BACK_RULES, runOutputFiles, sameRunFile, testRunner } from '../lib/replay/classify.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
 import { testRunResult } from '../lib/replay/metrics.mjs';
+import { eventRow } from '../lib/view/replay-export.mjs';
 import { makeTempDir, removeTempDir } from './helpers/temp-dir.mjs';
 
 const T0 = Date.parse('2025-03-10T09:00:00.000Z');
@@ -94,6 +95,34 @@ test('a restore in the next step, after the edit that broke it, is the same swap
   assert.equal(deliberateRun(run, { before: ['notes.txt'], nextCmd: "cat > notes.txt <<'EOF'\nnew\nEOF" }), false, 'a heredoc writes something new');
 });
 
+test('a branch move or a stash only counts when it comes back', () => {
+  const run = 'node --test';
+  assert.equal(deliberateRun('git stash; node --test; git stash pop'), true);
+  assert.equal(deliberateRun('git stash pop; node --test; git stash'), true, 'the other way round');
+  assert.equal(deliberateRun('git stash; node --test; git stash'), false, 'a second stash puts nothing back');
+  assert.equal(deliberateRun('git checkout main && node --test', { nextCmd: 'git checkout feature/x' }), true, 'a run on the main line');
+  assert.equal(deliberateRun('git checkout HEAD~1 && node --test; git checkout -'), true, 'a run on an earlier commit');
+  assert.equal(deliberateRun('git checkout feature/x && node --test', { nextCmd: 'git checkout main' }), false, 'a run on the work itself');
+  assert.equal(deliberateRun(run, { before: filesPutBy('git checkout feature/a'), nextCmd: 'git checkout feature/b' }), false);
+  assert.equal(deliberateRun('git checkout -b fix && node --test', { nextCmd: 'git switch main' }), false, 'a new branch');
+  assert.equal(deliberateRun('git checkout main && node --test', { nextCmd: 'git checkout -b fix' }), false, 'a new branch puts nothing back');
+});
+
+test('copies into a folder are told apart by name', () => {
+  assert.equal(deliberateRun('node --test', { before: ['src/a.mjs'], nextCmd: 'cp ../shared/helper.mjs src/' }), false);
+  assert.equal(deliberateRun('cp ../shared/a.json .; node --test; cp ../shared/b.json .'), false);
+  assert.equal(deliberateRun('mv lib/old.mjs lib/new.mjs && node --test', { nextCmd: 'mv lib/z.mjs lib/' }), false);
+  assert.equal(deliberateRun('cp ../broken/a.mjs src/; node --test; cp "$S/a.mjs" src/'), true, 'the same file name both ways');
+});
+
+test('a line that runs again and ends failed failed on the restored code', () => {
+  const line = 'cp lib/a.mjs "$S/keep"; sed -i "s/a/b/" lib/a.mjs; node --test | grep fail; cp "$S/keep" lib/a.mjs; node --test';
+  assert.equal(deliberateRun(line, { result: 'error' }), false);
+  assert.equal(deliberateRun(line, { result: 'ok' }), true, 'the last run passed, so the failure was the proof');
+  assert.equal(deliberateRun('git worktree add ../base HEAD~1 && (cd ../base && node --test); node --test', { result: 'error' }), false);
+  assert.equal(deliberateRun('git worktree add ../base HEAD~1 && (cd ../base && node --test); node --test', { result: 'ok' }), true);
+});
+
 const BREAK_AND_RESTORE = 'cp lib/parse.mjs "$S/keep"; sed -i "s/a/b/" lib/parse.mjs; node --test | grep fail; cp "$S/keep" lib/parse.mjs';
 
 test('the check sets a deliberate last run aside, and reads the run before it', () => {
@@ -132,6 +161,47 @@ test('a tests-pass claim anywhere in a long message is read, and only tests-pass
   assert.equal(claims([fail, { say: `${padding(30)}\nDone with this part.\n${padding(30)}` }]).length, 0, 'done wording mid-message stays unread');
 });
 
+test('an aim, a question, an unticked item or an earlier state is no claim', () => {
+  for (const text of [
+    '## Test plan\n- [ ] All tests pass',
+    'Next I need to make the tests pass.',
+    'Run the suite to confirm all tests pass.',
+    'Do all tests pass?',
+    "I can't confirm the tests pass.",
+    'I want to make sure all tests pass before merging.',
+    'CI will verify tests pass.',
+    "I'll fix the import so the tests pass.",
+    'Before my change all tests passed.',
+    'Tests: run them and see whether they pass',
+    'I want to confirm all 12 tests pass.',
+  ]) {
+    assert.equal(testsPassAnywhere(text), false, text);
+    assert.deepEqual(countClaims(text), [], text);
+  }
+  // Failing-path partners: the same words as a result still read as a claim.
+  for (const text of ['- [x] All tests pass', 'Fixed the import so the tests pass.', 'Compared to main, all tests pass.', "All tests pass and I'll open the pull request next.", 'All tests are passing.', 'The tests are now passing.', 'Tests all pass.', 'The test suite is passing.']) {
+    assert.equal(testsPassAnywhere(text), true, text);
+  }
+  assert.deepEqual(countClaims('All 12 tests are passing.'), [12]);
+});
+
+test('a claim only the whole-message reading finds, beside a failure named elsewhere, stays a note', () => {
+  const fail = { run: 'node --test', tests: FAILED };
+  const mixed = claims([fail, { say: `${padding(40)}The unit tests pass. The wrap test still fails. ${padding(40)}` }]);
+  assert.equal(mixed[0].severity, 'note');
+  assert.equal(claims([fail, { say: `${padding(40)}The unit tests pass. ${padding(40)}` }])[0].severity, 'look', 'nothing named: it stands');
+  assert.equal(claims([fail, { run: 'gh pr create --title x --body "The unit tests pass. The wrap test still fails."' }])[0].severity, 'note');
+});
+
+test('long text costs a linear read, not a scan per digit or per line', () => {
+  const started = Date.now();
+  countClaims('1'.repeat(100000));
+  countClaims('1,'.repeat(50000));
+  testsPassAnywhere('\n'.repeat(100000));
+  testsPassAnywhere('tests pass except '.repeat(5000));
+  assert.ok(Date.now() - started < 4000, `took ${Date.now() - started} ms`);
+});
+
 test('wording that waits on a check is no claim', () => {
   const fail = { run: 'node --test', tests: FAILED };
   assert.equal(claims([fail, { say: 'It lands once CI is green.' }]).length, 0);
@@ -164,6 +234,31 @@ test('a count only a failing run shows is flagged, on any last state', () => {
   assert.equal(claims([fail, small, { say: 'All 3 tests pass. All 12 tests pass.' }])[0]?.kind, 'states a count no run shows');
   assert.equal(claims([fail, small, { run: 'gh pr comment 1 --body "All 3 tests pass. All 12 tests pass."' }])[0]?.kind, 'claims success in writing');
   assert.equal(claims([fail, small, { say: 'Not all 12 tests pass.' }]).length, 0, 'a denial is no claim');
+});
+
+test('a clean run backs a count only until a later failing run of that many', () => {
+  const clean = { run: 'node --test', tests: PASSED };
+  const fail = { run: 'node --test', tests: FAILED };
+  const edit = { edit: 'lib/parse.mjs' };
+  assert.equal(claims([clean, edit, fail, { say: 'All 12 tests pass.' }])[0]?.kind, 'states a count no run shows');
+  assert.equal(claims([clean, edit, fail, { say: 'Done. 12 tests, 0 failed.' }])[0]?.kind, 'states a count no run shows');
+  assert.equal(claims([clean, edit, fail, { run: 'git commit -m "All 12 tests pass"' }])[0]?.kind, 'claims success in writing');
+  // Failing-path partner: a clean run after the failing one backs it.
+  assert.equal(claims([fail, edit, clean, { say: 'All 12 tests pass.' }]).length, 0);
+  // A text that kept an old count, after a clean run of more tests, isn't saying a failure passed.
+  const more = { run: 'node --test', tests: { tests: 15, pass: 15, fail: 0, parser: 'node-tap' } };
+  assert.equal(claims([clean, fail, edit, more, { run: 'gh pr edit 1 --body "12 tests, 0 failed"' }]).length, 0);
+  const fewer = { run: 'node --test test/one.test.mjs', tests: { tests: 3, pass: 3, fail: 0, parser: 'node-tap' } };
+  assert.equal(claims([clean, fail, edit, fewer, { run: 'gh pr edit 1 --body "12 tests, 0 failed"' }]).length, 1, 'a smaller run does not answer it');
+});
+
+test('a write that failed wrote nothing, and a quoted runner still comes before its write', () => {
+  const fail = { run: 'node --test', tests: FAILED };
+  assert.equal(claims([fail, { run: 'git commit -m "All tests pass"', result: 'error' }, { say: 'The hook stopped the commit.' }]).length, 0);
+  assert.equal(claims([fail, { run: 'gh pr create --title x --body "All tests pass"', result: 'error' }, { say: 'It did not open.' }]).length, 0);
+  assert.equal(claims([fail, { edit: 'lib/parse.mjs' }, { run: 'node --test "test/a.test.mjs" && git commit -m "All tests pass"', tests: { tests: 3, pass: 3, fail: 0, parser: 'node-tap' } }]).length, 0);
+  // Failing-path partner: a write that went through is read.
+  assert.equal(claims([fail, { run: 'git commit -m "All tests pass"' }])[0]?.kind, 'claims success in writing');
 });
 
 test('a count stays quiet when a run backs it, or none was against it', () => {
@@ -247,7 +342,7 @@ test('written claims stay quiet with a passing check, a pass that came first, or
 });
 
 test('a claim written before the run in the same line comes before it, and one written after follows it', () => {
-  const after = { run: 'node --test; gh pr comment 1 --body "All tests pass"', tests: FAILED };
+  const after = { run: 'node --test; gh pr comment 1 --body "All tests pass"', tests: FAILED, result: 'ok' }; // the line's exit is the comment's
   assert.equal(claims([after]).filter((f) => f.kind === 'claims success in writing').length, 1);
   const before = { run: 'gh pr comment 1 --body "All tests pass"; node --test', tests: FAILED };
   assert.equal(claims([before]).filter((f) => f.kind === 'claims success in writing').length, 0);
@@ -408,7 +503,7 @@ test('a failed run followed by a run whose result is unclear is mixed evidence, 
   assert.equal(flags(await log(TAP(5, 0))).length, 0, 'read back as a pass, it answers the failure');
 });
 
-test('a run in a line that reads another run\'s output takes no summary from that line', async () => {
+test('a run in a line that reads another run\'s output gives neither run a summary', async () => {
   const runs = runsOf(await historyOf((log) => {
     log.tool(1, 'c1', 'Bash', { command: 'node --test', run_in_background: true });
     log.result(2, 'c1', STARTED('job-1', '/work/tasks/job-1.output'), { ...shellDone(''), backgroundTaskId: 'job-1' });
@@ -416,8 +511,55 @@ test('a run in a line that reads another run\'s output takes no summary from tha
     log.result(4, 'c2', TAP(4, 1), shellDone(TAP(4, 1)));
   }));
   assert.equal(runs.length, 2);
-  assert.equal(runs[0].derived.tests.fail, 1, 'the read goes to the run it names');
-  assert.equal(runs[1].derived.tests, undefined, 'not to the loop');
+  assert.equal(runs[0].derived.tests, undefined, 'the output could be either run\'s');
+  assert.equal(runs[0]._unreadRun, true, 'and the older run is known to be unread');
+  assert.equal(runs[1].derived.tests, undefined);
+});
+
+test('only a program that prints the file counts as reading it', async () => {
+  const after = (read, output = TAP(3, 0)) => historyOf((log) => {
+    log.tool(1, 'c1', 'Bash', { command: 'npm test > out.log 2>&1' });
+    log.result(2, 'c1', '', shellDone(''));
+    log.tool(3, 'c2', 'Bash', { command: read });
+    log.result(4, 'c2', output, shellDone(output));
+  });
+  for (const other of ['./scripts/smoke.sh out.log', 'make build > out.log; cat out.log']) assert.equal(runsOf(await after(other))[0].derived.tests, undefined, other);
+  const log = await historyOf((l) => {
+    l.tool(1, 'c1', 'Bash', { command: 'npm test > log 2>&1' });
+    l.result(2, 'c1', '', shellDone(''));
+    l.tool(3, 'c2', 'Bash', { command: 'git log -3' });
+    l.result(4, 'c2', 'Tests:       3 passed, 3 total', shellDone('Tests:       3 passed, 3 total'));
+  });
+  assert.equal(runsOf(log)[0].derived.tests, undefined, 'git log is not a read of a file called log');
+  // Failing-path partners: an append leaves the output in place, and a real reader still counts.
+  assert.equal(runsOf(await after('echo done >> out.log; cat out.log'))[0].derived.tests?.pass, 3);
+  assert.equal(runsOf(await after('sleep 5; tail -5 out.log'))[0].derived.tests?.pass, 3);
+});
+
+test('two runs in different folders writing one file name can\'t be told apart', async () => {
+  const h = await historyOf((log) => {
+    log.tool(1, 'c1', 'Bash', { command: 'cd packages/a && npm test > test.log' });
+    log.result(2, 'c1', '', shellDone(''));
+    log.tool(3, 'c2', 'Bash', { command: 'cd ../b && npm test > test.log' });
+    log.result(4, 'c2', '', shellDone(''));
+    log.tool(5, 'c3', 'Bash', { command: 'cat packages/a/test.log' });
+    log.result(6, 'c3', TAP(3, 0), shellDone(TAP(3, 0)));
+  });
+  assert.deepEqual(runsOf(h).map((r) => r.derived.tests), [undefined, undefined]);
+});
+
+test('a result read back shows on the page as a guess, and a printed one as worked out', async () => {
+  const h = await historyOf((log) => {
+    log.tool(1, 'c1', 'Bash', { command: 'node --test > out.txt 2>&1' });
+    log.result(2, 'c1', '', shellDone(''));
+    log.tool(3, 'c2', 'Bash', { command: 'tail -5 out.txt' });
+    log.result(4, 'c2', TAP(4, 1), shellDone(TAP(4, 1)));
+    log.tool(5, 'c3', 'Bash', { command: 'node --test' });
+    log.result(6, 'c3', TAP(5, 0), shellDone(TAP(5, 0)));
+  });
+  const [read, printed] = runsOf(h).map((e) => eventRow(h, e, new Map()).tests);
+  assert.equal(read.evidence, 'inferred');
+  assert.equal(printed.evidence, 'derived');
 });
 
 test('a later read of a run replaces an earlier one, and two summaries take it back', async () => {
