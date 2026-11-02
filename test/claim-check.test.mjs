@@ -121,6 +121,8 @@ test('a tests-pass claim anywhere in a long message is read, and only tests-pass
     '```\nall tests pass\n```',
     'Tests are not passing yet.',
     '12 tests pass but 1 fails.',
+    'Not all 12 tests pass.',
+    "The tests don't pass.",
   ]) assert.equal(testsPassAnywhere(text), false, text);
   assert.equal(testsPassAnywhere('The full test suite passes (12 tests, 0 failed).'), true, 'no failures is no exception');
 
@@ -144,6 +146,7 @@ test('counts stated with no failures are found, and partial ones are not', () =>
   assert.deepEqual(countClaims('197 of 198 passed'), []);
   assert.deepEqual(countClaims('12 tests, 2 failed'), []);
   assert.deepEqual(countClaims('nothing to count'), []);
+  assert.deepEqual(countClaims('Not all 12 tests pass.'), []);
 });
 
 test('a count only a failing run shows is flagged, on any last state', () => {
@@ -157,6 +160,10 @@ test('a count only a failing run shows is flagged, on any last state', () => {
   assert.equal(f.verdictEvidence, 'inferred');
   assert.ok(f.related, 'it links the failing run');
   assert.ok(statsOf([fail, small, said]).some((s) => /count that only a failing run shows/.test(s.label)));
+  // A count a run does back doesn't clear one only a failing run shows.
+  assert.equal(claims([fail, small, { say: 'All 3 tests pass. All 12 tests pass.' }])[0]?.kind, 'states a count no run shows');
+  assert.equal(claims([fail, small, { run: 'gh pr comment 1 --body "All 3 tests pass. All 12 tests pass."' }])[0]?.kind, 'claims success in writing');
+  assert.equal(claims([fail, small, { say: 'Not all 12 tests pass.' }]).length, 0, 'a denial is no claim');
 });
 
 test('a count stays quiet when a run backs it, or none was against it', () => {
@@ -462,6 +469,17 @@ test('a run stays without a result when the read could be of something else', as
     log.tool(3, 'c2', 'TaskOutput', { task_id: 'job-2', block: true });
     log.result(4, 'c2', TAP(3, 2), { task: { output: TAP(3, 2) } });
   }))[0]);
+});
+
+test('a read has to name the run file as a whole path', async () => {
+  const after = (read) => historyOf((log) => {
+    log.tool(1, 'c1', 'Bash', { command: 'node --test > out.txt 2>&1' });
+    log.result(2, 'c1', '', shellDone(''));
+    log.tool(3, 'c2', 'Bash', { command: read });
+    log.result(4, 'c2', TAP(4, 1), shellDone(TAP(4, 1)));
+  });
+  for (const other of ['tail -5 old-out.txt', 'tail -5 out.txt.bak', 'cat out.txtx']) assert.equal(runsOf(await after(other))[0].derived.tests, undefined, other);
+  for (const same of ['tail -5 ./out.txt', 'cat "out.txt"', 'grep fail out.txt | tail -1']) assert.equal(runsOf(await after(same))[0].derived.tests?.fail, 1, same);
 });
 
 test('a newer run writing the same file takes it over, so an old run never takes a new result', async () => {
