@@ -437,7 +437,7 @@
       "strengthReason": "Named as a distinct failure type in trajectory studies, measured in false-success work, and reported in vendor system cards.",
       "detection": {
         "level": "inferred",
-        "summary": "The last check before the final message failed (non-zero exit or a failure count in its output) and the final message claims success without a later passing run.",
+        "summary": "The last check before the final message failed (non-zero exit or a failure count in its output) and the final message claims success without a later passing run, or text written into a pull request or commit, or a stated test count, says more than the recorded runs show. A failed run between putting a file in and putting it back is set aside as failing on purpose.",
         "signals": [
           {
             "signal": "Exit code or is_error flag on the tool result",
