@@ -104,6 +104,12 @@ test('find, replay and problems answer byte-for-byte as before the hooks', () =>
             delete f.zoomPage;
           }
         }
+        // The rules table gained the four rules of the claim check's rework (issue 248), which it
+        // lists whether or not a finding uses them. Nothing else in the answer moved.
+        for (const id of ['problems.tests-pass-anywhere', 'problems.count-claim', 'problems.written-claim', 'problems.deliberate-run']) {
+          assert.ok(id in o.rules, id);
+          delete o.rules[id];
+        }
         out = `${JSON.stringify(o, null, 2)}\n`;
       }
       got[`${q.join(' ')}${json ? ' --json' : ''}`] = createHash('sha256').update(out.split(form).join('honestweek')).digest('hex').slice(0, 16);

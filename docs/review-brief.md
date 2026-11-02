@@ -40,7 +40,7 @@ A branch made from the pull request's branch (a review worktree made with `git w
 
 ## How a claim is paired with a check
 
-A claim pairs with the latest check after the last edit before it, in the same session, decided exactly as the Problems page's "says done without checking" and "says it works after a check failed" decide it (a test holds the two to the same answer). The check has to have run in a folder on the pull request's branch; one that ran in another checkout is a named gap. A claim that CI is green pairs only with a step that read CI. A claim in a commit message is the weakest kind.
+A claim pairs with the latest check after the last edit before it, in the same session, decided exactly as the Problems page's "says done without checking" and "says it works after a check failed" decide it, including setting aside a run that reads as failing on purpose (a test holds the two to the same answer). The check has to have run in a folder on the pull request's branch; one that ran in another checkout is a named gap. A claim that CI is green pairs only with a step that read CI. A claim in a commit message is the weakest kind.
 
 ## Limits
 
