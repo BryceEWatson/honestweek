@@ -18,6 +18,8 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 - A test run behind `timeout`, `nohup`, `env`, or inside a `for` loop or `{ ... }` group is recognized as a test run. Counts of test runs can go up on old logs because of this and the read-back above.
 - `problems --json` lists eleven new rules in its rules table (four for the claim check, seven for the November rules), and its counts of problems checked and not checked move by two. The rest of its answer is unchanged on a history with none of these shapes.
 
+- The risky-command check is now titled "Risky commands: hard to undo, a safeguard skipped, a package added or a credential read", since it reads more than git and rm. Its findings carry the new title.
+
 ### Fixed
 
 - Reading a test count out of a very long run of digits and commas took time that grew with the square of its length. It reads in one pass now.

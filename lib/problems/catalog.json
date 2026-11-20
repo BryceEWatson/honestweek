@@ -258,7 +258,7 @@
           "url": "https://arxiv.org/abs/2611.25760",
           "date": "2026-11-19",
           "kind": "paper",
-          "says": "From real developer and agent conversations, it finds eleven kinds of unfaithful work report in four groups, with overstated task success the most common; sorting one out took 4.3 more user turns and 12.71 minutes on average."
+          "says": "From real developer and agent conversations, it finds eleven kinds of unfaithful work report in four groups, with overstated task success the most common; sorting one out took 4.3 more user turns and 12.71 minutes of recorded response and execution time on average."
         }
       ]
     },
@@ -5253,11 +5253,11 @@
       "coverage": {
         "claudeCode": {
           "status": "not yet",
-          "why": "No check looks for this yet. The checks don't read tool results, which is where planted text arrives; two things an injection often leads to are checked on their own (an edit to an agent's own settings, and a credential read on a line that sends data out)"
+          "why": "No check looks for this yet. The checks don't read tool results, which is where planted text arrives; two things an injection often leads to are checked on their own (an edit to an agent's own settings, and a credential read in a pipeline that sends data out)"
         },
         "codex": {
           "status": "not yet",
-          "why": "No check looks for this yet. The checks don't read tool results, which is where planted text arrives; two things an injection often leads to are checked on their own (an edit to an agent's own settings, and a credential read on a line that sends data out)"
+          "why": "No check looks for this yet. The checks don't read tool results, which is where planted text arrives; two things an injection often leads to are checked on their own (an edit to an agent's own settings, and a credential read in a pipeline that sends data out)"
         }
       },
       "mitigation": [

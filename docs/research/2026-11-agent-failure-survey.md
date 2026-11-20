@@ -22,7 +22,7 @@ A source marked **re-opened** is one I opened at its publisher's own page on 20 
 
 | Source | Date | Read | What it shows | Label |
 |---|---|---|---|---|
-| [Characterizing and Detecting Unfaithful Work Reports by Coding Agents](https://arxiv.org/abs/2611.25760) | 2026-11-19 | re-opened | From real developer and agent conversations, eleven kinds of unfaithful work report in four groups. Overstated task success is the most common. Sorting one out took 4.3 more user turns and 12.71 minutes on average. The share of reports with an unfaithful claim is a blank placeholder on the abstract page, so I don't have that number. | measured by the authors, on their sample |
+| [Characterizing and Detecting Unfaithful Work Reports by Coding Agents](https://arxiv.org/abs/2611.25760) | 2026-11-19 | re-opened | From real developer and agent conversations, eleven kinds of unfaithful work report in four groups. Overstated task success is the most common. Sorting one out took 4.3 more user turns and 12.71 minutes of recorded response and execution time on average. The share of reports with an unfaithful claim is a blank placeholder on the abstract page, so I don't have that number. | measured by the authors, on their sample |
 | [How Coding Agents Fail Their Users (arXiv 2605.29442)](https://arxiv.org/abs/2605.29442) | 2026-05 | in the catalog since October 2026; not re-opened in November | In 20,574 real sessions, inaccurate self-reporting (claiming success, completion or readiness too early) appeared in 22.58% of the episodes where agent and user were at odds. The figure is the one I recorded in October. | measured by the authors |
 
 What I take from these: a wrong "done" or "tests pass" is common and costs real time. That supports the claim checks honestweek already had, and the fixes to them below. It doesn't tell me how often my own rule is right.
@@ -57,7 +57,7 @@ What these have in common, and what a log can show: the planted text arrives in 
 | [Microsoft agent-framework compromised (Wiz)](https://www.wiz.io/blog/malicious-version-of-microsofts-agent-framework-published-to-pypi) | 2026-11-17 | re-opened | Two malicious versions of a Microsoft package on PyPI dropped a file that runs a credential stealer every time Python starts. | reported by Wiz |
 | [Package hallucinations by code-generating models (arXiv 2406.10279)](https://arxiv.org/abs/2406.10279) | 2024-06 | already in the catalog; not re-opened in November | Models name packages that don't exist at a measurable rate, and someone can register those names. | measured by the authors, for code generation |
 
-What I take from these: installing a package runs someone else's code with my credentials in reach, and an agent's settings file is now a place attackers write to. None of the sources measures how often an agent in an ordinary session installs something it shouldn't. So a plain package add is a note in honestweek, and only three shapes are worth a look: a download run without being read, an install the registry answers with "no such package", and anything that reads a credential.
+What I take from these: installing a package runs someone else's code with my credentials in reach, and an agent's settings file is now a place attackers write to. None of the sources measures how often an agent in an ordinary session installs something it shouldn't. So a plain package add is a note in honestweek, and only three shapes are worth a look: a download run without being read, an install the registry answers with "no such package", and a read of a private key, a credential store or a token. A read of a `.env` file or of the whole environment is a note, unless the same pipeline also sends data out.
 
 ### Destructive commands and switched-off permissions
 
@@ -85,11 +85,13 @@ The two rules in this area rest on what the catalog already cited: OpenAI's syst
 | New: a download run without being read | `curl ... \| sh` and its relatives | The supply-chain sources above; no source measures agents doing it, so assumed |
 | New: a package added by name, and an install the registry has no package for | Install commands and their recorded error | The Nx, Shai Hulud and agent-framework reports; the package-hallucination paper |
 | New: dropped or reset data, torn-down infrastructure | A fixed list of commands | The system card section already in the catalog; assumed beyond that |
-| New: a credential file, a token or the environment read, alone or on a line that sends data out | Read commands and the read tool, by file name only | The Nx, PromptPwnd and agent-framework reports |
+| New: a credential file, a token or the environment read, alone or in a pipeline that sends data out | Read commands and the read tool, by file name only | The Nx, PromptPwnd and agent-framework reports |
 | New: an edit to an agent's own settings, hooks, permission rules or MCP servers | The edited file's name and which keys the new text holds | The Copilot and Codex CLI reports; the Shai Hulud report |
 | New: a check switched off in code or CI | Ignore comments, empty error handlers, CI steps set to pass anyway, netted across a turn | Vendor guidance already in the catalog; assumed, since I found no report of agents doing it |
 
-None of the new rules reads a run's failure, except the last one, and that one uses the same reading the claim check now does: a run that fails on purpose is set aside, and a failure followed by a clear pass doesn't count. Tests hold both.
+Two of the new rules read a failure. The package rule reads an install's own recorded error for "no such package". The switched-off-check rule reads whether a check failed earlier in the turn, with the same reading the claim check now uses: a run that fails on purpose is set aside, and a failure followed by a clear pass doesn't count. Tests hold both. The other five read no result at all.
+
+Two of the reports I cite for the settings rule (the Codex CLI report and the Shai Hulud report) show an attacker writing an agent's settings, not an agent doing it. They're there because they show why that file matters, and the catalog's wording for each says who did the writing.
 
 ## What I did not build
 
