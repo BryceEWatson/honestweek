@@ -70,7 +70,7 @@ test("every check today has one of the five kinds and a reason, and the table na
   }
   // The twenty checks this table was written for are all placed; a check added later and not yet
   // placed keeps the plain zoom (the fallback test below).
-  const placed = ['unverified-done-claim', 'pr-landed-without-tests', 'claim-contradicts-evidence', 'commit-after-failed-test', 'test-tampering', 'action-loop', 'repeated-tool-error', 'subagent-overuse', 'subagent-no-report', 'long-sessions', 're-reads', 'polling', 'context-additions', 'scope-creep', 'outside-edits', 'plan-mode-edit', 'session-ended-mid-step', 'needless-check-in', 'risky-command', 'secret-in-log'];
+  const placed = ['unverified-done-claim', 'pr-landed-without-tests', 'claim-contradicts-evidence', 'commit-after-failed-test', 'test-tampering', 'action-loop', 'repeated-tool-error', 'subagent-overuse', 'subagent-no-report', 'long-sessions', 're-reads', 'polling', 'context-additions', 'scope-creep', 'outside-edits', 'plan-mode-edit', 'session-ended-mid-step', 'needless-check-in', 'risky-command', 'guardrail-edits', 'secret-in-log'];
   for (const id of placed) assert.ok(SCOPE_KINDS[id], `${id} is placed`);
   assert.deepEqual(KINDS.filter((k) => Object.values(SCOPE_KINDS).some((r) => r.kind === k)), KINDS, 'each kind is used');
 });

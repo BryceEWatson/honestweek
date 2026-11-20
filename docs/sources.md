@@ -4,7 +4,7 @@
 
 This page lists every published source behind honestweek's 42 known problems, each one once: vendor docs, bug reports, research papers and a few others. Each entry gives the source's title, linked to where it's published, its date, and the problems that cite it, so you can check the evidence for any problem in one place. I generate it from the problem catalog, so it changes only when the catalog does.
 
-210 sources. The catalog was checked on 2026-10-03 and 2026-10-05.
+219 sources. The catalog was checked on 2026-10-03 and 2026-10-05 and 2026-11-20.
 
 Each number and rule the checks use is honestweek's own choice, not taken from a published source, unless the entry for a source here says a check takes it from there.
 
@@ -124,7 +124,7 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
 - [Writing effective tools for agents, with agents](https://www.anthropic.com/engineering/writing-tools-for-agents) (2025-09-11)
   Cited by: Filled the context with huge command output; Hit the same tool error again and again; Read the same file again when it hadn't changed.
 
-## Bug reports (109)
+## Bug reports (117)
 
 - ["Error: String to replace not found in file."](https://github.com/anthropics/claude-code/issues/968) (2025-05-05)
   Cited by: Hit the same tool error again and again.
@@ -256,6 +256,8 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
   Cited by: Exposed a credential, or went looking for one.
 - [CRITICAL: Mandatory Rule Violations - Unauthorized Fallbacks and Synthetic Data](https://github.com/anthropics/claude-code/issues/5941) (2025-08-16)
   Cited by: Added code that silences errors.
+- [CVE-2025-61260: OpenAI Codex CLI command injection via project-local configuration](https://research.checkpoint.com/2025/openai-codex-cli-command-injection-vulnerability/) (2025-12-01)
+  Cited by: Went around a hook, a check or a refusal.
 - [Desktop agent turns a simple explorer-link request into a ~13-minute research flow](https://github.com/openai/codex/issues/37750) (2026-08-10)
   Cited by: Kept deliberating when one step would settle it; Read far more than the task needed.
 - [Destructive unauthorized regression: customer-facing Ask Data narration removed during correctness hardening](https://github.com/openai/codex/issues/45093) (2026-09-12)
@@ -272,6 +274,8 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
   Cited by: Called a failed run a pass, or its failures unrelated.
 - [git checkout without permission](https://github.com/google-gemini/gemini-cli/issues/1938) (2025-06-26)
   Cited by: Committed, pushed or rewrote history without being asked.
+- [GitHub Copilot: Remote Code Execution via Prompt Injection (CVE-2025-53773)](https://embracethered.com/blog/posts/2025/github-copilot-remote-code-execution-via-prompt-injection/) (2025-08-12)
+  Cited by: Followed instructions planted in what it read; Went around a hook, a check or a refusal.
 - [GitHub MCP Exploited: Accessing private repositories via MCP](https://invariantlabs.ai/blog/mcp-github-vulnerability) (2025-05-26)
   Cited by: Followed instructions planted in what it read.
 - [gpt-5-codex ran \`rm -rf .git\` out of nowhere](https://github.com/openai/codex/issues/3728) (2025-09-16)
@@ -284,8 +288,16 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
   Cited by: Oversold the result; Said it was done without running a check.
 - [Main turn can complete before collecting required subagent results; results surface only after the next user prompt](https://github.com/openai/codex/issues/40932) (2026-08-26)
   Cited by: Lost or ignored what a helper found.
+- [Major Shai Hulud campaign strikes npm again, affecting keyv and 400+ packages](https://research.jfrog.com/post/shai-hulud-is-back-august/) (2026-08-04)
+  Cited by: Installed a package it shouldn't have; Went around a hook, a check or a refusal.
+- [Malicious versions of Nx and some supporting plugins were published (GHSA-cxm3-wv7p-598c)](https://github.com/nrwl/nx/security/advisories/GHSA-cxm3-wv7p-598c) (2025-08-27)
+  Cited by: Exposed a credential, or went looking for one; Installed a package it shouldn't have.
 - [Memory file duplication causes excessive token consumption](https://github.com/anthropics/claude-code/issues/62325) (2026-05-25)
   Cited by: Instruction files grew too long to follow.
+- [METR on reward hacking in recent models (June 2025 post)](https://metr.org/blog/2025-06-05-recent-reward-hacking/) (2025-06-05)
+  Cited by: Hard-coded what the tests check for; Removed or skipped tests, or narrowed the test command.
+- [Microsoft agent-framework Compromised: Credential Stealer Targets Azure and CI Pipelines](https://www.wiz.io/blog/malicious-version-of-microsofts-agent-framework-published-to-pypi) (2026-11-17)
+  Cited by: Exposed a credential, or went looking for one; Installed a package it shouldn't have.
 - [Model drifts full-width CJK punctuation to half-width in Edit's old\_string, causing silent "String to replace not found"](https://github.com/anthropics/claude-code/issues/52482) (2026-04-23)
   Cited by: Hit the same tool error again and again.
 - [Model is over-cautious to the point of unhelpful — asks permission for work already authorised](https://github.com/anthropics/claude-code/issues/84998) (2026-08-08)
@@ -296,6 +308,8 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
   Cited by: Said it did something the log doesn't show.
 - [Model stuck in error loop](https://github.com/openai/codex/issues/40439) (2026-08-24)
   Cited by: Hit the same tool error again and again.
+- [New Vulnerability in GitHub Copilot and Cursor: How Hackers Can Weaponize Code Agents](https://www.pillar.security/blog/new-vulnerability-in-github-copilot-and-cursor-how-hackers-can-weaponize-code-agents) (2025-03-18)
+  Cited by: Followed instructions planted in what it read.
 - [Opus 4.6 Extended reports all tasks completed (15/15 ✅) while actually fabricating data, skipping work, and making the file worse than before](https://github.com/anthropics/claude-code/issues/27399) (2026-02-21)
   Cited by: Oversold the result.
 - [Opus 4.6 sycophantic capitulation: abandoned verified multi-source research after single unverified contradiction](https://github.com/anthropics/claude-code/issues/37457) (2026-03-22)
@@ -308,6 +322,8 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
   Cited by: Added code that silences errors; Used a file, function or flag that doesn't exist.
 - [Opus over-investigates simple debug tasks, consuming disproportionate quota](https://github.com/anthropics/claude-code/issues/92970) (2026-09-09)
   Cited by: Read far more than the task needed.
+- [PromptPwnd: Prompt Injection Vulnerabilities in GitHub Actions Using AI Agents](https://www.aikido.dev/blog/promptpwnd-github-actions-ai-agents) (2025-12-04)
+  Cited by: Exposed a credential, or went looking for one; Followed instructions planted in what it read.
 - [Prototype Contains Hardcoded Mock Data Instead of Real Functionality -LYING MODEL](https://github.com/anthropics/claude-code/issues/7056) (2025-09-03)
   Cited by: Left placeholders in and called the work finished.
 - [rm -rf'd a directory of important code without first checking the contents of the directory](https://github.com/google-gemini/gemini-cli/issues/1504) (2025-06-25)
@@ -345,7 +361,7 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
 - [You're right, I wasted a ton of tokens looping on tsc.](https://github.com/anthropics/claude-code/issues/57535) (2026-05-09)
   Cited by: Repeated the same step without getting further.
 
-## Research papers (46)
+## Research papers (47)
 
 - ["Your AI, My Shell": Demystifying Prompt Injection Attacks on Agentic AI Coding Editors](https://arxiv.org/abs/2509.22040) (2025-09)
   Cited by: Followed instructions planted in what it read.
@@ -361,6 +377,8 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
   Cited by: Guessed instead of asking.
 - [Beyond Final Code: A Process-Oriented Error Analysis of Software Development Agents in Real-World GitHub Scenarios](https://arxiv.org/abs/2503.12374) (2025-03)
   Cited by: Hit the same tool error again and again.
+- [Characterizing and Detecting Unfaithful Work Reports by Coding Agents](https://arxiv.org/abs/2611.25760) (2026-11-19)
+  Cited by: Called a failed run a pass, or its failures unrelated; Said it was done without running a check.
 - [ClayBuddy: A Framework, Evaluation, & Mitigation of Coding Agent Failures](https://arxiv.org/abs/2606.19380) (2026-06)
   Cited by: Ran a command that can't be undone.
 - [Coding Agents Don't Know When to Act](https://arxiv.org/abs/2605.07769) (2026-05)
