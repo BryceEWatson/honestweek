@@ -684,3 +684,32 @@ test('a failed run, then an edit-and-test line that passes twice, then a commit:
   const found = runProblems(h, { builtT: BUILT }).patterns.flatMap((p) => p.findings).filter((f) => f.check === 'commit-after-failed-test');
   assert.deepEqual(found, []);
 });
+
+// ---- what the review of pull request 251 found --------------------------------------------------
+
+test('a line that only prints an example of a pull request write writes nothing', () => {
+  assert.deepEqual(writtenClaims('printf \'%s\\n\' \'gh pr create --body "All tests pass."\''), []);
+  assert.deepEqual(writtenClaims('echo "git commit -m \'All tests pass\'"'), []);
+  // The same write, run, is still read, and its position is where the command starts.
+  const [w] = writtenClaims('echo start && gh pr create --title x --body "All tests pass."');
+  assert.deepEqual([w.where, w.text, w.at], ['pull request body', 'All tests pass.', 14]);
+});
+
+test('a run file named without its folder is not read back across a change of folder', async () => {
+  const h = await historyOf((log) => {
+    log.tool(1, 'c1', 'Bash', { command: 'cd /tmp/project-a && node --test > test.log 2>&1' });
+    log.result(2, 'c1', '', shellDone(''));
+    log.tool(3, 'c2', 'Bash', { command: 'cd /tmp/project-b && cat test.log' });
+    log.result(4, 'c2', TAP(4, 1), shellDone(TAP(4, 1)));
+  });
+  const [r] = runsOf(h);
+  assert.equal(r.derived.tests, undefined, 'another folder\'s file of the same name gives this run no result');
+  // With the whole path named, the read is of that file wherever the line stands.
+  const whole = await historyOf((log) => {
+    log.tool(1, 'c1', 'Bash', { command: 'cd /tmp/project-a && node --test > /tmp/project-a/test.log 2>&1' });
+    log.result(2, 'c1', '', shellDone(''));
+    log.tool(3, 'c2', 'Bash', { command: 'cd /tmp/project-b && cat /tmp/project-a/test.log' });
+    log.result(4, 'c2', TAP(4, 1), shellDone(TAP(4, 1)));
+  });
+  assert.equal(runsOf(whole)[0].derived.tests?.fail, 1);
+});
