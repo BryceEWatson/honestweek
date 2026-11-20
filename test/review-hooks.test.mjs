@@ -76,13 +76,17 @@ test('REVIEW_PATTERNS names only patterns the catalog has', () => {
 test('find, replay and problems answer byte-for-byte as before the hooks', () => {
   // sha256 of each answer on the demo week, text and --json, as main answered them before
   // piece 2 of the review brief (issue 217), with this run's form put back to `honestweek`.
+  // The four problems answers were pinned again in November 2026, when two more patterns gained a
+  // check (installing packages, silencing errors). Compared with the answers before, the only
+  // lines that moved are the counts of patterns checked and not checked (4 and 20 became 6 and 18,
+  // and the two ids changed lists) and the seven new rules in the rules table, taken out below.
   const PINNED = {
     'find #12': '22a5b1de8dc50c25', 'find #12 --json': '33ddc9999430b119',
     'find #14': 'fb73ec20a63afee7', 'find #14 --json': '050caed3f4faed8a',
     'find branch:main': 'd52084d24f74e406', 'find branch:main --json': 'bdb174b7c83e0795',
     'replay cc-dbmkomobcblb': 'd477628bb136b9d5', 'replay cc-dbmkomobcblb --json': '9a2f03a33d78b889',
-    'problems': '51b1113b060aa6b7', 'problems --json': 'ed3f715b5c2024e2',
-    'problems --session cc-dbmkomobcblb': '4ce405dd60c636f7', 'problems --session cc-dbmkomobcblb --json': 'd5e429385891025a',
+    'problems': 'c4435e49f3ba3dac', 'problems --json': '3a2cf35775c9c536',
+    'problems --session cc-dbmkomobcblb': '4710cc4f246c993b', 'problems --session cc-dbmkomobcblb --json': 'a0a699887158524f',
   };
   const outside = makeTempDir('hw-hooks-pin-');
   const slashed = BIN.replace(/\\/g, '/');
@@ -106,7 +110,7 @@ test('find, replay and problems answer byte-for-byte as before the hooks', () =>
         }
         // The rules table gained the four rules of the claim check's rework (issue 248), which it
         // lists whether or not a finding uses them. Nothing else in the answer moved.
-        for (const id of ['problems.tests-pass-anywhere', 'problems.count-claim', 'problems.written-claim', 'problems.deliberate-run']) {
+        for (const id of ['problems.tests-pass-anywhere', 'problems.count-claim', 'problems.written-claim', 'problems.deliberate-run', 'problems.agent-permissions-off', 'problems.remote-script', 'problems.package-add', 'problems.data-destroy', 'problems.credential-read', 'problems.agent-config-edit', 'problems.silenced-check']) {
           assert.ok(id in o.rules, id);
           delete o.rules[id];
         }

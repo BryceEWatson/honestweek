@@ -4,12 +4,23 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 
 ## Unreleased
 
+### Added
+
+- Seven rules from a November 2026 survey of what's been published about coding agents, each with the source it rests on in [docs/research/2026-11-agent-failure-survey.md](docs/research/2026-11-agent-failure-survey.md). Five read commands that ran: an agent started with its permission prompts or sandbox off, a download run without being read (`curl ... | sh`), a package added by name (worth a look when the registry says there is no such package), dropped or reset data and torn-down infrastructure, and a credential file, a token or the environment read. Two read edits, in a new check: an edit to an agent's own settings, hooks, permission rules or MCP servers, and a lint, type or CI check switched off, which is worth a look only after a check that failed. Every finding is inferred and reports what happened, never why.
+- "Installed a package it shouldn't have" and "Added code that silences errors" now have a check, so 23 of the 42 known problems are checked. Each check reads only part of what its problem names, and its card says which part.
+- The catalog of known problems is version 0.2.0, with nine more published sources, each opened and read on 20 November 2026.
+- [docs/checking-a-week.md](docs/checking-a-week.md): the one command that runs the checks over a finished week and saves the answer.
+
 ### Changed
 
 - "Says it works after a check failed" (the `claim-contradicts-evidence` check) reads more and is wrong less, from a measured look at a month of real logs. A failed run between putting a file in and putting it back reads as failing on purpose and is set aside. A tests-pass claim is read anywhere in a long message, and "once CI is green", "pass apart from the wrap test", "to confirm all tests pass", a question or an unticked list item no longer reads as one. A stated count like "1,843 tests, 0 failed" is compared with the runs the session recorded, so a clean run only backs it until a later failing run of that many. Text a command writes into a pull request or a commit is read too, with a new finding when it says tests pass right after a failed check. A completion word like "done" is still read only near the start or end of a message, because mid-message hits were all false alarms when I measured them.
 - A test run's result can now come from reading it back: its output file, by the shell or the Read tool, or its background job. The latest read wins, and output with two summaries in it gives no result. Only a program that prints the file counts as reading it. The step says so with a new rule, `shell.test-read-back`, the page labels the result a guess rather than worked out, and the rule joins a history's rules table only when a run was read back.
 - A test run behind `timeout`, `nohup`, `env`, or inside a `for` loop or `{ ... }` group is recognized as a test run. Counts of test runs can go up on old logs because of this and the read-back above.
-- `problems --json` lists the check's four new rules in its rules table. The rest of its answer is unchanged on a history with none of these shapes.
+- `problems --json` lists eleven new rules in its rules table (four for the claim check, seven for the November rules), and its counts of problems checked and not checked move by two. The rest of its answer is unchanged on a history with none of these shapes.
+
+### Fixed
+
+- Reading a test count out of a very long run of digits and commas took time that grew with the square of its length. It reads in one pass now.
 
 ## 0.5.0 (28 October 2026)
 

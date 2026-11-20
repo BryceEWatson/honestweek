@@ -667,3 +667,20 @@ test('a Codex run written to a file reads back the same way', async () => {
   assert.equal(r.derived.tests?.fail, 1);
   assert.equal(testRunResult(r), 'failed');
 });
+
+// ---- issue 212: a passing run chained after an edit clears an earlier failure -------------------
+
+test('a failed run, then an edit-and-test line that passes twice, then a commit: no commit-after-failed-test finding', async () => {
+  const h = await historyOf((log) => {
+    log.tool(1, 'c1', 'Bash', { command: 'sed -i "s/a/b/" lib/x.mjs && node --test test/x.test.mjs' });
+    log.result(2, 'c1', TAP(23, 1), shellDone(TAP(23, 1)), true);
+    log.tool(3, 'c2', 'Bash', { command: 'sed -i "s/1/2/" test/x.test.mjs && node --test test/x.test.mjs && node --test' });
+    log.result(4, 'c2', `${TAP(24, 0)}${TAP(1904, 0)}`, shellDone(`${TAP(24, 0)}${TAP(1904, 0)}`));
+    log.tool(5, 'c3', 'Bash', { command: 'git add -A && git commit -m "Fix x"' });
+    log.result(6, 'c3', '[main 1a2b3c4] Fix x\n 1 file changed', shellDone('[main 1a2b3c4] Fix x\n 1 file changed'));
+  });
+  const runs = runsOf(h);
+  assert.deepEqual(runs.map((r) => testRunResult(r)), ['failed', 'passed']);
+  const found = runProblems(h, { builtT: BUILT }).patterns.flatMap((p) => p.findings).filter((f) => f.check === 'commit-after-failed-test');
+  assert.deepEqual(found, []);
+});
