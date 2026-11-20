@@ -22,6 +22,9 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 
 ### Fixed
 
+- A heredoc now ends only at a line that is its closing word and nothing else. A body line that merely started with that word ended it early, so the rest of the body was read as commands.
+- A line that only prints an example of `gh pr create` or `git commit` is no longer read as writing a pull request or a commit message.
+- A test run's output file named without its folder is no longer read back from a line that changed folder, where it could be another folder's file.
 - Reading a test count out of a very long run of digits and commas took time that grew with the square of its length. It reads in one pass now.
 
 ## 0.5.0 (28 October 2026)
