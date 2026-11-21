@@ -114,7 +114,7 @@ Each has a test that fails without the change.
 
 After the changes the same week gives 68 findings, 28 worth a look (measured). The claim checks still find nothing, now over 48 runs.
 
-Two counts above don't meet, and the difference isn't explained here. The 16 is a script's count of unread runs whose output held a plain summary under the colour codes. The 14 (34 to 48) is honestweek's own count of runs it reads after the changes. A run can hold a summary and still not be read, for one when its output holds more than one summary, so 14 is the measured effect and 16 is not.
+Two counts above don't meet, and why wasn't measured. The 16 is a script's count of unread runs whose output held a plain summary under the colour codes. The 14 (34 to 48) is honestweek's own count of runs it reads after all the changes, so it can include the 2 failed-to-load runs. A run can hold a summary and still not be read: honestweek leaves a run unread when the output read back for it holds more than one summary. How many of the 16 that covers wasn't counted.
 
 ## What this doesn't show
 

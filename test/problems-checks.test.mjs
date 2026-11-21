@@ -1249,6 +1249,25 @@ test("two calls sent together that fail the same way aren't a repeated error; th
   assert.equal(findingsOf(make(min(1, 5)), 'repeated-tool-error').length, 1);
 });
 
+test("a long call still pending doesn't hide a retry made after a shorter call's error came back", () => {
+  const make = (thirdAt) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Find the notes.');
+    // A runs for twenty seconds. B, sent a second later, comes back at three seconds.
+    const a = h.shell('s1', min(1), 'find src -name "*.md"', { result: 'error', error: 'Search timed out after 20 seconds.' });
+    a.end.t = min(1, 20);
+    h.shell('s1', min(1, 1), 'find docs -name "*.md"', { result: 'error', error: 'Search timed out after 20 seconds.' });
+    h.shell('s1', thirdAt, 'find test -name "*.md"', { result: 'error', error: 'Search timed out after 20 seconds.' });
+    return run(h.build());
+  };
+  // C starts at five seconds: B's error was back two seconds before, while A is still running.
+  const found = findingsOf(make(min(1, 5)), 'repeated-tool-error');
+  assert.equal(found.length, 1);
+  assert.equal(found[0].steps, 2, 'the first call and the retry; the call sent alongside is not counted');
+  // Failing partner: C sent at two seconds, before any of the errors came back.
+  assert.equal(findingsOf(make(min(1, 2)), 'repeated-tool-error').length, 0);
+});
+
 test('a large result no later call carried is a routine note; one that later calls re-read is worth a look', () => {
   const make = (laterCalls) => {
     const h = history().session('s1');
