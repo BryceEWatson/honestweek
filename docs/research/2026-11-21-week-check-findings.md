@@ -2,9 +2,9 @@
 
 ## In plain terms
 
-honestweek reads the logs of my AI coding sessions and points at moments where an agent did something known to go wrong. On 21 November 2026 I ran it over the week of 9 to 15 November and then read the logs behind what it said, one finding at a time. Of the 36 findings it marked worth a look, 21 were real readings of the log, 8 were false alarms or carried the wrong label, and 7 I couldn't settle from the log. Only one of the 36 was an agent's mistake, and a small one.
+honestweek reads the logs of my AI coding sessions and points at moments where an agent did something known to go wrong. On 21 November 2026 I ran it over the week of 9 to 15 November and then read the logs behind what it said, one finding at a time. Of the 36 findings it marked worth a look, 21 were real readings of the log, 8 were false alarms or carried the wrong label, and 7 I couldn't settle from the log. Only one of the 29 I could settle was an agent's mistake, and a small one.
 
-The most useful result was about what it didn't say. Its two checks for "says it works when it doesn't" reported nothing all week. I checked that by hand and found no false claim, so the silence was right. But the check had been unable to read 49 of the week's 83 test runs, 16 of them because the test runner printed its result in colour. So it was right partly by luck. That's fixed, along with five false alarm patterns.
+The most useful result was about what it didn't say. Its two checks for "says it works when it doesn't" reported nothing all week. I checked the turns where a test run failed by hand and found no false claim, so in those turns the silence was right. But the check had been unable to read 49 of the week's 83 test runs, and 16 of those had a result in their output that colour codes hid. So it was right partly by luck. That's fixed, along with five false alarm patterns.
 
 The agent mistakes I did find by reading were ones no check here looks for. They're written up below, because they're the honest picture of the week.
 
@@ -27,7 +27,7 @@ The command in [docs/checking-a-week.md](../checking-a-week.md), unchanged, on `
 | Tool calls read | 3,374 | measured (honestweek) |
 | Findings | 71 | measured (honestweek) |
 | Findings marked worth a look | 36 | measured (honestweek) |
-| Known problems found, checked and clear, not checked | 12, 10, 19 | measured (honestweek) |
+| Kinds of known problem (not findings) that were found, checked and clear, not checked | 12, 10, 19 | measured (honestweek) |
 
 These match the first run of the same command on the same day. The 32 sessions in unlisted or display-only repositories weren't checked, and nothing below speaks for them.
 
@@ -53,7 +53,7 @@ Real means the log shows what the finding says. It doesn't mean the agent did so
 
 **Re-reads (2 false alarms).** One was a background job's output file, read three times in 70 seconds while the job was still writing it. The agent said "The model scan just finished, so I'm reading it now." The other was a chart image read again after each command that drew it again. In both, the file had changed, with no edit on record.
 
-**The same tool error again (1 real, 1 false alarm).** The false alarm was two file searches sent together in one go that both timed out. Neither was a retry: the second started 0.4 seconds after the first, 20 seconds before either came back. The real one is the week's one agent mistake among the 36: a reviewing sub-agent tried three times in six seconds to write a script through the shell, hit the same syntax error each time, then said "I'll use the Edit tool instead."
+**The same tool error again (1 real, 1 false alarm).** The false alarm was two file searches sent together in one go that both timed out. Neither was a retry: the second started 0.4 seconds after the first, 20 seconds before either came back. The real one is the one agent mistake among the 29 findings I could settle: a reviewing sub-agent tried three times in six seconds to write a script through the shell, hit the same syntax error each time, then said "I'll use the Edit tool instead."
 
 **Stops before the work is done (1 false alarm).** I typed a question and interrupted it myself six seconds later. The log records the interruption as mine.
 
@@ -79,7 +79,7 @@ The two claim checks look for a turn that ends by saying the work is done or the
 | Turns with at least one failed run, read or unread | 8, in 6 sessions | measured (my script, then read by hand) |
 | Success claims in those turns that came with no passing run before them | 0 | measured (read by hand) |
 
-So the silence was right. In all 8 turns, every message I found that said tests pass came after a run that did pass. Two examples of what the agent said straight after a failure: "Two test expectations were worded too narrowly (the guard's behaviour is right); fixing those and rerunning." and "The first check run exited with a failure, most likely because I edited the list file while it ran (it was briefly invalid)."
+So in the turns with a failed run, the silence was right. In all 8 turns, every message I found that said tests pass came after a run that did pass. Two examples of what the agent said straight after a failure: "Two test expectations were worded too narrowly (the guard's behaviour is right); fixing those and rerunning." and "The first check run exited with a failure, most likely because I edited the list file while it ran (it was briefly invalid)."
 
 But the check couldn't see most of the evidence. A test runner told to print in colour puts colour codes inside its summary line, and honestweek's reader wanted the plain line. One run that week ended `Tests  1 failed | 1873 passed (1874)` in colour and was read as no result at all. Had the agent then claimed success, the check would have missed it.
 
@@ -113,6 +113,8 @@ Each has a test that fails without the change.
 | My own interruption read as the agent stopping early | It's a routine note, and says it was mine | 1 finding became a note |
 
 After the changes the same week gives 68 findings, 28 worth a look (measured). The claim checks still find nothing, now over 48 runs.
+
+Two counts above don't meet, and the difference isn't explained here. The 16 is a script's count of unread runs whose output held a plain summary under the colour codes. The 14 (34 to 48) is honestweek's own count of runs it reads after the changes. A run can hold a summary and still not be read, for one when its output holds more than one summary, so 14 is the measured effect and 16 is not.
 
 ## What this doesn't show
 

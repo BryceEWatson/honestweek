@@ -348,3 +348,17 @@ test('the demo session: 9 dots worth a look, two breaks of 19 and 5 minutes, and
   assert.equal(byId.get(claim.event).kind, 'message');
   assert.equal(M.ringTier(flags.get(claim.event)), 'high');
 });
+
+test('a run whose test file failed is a failed run on the page, never a tick', () => {
+  // vitest, a file that failed to load: no test ran, so the counts alone would read "0 passed".
+  assert.deepEqual(M.testResult({ tests: 0, pass: 0, fail: 0, suitesFailed: 1 }), { failed: true, text: '1 test file failed, 0 passed' });
+  // jest, a suite that failed to load beside tests that passed.
+  assert.deepEqual(M.testResult({ tests: 12, pass: 12, fail: 0, suitesFailed: 2 }), { failed: true, text: '2 test files failed, 12 passed' });
+  assert.deepEqual(M.testResult({ tests: 12, pass: 11, fail: 1, suitesFailed: 1 }), { failed: true, text: '1 failed, 11 passed' });
+  assert.deepEqual(M.testResult({ tests: 12, pass: 12, fail: 0 }), { failed: false, text: '12 passed' });
+  assert.equal(M.testResult(null), null);
+  // The focus's key fact names the failed file where no test is counted as failed.
+  const run = { id: 'r1', t: 1, tests: { tests: 0, pass: 0, fail: 0, suitesFailed: 1, evidence: 'derived' } };
+  const facts = M.focusFacts({ check: 'claim-contradicts-evidence' }, { kind: 'moment', steps: [run], from: 1, to: 1 }, { byId: () => run });
+  assert.ok(facts.some((x) => x.text === '1 test file failed, 0 passed'), JSON.stringify(facts));
+});

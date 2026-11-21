@@ -185,6 +185,15 @@ test('a test summary printed in colour reads as the plain one does', () => {
 test('vitest saying a test file failed to load, with no tests run, is a failed run', () => {
   const out = ' FAIL  scripts/a.test.mjs [ scripts/a.test.mjs ]\nError: Expression expected\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  19:23:04';
   assert.deepEqual(parseTestSummary(out), { tests: 0, pass: 0, fail: 0, parser: 'vitest', suitesFailed: 1 });
+
+test('the failed-to-load summary reads with Windows line ends, and only on its own lines', () => {
+  const out = ' Test Files  2 failed (2)\r\n      Tests  no tests\r\n   Start at  10:00:00\r\n';
+  assert.deepEqual(parseTestSummary(out), { tests: 0, pass: 0, fail: 0, parser: 'vitest', suitesFailed: 2 });
+  assert.equal((out.match(SUMMARY_LINE) ?? []).length, 1);
+  // Failing partners: the words mid-line, or split over lines, are no summary.
+  assert.equal(parseTestSummary('see Test Files  1 failed (1)\nTests  no tests\n'), null);
+  assert.equal(parseTestSummary(' Test Files  1 failed (1)\n Tests\n no tests\n'), null);
+});
   assert.equal((out.match(SUMMARY_LINE) ?? []).length, 1);
   // Failing partners: no tests and no failed file is no summary, and so is "no tests" alone.
   assert.equal(parseTestSummary(' Test Files  no test files\n      Tests  no tests'), null);

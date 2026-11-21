@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { earlierWindow, NOTHING_TO_CHECK, runProblems, priorityOf, trendCounts, trendOf } from '../lib/problems/index.mjs';
-import { CHECKS, runChecks } from '../lib/problems/checks.mjs';
+import { CHECKS, runChecks, runCounts } from '../lib/problems/checks.mjs';
 import { createContext } from '../lib/problems/context.mjs';
 import { DOUBT_WORDS, STRICT_MAX_WORDS, strictClaim } from '../lib/problems/classify.mjs';
 
@@ -1178,6 +1178,27 @@ test("edits to the desktop app's shared notes folder are a routine note; an edit
   assert.deepEqual(findingsOf(make('/work/another-project/notes.md'), 'edits-outside-folder').map((f) => f.severity), ['look']);
 });
 
+test('the shared notes folder is named wherever a routine place is: the kind, and the scope-creep note', () => {
+  const NOTE = 'C:/Users/you/AppData/Roaming/Claude/side-session-notes/local_1234/hand-over.md';
+  const make = (prompt, file) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), prompt);
+    h.edit('s1', min(1), file, '', 'notes', { tool: 'Write' });
+    return run(h.build());
+  };
+  assert.equal(findingsOf(make('Leave a hand-over note.', NOTE), 'edits-outside-folder')[0].kind, 'settings, shared notes or temporary folder');
+  // A question-only prompt whose only edit is a hand-over note: a routine note that says where.
+  const asked = make('Why does the parser drop tabs?', NOTE);
+  const creep = findingsOf(asked, 'scope-creep');
+  assert.deepEqual(creep.map((f) => f.severity), ['note']);
+  assert.ok(creep[0].note.includes("all in an agent's settings, the desktop app's shared notes or a temporary folder,"), creep[0].note);
+  // Failing partner: a temporary folder alone keeps the wording it had.
+  const temp = findingsOf(make('Why does the parser drop tabs?', '/tmp/scratch/a.md'), 'scope-creep');
+  assert.deepEqual(temp.map((f) => f.severity), ['note']);
+  assert.ok(temp[0].note.includes("all in an agent's settings or a temporary folder,"), temp[0].note);
+  assert.equal(findingsOf(make('Leave a note.', '/tmp/scratch/a.md'), 'edits-outside-folder')[0].kind, 'settings or temporary folder');
+});
+
 test("a running job's output file read again and again isn't a re-read of an unchanged file", () => {
   const make = (file) => {
     const h = history().session('s1');
@@ -1267,6 +1288,23 @@ test('a failed run with no test counts says a test file failed to load', () => {
   h.prompt('s1', min(0), 'Fix the test.');
   h.edit('s1', min(1), `${CWD}/test/a.test.js`, 'a', 'b');
   h.shell('s1', min(2), 'npm test', { tests: { tests: 0, pass: 0, fail: 0, suitesFailed: 1 } });
+
+test("a failed run's counts never read 0 failed when a test file is what failed", () => {
+  assert.equal(runCounts({ pass: 11, fail: 1, suitesFailed: 1 }), '1 failed, 11 passed');
+  assert.equal(runCounts({ pass: 11, fail: 1 }), '1 failed, 11 passed');
+  assert.equal(runCounts({ pass: 12, fail: 0, suitesFailed: 2 }), '2 test files failed, 12 passed');
+  assert.equal(runCounts({ pass: 0, fail: 0, suitesFailed: 1 }), 'a test file failed to load');
+  // The same run where the last message calls the failure pre-existing.
+  const h = history().session('s1');
+  h.prompt('s1', min(0), 'Fix the test.');
+  h.edit('s1', min(1), `${CWD}/test/a.test.js`, 'a', 'b');
+  h.shell('s1', min(2), 'npm test', { tests: { tests: 0, pass: 0, fail: 0, suitesFailed: 1 } });
+  h.say('s1', min(3), 'That failure is pre-existing and unrelated to my change.');
+  const found = looks(run(h.build()), 'claim-contradicts-evidence');
+  assert.equal(found.length, 1);
+  assert.ok(found[0].note.includes('failed (a test file failed to load)'), found[0].note);
+  assert.ok(!found[0].note.includes('0 failed'), found[0].note);
+});
   h.say('s1', min(3), 'Done. All tests pass.');
   const found = looks(run(h.build()), 'claim-contradicts-evidence');
   assert.equal(found.length, 1);

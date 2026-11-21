@@ -89,8 +89,8 @@ test('find, replay and problems answer byte-for-byte as before the hooks', () =>
     'find #14': 'fb73ec20a63afee7', 'find #14 --json': '050caed3f4faed8a',
     'find branch:main': 'd52084d24f74e406', 'find branch:main --json': 'bdb174b7c83e0795',
     'replay cc-dbmkomobcblb': 'd477628bb136b9d5', 'replay cc-dbmkomobcblb --json': '9a2f03a33d78b889',
-    'problems': 'c4435e49f3ba3dac', 'problems --json': '5ab8b4afe6be2ee1',
-    'problems --session cc-dbmkomobcblb': '4710cc4f246c993b', 'problems --session cc-dbmkomobcblb --json': '70439f7b83414d4b',
+    'problems': 'c4435e49f3ba3dac', 'problems --json': '9dee0cc1307ac282',
+    'problems --session cc-dbmkomobcblb': '4710cc4f246c993b', 'problems --session cc-dbmkomobcblb --json': '2e45260d6d3e42d7',
   };
   const outside = makeTempDir('hw-hooks-pin-');
   const slashed = BIN.replace(/\\/g, '/');
