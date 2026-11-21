@@ -81,13 +81,16 @@ test('find, replay and problems answer byte-for-byte as before the hooks', () =>
   // lines that moved are the counts of patterns checked and not checked (4 and 20 became 6 and 18,
   // and the two ids changed lists), the risky-command check's new title on its findings in the
   // JSON, and the seven new rules in the rules table, taken out below.
+  // The two problems --json answers were pinned once more later that month, after the checks were
+  // run over a real week: the only lines that moved are in the rules table, where the outside-folder
+  // rule names the shared notes folder and one rule is new (problems.unrecorded-change).
   const PINNED = {
     'find #12': '22a5b1de8dc50c25', 'find #12 --json': '33ddc9999430b119',
     'find #14': 'fb73ec20a63afee7', 'find #14 --json': '050caed3f4faed8a',
     'find branch:main': 'd52084d24f74e406', 'find branch:main --json': 'bdb174b7c83e0795',
     'replay cc-dbmkomobcblb': 'd477628bb136b9d5', 'replay cc-dbmkomobcblb --json': '9a2f03a33d78b889',
-    'problems': 'c4435e49f3ba3dac', 'problems --json': 'b8cce381f7e1b4a1',
-    'problems --session cc-dbmkomobcblb': '4710cc4f246c993b', 'problems --session cc-dbmkomobcblb --json': '3cbe0eca3b76b3a8',
+    'problems': 'c4435e49f3ba3dac', 'problems --json': '5ab8b4afe6be2ee1',
+    'problems --session cc-dbmkomobcblb': '4710cc4f246c993b', 'problems --session cc-dbmkomobcblb --json': '70439f7b83414d4b',
   };
   const outside = makeTempDir('hw-hooks-pin-');
   const slashed = BIN.replace(/\\/g, '/');

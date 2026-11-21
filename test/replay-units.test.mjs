@@ -7,7 +7,7 @@ import { join } from 'node:path';
 
 import { readBytesAt, readJsonlRecords } from '../lib/replay/jsonl.mjs';
 import { eventId, letterHash, pathKey, recordDigest, sourceKey } from '../lib/replay/ids.mjs';
-import { commitSummaryShas, isGitCommitCommand, isRevertCommand, parseTestSummary, prUrlsInOutput, promptInferences, simpleCommands, testRunner, toolCategory } from '../lib/replay/classify.mjs';
+import { commitSummaryShas, isGitCommitCommand, isRevertCommand, parseTestSummary, plainOutput, prUrlsInOutput, SUMMARY_LINE, promptInferences, simpleCommands, testRunner, toolCategory } from '../lib/replay/classify.mjs';
 import { outputNominations } from '../lib/replay/parse-common.mjs';
 import { enumerateClaudeSources } from '../lib/replay/sources.mjs';
 import { createRedactor } from '../lib/redact.mjs';
@@ -161,4 +161,32 @@ test('commit ids come only from git output shapes; tool names map to categories'
   assert.equal(toolCategory('mcp__some-browser__click'), 'browser');
   assert.equal(toolCategory('mcp__mail__send'), 'external');
   assert.equal(toolCategory('SomethingNew'), 'other');
+});
+
+test('a test summary printed in colour reads as the plain one does', () => {
+  const ESC = String.fromCharCode(27);
+  // vitest with colour forced on, as it prints into a pipe: codes sit inside the summary line.
+  const line = (label, count, total, colour) => `${ESC}[2m ${label} ${ESC}[22m ${ESC}[1m${ESC}[${colour}m${count}${ESC}[39m${ESC}[22m${ESC}[90m (${total})${ESC}[39m`;
+  const passed = `${line('Test Files', '1 passed', 1, 32)}\n${line('     Tests', '26 passed', 26, 32)}\n${ESC}[2m   Start at ${ESC}[22m 14:02:07`;
+  assert.deepEqual(parseTestSummary(passed), { tests: 26, pass: 26, fail: 0, parser: 'vitest' });
+  assert.deepEqual(parseTestSummary(passed), parseTestSummary(plainOutput(passed)));
+  const failed = `${ESC}[2m Test Files ${ESC}[22m ${ESC}[1m${ESC}[31m1 failed${ESC}[39m${ESC}[22m${ESC}[2m | ${ESC}[22m${ESC}[1m${ESC}[32m51 passed${ESC}[39m${ESC}[22m${ESC}[90m (52)${ESC}[39m\n${ESC}[2m      Tests ${ESC}[22m ${ESC}[1m${ESC}[31m1 failed${ESC}[39m${ESC}[22m${ESC}[2m | ${ESC}[22m${ESC}[1m${ESC}[32m1873 passed${ESC}[39m${ESC}[22m${ESC}[90m (1874)${ESC}[39m`;
+  assert.deepEqual(parseTestSummary(failed), { tests: 1874, pass: 1873, fail: 1, parser: 'vitest', suitesFailed: 1 });
+  // The other runners' summaries, coloured the same way.
+  assert.deepEqual(parseTestSummary(`${ESC}[32m# pass 3${ESC}[39m\n${ESC}[31m# fail 1${ESC}[39m`), { tests: 4, pass: 3, fail: 1, parser: 'node-tap' });
+  assert.deepEqual(parseTestSummary(`${ESC}[1mTests:${ESC}[22m       ${ESC}[1m${ESC}[31m1 failed${ESC}[39m${ESC}[22m, 11 passed, 12 total`), { tests: 12, pass: 11, fail: 1, parser: 'jest' });
+  // Two coloured summaries in one output are still counted as two.
+  assert.equal((plainOutput(`${passed}\n${passed}`).match(SUMMARY_LINE) ?? []).length, 2);
+  // Text with no codes comes back as it was, and prose in colour is still not a summary.
+  assert.equal(plainOutput('Tests  4 passed (4)'), 'Tests  4 passed (4)');
+  assert.equal(parseTestSummary(`${ESC}[32mall good, 3 tests passed${ESC}[39m`), null);
+});
+
+test('vitest saying a test file failed to load, with no tests run, is a failed run', () => {
+  const out = ' FAIL  scripts/a.test.mjs [ scripts/a.test.mjs ]\nError: Expression expected\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  19:23:04';
+  assert.deepEqual(parseTestSummary(out), { tests: 0, pass: 0, fail: 0, parser: 'vitest', suitesFailed: 1 });
+  assert.equal((out.match(SUMMARY_LINE) ?? []).length, 1);
+  // Failing partners: no tests and no failed file is no summary, and so is "no tests" alone.
+  assert.equal(parseTestSummary(' Test Files  no test files\n      Tests  no tests'), null);
+  assert.equal(parseTestSummary('      Tests  no tests'), null);
 });

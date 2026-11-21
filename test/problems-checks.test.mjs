@@ -1157,3 +1157,118 @@ test('a marker moved from one file to another in a turn nets to nothing; a CI st
   assert.equal(looks(r, 'test-tampering').length, 1);
   assert.equal(findingsOf(r, 'error-swallowing').length, 0);
 });
+
+// ---- false alarms a real week showed (docs/research/2026-11-21-week-check-findings.md) ------
+
+test("edits to the desktop app's shared notes folder are a routine note; an edit anywhere else outside is worth a look", () => {
+  const make = (file) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Leave a hand-over note.');
+    h.edit('s1', min(1), file, '', 'notes', { tool: 'Write' });
+    return run(h.build());
+  };
+  const notes = findingsOf(make('C:/Users/you/AppData/Roaming/Claude/side-session-notes/local_1234/hand-over.md'), 'edits-outside-folder');
+  assert.deepEqual(notes.map((f) => f.severity), ['note']);
+  assert.match(notes[0].note, /1 in the desktop app's shared notes folder/);
+  // The same folder on macOS and Linux.
+  assert.deepEqual(findingsOf(make('/Users/you/Library/Application Support/Claude/side-session-notes/local_1234/hand-over.md'), 'edits-outside-folder').map((f) => f.severity), ['note']);
+  assert.deepEqual(findingsOf(make('/home/you/.config/Claude/side-session-notes/local_1234/hand-over.md'), 'edits-outside-folder').map((f) => f.severity), ['note']);
+  // Failing partner: a folder that only looks like it, and any other place outside.
+  assert.deepEqual(findingsOf(make('/work/side-session-notes/hand-over.md'), 'edits-outside-folder').map((f) => f.severity), ['look']);
+  assert.deepEqual(findingsOf(make('/work/another-project/notes.md'), 'edits-outside-folder').map((f) => f.severity), ['look']);
+});
+
+test("a running job's output file read again and again isn't a re-read of an unchanged file", () => {
+  const make = (file) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Wait for the job.');
+    h.read('s1', min(1), file);
+    h.read('s1', min(2), file);
+    h.read('s1', min(3), file);
+    return run(h.build());
+  };
+  assert.equal(findingsOf(make('C:\\Users\\you\\AppData\\Local\\Temp\\claude\\ab12\\tasks\\b1x2y3z4.output'), 'repeated-file-reads').length, 0);
+  assert.equal(findingsOf(make('/tmp/claude/ab12/tasks/b1x2y3z4.output'), 'repeated-file-reads').length, 0);
+  // Failing partner: a file that only ends the same way, read with nothing between.
+  assert.equal(looks(make(`${CWD}/logs/run.output`), 'repeated-file-reads').length, 1);
+});
+
+test('an image read again after a command that could have drawn it again starts over; with nothing between it counts', () => {
+  const make = (file, between) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Fix the chart.');
+    h.read('s1', min(1), file);
+    if (between) h.shell('s1', min(1, 30), between);
+    h.read('s1', min(2), file);
+    if (between) h.shell('s1', min(2, 30), between);
+    h.read('s1', min(3), file);
+    return run(h.build());
+  };
+  const png = `${CWD}/public/chart.png`;
+  assert.equal(findingsOf(make(png, 'node scripts/draw-chart.cjs'), 'repeated-file-reads').length, 0);
+  // Failing partners: nothing ran between, a command that only reads ran between, and a text
+  // file, which an edit would have changed on the record.
+  assert.equal(looks(make(png, null), 'repeated-file-reads').length, 1);
+  assert.equal(looks(make(png, 'git status'), 'repeated-file-reads').length, 1);
+  assert.equal(looks(make(`${CWD}/src/a.js`, 'node scripts/draw-chart.cjs'), 'repeated-file-reads').length, 1);
+});
+
+test("two calls sent together that fail the same way aren't a repeated error; the same call sent again after the error is", () => {
+  const make = (secondAt) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Find the notes.');
+    // Each shell step's result comes back two seconds after it starts.
+    h.shell('s1', min(1), 'find src -name "*.md"', { result: 'error', error: 'Search timed out after 20 seconds.' });
+    h.shell('s1', secondAt, 'find docs -name "*.md"', { result: 'error', error: 'Search timed out after 20 seconds.' });
+    return run(h.build());
+  };
+  // Sent one second after the first, before its error came back: the agent hadn't seen it.
+  assert.equal(findingsOf(make(min(1, 1)), 'repeated-tool-error').length, 0);
+  // Failing partner: sent after the first error came back.
+  assert.equal(findingsOf(make(min(1, 5)), 'repeated-tool-error').length, 1);
+});
+
+test('a large result no later call carried is a routine note; one that later calls re-read is worth a look', () => {
+  const make = (laterCalls) => {
+    const h = history().session('s1');
+    h.prompt('s1', min(0), 'Read it.');
+    h.call('s1:main', 's1', 2, min(1), 30_000);
+    const r = h.read('s1', min(1, 1), `${CWD}/big.log`);
+    r.refs[0].line = 2;
+    h.call('s1:main', 's1', r.end.ref.line + 1, min(2), 55_000);
+    for (let i = 0; i < laterCalls; i += 1) h.call('s1:main', 's1', r.end.ref.line + 2 + i, min(3 + i), 55_100 + i);
+    return run(h.build({ usage: true }));
+  };
+  // The read was the agent's last step before its answer: nothing was carried.
+  const last = findingsOf(make(0), 'oversized-tool-output');
+  assert.deepEqual(last.map((f) => [f.severity, f.estimate]), [['note', 0]]);
+  // Failing partner: two later calls re-read it.
+  assert.deepEqual(findingsOf(make(2), 'oversized-tool-output').map((f) => f.severity), ['look']);
+});
+
+test("a session whose last record is your own interruption is a routine note; one the harness cut off is worth a look", () => {
+  const make = (actor) => {
+    const h = history().session('s1', { endState: 'last-record-is-an-interruption' });
+    h.prompt('s1', min(0), 'How might we use this?');
+    h.ev('interrupt', 's1', min(0, 6), { actor, facts: { by: actor, during: 'response' } });
+    return findingsOf(run(h.build()), 'premature-stop');
+  };
+  const mine = make('person');
+  assert.deepEqual(mine.map((f) => f.severity), ['note']);
+  assert.match(mine[0].note, /an interruption by you/);
+  // Failing partner: the log doesn't say the person did it.
+  const cut = make('harness');
+  assert.deepEqual(cut.map((f) => f.severity), ['look']);
+  assert.match(cut[0].note, /last work record is an interruption\./);
+});
+
+test('a failed run with no test counts says a test file failed to load', () => {
+  const h = history().session('s1');
+  h.prompt('s1', min(0), 'Fix the test.');
+  h.edit('s1', min(1), `${CWD}/test/a.test.js`, 'a', 'b');
+  h.shell('s1', min(2), 'npm test', { tests: { tests: 0, pass: 0, fail: 0, suitesFailed: 1 } });
+  h.say('s1', min(3), 'Done. All tests pass.');
+  const found = looks(run(h.build()), 'claim-contradicts-evidence');
+  assert.equal(found.length, 1);
+  assert.match(found[0].note, /a test run that failed \(a test file failed to load\)/);
+});
