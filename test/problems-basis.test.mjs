@@ -9,14 +9,14 @@ import { CHECKS } from '../lib/problems/checks.mjs';
 import { RULE_SOURCES, RULES } from '../lib/problems/classify.mjs';
 import { NUMBERS, THRESHOLDS } from '../lib/problems/context.mjs';
 import { loadCatalog } from '../lib/problems/index.mjs';
-import { LOOKUP_RULES, RULE_SOURCES as ENGINE_RULE_SOURCES, RULES as ENGINE_RULES, UPDATE_RULES } from '../lib/replay/classify.mjs';
+import { LOOKUP_RULES, READ_BACK_RULES, RULE_SOURCES as ENGINE_RULE_SOURCES, RULES as ENGINE_RULES, UPDATE_RULES } from '../lib/replay/classify.mjs';
 import { LAUNCH_RULE_SOURCES, LAUNCH_RULES } from '../lib/replay/launch.mjs';
 
 const catalogUrls = new Set(loadCatalog().patterns.flatMap((p) => p.sources.map((s) => s.url)));
 /** Marked: null (honestweek's own), the address of a source the catalog holds, or { url, covers }
  *  when that source sets only the part of the rule `covers` names. */
 const marked = (source) => source === null || (typeof source === 'string' && catalogUrls.has(source)) || (typeof source?.covers === 'string' && source.covers.length > 0 && catalogUrls.has(source.url));
-const engineRuleIds = [...ENGINE_RULES.keys(), ...LOOKUP_RULES.keys(), ...UPDATE_RULES.keys()];
+const engineRuleIds = [...ENGINE_RULES.keys(), ...LOOKUP_RULES.keys(), ...UPDATE_RULES.keys(), ...READ_BACK_RULES.keys()];
 
 test('every threshold is marked, and says its own value', () => {
   assert.deepEqual(Object.keys(THRESHOLDS).filter((k) => !(k in NUMBERS)), [], 'a threshold with no NUMBERS entry');

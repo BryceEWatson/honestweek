@@ -9,10 +9,10 @@ import { join } from 'node:path';
 
 import { buildDemoWeek } from '../lib/demo/week.mjs';
 import { buildWorkHistory } from '../lib/replay/index.mjs';
-import { CHECKS, runnableEdit } from '../lib/problems/checks.mjs';
+import { CHECKS, endedFailed, isDecisiveCheck, runnableEdit } from '../lib/problems/checks.mjs';
 import { createContext } from '../lib/problems/context.mjs';
-import { classifyAgentText } from '../lib/problems/classify.mjs';
-import { backingCheck, isClearCheck, lastEditBefore } from '../lib/problems/backing.mjs';
+import { classifyAgentText, testsPassAnywhere } from '../lib/problems/classify.mjs';
+import { backingCheck, lastEditBefore } from '../lib/problems/backing.mjs';
 import { buildCorpus } from './fixtures/replay/corpus.mjs';
 import { makeTempDir } from './helpers/temp-dir.mjs';
 
@@ -85,13 +85,12 @@ test('backingCheck agrees with the claim-against-evidence check on every turn it
     for (const s of c.sessions) {
       for (const turn of c.turnsOf(s.key)) {
         if (!c.inWin(turn.prompt.t)) continue;
-        const clear = turn.steps.filter(isClearCheck);
+        const clear = turn.steps.filter(isDecisiveCheck);
         if (!clear.length) continue;
         looked++;
         const b = backingCheck(c, { steps: turn.steps, events: turn.events, session: s.key });
         assert.equal(b.clear, clear.at(-1), `${name}: the last clear check`);
-        const failed = clear.at(-1).test ? clear.at(-1).test === 'failed' : clear.at(-1).result === 'error';
-        assert.equal(b.failed, failed, `${name}: its verdict`);
+        assert.equal(b.failed, endedFailed(turn.steps), `${name}: its verdict`);
         // The brief's call, from the last edit to the turn's last message, reads the same check.
         const fin = c.finalMessage(turn);
         const before = fin ? c.seqOf.get(fin.id) : null;
@@ -114,7 +113,7 @@ test('backingCheck agrees with the claim-against-evidence check on every turn it
         if (!b.failed) continue;
         const text = rawText(c.finalMessage(turn));
         const fl = text == null ? null : classifyAgentText(text);
-        assert.ok(text == null || (!fl.flat && !fl.testsPass), `${name}: an unflagged failed turn claimed no success`);
+        assert.ok(text == null || (!fl.flat && !testsPassAnywhere(text)), `${name}: an unflagged failed turn claimed no success`);
       }
     }
   }
@@ -143,6 +142,20 @@ test('a check in another folder is a named gap, never backing', () => {
   // Failing-path partner: in the right folder it backs the claim.
   const ok = backingCheck(ctx(), { steps: [e, t], events: [], session: 's1', after: e, folderOk: () => true });
   assert.deepEqual([ok.status, ok.result, ok.failed], ['checked', 'passed', false]);
+});
+
+test('the brief sets aside what the check sets aside', () => {
+  const real = testRun('failed');
+  const onPurpose = { ...testRun('failed'), deliberate: true };
+  const unreadable = { ...step('shell'), unreadRun: true };
+  const b = backingCheck(ctx(), { steps: [real, onPurpose], events: [], session: 's1' });
+  assert.equal(b.clear, real, 'a run failing on purpose is no clear check');
+  assert.equal(endedFailed([real, onPurpose]), b.failed);
+  const later = backingCheck(ctx(), { steps: [real, unreadable], events: [], session: 's1' });
+  assert.equal(later.failed, false, 'a later run that can not be read is mixed evidence');
+  assert.equal(endedFailed([real, unreadable]), later.failed);
+  // Failing-path partner: with nothing after it, the failure stands.
+  assert.equal(backingCheck(ctx(), { steps: [real], events: [], session: 's1' }).failed, true);
 });
 
 test('a check after the claim doesn\'t back it, and the latest clear check wins', () => {
