@@ -713,3 +713,19 @@ test('a run file named without its folder is not read back across a change of fo
   });
   assert.equal(runsOf(whole)[0].derived.tests?.fail, 1);
 });
+
+test('a write is still found when one of its own words is quoted, and a quoted example still is not', () => {
+  assert.equal(writtenClaims('git -C "my repo" commit -m "All tests pass"')[0]?.where, 'commit message');
+  assert.equal(writtenClaims('gh api "repos/you/your-project/issues/1/comments" -f body="All tests pass"')[0]?.where, 'pull request comment');
+  assert.deepEqual(writtenClaims('echo "then run gh pr create --body \'All tests pass\'"'), []);
+});
+
+test('a run file read back from the same named folder is read; from another folder it is not', async () => {
+  const same = await historyOf((log) => {
+    log.tool(1, 'c1', 'Bash', { command: 'cd /tmp/project-a && node --test > test.log 2>&1' });
+    log.result(2, 'c1', '', shellDone(''));
+    log.tool(3, 'c2', 'Bash', { command: 'cd /tmp/project-a && tail -20 test.log' });
+    log.result(4, 'c2', TAP(4, 1), shellDone(TAP(4, 1)));
+  });
+  assert.equal(runsOf(same)[0].derived.tests?.fail, 1);
+});

@@ -579,3 +579,16 @@ test('the edit readers stay quick on long runs of white space', async () => {
   assert.equal(silenceCounts('', 'try:\n    run()\nexcept Exception:\n    pass').handlers, 1);
   assert.deepEqual(agentConfigEdit('/work/your-project/.env', 'PORT=1\nexport CODEX_HOME=./.codex').keys, []);
 });
+
+test('the 2026-11 command readers: what the third review found', async () => {
+  const kinds = (c) => riskyKinds(c, false).map((k) => k.kind + (k.look ? '*' : '')).join(' ');
+  for (const cmd of ['gemini -p "fix the bug" -y', 'gemini -m model-a -y', 'gemini --model x -y']) assert.equal(kinds(cmd), 'agent-permissions-off*', cmd);
+  assert.equal(kinds('gemini mcp add github npx -y @modelcontextprotocol/server-github'), '');
+  assert.equal(kinds("sed --in-place=.bak 's/a/b/' ~/.npmrc"), '');
+  // A heredoc written with Windows line ends is still a heredoc: its body isn't run.
+  assert.equal(kinds("cat > NOTES.md <<'EOF'\r\nnever git push --force origin main\r\nEOF\r\n"), '');
+  const { silenceCounts } = await import('../lib/problems/classify.mjs');
+  assert.equal(silenceCounts('', 'try:\r\n    run()\r\nexcept Exception:\r\n    pass').handlers, 1);
+  assert.equal(silenceCounts('', 'try:\n    run()\nexcept Exception:\n\n    pass').handlers, 1);
+  assert.equal(silenceCounts('', 'try:\n    run()\nexcept Exception:\n    log(e)\n    pass').handlers, 0);
+});
