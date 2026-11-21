@@ -1307,6 +1307,11 @@ test('a failed run with no test counts says a test file failed to load', () => {
   h.prompt('s1', min(0), 'Fix the test.');
   h.edit('s1', min(1), `${CWD}/test/a.test.js`, 'a', 'b');
   h.shell('s1', min(2), 'npm test', { tests: { tests: 0, pass: 0, fail: 0, suitesFailed: 1 } });
+  h.say('s1', min(3), 'Done. All tests pass.');
+  const found = looks(run(h.build()), 'claim-contradicts-evidence');
+  assert.equal(found.length, 1);
+  assert.match(found[0].note, /a test run that failed \(a test file failed to load\)/);
+});
 
 test("a failed run's counts never read 0 failed when a test file is what failed", () => {
   assert.equal(runCounts({ pass: 11, fail: 1, suitesFailed: 1 }), '1 failed, 11 passed');
@@ -1323,9 +1328,4 @@ test("a failed run's counts never read 0 failed when a test file is what failed"
   assert.equal(found.length, 1);
   assert.ok(found[0].note.includes('failed (a test file failed to load)'), found[0].note);
   assert.ok(!found[0].note.includes('0 failed'), found[0].note);
-});
-  h.say('s1', min(3), 'Done. All tests pass.');
-  const found = looks(run(h.build()), 'claim-contradicts-evidence');
-  assert.equal(found.length, 1);
-  assert.match(found[0].note, /a test run that failed \(a test file failed to load\)/);
 });
