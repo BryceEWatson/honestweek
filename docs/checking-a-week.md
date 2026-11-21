@@ -26,6 +26,7 @@ node --max-old-space-size=12288 bin/honestweek.mjs problems --from 2026-11-09 --
 - **Why the memory setting.** A busy week can be several gigabytes of logs. Without the setting, honestweek loads as many of the latest days as fit and says so in the answer's `windowNote` ("Loaded 2026-11-13 to 2026-11-15: all of ... needs more memory"). Check that field first: when it's there, the answer covers only the days it names. On my machine the whole of the week above (7.2 GB of logs) loaded with the setting shown, which gives Node 12 GB, and took about a minute. I only tried that one value, so a smaller one may do.
 - **What a finding is.** Each one names its session, the moment to replay, the rule that found it and how it's known. Nearly all are inferred, which means a fixed rule read the log that way and can be wrong. Read the moment before calling it a mistake: `node bin/honestweek.mjs problems --finding <key>` gives one finding in full, and the `zoomPage` on each finding opens it on the local page.
 - **What's checked and what isn't.** `statusCounts` and `notFound` in the answer say how many of the known problems were found, checked and not found, and not checked at all. A problem with no check isn't "not found".
+- **How much of it holds up.** I judged one week's findings against the logs in [research/2026-11-21-week-check-findings.md](research/2026-11-21-week-check-findings.md): of 36 worth a look, 21 were real readings, 8 were false alarms or carried the wrong label, all now fixed, and 7 couldn't be settled from the log.
 
 ## Reading the file
 

@@ -194,6 +194,10 @@ test('a caption carries only numbers the finding or the log records', () => {
   assert.equal(s.caption, '2 edits outside the folder the session started in');
   // A claim with no test counts recorded says none.
   assert.equal(scope({ check: 'claim-contradicts-evidence', event: 'm1', related: 'a3', kind: 'claims success' }).caption, 'A check failed, then the last message claims success');
+  // A run that failed because a test file failed to load says so, not "0 failed, 0 passed".
+  const loadFail = historyIndex({ ...history, events: history.events.map((e) => (e.id === 'a3' ? { ...e, derived: { ...e.derived, tests: { tests: 0, pass: 0, fail: 0, suitesFailed: 1 } } } : e)) });
+  assert.equal(scopeOf({ verdictEvidence: 'inferred', check: 'claim-contradicts-evidence', event: 'm1', related: 'a3', kind: 'claims success' }, loadFail).caption, 'A check failed (a test file failed to load), then the last message claims success');
+  assert.equal(scopeOf({ verdictEvidence: 'inferred', check: 'commit-after-failed-test', event: 'm1', related: 'a3' }, loadFail).caption, 'A test run failed (a test file failed to load), then a commit or merge with no passing run between');
   // A long session with no model calls recorded gives no count.
   const bare = historyIndex({ ...history, usage: null });
   assert.equal(scopeOf({ check: 'long-sessions', event: 'a3', at: iso(32), lastAt: iso(425) }, bare).caption, 'Passed 150k tokens of context here');

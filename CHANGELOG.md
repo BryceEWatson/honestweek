@@ -26,6 +26,11 @@ What changed in each version of honestweek, newest first. Numbers in parentheses
 - A line that only prints an example of `gh pr create` or `git commit` is no longer read as writing a pull request or a commit message.
 - A test run's output file named without its folder is no longer read back from a line that changed folder, where it could be another folder's file.
 - Reading a test count out of a very long run of digits and commas took time that grew with the square of its length. It reads in one pass now.
+- A test result printed in colour is read. A test runner told to colour its output puts colour codes inside its summary line, and the line read as no result, so the checks for a false "tests pass" couldn't see that run. Counts of test runs with a result can go up on old logs.
+- vitest saying a test file failed to load, with no tests run, reads as a failed run. It read as no result. On one real week, this and the colour fix above took test runs with a readable result from 34 to 48 of 83.
+- A test run that failed because a test file failed, with no failed test in its counts, shows as a failed run on the local page and in a finding's words. The page drew it with a tick and its passed count, and a finding could say the run failed with "0 failed" beside it. This covers a jest suite that failed to load beside passing tests too.
+- Five false alarms found by reading a real week's findings against its logs, written up in [docs/research/2026-11-21-week-check-findings.md](docs/research/2026-11-21-week-check-findings.md). A hand-over note in the Claude desktop app's shared notes folder is a routine note, like an edit in a temporary folder. A background job's output file read while the job runs, and an image read again after a command that could have drawn it again, no longer count as re-reading an unchanged file. Two calls sent together that fail the same way aren't a repeated error. A large result that no later call carried is a routine note. A session whose last record is your own interruption is a routine note, and says the interruption was yours.
+- `problems --json` has one new rule in its rules table (`problems.unrecorded-change`), and the `problems.outside-folder` rule names the shared notes folder. The scope-creep and outside-folder checks name that folder in how they describe themselves.
 
 ## 0.5.0 (28 October 2026)
 
