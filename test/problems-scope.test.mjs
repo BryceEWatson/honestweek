@@ -91,6 +91,11 @@ test('a moment: the evidence steps, first to last, and the prompt before them', 
   assert.equal(s.prompt, 'p1', "the prompt that opened the turn, so you can see whether it was asked for");
   assert.deepEqual([s.from, s.to, s.anchor], [at(0), at(21), 'a2']);
   assert.equal(s.caption, 'A command that reads as a hard reset ran');
+  // The side-route kinds and settings written by a command say what they are, not 'a risky command'.
+  assert.equal(scope({ check: 'risky-command', event: 'a2', kind: 'dns-exfil' }).caption, 'A command that reads as a DNS lookup of a name built from a variable or one that reads as data ran');
+  assert.equal(scope({ check: 'risky-command', event: 'a2', kind: 'catch-all-fetch' }).caption, 'A web fetch to a service that collects what is sent to it');
+  assert.match(scope({ check: 'risky-command', event: 'a2', kind: 'image-link-data' }).caption, /^An agent message with an image link/);
+  assert.equal(scope({ check: 'guardrail-edits', event: 'a2', kind: 'agent settings written by a command' }).caption, "A shell command that writes an agent's own settings, hooks or MCP servers");
   assert.equal(s.level, 'inferred');
   assert.equal(s.stretch, null);
   // A claim after a failed check: the run and the claim, in time order, with the turn's prompt.

@@ -42,4 +42,4 @@ A finding marked `look` is worth opening; one marked `note` is routine and liste
 
 - The window flags are `--from` and `--to` (inclusive, read in the config's `week.timezone` unless `--timezone` names another). `--days <n>` counts back from today instead.
 - `--config <file>` reads another config; `--session <id>` narrows the answer to one session.
-- The rules added in November 2026 show up under the checks `risky-command` and `guardrail-edits`; each finding's `rule` names the one that matched (`problems.package-add`, `problems.credential-read` and so on). The survey behind them is [docs/research/2026-11-agent-failure-survey.md](research/2026-11-agent-failure-survey.md).
+- The rules added in November 2026 show up under the checks `risky-command` and `guardrail-edits`; each finding's `rule` names the one that matched (`problems.package-add`, `problems.credential-read`, `problems.exfil-route` and so on). The surveys behind them are [docs/research/2026-11-agent-failure-survey.md](research/2026-11-agent-failure-survey.md) and [docs/research/2026-11-22-security-gaps.md](research/2026-11-22-security-gaps.md).
