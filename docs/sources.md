@@ -4,11 +4,11 @@
 
 This page lists every published source behind honestweek's 42 known problems, each one once: vendor docs, bug reports, research papers and a few others. Each entry gives the source's title, linked to where it's published, its date, and the problems that cite it, so you can check the evidence for any problem in one place. I generate it from the problem catalog, so it changes only when the catalog does.
 
-219 sources. The catalog was checked on 2026-10-03 and 2026-10-05 and 2026-11-20.
+224 sources. The catalog was checked on 2026-10-03 and 2026-10-05 and 2026-11-20 and 2026-11-22.
 
 Each number and rule the checks use is honestweek's own choice, not taken from a published source, unless the entry for a source here says a check takes it from there.
 
-## Vendor docs (55)
+## Vendor docs (57)
 
 - [Addendum to GPT-5.2 System Card: GPT-5.2-Codex (section 4.2, avoid data-destructive actions)](https://cdn.openai.com/pdf/ac7c37ae-7f4c-4442-b741-2eabdeaf77e0/oai_5_2_Codex.pdf) (2025-12)
   Cited by: Committed, pushed or rewrote history without being asked; Ran a command that can't be undone.
@@ -43,6 +43,10 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
 - [Customize your status line](https://code.claude.com/docs/en/statusline) (undated page, fetched 2026-10-05)
   Cited by: Sessions ran long past where a fresh start would help.
   A check takes from it: the usage.call rule (for Claude Code).
+- [CVE-2026-14898](https://openai.com/security/advisories/cve-2026-14898/) (2026-10-30)
+  Cited by: Exposed a credential, or went looking for one.
+- [CVE-2026-19591](https://openai.com/security/advisories/cve-2026-19591/) (2026-10-30)
+  Cited by: Went around a hook, a check or a refusal.
 - [Don't Build Multi-Agents](https://cognition.com/blog/dont-build-multi-agents) (2025-06-12)
   Cited by: Guessed instead of asking; Lost or ignored what a helper found.
 - [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) (2025-09-29)
@@ -124,7 +128,7 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
 - [Writing effective tools for agents, with agents](https://www.anthropic.com/engineering/writing-tools-for-agents) (2025-09-11)
   Cited by: Filled the context with huge command output; Hit the same tool error again and again; Read the same file again when it hadn't changed.
 
-## Bug reports (117)
+## Bug reports (120)
 
 - ["Error: String to replace not found in file."](https://github.com/anthropics/claude-code/issues/968) (2025-05-05)
   Cited by: Hit the same tool error again and again.
@@ -190,6 +194,8 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
   Cited by: Exposed a credential, or went looking for one.
 - [Claude Code repeats an already-corrected mistake within the same session; explicit corrections don't bind subsequent behavior](https://github.com/anthropics/claude-code/issues/76261) (2026-07-10)
   Cited by: You had to correct the same thing more than once.
+- [Claude Code: Data Exfiltration with DNS (CVE-2025-55284)](https://embracethered.com/blog/posts/2025/claude-code-exfiltration-via-dns-requests) (2025-08-11)
+  Cited by: Exposed a credential, or went looking for one.
 - [Claude commits and amends git history unprompted while generating commit messages](https://github.com/anthropics/claude-code/issues/90097) (2026-08-27)
   Cited by: Committed, pushed or rewrote history without being asked.
 - [Claude displayed sensitive .env credentials (API keys, secrets) in output when it should have redacted them.](https://github.com/anthropics/claude-code/issues/18223) (2026-01-14)
@@ -298,6 +304,8 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
   Cited by: Hard-coded what the tests check for; Removed or skipped tests, or narrowed the test command.
 - [Microsoft agent-framework Compromised: Credential Stealer Targets Azure and CI Pipelines](https://www.wiz.io/blog/malicious-version-of-microsofts-agent-framework-published-to-pypi) (2026-11-17)
   Cited by: Exposed a credential, or went looking for one; Installed a package it shouldn't have.
+- [Mini Shai-Hulud targets AI coding agents: what developers need to know](https://www.sonarsource.com/blog/mini-shai-hulud-targets-ai-coding-agents/) (2026-05-26)
+  Cited by: Went around a hook, a check or a refusal.
 - [Model drifts full-width CJK punctuation to half-width in Edit's old\_string, causing silent "String to replace not found"](https://github.com/anthropics/claude-code/issues/52482) (2026-04-23)
   Cited by: Hit the same tool error again and again.
 - [Model is over-cautious to the point of unhelpful — asks permission for work already authorised](https://github.com/anthropics/claude-code/issues/84998) (2026-08-08)
@@ -328,6 +336,8 @@ Each number and rule the checks use is honestweek's own choice, not taken from a
   Cited by: Left placeholders in and called the work finished.
 - [rm -rf'd a directory of important code without first checking the contents of the directory](https://github.com/google-gemini/gemini-cli/issues/1504) (2025-06-25)
   Cited by: Guessed instead of asking; Ran a command that can't be undone.
+- [Securing CI/CD in an agentic world: Claude Code GitHub action case](https://www.microsoft.com/en-us/security/blog/2026/06/05/securing-ci-cd-in-agentic-world-claude-code-github-action-case/) (2026-06-05)
+  Cited by: Exposed a credential, or went looking for one.
 - [SECURITY: Claude circumvents denied Bash(rm) by using Python os.remove() as workaround](https://github.com/anthropics/claude-code/issues/39459) (2026-03-26)
   Cited by: Went around a hook, a check or a refusal.
 - [Self-authored tests do the work of the code under test — hand-seeded fixtures masked a broken paid feature (271-incident retro, 3/5)](https://github.com/anthropics/claude-code/issues/94170) (2026-09-14)

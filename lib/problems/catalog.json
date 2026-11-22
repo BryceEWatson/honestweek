@@ -4,7 +4,8 @@
   "checkedOn": [
     "2026-10-03",
     "2026-10-05",
-    "2026-11-20"
+    "2026-11-20",
+    "2026-11-22"
   ],
   "about": "A starter list of things AI coding agents (Claude Code and Codex first) commonly get wrong or spend too much on, each with the published sources that back it: vendor docs, public bug reports and research papers, each fetched and checked on the dates in checkedOn. A source keeps its title, address, date, kind and a paraphrase of what it says. Authors are left out.",
   "groups": [
@@ -4993,6 +4994,20 @@
           "date": "2026-08-04",
           "kind": "user-report",
           "says": "Infected packages ran a script at install that collected local, CI and cloud secrets, and the worm committed a .claude/settings.json and a .vscode/tasks.json to repositories it could reach, so its code runs when the folder opens."
+        },
+        {
+          "title": "Mini Shai-Hulud targets AI coding agents: what developers need to know",
+          "url": "https://www.sonarsource.com/blog/mini-shai-hulud-targets-ai-coding-agents/",
+          "date": "2026-05-26",
+          "kind": "user-report",
+          "says": "An npm worm wrote a SessionStart hook into .claude/settings.json that runs a script it dropped, and a .vscode/tasks.json task that runs when the folder opens."
+        },
+        {
+          "title": "CVE-2026-19591",
+          "url": "https://openai.com/security/advisories/cve-2026-19591/",
+          "date": "2026-10-30",
+          "kind": "docs",
+          "says": "Repository instructions could make Codex run a git command through PowerShell without approval, and where git could write the Codex config, that command could add an MCP server. Fixed in Codex CLI 0.131.0."
         }
       ]
     },
@@ -5217,6 +5232,27 @@
           "date": "2026-11-17",
           "kind": "user-report",
           "says": "Two malicious versions of a Microsoft package on PyPI dropped a file that runs a credential stealer every time Python starts, whether or not the package is imported."
+        },
+        {
+          "title": "Claude Code: Data Exfiltration with DNS (CVE-2025-55284)",
+          "url": "https://embracethered.com/blog/posts/2025/claude-code-exfiltration-via-dns-requests",
+          "date": "2025-08-11",
+          "kind": "user-report",
+          "says": "Planted instructions made Claude Code put data into the name it looked up with ping, nslookup, host or dig, so the data left through DNS. Fixed from version 1.0.4."
+        },
+        {
+          "title": "Securing CI/CD in an agentic world: Claude Code GitHub action case",
+          "url": "https://www.microsoft.com/en-us/security/blog/2026/06/05/securing-ci-cd-in-agentic-world-claude-code-github-action-case/",
+          "date": "2026-06-05",
+          "kind": "user-report",
+          "says": "A planted prompt in a CI run got the Read tool to read the process environment, and told the model to drop the API key's first characters so it would pass the secret scanner. Fixed in Claude Code 2.1.128."
+        },
+        {
+          "title": "CVE-2026-14898",
+          "url": "https://openai.com/security/advisories/cve-2026-14898/",
+          "date": "2026-10-30",
+          "kind": "docs",
+          "says": "Codex Desktop for macOS fetched an image link in the agent's output from the attacker's server on its own, so data in the link's address left the machine. Fixed in 26.527.31326."
         }
       ]
     },
