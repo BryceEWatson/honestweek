@@ -222,14 +222,17 @@ test('a repo label that is itself a private term still gets its link', async () 
   assert.doesNotMatch(html, /redacted:secret/);
 });
 
-test('a prefix that does not end in a slash is left as the redactor leaves it', async () => {
+test('a prefix without a slash whose link the redactor changes gives no link, not a dead one', async () => {
   const { repo, shas } = clientRepo();
   const { work, out } = clientWorkspace({ repo, items: goodItems(shas), config: {
     client: { name: 'Example Co', prLinks: { app: 'https://example.com/view?token=' } },
   } });
   const { code, io } = await build(work);
   assert.equal(code, 0, io.errBuf);
-  assert.doesNotMatch(readFileSync(out, 'utf8'), /token=12"/);
+  const html = readFileSync(out, 'utf8');
+  assert.doesNotMatch(html, /token=12"/);
+  assert.doesNotMatch(html, /href="[^"]*redacted/);
+  assert.match(html, /<span>PR #12<\/span>/);
 });
 
 test('curated strings are escaped and the page loads nothing from anywhere', async () => {
