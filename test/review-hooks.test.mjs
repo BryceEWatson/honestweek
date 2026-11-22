@@ -86,14 +86,15 @@ test('find, replay and problems answer byte-for-byte as before the hooks', () =>
   // rule names the shared notes folder and one rule is new (problems.unrecorded-change).
   // And again on 22 November 2026, for the security rules: the risky-command check's title on its
   // findings, the agent-config-edit rule's wider text and the new problems.exfil-route rule are the
-  // only lines that moved.
+  // only lines that moved. The review of that change reworded two of those rule texts (a DNS name built
+  // from an ordinary variable is a note; a Git LFS filter line isn't counted), so the pin moved once more.
   const PINNED = {
     'find #12': '22a5b1de8dc50c25', 'find #12 --json': '33ddc9999430b119',
     'find #14': 'fb73ec20a63afee7', 'find #14 --json': '050caed3f4faed8a',
     'find branch:main': 'd52084d24f74e406', 'find branch:main --json': 'bdb174b7c83e0795',
     'replay cc-dbmkomobcblb': 'd477628bb136b9d5', 'replay cc-dbmkomobcblb --json': '9a2f03a33d78b889',
-    'problems': 'c4435e49f3ba3dac', 'problems --json': '0af43c0b7490ee93',
-    'problems --session cc-dbmkomobcblb': '4710cc4f246c993b', 'problems --session cc-dbmkomobcblb --json': '5b5a5c3f27561670',
+    'problems': 'c4435e49f3ba3dac', 'problems --json': '896a35812bb7e4fe',
+    'problems --session cc-dbmkomobcblb': '4710cc4f246c993b', 'problems --session cc-dbmkomobcblb --json': 'd682ae61fbabfd3a',
   };
   const outside = makeTempDir('hw-hooks-pin-');
   const slashed = BIN.replace(/\\/g, '/');
