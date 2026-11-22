@@ -190,6 +190,21 @@ test('a full-length pull request link survives the redactor, in every place the 
   assert.doesNotMatch(html, /redacted:secret/);
 });
 
+test('a whole link listed as a private term gives no link for that pull request', async () => {
+  const { repo, shas } = clientRepo();
+  const prefix = 'https://github.com/your-org/your-project/pull/';
+  const { work, out } = clientWorkspace({ repo, items: goodItems(shas), config: {
+    redaction: { codenames: [], names: [], terms: [`${prefix}12`] },
+    client: { name: 'Example Co', prLinks: { app: prefix } },
+  } });
+  const { code, io } = await build(work);
+  assert.equal(code, 0, io.errBuf);
+  const html = readFileSync(out, 'utf8');
+  assert.ok(!html.includes(`${prefix}12"`));
+  assert.match(html, /<span>PR #12<\/span>/);
+  assert.ok(html.includes(`href="${prefix}15">PR #15<`));
+});
+
 test('a private term in the link prefix gives no link, and the number stays as text', async () => {
   const { repo, shas } = clientRepo();
   const { work, out } = clientWorkspace({ repo, items: goodItems(shas), config: {
