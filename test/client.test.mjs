@@ -173,6 +173,83 @@ test('client mode builds a report whose numbers all come from git', async () => 
   assert.match(html, /doesn&#39;t by itself mean it has been released/);
 });
 
+test('a full-length pull request link survives the redactor, in every place the page links one', async () => {
+  // A real link prefix plus a number reads to the opaque-token rule as one 32+ character
+  // token; example.com/app/pull/ above is too short to show that.
+  const { repo, shas } = clientRepo();
+  const prefix = 'https://github.com/your-org/your-project/pull/';
+  const { work, out } = clientWorkspace({ repo, items: goodItems(shas), config: { client: { name: 'Example Co', prLinks: { app: prefix } } } });
+  const { code, io } = await build(work);
+  assert.equal(code, 0, io.errBuf);
+  const html = readFileSync(out, 'utf8');
+  const hrefs = [...html.matchAll(/href="(https:[^"]*)"/g)].map((m) => m[1]);
+  assert.ok(hrefs.length >= 4, `expected item and appendix links, got ${hrefs.length}`);
+  for (const h of hrefs) assert.ok(h.startsWith(prefix) && /^\d+$/.test(h.slice(prefix.length)), h);
+  assert.ok(html.includes(`href="${prefix}12">PR #12<`));
+  assert.ok(html.includes(`href="${prefix}18">#18<`));
+  assert.doesNotMatch(html, /redacted:secret/);
+});
+
+test('a whole link listed as a private term gives no link for that pull request', async () => {
+  const { repo, shas } = clientRepo();
+  const prefix = 'https://github.com/your-org/your-project/pull/';
+  const { work, out } = clientWorkspace({ repo, items: goodItems(shas), config: {
+    redaction: { codenames: [], names: [], terms: [`${prefix}12`] },
+    client: { name: 'Example Co', prLinks: { app: prefix } },
+  } });
+  const { code, io } = await build(work);
+  assert.equal(code, 0, io.errBuf);
+  const html = readFileSync(out, 'utf8');
+  assert.ok(!html.includes(`${prefix}12"`));
+  assert.match(html, /<span>PR #12<\/span>/);
+  assert.ok(html.includes(`href="${prefix}15">PR #15<`));
+});
+
+test('a private term in the link prefix gives no link, and the number stays as text', async () => {
+  const { repo, shas } = clientRepo();
+  const { work, out } = clientWorkspace({ repo, items: goodItems(shas), config: {
+    redaction: { codenames: [], names: [], terms: ['your-project'] },
+    client: { name: 'Example Co', prLinks: { app: 'https://github.com/your-org/your-project/pull/' } },
+  } });
+  const { code, io } = await build(work);
+  assert.equal(code, 0, io.errBuf);
+  const html = readFileSync(out, 'utf8');
+  assert.doesNotMatch(html, /your-project/);
+  assert.doesNotMatch(html, /href="https:/);
+  assert.match(html, /<span>PR #12<\/span>/);
+});
+
+test('a repo label that is itself a private term still gets its link', async () => {
+  const { repo, shas } = clientRepo();
+  // Long enough that the whole link reads as an opaque token, as a real one does.
+  const prefix = 'https://github.com/your-organization/website/pull/';
+  const items = goodItems(shas);
+  for (const it of items.items) it.repo = 'your-project';
+  const { work, out } = clientWorkspace({ repo, items, config: {
+    repos: [{ path: repo, label: 'your-project', role: 'featured' }],
+    redaction: { codenames: [], names: [], terms: ['your-project'] },
+    client: { name: 'Example Co', prLinks: { 'your-project': prefix } },
+  } });
+  const { code, io } = await build(work);
+  assert.equal(code, 0, io.errBuf);
+  const html = readFileSync(out, 'utf8');
+  assert.ok(html.includes(`href="${prefix}12">PR #12<`));
+  assert.doesNotMatch(html, /redacted:secret/);
+});
+
+test('a prefix without a slash whose link the redactor changes gives no link, not a dead one', async () => {
+  const { repo, shas } = clientRepo();
+  const { work, out } = clientWorkspace({ repo, items: goodItems(shas), config: {
+    client: { name: 'Example Co', prLinks: { app: 'https://example.com/view?token=' } },
+  } });
+  const { code, io } = await build(work);
+  assert.equal(code, 0, io.errBuf);
+  const html = readFileSync(out, 'utf8');
+  assert.doesNotMatch(html, /token=12"/);
+  assert.doesNotMatch(html, /href="[^"]*redacted/);
+  assert.match(html, /<span>PR #12<\/span>/);
+});
+
 test('curated strings are escaped and the page loads nothing from anywhere', async () => {
   const { repo, shas } = clientRepo();
   const items = goodItems(shas);
