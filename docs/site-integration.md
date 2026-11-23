@@ -194,15 +194,22 @@ from the shared `week-grid.mjs`, so a chart day and a session day never disagree
   `sdk` when a program sent it: a script, the Agent SDK, a headless `claude -p` run, or
   another session) and sometimes an `origin` object. By default, a session whose
   first user record names anyone but the person counts only from the first later record
-  marked `human`, dated and deduped by that turn; with no such record in the head it
-  goes to `automatedExcluded`. An unmarked record after a program's turn is a tool
+  marked `human`, dated and deduped by that turn. That record is looked for through the
+  whole log, a chunk at a time, not only its head: a coordinator's long first turn and
+  the work after it can put the person's first turn megabytes in. The first turn and the
+  cwd still come from the head alone. A compacted session's summary is marked `human`
+  but never counts as that turn. With no such record anywhere it goes to
+  `automatedExcluded`. An unmarked record after a program's turn is a tool
   result or harness context, so it never stands in for a turn from the person. Logs without either field
   count byte for byte as before either way, and with the switch set to false every log
   does (`test/site-sessions-turn-origin.test.mjs`). A published count changes from 0.2.0
   wherever logs record `turnOrigin`. A target that re-counts sessions with its own copy of
   these rules, to check this count, should apply the same rule as the honestweek it loads:
   `READS_TURN_SENDER`, exported from `lib/site/sessions.mjs`, is `true` in a honestweek
-  that reads the sender, and absent in an older one.
+  that reads the sender, and absent in an older one. `READS_PAST_HEAD`, exported beside
+  it, is `true` in a honestweek that looks for that later turn through the whole log and
+  reads a first prompt past every leading `<system-reminder>`, not only the first, and
+  absent in an older one.
 - `deriveProjectStats`: per-project `{ entries, statusCounts, daysActive }` over the
   in-week items. `daysActive` is `max(commit-active days, session-active days,
   ENTRY-active days)`. The entry-active floor is the **cross-cwd reconciliation**: the
