@@ -140,3 +140,13 @@ test('a legacy log (no sender fields): a harness notice marked isMeta is not a t
     assert.deepEqual(entries[0].steers.map((s) => s.slice(0, 14)), ['fix the parser'], 'the notice is not a steer');
   });
 });
+
+test('a session that opens with a compaction summary or hook feedback, then the person\'s turn past the head, is kept', async () => {
+  await withRoot(async (root) => {
+    writeSession(root, 'resumed', [compactSummary(), ...filler(120), wrapped(`carry on with the parser ${SUFFIX}`), say('Done.')]);
+    writeSession(root, 'hooked', [hookFeedback(), ...filler(120), user(`carry on with the docs ${SUFFIX}`), say('Done.')], { start: '2024-06-12T10:00:00.000Z' });
+    const entries = await digestOf(root);
+    assert.equal(entries.length, 2);
+    assert.ok(entries.every((e) => e.steers.length === 1 && e.steers[0].startsWith('carry on')), 'only the person\'s turn is a steer');
+  });
+});
