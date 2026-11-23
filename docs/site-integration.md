@@ -202,7 +202,9 @@ from the shared `week-grid.mjs`, so a chart day and a session day never disagree
   `automatedExcluded`. An unmarked record after a program's turn is a tool
   result or harness context, so it never stands in for a turn from the person. Logs without either field
   count byte for byte as before either way, and with the switch set to false every log
-  does (`test/site-sessions-turn-origin.test.mjs`). A published count changes from 0.2.0
+  does (`test/site-sessions-turn-origin.test.mjs`), except that a first prompt is now read
+  past every leading `<system-reminder>`, not only the first (none of the legacy logs on the
+  machine it was measured on starts with two). A published count changes from 0.2.0
   wherever logs record `turnOrigin`. A target that re-counts sessions with its own copy of
   these rules, to check this count, should apply the same rule as the honestweek it loads:
   `READS_TURN_SENDER`, exported from `lib/site/sessions.mjs`, is `true` in a honestweek
