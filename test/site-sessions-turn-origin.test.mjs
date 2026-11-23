@@ -83,7 +83,7 @@ test('by default, legacy and marked logs together: each set counts as it does al
   });
 });
 
-test('firstUserMessage: the person\'s first marked turn, or byOther when the head has none', () => {
+test('firstUserMessage: the person\'s first marked turn, or byOther when the log has none', () => {
   withLogs(MARKED_LOGS, (root) => {
     const file = (name) => join(root, 'proj', `${name}.jsonl`);
     const first = (name, maxBytes) => firstUserMessage(file(name), maxBytes, { readSender: true });
@@ -101,7 +101,8 @@ test('firstUserMessage: the person\'s first marked turn, or byOther when the hea
     assert.equal(first('m02').byOther, undefined, 'an empty turnOrigin reads as no mark');
 
     const headOnly = Buffer.byteLength(readFileSync(file('m10'), 'utf8').split('\n')[0]) + 1;
-    assert.equal(first('m10', headOnly).byOther, true, 'a person\'s turn past the head is not seen');
+    assert.equal(first('m10', headOnly).timestamp, first('m10').timestamp, 'a person\'s turn past the head is found');
+    assert.equal(first('m10', headOnly).byOther, undefined);
 
     assert.equal(firstUserMessage(file('m03')).byOther, undefined, 'without readSender, a program\'s first turn reads as before');
   });
